@@ -22,11 +22,11 @@
       ],
       "reason": "Research request 01 requires evidence before adopting hypotheses.",
       "acceptance": [
-        "Give an evidence-backed verdict for H1\u2013H9, including the added outcome reuse and weighted accounting hypotheses.",
+        "Give an evidence-backed verdict for H1–H9, including the added outcome reuse and weighted accounting hypotheses.",
         "Address all seven success gaps and register every retained action."
       ],
       "evidence": [
-        "[Findings for H1\u2013H9 and all success gaps](../research/research-program-findings.md)",
+        "[Findings for H1–H9 and all success gaps](../research/research-program-findings.md)",
         "[Controlled experiment protocol](../research/experiment-protocol.md)",
         "[Verification evidence](../research/evidence/verification.json)"
       ],
@@ -3122,7 +3122,7 @@
       "priority": "P1",
       "status": "done",
       "owner": "Maintainer",
-      "authorization": "Owner again reported fresh [claude \u00b7 chat] output while the actual agent is claude-opus-5 and explicitly requires native agent names rather than provider labels.",
+      "authorization": "Owner again reported fresh [claude · chat] output while the actual agent is claude-opus-5 and explicitly requires native agent names rather than provider labels.",
       "depends_on": [
         "YMP-127"
       ],
@@ -3203,7 +3203,7 @@
       "title": "Present non-popup data collections as consistent keyboard-navigable tables",
       "type": "implementation",
       "priority": "P1",
-      "status": "new",
+      "status": "in_progress",
       "owner": "Maintainer",
       "authorization": "Owner explicitly requested k9s-style tabular presentation for all list data outside popups in the delegated Paseo conversation.",
       "depends_on": [
@@ -3213,11 +3213,14 @@
       "reason": "Collection pages need consistent rows, columns and selection without changing the chat-first product or runtime data contracts.",
       "acceptance": [
         "Render non-popup data collections in aligned tables with relevant columns and readable selection, taking interaction inspiration from k9s without copying its implementation.",
-        "Preserve chat conversation, popup flows, keyboard navigation, model-only scan labels, invocation model/effort labels, truthful unknown values and responsive terminal layouts.",
+        "Preserve chat conversation, popup flows, keyboard access, model-only scan labels, invocation model/effort labels, truthful unknown values and responsive terminal layouts. Keep the sidebar navigation removed and Detailed expansion supplied by YMP-134.",
         "Delegate UI implementation to Claude Code Opus 5 max; verify representative populated/empty/narrow tables with offline fixtures, PTY checks and required Rust checks.",
         "Resolve historical session, decision and board actor labels from their own captured model/assignment evidence when available; do not rename old rows from current provider kind or a later invocation. Preserve unknown values where the old record has no resolution."
       ],
-      "evidence": [],
+      "evidence": [
+        "ymp-docs/research/paseo-direct-message-audit-2026-09-13.md",
+        "ymp-docs/tasks/ymp-133-table-plan.md"
+      ],
       "history": [
         {
           "at": "2026-09-13T03:28:26.738794+00:00",
@@ -3228,11 +3231,54 @@
           "at": "2026-09-13T04:25:50.493609+00:00",
           "status": "new",
           "note": "Bounded plan saved in ymp-docs/tasks/ymp-133-table-plan.md. This is the next UI increment after installed 0.4.2. The delegated agent also has a separate popup-spacing draft commit 56c9d05; it is not part of the installed patch. Historical non-message label observations F3/F4 are included in this follow-up."
+        },
+        {
+          "at": "2026-09-13T05:03:51.658405+00:00",
+          "status": "new",
+          "note": "Direct-message audit found later owner requirements missing from the register: remove sidebar navigation, expand stored agent messages in Detailed, improve slash/popup formatting. Four authored commits are now tracked as YMP-134, a prerequisite to the table conversion. Corrected contradictory NAVIGATE and approval wording in the table plan. Tables remain an unfinished draft; no installed change."
+        },
+        {
+          "at": "2026-09-13T05:04:37.311529+00:00",
+          "status": "in_progress",
+          "note": "Owner explicitly requested implementing the tables and integrating all fixes. YMP-133 and YMP-134 will ship together; table implementation starts from the combined 0.4.2 plus authored UI corrections. Claude Code Opus 5 max owns implementation, with independent review and installed-binary verification before completion."
+        }
+      ]
+    },
+    {
+      "id": "YMP-134",
+      "title": "Finish sidebar, Detailed mode and floating-surface corrections requested directly in Paseo",
+      "type": "implementation",
+      "priority": "P1",
+      "status": "in_progress",
+      "owner": "Maintainer integrates and verifies; Claude Code Opus 5 max implements UI",
+      "authorization": "Direct owner messages to Paseo agent 1e1a7a7b require removing sidebar navigation, preventing collapsed agent messages in Detailed mode, and improving slash-panel/popup formatting using the earlier ymp as reference. The owner explicitly authorized continuing with these changes together or as additions.",
+      "depends_on": [
+        "YMP-131",
+        "YMP-132"
+      ],
+      "reason": "These accepted UI requirements were absent from the central register, and the table plan incorrectly retained NAVIGATE. Source commits exist on a separate branch but are not in installed 0.4.2.",
+      "acceptance": [
+        "Remove the sidebar navigation list while retaining session, token, team and task context. Keep every page accessible through commands and the command palette, with consistent keyboard focus and help.",
+        "Detailed mode renders stored agent conversation messages in full, including plans, reviews and long execution reports. Preserve normal-mode summaries, attribution and Inspect; document bounded streaming previews and the handling of runtime notices.",
+        "Give slash completions, command palette and popup surfaces consistent padding, aligned labels/values and readable truncation. Preserve header/body rules and usable Prompt, Confirm, theme and Inspect surfaces at narrow terminal sizes. Use the earlier ymp as a design reference.",
+        "Independently review the four authored commits and integrate with current main without losing 0.4.2 attribution-cache or exit fixes. Verify offline terminal behavior and required fmt, strict workspace Clippy and workspace tests before installation. UI corrections remain delegated to Claude Code Opus 5 max; no real provider inference in tests.",
+        "Update the interface guide and release evidence, verify the installed binary, and keep the unfinished YMP-133 table conversion separate from completion of these fixes."
+      ],
+      "evidence": [
+        "ymp-docs/research/paseo-direct-message-audit-2026-09-13.md",
+        "ymp-docs/research/evidence/ui-followups-134/author-report.md",
+        "ymp-docs/research/evidence/ui-followups-134/author-workspace-test.log"
+      ],
+      "history": [
+        {
+          "at": "2026-09-13T05:03:51.658405+00:00",
+          "status": "in_progress",
+          "note": "Discovered completed author work during the owner-requested message audit: 56c9d05 (spacing), 6fd4401 (sidebar navigation), 5c3dda8 (Detailed expansion), 5e14f6e (80x24 margin correction), clean branch feat/ymp133-tables. Existing author evidence reports 462 passing tests and two ignored. Independent acceptance, integration and installation remain; current installed release is 0.4.2. No new agent was started by this audit."
         }
       ]
     }
   ],
-  "updated_at": "2026-09-13T00:12:07.131236+00:00",
+  "updated_at": "2026-09-13T05:04:37.311529+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",

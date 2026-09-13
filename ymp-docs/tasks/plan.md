@@ -1,6 +1,6 @@
 # Delivery plan and progress
 
-Updated: 2026-09-13 00:12 UTC.
+Updated: 2026-09-13 05:04 UTC.
 
 [Approved intent](../../intent.md) · [Task details and evidence](README.md) · [Canonical register](tasks.json)
 
@@ -31,7 +31,8 @@ A planned task automatically shows `[=]` while prerequisites remain unfinished a
 ## Current work and owner questions
 
 - `[+]` [YMP-130](README.md#ymp-130) — Show active agent work during headless session runs (2026-09-13 00:54). Read-only diagnosis: poker checks passed at 2026-09-13T00:52:09Z; the following claude-opus-5 review invocation was active. Earlier attempts were cancelled. No active run was stopped or restarted by this investigation.
-- `[+]` [YMP-133](README.md#ymp-133) — Present non-popup data collections as consistent keyboard-navigable tables (2026-09-13 04:25). Bounded plan saved in ymp-docs/tasks/ymp-133-table-plan.md. This is the next UI increment after installed 0.4.2. The delegated agent also has a separate popup-spacing draft commit 56c9d05; it is not part of the installed patch. Historical non-message label observations F3/F4 are included in this follow-up.
+- `[~]` [YMP-133](README.md#ymp-133) — Present non-popup data collections as consistent keyboard-navigable tables (2026-09-13 05:04). Owner explicitly requested implementing the tables and integrating all fixes. YMP-133 and YMP-134 will ship together; table implementation starts from the combined 0.4.2 plus authored UI corrections. Claude Code Opus 5 max owns implementation, with independent review and installed-binary verification before completion.
+- `[~]` [YMP-134](README.md#ymp-134) — Finish sidebar, Detailed mode and floating-surface corrections requested directly in Paseo (2026-09-13 05:03). Discovered completed author work during the owner-requested message audit: 56c9d05 (spacing), 6fd4401 (sidebar navigation), 5c3dda8 (Detailed expansion), 5e14f6e (80x24 margin correction), clean branch feat/ymp133-tables. Existing author evidence reports 462 passing tests and two ignored. Independent acceptance, integration and installation remain; current installed release is 0.4.2. No new agent was started by this audit.
 
 ## Ready next
 
@@ -138,11 +139,11 @@ Deferred and post-MVP work:
 
 | Time (UTC) | Task | State | Update |
 | --- | --- | --- | --- |
+| 2026-09-13 05:04 | [YMP-133](README.md#ymp-133) | `[~]` | Owner explicitly requested implementing the tables and integrating all fixes. YMP-133 and YMP-134 will ship together; table implementation starts from the combined 0.4.2 plus authored UI corrections. Claude Code Opus 5 max owns implementation, with independent review and installed-binary verification before completion. |
+| 2026-09-13 05:03 | [YMP-134](README.md#ymp-134) | `[~]` | Discovered completed author work during the owner-requested message audit: 56c9d05 (spacing), 6fd4401 (sidebar navigation), 5c3dda8 (Detailed expansion), 5e14f6e (80x24 margin correction), clean branch feat/ymp133-tables. Existing author evidence reports 462 passing tests and two ignored. Independent acceptance, integration and installation remain; current installed release is 0.4.2. No new agent was started by this audit. |
 | 2026-09-13 04:25 | [YMP-131](README.md#ymp-131) | `[x]` | Installed ymp 0.4.2 after independent Opus UI acceptance and review corrections. First Ctrl+C only prompts; second exits gracefully. Printed resume commands always include the saved metadata home. Final integration passes 461 Rust tests, 18 bridge tests and idle/active release-binary PTY checks. |
 | 2026-09-13 04:25 | [YMP-132](README.md#ymp-132) | `[x]` | Installed ymp 0.4.2 with raw resolved model scan labels and invocation model/effort work labels; undefined effort displays none by explicit owner preference. Captions do not identify agents. Exact origins survive follow-up and cross-session display; late settings refresh unsettled cached links. Public Claude hooks capture applied main-turn effort and tool activity. Independent backend/UI reviews and final physical CLI/PTY checks pass. Non-message historical table-view observations remain explicitly tracked in YMP-133. |
-| 2026-09-13 04:25 | [YMP-133](README.md#ymp-133) | `[+]` | Bounded plan saved in ymp-docs/tasks/ymp-133-table-plan.md. This is the next UI increment after installed 0.4.2. The delegated agent also has a separate popup-spacing draft commit 56c9d05; it is not part of the installed patch. Historical non-message label observations F3/F4 are included in this follow-up. |
 | 2026-09-13 00:54 | [YMP-130](README.md#ymp-130) | `[+]` | Read-only diagnosis: poker checks passed at 2026-09-13T00:52:09Z; the following claude-opus-5 review invocation was active. Earlier attempts were cancelled. No active run was stopped or restarted by this investigation. |
-| 2026-09-13 00:34 | [YMP-129](README.md#ymp-129) | `[x]` | Corrected source 3225c63 independently accepted with no open findings. Required checks pass: fmt, strict Clippy, 425 tests (2 existing ignores). Built from the permanent checkout, verified version/help and mock demo, installed ymp 0.4.1 SHA-256 84831d6ada7374916f1343bce6385d0303090e7cbe3e4e99b4159fb6787cb278 with the previous binary backed up. Poker session and its files remain unchanged; explicit GLM none resume settings and command are documented. |
 
 ## Maintenance
 

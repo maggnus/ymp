@@ -1,19 +1,24 @@
 # YMP-133: k9s-style tables in the TUI (bounded plan)
 
 Status: planned next UI increment. This plan does not change application code and is separate from YMP-132.
-Base: the integrated `main` the parent provides (observed head `5899589`). Work goes on a new
-branch from that base, for example `feat/ymp133-tables`, in its own commits.
+Base: the integrated `main` after YMP-134. The existing draft branch starts at `5899589`
+and predates the final 0.4.2 attribution fixes; it must not replace the integrated sources.
 
-## Owner decisions already given
+## Owner requirements and implementation choices
 
-- Scope: every main-column page that lists records, plus the sidebar lists TOKENS, TEAM and
-  TASKS. The conversation, NAVIGATE and SESSION stay as they are.
-- Details: the detail pane under a page list is removed. Details open only in the Inspect popup.
-- Controls: column layout, sorting, and k9s-style filtering.
+- The owner requested k9s-style tables for all list data outside popups. This covers record
+  pages and the sidebar lists TOKENS, TEAM and TASKS; the conversation and SESSION remain.
+- The owner subsequently requested removal of sidebar navigation, expanded agent messages in
+  Detailed mode, and better slash-panel and popup formatting inspired by the earlier ymp.
+  YMP-134 tracks these changes separately. Do not restore NAVIGATE during the table conversion.
+- The Inspect-only detail layout, sorting, filtering and exact keys below are implementation
+  choices, not separately confirmed owner requirements. Keep them within the bounded UI change.
+- The [direct-message audit](../research/paseo-direct-message-audit-2026-09-13.md) records the
+  source conversation and distinguishes installed behavior from branch work.
 
 ## Out of scope
 
-- Transcript, NAVIGATE, SESSION block, popup contents, `label.rs` API, YMP-132 behaviour.
+- Transcript, SESSION block, popup contents, `label.rs` API, YMP-132 behaviour.
 - Backend core/storage/runtime, version, release notes, README, task register, real `~/.ymp2`.
 - Configurable columns, persisted sort or filter, regex filters, mouse input.
 
@@ -91,7 +96,7 @@ Keys (main column focus only; composer and overlays unchanged; `Ctrl+C` stays fi
 
 ## Verification
 
-- `CARGO_TARGET_DIR=/tmp/ymp132-test-target CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 CARGO_INCREMENTAL=0 CARGO_BUILD_JOBS=2`
+- Use a dedicated Cargo target for the implementation checkout, with `CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 CARGO_INCREMENTAL=0 CARGO_BUILD_JOBS=2`. Do not share compiled workspace artifacts across different checkouts.
 - `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`,
   `cargo test -p ymp-tui`, then `cargo test --workspace`; logs in `/tmp/ymp133-tables-*.log`.
 - Negative controls: break the sort cycle, the `!` inversion and the sticky header in turn and
@@ -114,10 +119,13 @@ Keys (main column focus only; composer and overlays unchanged; `Ctrl+C` stays fi
 branch `feat/tui-k9s-tables` in `/private/tmp/ymp132-agent-attribution`: `table.rs` with unit
 tests, `sidebar.rs`, the `ui.rs` page rendering, theme markers and a partial `views.rs`
 conversion. It does not compile yet (`state.rs` and the remaining `views.rs` sites are missing).
-`git apply --cached --check` against `main` succeeds with line offsets only. It is a source for
-the commits above, not a branch to merge.
+An earlier application check succeeded against the then-current `main`; it does not establish
+compatibility with the final integrated base. Use the patch as reference for the commits above,
+not as a branch to merge. Four separate owner-requested UI commits on `feat/ymp133-tables`
+are tracked in YMP-134 and do not implement these tables.
 
 ## Needed before implementation
 
-- The integrated base commit and the worktree to use.
-- Confirmation that Memory search may move from `/` to `s`.
+- Integrate and verify YMP-134, then select a checkout from that integrated base.
+- No owner answer is pending. Memory search may move to `s` as the routine key-binding choice
+  described above; preserve `/memory QUERY` and document the change.
