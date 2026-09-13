@@ -11295,6 +11295,7 @@ fn choice_list_failures(
     badge: &str,
     keys: &[KeyCode],
     chosen: fn(&App) -> String,
+    chips: bool,
 ) -> Vec<String> {
     let mut opened = None;
     let mut failures = Vec::new();
@@ -11325,7 +11326,76 @@ fn choice_list_failures(
                 "{wanted:?} left {badge} at {width}x{height} after {step} keys:\n{}",
                 rows.join("\n")
             ));
+            continue;
         }
+        failures.extend(
+            chosen_row_failures(&buffer, rect, &wanted, &app.theme, chips)
+                .into_iter()
+                .map(|failure| format!("{badge} at {width}x{height} after {step} keys: {failure}")),
+        );
+    }
+    failures
+}
+
+/// What keeps the chosen row of the surface at `rect` from reading as one highlighted row.
+///
+/// The row is the one whose content starts with `chosen`. Every cell between the padding cells
+/// must carry the selection background: the marker, the gaps between columns and the cells after
+/// the last one. Where `chips` is set, the blank colour chips a theme row ends with keep their own
+/// colours. The padding cells on either side keep the surface's background.
+fn chosen_row_failures(
+    buffer: &ratatui::buffer::Buffer,
+    rect: ratatui::layout::Rect,
+    chosen: &str,
+    theme: &theme::Theme,
+    chips: bool,
+) -> Vec<String> {
+    let (left, right) = (rect.x + 2, rect.right().saturating_sub(2));
+    // A wide glyph covers the cell after it, and that cell is drawn in the glyph's colours.
+    let cells = |y: u16| {
+        let mut cells = Vec::new();
+        let mut x = left;
+        while x < right {
+            cells.push(x);
+            x += text::width(buffer[(x, y)].symbol()).max(1) as u16;
+        }
+        cells
+    };
+    let row = |y: u16| {
+        cells(y)
+            .into_iter()
+            .map(|x| buffer[(x, y)].symbol())
+            .collect::<String>()
+    };
+    let Some(y) =
+        (rect.y + 1..rect.bottom().saturating_sub(1)).find(|&y| row(y).starts_with(chosen))
+    else {
+        return vec![format!("no row starts with {chosen:?}")];
+    };
+    let mut failures = Vec::new();
+    for x in [rect.x + 1, right] {
+        if buffer[(x, y)].bg != theme.surface {
+            failures.push(format!(
+                "the padding at column {x} of {chosen:?} is {:?} rather than the surface",
+                buffer[(x, y)].bg
+            ));
+        }
+    }
+    let bare: Vec<u16> = cells(y)
+        .into_iter()
+        .filter(|&x| buffer[(x, y)].bg != theme.accent)
+        .filter(|&x| !(chips && x + 12 >= right && buffer[(x, y)].symbol() == " "))
+        .collect();
+    if !bare.is_empty() {
+        let marks: String = (left..right)
+            .map(|x| if bare.contains(&x) { '^' } else { ' ' })
+            .collect();
+        let shown: String = (left..right).map(|x| buffer[(x, y)].symbol()).collect();
+        failures.push(format!(
+            "{} of the {} cells of {chosen:?} keep another background:\n{shown}\n{marks}",
+            bare.len(),
+            right - left
+        ));
     }
     failures
 }
@@ -11370,6 +11440,7 @@ fn a_choice_list_longer_than_its_surface_keeps_its_size_from_the_first_entry_to_
                 ),
                 _ => panic!("the palette closed"),
             },
+            false,
         ));
 
         let mut app = fixture.app();
@@ -11388,6 +11459,7 @@ fn a_choice_list_longer_than_its_surface_keeps_its_size_from_the_first_entry_to_
                 ),
                 _ => panic!("the theme chooser closed"),
             },
+            true,
         ));
 
         let mut app = fixture.app();
@@ -11435,8 +11507,13 @@ fn a_choice_list_longer_than_its_surface_keeps_its_size_from_the_first_entry_to_
                 ),
                 _ => panic!("the branch chooser closed"),
             },
+            false,
         ));
     }
+    assert_no_failures(&failures);
+}
+
+fn assert_no_failures(failures: &[String]) {
     let heads: Vec<&str> = failures
         .iter()
         .filter_map(|failure| failure.lines().next())
@@ -11447,4 +11524,371 @@ fn a_choice_list_longer_than_its_surface_keeps_its_size_from_the_first_entry_to_
         heads.join("\n"),
         failures.first().map_or("", String::as_str)
     );
+}
+
+/// Open the Git page at `width` and answer the chooser `key` asks for, `w` or `b`, with `choices`.
+fn open_git_chooser(
+    app: &mut App,
+    width: u16,
+    root: &std::path::Path,
+    key: char,
+    choices: Choices,
+) {
+    app.command("/git", width);
+    let first = git_request(app, Instant::now());
+    answer_reading(
+        app,
+        first,
+        Ok(git_snapshot(root, Comparison::Committed, false, Vec::new())),
+    );
+    app.on_key(self::key(KeyCode::Char(key)), width);
+    let Request::Choices {
+        generation,
+        purpose,
+        ..
+    } = git_request(app, Instant::now())
+    else {
+        panic!("{key} did not ask for Git choices");
+    };
+    app.git_reply(Reply::Choices {
+        generation,
+        purpose,
+        result: Ok(choices),
+    });
+    assert!(
+        matches!(app.overlay, Some(Overlay::GitChoice { .. })),
+        "{key} opened no chooser"
+    );
+}
+
+fn git_chosen(app: &App) -> String {
+    match &app.overlay {
+        Some(Overlay::GitChoice {
+            options, selected, ..
+        }) => format!(
+            "{} {}",
+            app.theme.markers.selection, options[*selected].label
+        ),
+        _ => panic!("the Git chooser closed"),
+    }
+}
+
+fn light_theme() -> &'static str {
+    theme::catalog()
+        .iter()
+        .find(|palette| palette.kind == theme::ThemeKind::Light)
+        .expect("the catalogue offers a light theme")
+        .id
+}
+
+#[test]
+fn a_chosen_popup_row_is_highlighted_from_its_marker_through_its_gaps_to_its_last_cell() {
+    let fixture = fixture();
+    let root = fixture.project.path().to_path_buf();
+    let every_key = [
+        KeyCode::Down,
+        KeyCode::Down,
+        KeyCode::Up,
+        KeyCode::End,
+        KeyCode::Home,
+        KeyCode::Char('j'),
+        KeyCode::Char('k'),
+    ];
+    let mut failures = Vec::new();
+    for (palette, markers) in [
+        (theme::DEFAULT_THEME, theme::UNICODE),
+        (light_theme(), theme::ASCII),
+        ("slate", theme::UNICODE),
+    ] {
+        for size in [GIT_SCREEN, (60, 16)] {
+            // The owner's screenshot: one branch, checked out here, and a wide gap between its name
+            // and that detail.
+            let mut app = fixture.app();
+            app.theme = theme::resolved(palette, markers);
+            open_git_chooser(
+                &mut app,
+                size.0,
+                &root,
+                'b',
+                Choices {
+                    worktrees: Vec::new(),
+                    branches: vec![Branch {
+                        name: "main".into(),
+                        current: true,
+                        worktree: Some(root.clone()),
+                    }],
+                },
+            );
+            failures.extend(choice_list_failures(
+                &mut app,
+                size,
+                "checks out",
+                &every_key,
+                git_chosen,
+                false,
+            ));
+
+            // Enabled, current and unavailable branches, a detail in a wide script, and a branch with
+            // no detail at all, whose whole right side is a gap.
+            let mut app = fixture.app();
+            app.theme = theme::resolved(palette, markers);
+            open_git_chooser(
+                &mut app,
+                size.0,
+                &root,
+                'b',
+                Choices {
+                    worktrees: Vec::new(),
+                    branches: vec![
+                        Branch {
+                            name: "feature".into(),
+                            current: true,
+                            worktree: Some(root.clone()),
+                        },
+                        Branch {
+                            name: "тема-✓".into(),
+                            current: false,
+                            worktree: None,
+                        },
+                        Branch {
+                            name: "busy".into(),
+                            current: false,
+                            worktree: Some(PathBuf::from("/elsewhere/表格")),
+                        },
+                    ],
+                },
+            );
+            failures.extend(choice_list_failures(
+                &mut app,
+                size,
+                "checks out",
+                &every_key,
+                git_chosen,
+                false,
+            ));
+
+            let mut app = fixture.app();
+            app.theme = theme::resolved(palette, markers);
+            open_git_chooser(
+                &mut app,
+                size.0,
+                &root,
+                'w',
+                Choices {
+                    worktrees: vec![
+                        Worktree {
+                            path: PathBuf::from("/wt/main"),
+                            branch: Some("main".into()),
+                            head: Some("0123456789abcdef".into()),
+                        },
+                        Worktree {
+                            path: PathBuf::from("/wt/проверка"),
+                            branch: None,
+                            head: Some("fedcba9876543210".into()),
+                        },
+                        Worktree {
+                            path: PathBuf::from("/wt/empty"),
+                            branch: None,
+                            head: None,
+                        },
+                    ],
+                    branches: Vec::new(),
+                },
+            );
+            failures.extend(choice_list_failures(
+                &mut app,
+                size,
+                "read only",
+                &every_key,
+                git_chosen,
+                false,
+            ));
+
+            let mut app = fixture.app();
+            app.theme = theme::resolved(palette, markers);
+            app.on_key(control('p'), size.0);
+            failures.extend(choice_list_failures(
+                &mut app,
+                size,
+                &format!(
+                    "{} of {}",
+                    crate::commands::search("").len(),
+                    crate::commands::COMMANDS.len()
+                ),
+                &[KeyCode::Down, KeyCode::Down, KeyCode::Up],
+                |app| match &app.overlay {
+                    Some(Overlay::Palette { selected, .. }) => format!(
+                        "{} {}",
+                        app.theme.markers.selection,
+                        crate::commands::search("")[*selected].name
+                    ),
+                    _ => panic!("the palette closed"),
+                },
+                false,
+            ));
+
+            // The inline completion list under the composer.
+            let mut app = fixture.app();
+            app.theme = theme::resolved(palette, markers);
+            app.on_key(key(KeyCode::Char('/')), size.0);
+            failures.extend(choice_list_failures(
+                &mut app,
+                size,
+                "Commands",
+                &[KeyCode::Down, KeyCode::Down, KeyCode::Up],
+                |app| {
+                    format!(
+                        "{} {}",
+                        app.theme.markers.selection,
+                        app.completions()[app.completion].name
+                    )
+                },
+                false,
+            ));
+        }
+    }
+    assert_no_failures(&failures);
+}
+
+#[test]
+fn choosers_keep_their_size_in_small_terminals_with_unicode_and_boundary_lengths() {
+    let fixture = fixture();
+    let root = fixture.project.path().to_path_buf();
+    let branches = |count: usize| -> Vec<Branch> {
+        (0..count)
+            .map(|index| Branch {
+                name: if index % 2 == 0 {
+                    format!("тема-{index:02}")
+                } else {
+                    format!("topic-{index:02}")
+                },
+                current: index == 0,
+                worktree: match index {
+                    0 => Some(root.clone()),
+                    3 => Some(PathBuf::from("/elsewhere/表格")),
+                    _ => None,
+                },
+            })
+            .collect()
+    };
+    let mut failures = Vec::new();
+    for (palette, markers) in [
+        (theme::DEFAULT_THEME, theme::UNICODE),
+        (light_theme(), theme::ASCII),
+    ] {
+        for size in [(48u16, 12u16), (40, 10)] {
+            let rows = crate::frame::modal_body_rows(size.1, true);
+            // A list that fits exactly, one entry longer than that, and a long one.
+            for count in [rows, rows + 1, 40] {
+                let mut app = fixture.app();
+                app.theme = theme::resolved(palette, markers);
+                open_git_chooser(
+                    &mut app,
+                    size.0,
+                    &root,
+                    'b',
+                    Choices {
+                        worktrees: Vec::new(),
+                        branches: branches(count),
+                    },
+                );
+                app.on_key(key(KeyCode::Home), size.0);
+                failures.extend(choice_list_failures(
+                    &mut app,
+                    size,
+                    "checks out",
+                    &first_middle_last(count, true),
+                    git_chosen,
+                    false,
+                ));
+            }
+            let worktrees: Vec<Worktree> = (0..30)
+                .map(|index| Worktree {
+                    path: PathBuf::from(format!("/wt/дерево-{index:02}")),
+                    branch: (index % 3 != 0).then(|| format!("topic-{index:02}")),
+                    head: Some("0123456789abcdef".into()),
+                })
+                .collect();
+            let mut app = fixture.app();
+            app.theme = theme::resolved(palette, markers);
+            open_git_chooser(
+                &mut app,
+                size.0,
+                &root,
+                'w',
+                Choices {
+                    worktrees,
+                    branches: Vec::new(),
+                },
+            );
+            failures.extend(choice_list_failures(
+                &mut app,
+                size,
+                "read only",
+                &first_middle_last(30, true),
+                git_chosen,
+                false,
+            ));
+        }
+    }
+    assert_no_failures(&failures);
+}
+
+#[test]
+fn a_read_only_surface_keeps_its_size_in_small_terminals_and_other_themes() {
+    let fixture = fixture();
+    let count = 50;
+    for (palette, markers) in [
+        (light_theme(), theme::ASCII),
+        (theme::DEFAULT_THEME, theme::UNICODE),
+    ] {
+        for (width, height) in [(40u16, 6u16), (48, 8), (60, 12)] {
+            let mut app = fixture.app();
+            app.theme = theme::resolved(palette, markers);
+            app.overlay = Some(Overlay::Inspect {
+                title: "Record".into(),
+                body: (1..=count)
+                    .map(|n| {
+                        ratatui::text::Line::from(if n % 2 == 0 {
+                            format!("entry {n:02} строка ✓")
+                        } else {
+                            format!("entry {n:02} ascii")
+                        })
+                    })
+                    .collect(),
+                scroll: 0,
+            });
+            let context = format!("{palette} at {width}x{height}");
+            let opened = surface_rect(&drawn(&mut app, width, height), "read only");
+            let rows = crate::frame::modal_body_rows(height, true);
+            let mut keys = vec![KeyCode::Down; count + 5];
+            keys.extend([
+                KeyCode::Up,
+                KeyCode::PageUp,
+                KeyCode::PageDown,
+                KeyCode::Home,
+                KeyCode::End,
+            ]);
+            for code in keys {
+                app.on_key(key(code), width);
+                let buffer = drawn(&mut app, width, height);
+                assert_eq!(
+                    surface_rect(&buffer, "read only"),
+                    opened,
+                    "{context}, {code:?}"
+                );
+                assert_eq!(
+                    surface_body(&buffer, opened).len(),
+                    rows,
+                    "{context}, {code:?}"
+                );
+            }
+            let body = surface_body(&drawn(&mut app, width, height), opened);
+            assert_eq!(
+                numbered(body.last().unwrap(), "entry "),
+                Some(count),
+                "{context}: {body:?}"
+            );
+        }
+    }
 }

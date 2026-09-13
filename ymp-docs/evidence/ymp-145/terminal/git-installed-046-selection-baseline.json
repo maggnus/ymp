@@ -1,0 +1,44 @@
+{
+  "binary": "/Users/maggnus/Code/ymp2/target/release/ymp",
+  "baseline": false,
+  "ascii": false,
+  "application_path": "/private<output>/git-installed-046-selection-baseline/no-tools",
+  "fixture_uses_git_cli": false,
+  "native_inference": false,
+  "cases": [
+    {
+      "case": "uncommitted-without-git-or-shell-on-path",
+      "passed": true
+    },
+    {
+      "case": "actual-working-diff-with-shared-colours-or-markers",
+      "passed": true
+    },
+    {
+      "case": "committed-compares-real-base-and-head",
+      "passed": true
+    },
+    {
+      "case": "live-refresh-retains-selected-file",
+      "passed": true
+    },
+    {
+      "case": "expected-selection-gap",
+      "passed": true
+    }
+  ],
+  "branch_chooser_selection": {
+    "row": "\u203a feature                                               checked out here",
+    "cells": 72,
+    "selection_backgrounds": [
+      "(2, 0, 0, 0)",
+      "(2, 216, 163, 76)"
+    ],
+    "padding_backgrounds": [
+      "(2, 0, 0, 0)"
+    ],
+    "uncovered": 47,
+    "padding_distinct": true
+  },
+  "passed": true
+}

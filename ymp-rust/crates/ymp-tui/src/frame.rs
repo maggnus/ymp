@@ -207,6 +207,27 @@ pub fn paint(frame: &mut Frame, area: Rect, lines: Vec<Line<'static>>) {
     frame.render_widget(Paragraph::new(visible), area);
 }
 
+/// Draw a list into `area` as [`paint`] does, with the row `chosen` highlighted across the whole
+/// width of `area`: its marker, the gaps between its columns and the cells after its last one. A
+/// span that sets its own background, such as a colour chip, keeps it.
+pub fn paint_list(
+    frame: &mut Frame,
+    area: Rect,
+    lines: Vec<Line<'static>>,
+    chosen: Option<usize>,
+    theme: &Theme,
+) {
+    if let Some(row) = chosen.filter(|row| *row < area.height as usize) {
+        let row = Rect {
+            y: area.y + row as u16,
+            height: 1,
+            ..area
+        };
+        frame.buffer_mut().set_style(row, theme.selected());
+    }
+    paint(frame, area, lines);
+}
+
 /// A single row with a left and a right half.
 pub fn row(frame: &mut Frame, area: Rect, left: Vec<Span<'static>>, right: Vec<Span<'static>>) {
     if area.height == 0 || area.width == 0 {
@@ -257,6 +278,8 @@ pub struct ModalSpec {
     pub body: Vec<Line<'static>>,
     pub footer: Vec<(&'static str, &'static str)>,
     pub scroll: usize,
+    /// The body line of a list's chosen entry, which is highlighted across the whole row.
+    pub selected: Option<usize>,
 }
 
 /// Push everything already drawn into the background so a floating surface reads alone.
@@ -400,6 +423,7 @@ pub fn render_modal(
     }
     let inner = padded(block.inner(rect));
     frame.render_widget(block, rect);
+    let chosen = spec.selected.and_then(|line| line.checked_sub(scroll));
     if footer_height > 0 && inner.height > footer_height {
         let split = Layout::default()
             .direction(Direction::Vertical)
@@ -409,10 +433,10 @@ pub fn render_modal(
                 Constraint::Length(1),
             ])
             .split(inner);
-        paint(frame, split[0], visible);
+        paint_list(frame, split[0], visible, chosen, theme);
         row(frame, split[2], key_hints(&spec.footer, theme), Vec::new());
         return split[0];
     }
-    paint(frame, inner, visible);
+    paint_list(frame, inner, visible, chosen, theme);
     inner
 }

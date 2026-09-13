@@ -1,0 +1,41 @@
+   Compiling ymp-tui v0.4.6 (<worktree>/ymp-rust/crates/ymp-tui)
+    Finished `test` profile [unoptimized] target(s) in 3.35s
+     Running unittests src/lib.rs (target/debug/deps/ymp_tui-f55d63242f5485a4)
+
+running 33 tests
+test diff::tests::every_line_of_a_git_patch_has_its_role ... ok
+test diff::tests::every_role_reads_in_every_theme ... ok
+test highlight::tests::every_role_reads_on_panels_and_code_in_every_theme ... ok
+test tests::an_unknown_theme_is_reported_and_changes_nothing ... ok
+test tests::a_paste_while_a_filter_is_typed_stays_in_the_filter_and_the_palette_ends_typing ... ok
+test tests::a_chosen_theme_is_applied_and_restored_at_the_next_start ... ok
+test tests::a_saved_theme_that_is_no_longer_offered_starts_with_the_default ... ok
+test tests::every_theme_is_distinct_and_at_least_one_is_light ... ok
+test tests::a_raw_git_patch_is_styled_but_a_list_of_plus_and_minus_lines_is_not ... ok
+test tests::a_late_git_reply_is_dropped_and_leaving_the_page_starts_nothing_beside_it ... ok
+test tests::choosing_a_worktree_changes_only_what_the_git_page_inspects ... ok
+test tests::git_page_states_a_missing_repository_a_failed_reading_and_a_kept_list ... ok
+test tests::git_page_follows_the_backend_until_a_manual_choice_and_again_once_the_tree_crosses ... ok
+test tests::the_command_palette_filters_and_closes_without_side_effects ... ok
+test tests::git_selection_follows_the_exact_file_and_enter_shows_its_actual_patch ... ok
+test tests::the_palette_runs_optional_argument_commands_and_drafts_required_ones ... ok
+test tests::the_last_theme_of_the_long_chooser_is_previewed_saved_cancelled_and_reloaded_in_a_short_window ... ok
+test tests::the_theme_chooser_previews_and_esc_restores_the_stored_choice ... ok
+test tests::typing_a_command_offers_completions_and_tab_accepts_one ... ok
+test theme::tests::ember_and_slate_lead_the_catalog_unchanged_and_ember_is_the_default ... ok
+test theme::tests::every_palette_keeps_its_text_labels_and_selected_row_readable ... ok
+test theme::tests::the_catalog_offers_the_requested_library_palettes_in_order ... ok
+test theme::tests::the_ink_of_a_selected_row_is_the_side_that_contrasts_more ... ok
+test tests::the_palette_keeps_its_selection_in_view_on_a_short_terminal ... ok
+test highlight::tests::a_kept_result_is_reused_for_the_same_text_theme_and_styles_only ... ok
+test tests::a_source_preview_takes_the_theme_colours_and_names_its_language ... ok
+test tests::the_theme_chooser_keeps_its_selection_in_view_on_a_short_terminal ... ok
+test tests::a_read_only_surface_keeps_its_size_in_small_terminals_and_other_themes ... ok
+test tests::mixed_prose_and_code_take_syntax_colours_inline_in_dark_and_light_themes ... ok
+test tests::choosers_keep_their_size_in_small_terminals_with_unicode_and_boundary_lengths ... ok
+test tests::a_chosen_popup_row_is_highlighted_from_its_marker_through_its_gaps_to_its_last_cell ... ok
+test tests::every_theme_renders_a_complete_screen ... ok
+test tests::a_choice_list_longer_than_its_surface_keeps_its_size_from_the_first_entry_to_the_last ... ok
+
+test result: ok. 33 passed; 0 failed; 0 ignored; 0 measured; 238 filtered out; finished in 0.65s
+

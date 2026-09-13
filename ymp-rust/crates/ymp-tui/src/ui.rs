@@ -893,7 +893,7 @@ fn completion_popup(frame: &mut Frame, main: Rect, composer: Rect, app: &App) ->
         );
     let inner = frame::padded(block.inner(area));
     frame.render_widget(block, area);
-    frame::paint(frame, inner, body);
+    frame::paint_list(frame, inner, body, Some(selected - first), theme);
     false
 }
 
@@ -918,8 +918,8 @@ fn command_name_width() -> usize {
 }
 
 /// One command in a list `width` cells wide: the selection marker, the name in a column
-/// `name_width` cells wide, then as much of the summary as fits. The chosen row is
-/// highlighted across its whole width.
+/// `name_width` cells wide, then as much of the summary as fits. [`frame::paint_list`] highlights
+/// the chosen row across its whole width.
 fn command_line(
     command: &crate::commands::Command,
     name_width: usize,
@@ -935,11 +935,9 @@ fn command_line(
     let marker = if chosen { theme.markers.selection } else { " " };
     let lead = text::truncate(&format!("{marker} {:<name_width$}  ", command.name), width);
     let summary = text::truncate(command.summary, width.saturating_sub(text::width(&lead)));
-    let fill = width.saturating_sub(text::width(&lead) + text::width(&summary));
     Line::from(vec![
         Span::styled(lead, style),
         Span::styled(summary, if chosen { style } else { theme.faint() }),
-        Span::styled(" ".repeat(fill), style),
     ])
 }
 
@@ -990,10 +988,12 @@ fn overlay(frame: &mut Frame, area: Rect, regions: &[Rect], app: &App) -> Option
                 .max()
                 .unwrap_or(0);
             let mut summary_shown = 0;
+            let mut chosen_line = None;
             let mut body = Vec::new();
             for (index, palette) in themes.iter().enumerate().skip(first).take(visible) {
                 let chosen = index == *selected;
                 let style = if chosen {
+                    chosen_line = Some(body.len());
                     theme.selected()
                 } else {
                     theme.body()
@@ -1011,7 +1011,7 @@ fn overlay(frame: &mut Frame, area: Rect, regions: &[Rect], app: &App) -> Option
                         ),
                         Span::styled(
                             format!("  {:<kind_width$}", palette.kind.label()),
-                            theme.muted(),
+                            if chosen { style } else { theme.muted() },
                         ),
                     ],
                     swatches(palette, inner.saturating_sub(name_width + kind_width + 5)),
@@ -1052,6 +1052,7 @@ fn overlay(frame: &mut Frame, area: Rect, regions: &[Rect], app: &App) -> Option
                     body,
                     footer: vec![("Up/Down", "preview"), ("Enter", "keep"), ("Esc", "cancel")],
                     scroll: 0,
+                    selected: chosen_line,
                 },
                 theme,
             );
@@ -1093,7 +1094,11 @@ fn overlay(frame: &mut Frame, area: Rect, regions: &[Rect], app: &App) -> Option
             }
             let first = selected.saturating_sub(visible.saturating_sub(1));
             let name_width = command_name_width();
+            let mut chosen_line = None;
             for (index, command) in matches.iter().enumerate().skip(first).take(visible) {
+                if index == selected {
+                    chosen_line = Some(body.len());
+                }
                 body.push(command_line(
                     command,
                     name_width,
@@ -1118,6 +1123,7 @@ fn overlay(frame: &mut Frame, area: Rect, regions: &[Rect], app: &App) -> Option
                     body,
                     footer: vec![("Enter", "run"), ("Up/Down", "select"), ("Esc", "close")],
                     scroll: 0,
+                    selected: chosen_line,
                 },
                 theme,
             );
@@ -1143,6 +1149,7 @@ fn overlay(frame: &mut Frame, area: Rect, regions: &[Rect], app: &App) -> Option
                     body: body.clone(),
                     footer: vec![("Up/Down", "scroll"), ("Esc", "close")],
                     scroll: *scroll,
+                    selected: None,
                 },
                 theme,
             );
@@ -1169,6 +1176,7 @@ fn overlay(frame: &mut Frame, area: Rect, regions: &[Rect], app: &App) -> Option
                         ("Esc", "back to the list"),
                     ],
                     scroll: *scroll,
+                    selected: None,
                 },
                 theme,
             );
@@ -1229,6 +1237,7 @@ fn overlay(frame: &mut Frame, area: Rect, regions: &[Rect], app: &App) -> Option
                         vec![("Enter", "save"), ("Esc", "cancel")]
                     },
                     scroll: 0,
+                    selected: None,
                 },
                 theme,
             );
@@ -1255,6 +1264,7 @@ fn overlay(frame: &mut Frame, area: Rect, regions: &[Rect], app: &App) -> Option
             }
             let first = selected.saturating_sub(visible.saturating_sub(1));
             let mut body = Vec::new();
+            let mut chosen_line = None;
             if options.is_empty() {
                 let none = match purpose {
                     Purpose::Worktree => "Git lists no worktree here.",
@@ -1269,6 +1279,7 @@ fn overlay(frame: &mut Frame, area: Rect, regions: &[Rect], app: &App) -> Option
             for (index, option) in options.iter().enumerate().skip(first).take(visible) {
                 let chosen = index == *selected;
                 let style = if chosen {
+                    chosen_line = Some(body.len());
                     theme.selected()
                 } else if option.enabled || option.current {
                     theme.body()
@@ -1311,6 +1322,7 @@ fn overlay(frame: &mut Frame, area: Rect, regions: &[Rect], app: &App) -> Option
                     body,
                     footer: vec![("Up/Down", "select"), ("Enter", action), ("Esc", "cancel")],
                     scroll: 0,
+                    selected: chosen_line,
                 },
                 theme,
             );
@@ -1338,6 +1350,7 @@ fn overlay(frame: &mut Frame, area: Rect, regions: &[Rect], app: &App) -> Option
                     body,
                     footer: vec![("y", "yes"), ("n", "no"), ("Esc", "cancel")],
                     scroll: 0,
+                    selected: None,
                 },
                 theme,
             );
