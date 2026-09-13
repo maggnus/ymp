@@ -211,6 +211,82 @@ pub(super) fn propose(
 }
 
 impl Store {
+    /// This is preparation for independent review, never acceptance or replay.
+    pub fn prepare_ended_execution_review(
+        &self,
+        session: &str,
+        expected: &TaskAttemptRef,
+    ) -> Result<Option<Task>> {
+        let mut db = self.db()?;
+        let tx = db.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
+        let mut task: Task = record(&tx, "tasks", &expected.task_id)?;
+        ensure!(
+            task.session_id == session,
+            "Execution review belongs to another session"
+        );
+        if task.state != TaskState::Running || TaskAttemptRef::from(&task) != *expected {
+            return Ok(None);
+        }
+        if super::team_control::state(&tx, session)?
+            .is_some_and(|s| s.control != OwnerRunControl::Continue)
+        {
+            return Ok(None);
+        }
+        let assignments = records::<AssignmentRecord>(&tx, "assignments", session)?;
+        let decisions = records::<DecisionRecord>(&tx, "decisions", session)?;
+        let Some(failure) = decisions
+            .iter()
+            .rev()
+            .filter_map(|d| d.links.failure.as_ref())
+            .find(|f| {
+                f.class == FailureClass::TransientTransport
+                    && f.termination == TerminationEvidence::BackendEnded
+                    && f.effective_access.is_read_only()
+                    && task.assignee.as_ref() == Some(&f.agent_id)
+                    && assignments.iter().any(|a| {
+                        a.id == f.assignment_id
+                            && a.purpose == "execute"
+                            && a.task.as_ref() == Some(expected)
+                            && a.state == InvocationState::Failed
+                            && a.ended_at.is_some()
+                    })
+            })
+        else {
+            return Ok(None);
+        };
+        if super::team_control::responsibilities(&tx, session)?
+            .iter()
+            .any(|r| {
+                r.agent_id == failure.agent_id
+                    && matches!(r.kind.as_str(), "invocation" | "workspace_access")
+            })
+        {
+            return Ok(None);
+        }
+        let invocation: InvocationRecord = record(&tx, "invocations", &failure.invocation_id)?;
+        ensure!(
+            invocation.assignment_id == failure.assignment_id
+                && invocation.state == InvocationState::Failed
+                && invocation.ended_at.is_some(),
+            "Execution inspection requires recorded backend termination"
+        );
+        task.state = TaskState::Review;
+        task.interrupted = true;
+        task.result = Some("Execution was interrupted. Inspect actual files and check results; do not assume completion or repeat external actions.".into());
+        super::write_task(&tx, &task)?;
+        decision(&tx, &DecisionRecord {
+            id: new_id(), session_id: session.into(), kind: "execution_interruption_review_ready".into(),
+            actor: None, reason: "Known-ended read-only transport failure retains its attempt and origin for independent inspection before rework".into(),
+            outcome: None, links: RecordLinks {
+                task: Some(expected.clone()), failure: Some(failure.clone()),
+                assignment_id: Some(failure.assignment_id.clone()), invocation_id: Some(failure.invocation_id.clone()),
+                ..Default::default()
+            }, created_at: now(),
+        })?;
+        tx.commit()?;
+        Ok(Some(task))
+    }
+
     pub fn board(&self, session: &str) -> Result<BoardSnapshot> {
         let mut db = self.db()?;
         let tx = db.transaction()?;

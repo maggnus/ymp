@@ -74,9 +74,41 @@ replay does not change the stage. Explicit continuation admits exactly one saved
 plan review, preserving the proposal and all prior failures/counters.
 The initial two-control success is retained in `r2-after-initial.log`.
 
+## R4: retain occupancy across failed waves and inspect before rework
+
+Selection excludes participants with durable invocation, task or workspace-access
+responsibility, in addition to the current wave's selections. Ordinary allocation
+can therefore admit a free eligible participant on another provider for unrelated
+ready work. No claim_busy or access check is relaxed.
+
+After independent ready work drains, an atomic storage transition makes an exact
+known-ended, read-only transport-failed attempt ready for the existing independent
+interruption review. It requires matching failed assignment/invocation, terminal
+records, failure access evidence and no remaining invocation/access ownership.
+The original attempt/failure remains linked. Inspection and any rejection/rework
+consume existing review, attempt, budget and acceptance boundaries in the same run.
+Unknown write-capable effects do not take this transition.
+
+`r4-before.log` reproduces claim_busy with no T3 call on the unchanged R4 source
+at `83793dd` (exit **101**). `r4-focused.json` records the source hashes and
+`cargo test -p ymp-runtime --test session_recovery execution_rework::`, exit **0**
+(two tests): free T3 executes before failed-task inspection, all five results are
+accepted without a restart, T0 is neither replayed nor reaccepted, and confirmation
+remains unconfirmed with no reputation observations. The write-capable control
+retains both responsibilities and explicitly proves claim_busy still rejects a
+competing claim with unchanged tasks.
+
+The reviewer artifacts were copied byte-for-byte and their hashes verified in
+`independent-probe/copy-manifest.json`. Candidate probe changes only redirect
+absolute dependency and output/temp paths; assertions are unchanged. The rerun
+before R3/R4 repeats its original two failures and two passes (exit **101**),
+including the saved revision/arbitration controls. The original R4 probe expects
+failed tasks to remain Running until restart; same-run safe inspection intentionally
+supersedes that intermediate expectation. Its original evidence is retained.
+
 ## Limits and remaining work
 
-R3 and R4 were added by the completed parallel review. Their common model and
+R3 remains in progress. R3 and R4 were added by the completed parallel review. Their common model and
 bounded evidence issue are in [responsibility-model.md](responsibility-model.md).
 The final fmt, strict Clippy and workspace-test sequence is reserved for the
 final corrected source. Only scripted providers and temporary app homes are used.

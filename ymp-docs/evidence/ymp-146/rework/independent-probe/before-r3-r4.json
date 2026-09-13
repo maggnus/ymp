@@ -1,0 +1,17 @@
+{
+  "command": [
+    "cargo",
+    "test",
+    "--locked",
+    "--offline",
+    "--manifest-path",
+    "ymp-docs/evidence/ymp-146/rework/independent-probe/candidate/Cargo.toml",
+    "--test",
+    "review",
+    "probe_",
+    "--",
+    "--nocapture"
+  ],
+  "head": "83793dd70407b11d8ca21630a7f0a96783d7f6ca",
+  "exit_code": 101
+}

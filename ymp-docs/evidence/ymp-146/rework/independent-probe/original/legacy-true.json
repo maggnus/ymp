@@ -1,0 +1,84 @@
+{
+  "invocation_count": 2,
+  "new_calls": [],
+  "proposal": {
+    "plan": {
+      "summary": "Saved proposal",
+      "tasks": [
+        {
+          "access": "read_only",
+          "checks": [],
+          "competence": "analysis",
+          "dependencies": [],
+          "description": "Return findings",
+          "difficulty": "simple",
+          "title": "Read"
+        }
+      ]
+    },
+    "producer_assignment_id": "3f4dd52f-914a-4e72-a9f4-6a0529a9ca66",
+    "producer_invocation_id": "68e14133-e7e4-4156-9be3-cb51c6a81a0a",
+    "proposal_id": "fb47e914-5f12-432b-bde4-7ad641572911",
+    "revision": 1
+  },
+  "stages": [
+    {
+      "active_invocation_id": null,
+      "admission_denial": null,
+      "condition": "Unbound legacy plan review: inspect prior invocation effects and evidence before issuing a new review; no completion or acceptance was inferred",
+      "failures": [
+        {
+          "agent_id": "reserve",
+          "assignment_id": "d926d5d3-830a-44cb-93fa-6fab3491a709",
+          "class": "unknown",
+          "effective_access": {
+            "mode": "write_all"
+          },
+          "invocation_id": "1ab10375-2160-4e88-943c-ba3f02a8144f",
+          "native_code": null,
+          "provider_id": "offline",
+          "termination": "backend_ended"
+        }
+      ],
+      "id": "plan-review-fb47e914-5f12-432b-bde4-7ad641572911-1",
+      "manual_permit": false,
+      "plan": {
+        "plan": {
+          "summary": "Saved proposal",
+          "tasks": [
+            {
+              "access": "read_only",
+              "checks": [],
+              "competence": "analysis",
+              "dependencies": [],
+              "description": "Return findings",
+              "difficulty": "simple",
+              "title": "Read"
+            }
+          ]
+        },
+        "producer_assignment_id": "3f4dd52f-914a-4e72-a9f4-6a0529a9ca66",
+        "producer_invocation_id": "68e14133-e7e4-4156-9be3-cb51c6a81a0a",
+        "proposal_id": "fb47e914-5f12-432b-bde4-7ad641572911",
+        "revision": 1
+      },
+      "purpose": "review_plan",
+      "recovery_attempts": 0,
+      "request_digest": null,
+      "response": null,
+      "result": null,
+      "review_ids": [],
+      "revision": 1,
+      "schema_version": 1,
+      "selected_agent": null,
+      "session_id": "5b535021-310b-4bec-9b9a-8f165bbb7b01",
+      "status": "owner_action",
+      "task": null,
+      "updated_at": "2026-09-13T16:43:16.933053+00:00"
+    }
+  ],
+  "status": "blocked",
+  "summary": "Run blocked: Unbound legacy plan review: inspect prior invocation effects and evidence before issuing a new review; no completion or acceptance was inferred",
+  "task_count": 0,
+  "writes": true
+}

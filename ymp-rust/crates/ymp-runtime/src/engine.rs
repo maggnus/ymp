@@ -1885,6 +1885,9 @@ impl Engine {
                 self.record_workspace_wait(ctx, waiting, code, detail)?;
             }
             if ready.is_empty() {
+                if self.prepare_ended_execution_reviews(ctx)? {
+                    continue;
+                }
                 bail!("No runnable tasks remain");
             }
             // Select a bounded wave. Access admission below coordinates actual
@@ -1950,6 +1953,12 @@ impl Engine {
                     && self.owner_boundary(&ctx.session.id).is_ok()
                 {
                     self.store.event(&ctx.session.id,"recovery_deferred",&json!({"reason":error.to_string(),"action":"retain unresolved obligation and consider unrelated ready work through normal admission"}))?;
+                    continue;
+                }
+                if !self.cancel.is_cancelled()
+                    && self.owner_boundary(&ctx.session.id).is_ok()
+                    && self.prepare_ended_execution_reviews(ctx)?
+                {
                     continue;
                 }
                 return Err(error);
@@ -2456,12 +2465,17 @@ impl Engine {
             task_id: task.id.clone(),
             version: board_task.version,
         };
-        if board_task
-            .commitment
-            .as_ref()
-            .is_some_and(|commitment| busy.contains(&commitment.agent_id))
-        {
-            self.record_workspace_wait(ctx, &task, "commitment_busy", "The responsible agent is already selected in this wave; retain the commitment for the next work boundary")?;
+        let occupied = self
+            .store
+            .active_responsibilities(&ctx.session.id)?
+            .into_iter()
+            .filter(|r| r.kind != "board_commitment")
+            .map(|r| r.agent_id)
+            .collect::<HashSet<_>>();
+        if board_task.commitment.as_ref().is_some_and(|commitment| {
+            busy.contains(&commitment.agent_id) || occupied.contains(&commitment.agent_id)
+        }) {
+            self.record_workspace_wait(ctx, &task, "commitment_busy", "The responsible agent has an outstanding invocation, task or access responsibility; retain the commitment for the next work boundary")?;
             return Ok(None);
         }
         let reserved = self
@@ -2475,7 +2489,11 @@ impl Engine {
         };
         let candidates = eligible
             .iter()
-            .filter(|a| !busy.contains(&a.id) && Some(&a.id) != reserved.as_ref())
+            .filter(|a| {
+                !busy.contains(&a.id)
+                    && !occupied.contains(&a.id)
+                    && Some(&a.id) != reserved.as_ref()
+            })
             .cloned()
             .collect::<Vec<_>>();
         if candidates.is_empty() {
@@ -2495,6 +2513,25 @@ impl Engine {
         busy.insert(agent.id.clone());
         let _ = self.events.send(UiEvent::Task(task.clone()));
         Ok(Some(task))
+    }
+
+    /// Unrelated ready work goes first. Known-ended, read-only transport failures
+    /// then use the existing independent interruption review without a run restart.
+    fn prepare_ended_execution_reviews(&self, ctx: &RunContext) -> Result<bool> {
+        self.owner_boundary(&ctx.session.id)?;
+        let mut changed = false;
+        for task in self.store.tasks(&ctx.session.id)? {
+            if task.state == TaskState::Running {
+                if let Some(task) = self
+                    .store
+                    .prepare_ended_execution_review(&ctx.session.id, &TaskAttemptRef::from(&task))?
+                {
+                    changed = true;
+                    let _ = self.events.send(UiEvent::Task(task));
+                }
+            }
+        }
+        Ok(changed)
     }
 
     fn choose_executor(
