@@ -785,17 +785,37 @@ fn sessions(ctx: &Ctx) -> anyhow::Result<Page> {
                 &session.turns_used.to_string(),
                 ctx.width,
             ));
+            // A session's team is named by what its own turns recorded. The profiles it captured
+            // carry configured names and aliases, and the providers as configured now say nothing
+            // about it, so only the loaded session, whose records were read, gives models here.
             detail.extend(field(
                 theme,
                 "team",
                 &session
                     .team
                     .iter()
-                    .map(|profile| label::profile(profile, ctx.config))
+                    .map(|profile| profile.id.as_str())
                     .collect::<Vec<_>>()
                     .join(", "),
                 ctx.width,
             ));
+            if current && ctx.records.trace.is_some() {
+                for profile in &session.team {
+                    detail.extend(field(
+                        theme,
+                        &profile.id,
+                        &models_used(ctx, &profile.id),
+                        ctx.width,
+                    ));
+                }
+            } else if !session.team.is_empty() {
+                detail.extend(field(
+                    theme,
+                    "models",
+                    "read from this session's own records, which are read when it is loaded",
+                    ctx.width,
+                ));
+            }
             detail.push(Line::default());
             detail.extend(paragraph(theme, &session.title, ctx.width));
             detail.push(Line::default());
@@ -4317,7 +4337,7 @@ fn settings_words(settings: &ymp_core::ModelEffort) -> String {
 
 /// What one proposal asks for, in a few words for a row and a sentence for a record.
 fn board_change_words(ctx: &Ctx, proposal: &BoardProposal) -> (String, String) {
-    let author = presented_name(ctx, &proposal.agent_id);
+    let author = record_words(&proposer_name(ctx, proposal), &proposal.agent_id);
     match &proposal.change {
         BoardChange::AcceptResponsibility { task, settings } => {
             let title = board_task_title(ctx, &task.task_id);
@@ -4335,9 +4355,14 @@ fn board_change_words(ctx: &Ctx, proposal: &BoardProposal) -> (String, String) {
             settings,
         } => {
             let title = board_task_title(ctx, &task.task_id);
-            let holder = presented_name(ctx, agent_id);
+            let holder = proposed_actor_words(ctx, proposal, agent_id);
+            let holder_name = if *agent_id == proposal.agent_id {
+                proposer_name(ctx, proposal)
+            } else {
+                record_name(ctx, agent_id, None, None)
+            };
             (
-                format!("give {title} to {holder}"),
+                format!("give {title} to {holder_name}"),
                 format!(
                     "{author} asks that {holder} be responsible for {title}, running {}",
                     settings_words(settings)
@@ -4391,7 +4416,7 @@ fn board_change_words(ctx: &Ctx, proposal: &BoardProposal) -> (String, String) {
         BoardChange::Membership { members } => {
             let names = members
                 .iter()
-                .map(|id| presented_name(ctx, id))
+                .map(|id| proposed_actor_words(ctx, proposal, id))
                 .collect::<Vec<_>>();
             (
                 "change who is in the team".to_owned(),
@@ -4436,10 +4461,11 @@ fn proposal_row(ctx: &Ctx, proposal: &BoardProposal) -> Item {
     let (short, sentence) = board_change_words(ctx, proposal);
     let (outcome, style) = proposal_outcome(ctx, proposal);
     let mut detail = field(theme, "proposal", &proposal.id, ctx.width);
+    let author = proposer_name(ctx, proposal);
     detail.extend(field(
         theme,
         "asked by",
-        &presented_name(ctx, &proposal.agent_id),
+        &record_words(&author, &proposal.agent_id),
         ctx.width,
     ));
     detail.extend(field(theme, "outcome", &outcome, ctx.width));
@@ -4502,7 +4528,7 @@ fn proposal_row(ctx: &Ctx, proposal: &BoardProposal) -> Item {
     )
     .with_right(vec![
         Span::styled(format!("{outcome}  "), style),
-        Span::styled(presented_name(ctx, &proposal.agent_id), theme.faint()),
+        Span::styled(author, theme.faint()),
     ])
     .with_detail(detail)
 }
@@ -4558,7 +4584,10 @@ fn board_decision_lines(ctx: &Ctx, proposal: &BoardProposal) -> Vec<Line<'static
         lines.extend(field(
             theme,
             "responsibility",
-            &commitment_words(ctx, commitment),
+            &commitment_words(
+                &proposed_actor_words(ctx, proposal, &commitment.agent_id),
+                commitment,
+            ),
             ctx.width,
         ));
     }
@@ -4575,11 +4604,11 @@ fn board_decision_lines(ctx: &Ctx, proposal: &BoardProposal) -> Vec<Line<'static
     lines
 }
 
-/// Who holds a task and what their turns were committed to run with.
-fn commitment_words(ctx: &Ctx, commitment: &BoardCommitment) -> String {
+/// Who holds a task and what their turns were committed to run with. The caller names the holder:
+/// the plan as it stands is a roster, and a recorded decision is history.
+fn commitment_words(holder: &str, commitment: &BoardCommitment) -> String {
     format!(
-        "{} · {} · against task version {}",
-        presented_name(ctx, &commitment.agent_id),
+        "{holder} · {} · against task version {}",
         settings_words(&commitment.settings),
         text::short_id(&commitment.task_version)
     )
@@ -4612,7 +4641,9 @@ fn board_task_lines(ctx: &Ctx, task_id: &str) -> Vec<Line<'static>> {
         theme,
         "responsibility",
         &match &entry.commitment {
-            Some(commitment) => commitment_words(ctx, commitment),
+            Some(commitment) => {
+                commitment_words(&presented_name(ctx, &commitment.agent_id), commitment)
+            }
             None => {
                 "nobody holds this task; the runtime picks an executor at the next work boundary"
                     .to_owned()
@@ -4633,7 +4664,7 @@ fn board_task_lines(ctx: &Ctx, task_id: &str) -> Vec<Line<'static>> {
                 &format!(
                     "proposal {} from {}",
                     text::short_id(&proposal.id),
-                    presented_name(ctx, &proposal.agent_id)
+                    record_words(&proposer_name(ctx, proposal), &proposal.agent_id)
                 ),
                 ctx.width,
             ));
@@ -5044,10 +5075,11 @@ fn decision_row(ctx: &Ctx, decision: &DecisionRecord) -> Item {
         }
         None => decision_marker(&acceptance, theme),
     };
+    // The actor is named by the turn this record links for it, never by its other turns.
     let actor = decision
         .actor
         .as_deref()
-        .map(|id| presented_name(ctx, id))
+        .map(|id| decision_actor(ctx, decision, id))
         .unwrap_or_else(|| "the runtime".into());
     let mut detail = field(theme, "decision", &decision.id, ctx.width);
     detail.extend(field(
@@ -5056,7 +5088,15 @@ fn decision_row(ctx: &Ctx, decision: &DecisionRecord) -> Item {
         &decision_kind(&decision.kind),
         ctx.width,
     ));
-    detail.extend(field(theme, "actor", &actor, ctx.width));
+    detail.extend(field(
+        theme,
+        "actor",
+        &match decision.actor.as_deref() {
+            Some(id) => record_words(&actor, id),
+            None => actor.clone(),
+        },
+        ctx.width,
+    ));
     detail.extend(field(theme, "recorded", &decision.created_at, ctx.width));
     let (outcome_word, outcome) = recorded_outcome(decision, &acceptance);
     detail.extend(field(theme, "outcome", &outcome, ctx.width));
@@ -5157,7 +5197,10 @@ fn decision_row(ctx: &Ctx, decision: &DecisionRecord) -> Item {
         detail.extend(field(
             theme,
             "asked by",
-            &presented_name(ctx, &board.proposal.agent_id),
+            &record_words(
+                &proposer_name(ctx, &board.proposal),
+                &board.proposal.agent_id,
+            ),
             ctx.width,
         ));
         detail.extend(field(
@@ -5174,7 +5217,10 @@ fn decision_row(ctx: &Ctx, decision: &DecisionRecord) -> Item {
             detail.extend(field(
                 theme,
                 "responsibility",
-                &commitment_words(ctx, commitment),
+                &commitment_words(
+                    &proposed_actor_words(ctx, &board.proposal, &commitment.agent_id),
+                    commitment,
+                ),
                 ctx.width,
             ));
         }
@@ -5225,7 +5271,7 @@ fn decision_row(ctx: &Ctx, decision: &DecisionRecord) -> Item {
         detail.extend(membership_detail(ctx, allocation));
     }
     if let Some(resource) = decision.links.resource_allocation.as_deref() {
-        detail.extend(bound_detail(ctx, resource));
+        detail.extend(bound_detail(ctx, decision, resource));
     }
     if let Some(captured) = decision.links.acceptance_contract.as_ref() {
         detail.extend(contract_detail(ctx, captured));
@@ -5304,15 +5350,29 @@ fn decision_row(ctx: &Ctx, decision: &DecisionRecord) -> Item {
     .with_detail(detail)
 }
 
+/// The name of a decision's actor, from the assignment and invocation the decision links.
+fn decision_actor(ctx: &Ctx, decision: &DecisionRecord, agent: &str) -> String {
+    record_name(
+        ctx,
+        agent,
+        decision.links.assignment_id.as_deref(),
+        decision.links.invocation_id.as_deref(),
+    )
+}
+
 /// What one membership decision proposed, and what it was decided at.
+///
+/// A membership decision links no turn of the actors it names, so none of them has a recorded
+/// model here; each is named by its identifier beside that fact.
 fn membership_detail(ctx: &Ctx, allocation: &AllocationDecision) -> Vec<Line<'static>> {
     let theme = ctx.theme;
+    let unlinked = |id: &str| record_words(&record_name(ctx, id, None, None), id);
     let names = |ids: &[String]| {
         if ids.is_empty() {
             "none".to_owned()
         } else {
             ids.iter()
-                .map(|id| presented_name(ctx, id))
+                .map(|id| unlinked(id))
                 .collect::<Vec<_>>()
                 .join(", ")
         }
@@ -5340,7 +5400,7 @@ fn membership_detail(ctx: &Ctx, allocation: &AllocationDecision) -> Vec<Line<'st
         theme,
         "final reviewer kept free",
         &match &allocation.proposal.reserved_final_reviewer {
-            Some(id) => presented_name(ctx, id),
+            Some(id) => unlinked(id),
             None => "none reserved".to_owned(),
         },
         ctx.width,
@@ -5458,12 +5518,17 @@ fn bounded_outcome(decision: &DecisionRecord) -> Option<bool> {
 }
 
 /// What one turn was actually allowed to consume, and who decided it.
-fn bound_detail(ctx: &Ctx, resource: &ymp_core::ResourceAllocationDecision) -> Vec<Line<'static>> {
+fn bound_detail(
+    ctx: &Ctx,
+    decision: &DecisionRecord,
+    resource: &ymp_core::ResourceAllocationDecision,
+) -> Vec<Line<'static>> {
     let theme = ctx.theme;
+    let agent = &resource.input.agent_id;
     let mut lines = field(
         theme,
         "for",
-        &presented_name(ctx, &resource.input.agent_id),
+        &record_words(&decision_actor(ctx, decision, agent), agent),
         ctx.width,
     );
     lines.extend(field(
@@ -5611,8 +5676,15 @@ fn acceptance_lines(ctx: &Ctx, task: &Task) -> Vec<Line<'static>> {
     lines.extend(field(
         theme,
         "credit",
-        &match ctx.records.credit_for(&task.id) {
-            Some(agent) => format!("competence credited to {}", presented_name(ctx, agent)),
+        &match ctx
+            .records
+            .credit_for(&task.id)
+            .and_then(|credit| Some((credit, credit.actor.as_deref()?)))
+        {
+            Some((credit, agent)) => format!(
+                "competence credited to {}",
+                record_words(&decision_actor(ctx, credit, agent), agent)
+            ),
             None => "no competence credit was recorded, which is not a judgement about the work"
                 .to_owned(),
         },
@@ -5671,16 +5743,23 @@ fn acceptance_basis(acceptance: &Acceptance) -> String {
     }
 }
 
+/// Who reviewed an accepted result, each named by the turn its own review decision links.
 fn reviewer_words(ctx: &Ctx, acceptance: &Acceptance) -> String {
-    if acceptance.reviewers.is_empty() {
+    let reviewers = acceptance
+        .decision
+        .links
+        .review_ids
+        .iter()
+        .filter_map(|id| ctx.records.decision(id))
+        .filter_map(|review| {
+            let actor = review.actor.as_deref()?;
+            Some(record_words(&decision_actor(ctx, review, actor), actor))
+        })
+        .collect::<Vec<_>>();
+    if reviewers.is_empty() {
         return "no review decision is linked to this acceptance".into();
     }
-    acceptance
-        .reviewers
-        .iter()
-        .map(|id| presented_name(ctx, id))
-        .collect::<Vec<_>>()
-        .join(", ")
+    reviewers.join(", ")
 }
 
 fn check_outcome_word(outcome: &ymp_core::ConfirmationCheckOutcome) -> &'static str {
@@ -5780,6 +5859,69 @@ fn presented_name(ctx: &Ctx, id: &str) -> String {
 fn actor_name(config: &Config, pool: &Pool, records: &Records, id: &str) -> String {
     let pooled = pool.agent(id).map(|agent| &agent.identity);
     label::agent(id, records.trace.as_ref(), pooled, config)
+}
+
+/// The name a record gives one of its actors: the model and reported effort of the turn that
+/// record itself links for that actor, or `unknown model`.
+///
+/// A record is history. The actor's other turns, earlier or later, say nothing about which model
+/// ran the turn behind this record, so neither its latest turn nor a model all its turns share is
+/// used in its place, and nothing is matched by time. A linked assignment that belongs to another
+/// actor is not this actor's turn and names nothing for it.
+fn record_name(
+    ctx: &Ctx,
+    agent: &str,
+    assignment: Option<&str>,
+    invocation: Option<&str>,
+) -> String {
+    let records = ctx.records;
+    let Some(assignment) = assignment.and_then(|id| {
+        records
+            .assignments()
+            .iter()
+            .find(|assignment| assignment.id == id && assignment.agent_id == agent)
+    }) else {
+        return label::UNKNOWN_MODEL.to_owned();
+    };
+    let turn = invocation
+        .and_then(|id| {
+            records
+                .invocations()
+                .iter()
+                .find(|turn| turn.id == id && turn.assignment_id == assignment.id)
+        })
+        .or_else(|| records.last_invocation(&assignment.id));
+    label::assignment(assignment, turn)
+}
+
+/// The same actor in a record's details, where its identifier stands beside the name.
+fn record_words(name: &str, agent: &str) -> String {
+    if name == agent {
+        name.to_owned()
+    } else {
+        format!("{name} · {agent}")
+    }
+}
+
+/// The name of the actor who asked for a change to the plan, from the turn that asked.
+fn proposer_name(ctx: &Ctx, proposal: &BoardProposal) -> String {
+    record_name(
+        ctx,
+        &proposal.agent_id,
+        Some(&proposal.assignment_id),
+        Some(&proposal.invocation_id),
+    )
+}
+
+/// An actor a proposal names besides its author. Only the author's own turn is linked to the
+/// proposal, so any other actor it names has no recorded model here.
+fn proposed_actor_words(ctx: &Ctx, proposal: &BoardProposal, agent: &str) -> String {
+    let name = if agent == proposal.agent_id {
+        proposer_name(ctx, proposal)
+    } else {
+        record_name(ctx, agent, None, None)
+    };
+    record_words(&name, agent)
 }
 
 #[cfg(test)]

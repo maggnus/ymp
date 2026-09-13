@@ -272,10 +272,12 @@ fn local_actor(
             .rev()
             .find(|assignment| assignment.agent_id == agent)
         {
-            return match &assignment.agent_identity {
-                Some(identity) => identity.status == AgentIdentityStatus::Local,
-                None => provider_is_local(config, &assignment.provider_id),
-            };
+            // A turn that captured no identity recorded nothing that makes it a fixture's. What
+            // its provider is configured as now is not evidence about that turn.
+            return assignment
+                .agent_identity
+                .as_ref()
+                .is_some_and(|identity| identity.status == AgentIdentityStatus::Local);
         }
         if let Some(profile) = trace
             .session

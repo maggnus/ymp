@@ -65,6 +65,12 @@ A stream, a working member in the sidebar and a tool call in the status row are 
 invocation that is running. An idle member, a token row and every choice on the team and agent
 pages are named by the concrete model alone, as native metadata resolved it. A profile whose
 `default` alias nothing resolved reads `unknown model` and is not offered as a new choice.
+A decision, a proposal to change the plan and the actors a record names are history: each is
+named by the turn that record itself links, and one that links no turn of that actor reads
+`unknown model`, even when a later turn of the same actor is known. A turn that captured no
+identity is not treated as a local fixture because of how its provider is configured now. The
+sessions list names a team by the models its recorded turns ran, which it reads for the loaded
+session, and never by the names or aliases of the profiles the session captured.
 
 The sidebar's team section names the profiles the loaded session captured when it started,
 and says so. With no session loaded it describes the team the next run would use instead; the

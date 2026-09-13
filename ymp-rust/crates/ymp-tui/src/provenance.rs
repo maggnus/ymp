@@ -572,20 +572,7 @@ impl Records {
             result: decision.links.result.as_ref(),
             evidence: decision.links.confirmation_ids.len(),
             state: self.result_state(&decision.id),
-            reviewers: self.reviewers(decision),
         }
-    }
-
-    /// Who independently reviewed the result this decision accepted. The acceptance links
-    /// the review decisions; each review names its own actor.
-    fn reviewers(&self, decision: &DecisionRecord) -> Vec<String> {
-        decision
-            .links
-            .review_ids
-            .iter()
-            .filter_map(|id| self.decision(id))
-            .filter_map(|review| review.actor.clone())
-            .collect()
     }
 }
 
@@ -600,7 +587,6 @@ pub struct Acceptance<'a> {
     /// How many pieces of applicable passing check evidence the acceptance bound.
     pub evidence: usize,
     pub state: ResultState,
-    pub reviewers: Vec<String>,
 }
 
 impl Acceptance<'_> {
@@ -686,7 +672,7 @@ impl Records {
     ///
     /// Credit is a record of its own, written only where confirmed evidence supported a
     /// single producer. Its absence is not a judgement about the work.
-    pub fn credit_for(&self, task_id: &str) -> Option<&str> {
+    pub fn credit_for(&self, task_id: &str) -> Option<&DecisionRecord> {
         self.decisions()
             .iter()
             .filter(|decision| decision.kind == "reputation_observed")
@@ -697,6 +683,6 @@ impl Records {
                     .as_ref()
                     .is_some_and(|task| task.task_id == task_id)
             })
-            .and_then(|decision| decision.actor.as_deref())
+            .filter(|decision| decision.actor.is_some())
     }
 }
