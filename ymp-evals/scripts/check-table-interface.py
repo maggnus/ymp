@@ -266,11 +266,30 @@ provider = "demo"
         keys("Escape")
         tmux("resize-window", "-t", "check", "-x", "80", "-y", "10")
         time.sleep(0.2)
-        keys("C-t", "Down", "Down", "Down", "Down")
+        keys("C-t", "End")
         text = capture("short-theme-selection")
-        assert re.search(re.escape(selection) + r"\s+Terminal\b", text), "selected theme is outside the visible chooser"
+        assert re.search(re.escape(selection) + r"\s+Midnight Commander\b", text), "selected theme is outside the visible chooser"
         keys("Escape")
         passed("short-surface-selection-stays-visible")
+
+        tmux("resize-window", "-t", "check", "-x", "40", "-y", "12")
+        time.sleep(0.2)
+        keys("C-t", "Home")
+        names = [
+            "Ember", "Slate", "Dracula", "One Dark Pro", "Nord", "Catppuccin Mocha",
+            "Catppuccin Latte", "Gruvbox Dark", "Gruvbox Light", "Tokyo Night",
+            "Solarized Dark", "Solarized Light", "Monokai Pro", "Rosé Pine", "Kanagawa",
+            "Everforest", "Cyberpunk", "Midnight Commander",
+        ]
+        for index, name in enumerate(names):
+            text = capture(f"theme-{index:02d}-40x12")
+            assert re.search(re.escape(selection) + r"\s+" + re.escape(name) + r"\b", text), (
+                name, "selected theme is clipped in a narrow terminal", text,
+            )
+            if index + 1 < len(names):
+                keys("Down")
+        keys("Escape")
+        passed("all-eighteen-themes-reachable-at-40x12")
 
         tmux("resize-window", "-t", "check", "-x", "60", "-y", "24")
         time.sleep(0.2)
