@@ -54,7 +54,7 @@ For objectively confirmed results and reusable supported experience, configure e
 
 ## Working with a team
 
-The interface is chat-first with a right sidebar that carries navigation, live team activity, and the current session's context. The sidebar appears from 80 columns; hide it with `Ctrl+B`.
+The interface is chat-first with a right sidebar showing session context, token usage, team activity and tasks. Pages open through slash commands or the command palette. The sidebar appears from 80 columns; hide it with `Ctrl+B`.
 
 Commands: `/chat`, `/help`, `/tasks`, `/usage`, `/sessions`, `/files`, `/diff`, `/checks`, `/assignments`, `/decisions`, `/providers`, `/agents`, `/agent`, `/team`, `/limits`, `/memory`, `/reputation`, `/theme`, `/sidebar`, `/details`, `/new`, `/resume`, `/pause`, `/stop`, and `/quit`. `Ctrl+P` opens the command palette, and `/help` lists every command and key.
 
@@ -64,7 +64,7 @@ Your prompts and the team's final answers are the content of the transcript; rou
 
 Five colour themes ship with ymp, including a light one, a high-contrast one, and one that inherits your terminal's own palette. `/theme` or `Ctrl+T` opens a chooser that previews as you move; the choice is remembered. No state is shown by colour alone.
 
-Every destination in the sidebar is read-only: opening one never starts an agent and never writes to your working directory. See the [interface guide](ymp-docs/guides/interface.md).
+Opening a record page never starts an agent or writes to your working directory. See the [interface guide](ymp-docs/guides/interface.md).
 
 For the 0.4.0 MVP, files are created and modified directly in the directory where you start `ymp` (or the directory selected with `-C`). Only metadata lives under `~/.ymp2`; no source-tree copies or hidden Git repositories are created. Independent assignments can overlap when their enforced access permits; conflicting or unbounded writes are serialized. This MVP policy provides no rollback guarantee.
 

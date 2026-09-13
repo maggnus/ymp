@@ -3294,11 +3294,16 @@
           "at": "2026-09-13T05:18:13.386367+00:00",
           "status": "in_progress",
           "note": "Owner changed future Claude Code launches from max to high. The current author and reviewer were already running at max; subsequent assignments, including review follow-ups, must use claude-opus-5 high. Historical execution settings remain accurate."
+        },
+        {
+          "at": "2026-09-13T05:19:56.576963+00:00",
+          "status": "in_progress",
+          "note": "Independent review accepts navigation, Detailed, exit and attribution behavior but requests preserving the sidebar divider around modals (R1) and correcting stale README text (R2). README corrected. Claude Opus 5 high is implementing R1 and the short-terminal selection issue O1 in an isolated branch; final integration and verification follow."
         }
       ]
     }
   ],
-  "updated_at": "2026-09-13T05:18:13.386367+00:00",
+  "updated_at": "2026-09-13T05:19:56.576963+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",

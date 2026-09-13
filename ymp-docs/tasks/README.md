@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-13 05:18 UTC.
+Updated: 2026-09-13 05:19 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -73,7 +73,7 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-131](#ymp-131) | P1 | Support deliberate double Ctrl+C exit and print session reopening command | 2026-09-13 04:25 |
 | `[x]` | [YMP-132](#ymp-132) | P1 | Attribute chat output to the actual agent invocation instead of provider-shaped actor IDs | 2026-09-13 04:25 |
 | `[~]` | [YMP-133](#ymp-133) | P1 | Present non-popup data collections as consistent keyboard-navigable tables | 2026-09-13 05:18 |
-| `[~]` | [YMP-134](#ymp-134) | P1 | Finish sidebar, Detailed mode and floating-surface corrections requested directly in Paseo | 2026-09-13 05:18 |
+| `[~]` | [YMP-134](#ymp-134) | P1 | Finish sidebar, Detailed mode and floating-surface corrections requested directly in Paseo | 2026-09-13 05:19 |
 
 ## YMP-001
 
@@ -1794,9 +1794,9 @@ Finish sidebar, Detailed mode and floating-surface corrections requested directl
 
 **State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P1
 
-**Last update (UTC):** 2026-09-13 05:18
+**Last update (UTC):** 2026-09-13 05:19
 
-**Current reason:** Owner changed future Claude Code launches from max to high. The current author and reviewer were already running at max; subsequent assignments, including review follow-ups, must use claude-opus-5 high. Historical execution settings remain accurate.
+**Current reason:** Independent review accepts navigation, Detailed, exit and attribution behavior but requests preserving the sidebar divider around modals (R1) and correcting stale README text (R2). README corrected. Claude Opus 5 high is implementing R1 and the short-terminal selection issue O1 in an isolated branch; final integration and verification follow.
 
 **Owner:** Maintainer integrates and verifies; Claude Code Opus 5 high implements UI
 
