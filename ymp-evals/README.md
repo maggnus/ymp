@@ -1,5 +1,9 @@
 # Acceptance fixtures
 
+The separate [YMP-201 small pilot package](weak-pilot/README.md) supplies two
+preparation/measured task pairs, blind artifact checks, failing controls and a
+12-outcome proposal. Its offline proofs are preparation, not model measurements.
+
 YMP-119 supplies deterministic inputs, independent validators and scripted expectations for the [runtime contract](../ymp-docs/architecture/runtime-contract.md). It does **not** run the integrated application or establish native model quality. YMP-126 now provides the production-boundary driver below; YMP-121 independently validates the accepted composition and release package. The existing [greeting scenario](scenarios/greeting.json) remains a separate software smoke check.
 
 The standalone validators use Python 3.9+ and its standard library. The trusted driver is a Rust workspace package. No provider, network, credentials or paid inference is used by the validators or tests.

@@ -1,0 +1,29 @@
+entry_id,account,currency,quantity,unit_cents,status,ref_id
+M01,"Harbor, East",USD,3,101,posted,
+M02,Delta,USD,2,250,posted,
+M03,"Harbor, East",USD,-1,101,posted,
+M04,Delta,EUR,0,999,posted,
+M02,Delta,USD,5,250,posted,
+M05,Pine,USD,7,20,void,
+M06,Delta,USD,0,0,cancel,M02
+M07,Delta,USD,0,0,cancel,M02
+M08,Delta,USD,0,0,cancel,M99
+M09,"Harbor, East",EUR,0,0,cancel,M01
+M10,"Harbor, East",USD,0,0,cancel,M01
+M11,"Harbor, East",USD,2,75,posted,
+M12,Delta,USD,1,0,posted,
+M13,Pine,USD,0,0,cancel,M05
+M14,Pine,USD,1,9007199254740993,posted,
+M15,Pine,USD,-1,9007199254740992,posted,
+M16,Elm,EUR,1,40,posted,
+M17,Elm,EUR,0,0,cancel,M16
+M18,Delta,EUR,-2,35,posted,
+M19,Delta,EUR,2,35,posted,
+M20,Pine,USD,0,0,cancel,M10
+M21,Delta,USD,0,0,cancel,M99
+M99,Delta,USD,1,10,posted,
+M22,Delta,USD,0,0,cancel,M99
+M05,Pine,USD,1,500,posted,
+M23,"Harbor, East",USD,0,0,cancel,M03
+M24,"Harbor, East",EUR,1,7,posted,
+M25,Birch,USD,-3,11,posted,

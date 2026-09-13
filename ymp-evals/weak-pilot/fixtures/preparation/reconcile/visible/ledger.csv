@@ -1,0 +1,13 @@
+entry_id,account,currency,quantity,unit_cents,status,ref_id
+P1,Maple,USD,2,125,posted,
+P2,Maple,USD,-1,25,posted,
+P3,"Cedar, West",EUR,0,90,posted,
+P1,Maple,USD,3,125,posted,
+P4,Pine,USD,8,50,void,
+P5,Maple,USD,0,0,cancel,P1
+P6,Maple,USD,0,0,cancel,P1
+P7,Pine,USD,0,0,cancel,P4
+P8,"Cedar, West",USD,1,99,posted,
+P9,"Cedar, West",USD,0,0,cancel,P3
+P10,Birch,USD,1,10,posted,
+P11,Birch,USD,0,0,cancel,P10

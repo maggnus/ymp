@@ -1,0 +1,107 @@
+{
+  "execution_kind": "preparation",
+  "cargo_target_dir": "/Users/maggnus/Code/ymp2/target",
+  "profile": "debug/test only",
+  "external_evidence": "/private/tmp/ymp201-verification-goh7sc6v",
+  "checks": [
+    {
+      "check": "python-tests",
+      "command": [
+        "python3",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "ymp-evals/tests",
+        "-v"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 0.632,
+      "log": "python-tests.log"
+    },
+    {
+      "check": "fmt",
+      "command": [
+        "cargo",
+        "fmt",
+        "--all",
+        "--check"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_seconds": 0.6,
+      "log": "fmt.log"
+    },
+    {
+      "check": "clippy",
+      "command": [
+        "cargo",
+        "clippy",
+        "--workspace",
+        "--all-targets",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_seconds": 1.858,
+      "log": "clippy.log"
+    },
+    {
+      "check": "workspace-tests",
+      "command": [
+        "cargo",
+        "test",
+        "--workspace"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_seconds": 122.981,
+      "log": "workspace-tests.log"
+    },
+    {
+      "check": "pilot-build",
+      "command": [
+        "cargo",
+        "build",
+        "-p",
+        "ymp-eval-driver",
+        "--bin",
+        "ymp-weak-pilot"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_seconds": 2.123,
+      "log": "pilot-build.log"
+    },
+    {
+      "check": "offline-proof",
+      "command": [
+        "/Users/maggnus/Code/ymp2/target/debug/ymp-weak-pilot",
+        "offline-proof",
+        "--output",
+        "/private/tmp/ymp201-verification-goh7sc6v/proof"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "elapsed_seconds": 4.292,
+      "log": "offline-proof.log"
+    },
+    {
+      "check": "native-refusal",
+      "command": [
+        "/Users/maggnus/Code/ymp2/target/debug/ymp-weak-pilot",
+        "native",
+        "--manifest",
+        "/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp201-weak-pilot/ymp-docs/evidence/ymp-201/proposed-manifest.json",
+        "--output",
+        "/private/tmp/ymp201-verification-goh7sc6v/refusal"
+      ],
+      "exit_code": 1,
+      "expected_exit_code": 1,
+      "elapsed_seconds": 0.016,
+      "log": "native-refusal.log"
+    }
+  ]
+}

@@ -1,0 +1,4 @@
+{"id": 1, "jsonrpc": "2.0", "method": "initialize", "params": {"capabilities": {}, "clientInfo": {"name": "ymp", "version": "0.4.6"}}}
+{"jsonrpc": "2.0", "method": "initialized", "params": {}}
+{"id": 2, "jsonrpc": "2.0", "method": "model/list", "params": {"cursor": null, "includeHidden": true}}
+{"id": 3, "jsonrpc": "2.0", "method": "thread/start", "params": {"approvalPolicy": "never", "config": {"model_reasoning_effort": "low"}, "cwd": "/private/tmp/ymp201-final-ea7hb1l1/proof/codex-protocol-drift/work/candidate-1", "developerInstructions": "\nAll responses, documentation, comments, and artifacts in ymp must be in English.", "model": "protocol-weak", "sandbox": "read-only"}}

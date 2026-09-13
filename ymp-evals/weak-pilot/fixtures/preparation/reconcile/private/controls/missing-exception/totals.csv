@@ -1,0 +1,4 @@
+account,currency,total_cents,active_entries
+"Cedar, West",EUR,0,1
+"Cedar, West",USD,99,1
+Maple,USD,-25,1

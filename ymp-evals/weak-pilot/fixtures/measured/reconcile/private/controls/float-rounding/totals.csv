@@ -1,0 +1,7 @@
+account,currency,total_cents,active_entries
+Birch,USD,-33,1
+Delta,EUR,0,3
+Delta,USD,0,1
+"Harbor, East",EUR,7,1
+"Harbor, East",USD,150,1
+Pine,USD,0,2

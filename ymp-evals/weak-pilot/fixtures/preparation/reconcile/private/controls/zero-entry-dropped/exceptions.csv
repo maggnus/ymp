@@ -1,0 +1,6 @@
+row_number,entry_id,reason
+4,P1,duplicate_id
+5,P4,void
+7,P6,inactive_target
+8,P7,unknown_target
+10,P9,group_mismatch
