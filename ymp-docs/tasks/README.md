@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-13 16:55 UTC.
+Updated: 2026-09-13 17:02 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -89,7 +89,7 @@ A planned task is not implemented functionality. Completed research and planning
 | `[~]` | [YMP-146](#ymp-146) | P0 | Recover interrupted session stages and let the owner change the active team | 2026-09-13 16:55 |
 | `[x]` | [YMP-147](#ymp-147) | P1 | Translate product goals into a focused comparative trial program | 2026-09-13 15:38 |
 | `[=]` | [YMP-148](#ymp-148) | P1 | Make session coordination replaceable through a typed strategy contract | 2026-09-13 16:13 |
-| `[~]` | [YMP-149](#ymp-149) | P1 | Use concise professional terminology throughout the interface | 2026-09-13 16:34 |
+| `[~]` | [YMP-149](#ymp-149) | P1 | Use concise professional terminology throughout the interface | 2026-09-13 17:02 |
 | `[=]` | [YMP-150](#ymp-150) | P1 | Make /team the session control page and separate the /agents catalog | 2026-09-13 16:13 |
 | `[=]` | [YMP-151](#ymp-151) | P1 | Prepare reproducible offline comparisons of coordination strategies | 2026-09-13 16:17 |
 | `[+]` | [YMP-152](#ymp-152) | P2 | Keep the selected palette command visible in very short terminals | 2026-09-13 16:25 |
@@ -2297,9 +2297,9 @@ Use concise professional terminology throughout the interface
 
 **State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P1
 
-**Last update (UTC):** 2026-09-13 16:34
+**Last update (UTC):** 2026-09-13 17:02
 
-**Current reason:** Implementation fork852205e8-c1ce-4366-81df-a032c32f3655(claude-opus-5high) started in isolatedfix/ymp149-ui-language at27f8454, workspacewks_26ad6169c29ab55f. Accepted audit/guide and narrow UI/human-CLI scope supplied; completion notification registered explicitly. Shared main debug/test cache reserved for this fork, with no release build or installed-binary writes. P0reviewers use independent caches.
+**Current reason:** Author delivered07025c5onfix/ymp149-ui-language with clean tree. Reports579workspacepasses2ignored, strictClippy0, fmt0after whitespace-only test rewrap plus two targeted passes,27agent-row terminal records and19table cases inUnicode/ASCII. Independent Claude reviewer332e0b99 now checks concise wording, actual metadata/current-next scope, historical identity, changedsortkeys and retained testmeaning. No acceptance or installed-release claim; P0rework continues separately.
 
 **Owner:** Claude Code claude-opus-5 high; maintainer owns language contract and independent acceptance
 

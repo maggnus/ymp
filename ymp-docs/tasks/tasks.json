@@ -4148,6 +4148,11 @@
           "at": "2026-09-13T16:34:47.918431+00:00",
           "status": "in_progress",
           "note": "Implementation fork852205e8-c1ce-4366-81df-a032c32f3655(claude-opus-5high) started in isolatedfix/ymp149-ui-language at27f8454, workspacewks_26ad6169c29ab55f. Accepted audit/guide and narrow UI/human-CLI scope supplied; completion notification registered explicitly. Shared main debug/test cache reserved for this fork, with no release build or installed-binary writes. P0reviewers use independent caches."
+        },
+        {
+          "at": "2026-09-13T17:02:15.975597+00:00",
+          "status": "in_progress",
+          "note": "Author delivered07025c5onfix/ymp149-ui-language with clean tree. Reports579workspacepasses2ignored, strictClippy0, fmt0after whitespace-only test rewrap plus two targeted passes,27agent-row terminal records and19table cases inUnicode/ASCII. Independent Claude reviewer332e0b99 now checks concise wording, actual metadata/current-next scope, historical identity, changedsortkeys and retained testmeaning. No acceptance or installed-release claim; P0rework continues separately."
         }
       ]
     },
@@ -4251,7 +4256,7 @@
       ]
     }
   ],
-  "updated_at": "2026-09-13T16:55:29.008929+00:00",
+  "updated_at": "2026-09-13T17:02:15.975597+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",
