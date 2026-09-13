@@ -1,0 +1,32 @@
+ymp  [1mproject[0m  /private/tmp/ymp145-independent-review/control-046-mono/pr…  no session  0 / 200 turns
+────────────────────────────────────────────────────────────────────────────────────────────────────
+                                                                     │ SESSION
+[1m  A team of local agents, working in this directory.[0m                 │ none · the next message open
+                                                                     │                      0 / 200
+  working dir ┌[1m Commands [0m────────────────────────────────────────────────── 26 of 26 ┐ mono/project
+  how it is u │ › Type to search commands                                            │
+  team        │ ──────────────────────────────────────────────────────────────────── │            —
+  theme       │ › /chat         Return to the conversation.                          │ pent yet
+              │   /new          Start an unrelated task. The next prompt opens a ne… │
+  Describe a  │   /details      Toggle full attributed agent messages instead of co… │     next run
+  in this dir │   /help         Command reference and keyboard map.                  │
+  ymp records │   /tasks        Task graph, assignments and outcomes for the curren… │
+  content, so │   /usage        Token statistics for the loaded session, agent by a… │
+  recorded an │   /sessions     Saved sessions for this project. Opening one only r… │
+  Ctrl+P open │   /files        Browse files read only, starting in the working dir… │ t
+  theme.      │   /diff         Files created, modified or deleted during the loade… │
+  Every page  │   /git          Uncommitted or committed Git changes of a worktree,… │
+  palette. Pa │ ▼ 16 more                                                            │
+              │                                                                      │
+              │ Enter run  Up/Down select  Esc close                                 │
+              └──────────────────────────────────────────────────────────────────────┘
+                                                                     │
+                                                                     │
+                                                                     │
+                                                                     │
+                                                                     │
+                                                                     │
+                                                                     │
+[1m────────────────────────────────────────────────────────────────────────────────────────────────────
+› [0mDescribe a task, or type / for commands.
+Ready                                                composer Enter send  Ctrl+P commands  Tab focus

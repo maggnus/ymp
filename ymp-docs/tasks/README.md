@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-13 16:28 UTC.
+Updated: 2026-09-13 16:31 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -14,7 +14,7 @@ A planned task is not implemented functionality. Completed research and planning
 | design | 2 | 2 |
 | documentation | 4 | 4 |
 | experiment | 0 | 4 |
-| implementation | 35 | 45 |
+| implementation | 36 | 45 |
 | maintenance | 1 | 1 |
 | research | 10 | 10 |
 | verification | 2 | 2 |
@@ -85,11 +85,11 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-142](#ymp-142) | P1 | Assess ratatui-code-editor for opening files inside ymp | 2026-09-13 11:52 |
 | `[x]` | [YMP-143](#ymp-143) | P1 | Provide a separate /git changes view modeled on Paseo | 2026-09-13 14:04 |
 | `[x]` | [YMP-144](#ymp-144) | P1 | Research recovery of sessions after one or more agent failures | 2026-09-13 14:36 |
-| `[~]` | [YMP-145](#ymp-145) | P1 | Unify full-row popup selection and verify stable scrolling geometry | 2026-09-13 16:25 |
+| `[x]` | [YMP-145](#ymp-145) | P1 | Unify full-row popup selection and verify stable scrolling geometry | 2026-09-13 16:31 |
 | `[~]` | [YMP-146](#ymp-146) | P0 | Recover interrupted session stages and let the owner change the active team | 2026-09-13 16:28 |
 | `[x]` | [YMP-147](#ymp-147) | P1 | Translate product goals into a focused comparative trial program | 2026-09-13 15:38 |
 | `[=]` | [YMP-148](#ymp-148) | P1 | Make session coordination replaceable through a typed strategy contract | 2026-09-13 16:13 |
-| `[=]` | [YMP-149](#ymp-149) | P1 | Use concise professional terminology throughout the interface | 2026-09-13 16:21 |
+| `[~]` | [YMP-149](#ymp-149) | P1 | Use concise professional terminology throughout the interface | 2026-09-13 16:31 |
 | `[=]` | [YMP-150](#ymp-150) | P1 | Make /team the session control page and separate the /agents catalog | 2026-09-13 16:13 |
 | `[=]` | [YMP-151](#ymp-151) | P1 | Prepare reproducible offline comparisons of coordination strategies | 2026-09-13 16:17 |
 | `[+]` | [YMP-152](#ymp-152) | P2 | Keep the selected palette command visible in very short terminals | 2026-09-13 16:25 |
@@ -2164,11 +2164,11 @@ A failed plan-review invocation leaves an existing session blocked even though p
 
 Unify full-row popup selection and verify stable scrolling geometry
 
-**State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P1
+**State:** `[x]` (done) · **Type:** implementation · **Priority:** P1
 
-**Last update (UTC):** 2026-09-13 16:25
+**Last update (UTC):** 2026-09-13 16:31
 
-**Current reason:** Independent Opus review and parent source inspection accept35786ec product code conditionally on two README corrections: NO_COLOR is marker-only, and the existing60x8 palette hides its selected command. Independent terminal observer detects baseline gaps and confirms candidate full rows in dark/light,9geometry cases and small60x9/44x10positions. Renewed shrinking remains unobserved, not claimed fixed. Author instructed to make docs-only correction and remove the exact reviewer-generated pyc before integration.
+**Current reason:** Accepted and integrated35786ec+ee02248after independent review and parent source comparison; application/checker bytes match the reviewed revision. Full-row selection is fixed through the shared component. Authorfmt/clippy/579tests2ignored and independent targeted/terminal/negative-control evidence retained with hashes. Renewed shrinking remains not reproduced and is not claimed fixed; existing60x8selection issue is separate152. NO_COLOR marker-only wording corrected. Installed0.4.6is unchanged pending the next accepted release.
 
 **Owner:** Background Claude Code claude-opus-5 high; maintainer owns scope, integration and independent acceptance
 
@@ -2188,7 +2188,9 @@ Selected popup text is styled while inter-column spacing remains unstyled. The r
 
 **Evidence:**
 
-- Pending.
+- ymp-docs/evidence/ymp-145/README.md
+- ymp-docs/evidence/ymp-145/independent/README.md
+- ymp-docs/evidence/ymp-145/independent/manifest.json
 
 ## YMP-146
 
@@ -2291,11 +2293,11 @@ Allocation and resource interfaces exist, but whole-session interaction remains 
 
 Use concise professional terminology throughout the interface
 
-**State:** `[=]` (planned) · **Type:** implementation · **Priority:** P1
+**State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P1
 
-**Last update (UTC):** 2026-09-13 16:21
+**Last update (UTC):** 2026-09-13 16:31
 
-**Current reason:** Needs YMP-145
+**Current reason:** Shared popup145source accepted in main; language audit and maintainer decisions complete. Dispatching a separate Claude Code high implementation fork on that baseline. Apply accepted concise wording only; true/false next-session preference labels remain honest until150live-team composition work. P0recovery review continues independently.
 
 **Owner:** Claude Code claude-opus-5 high; maintainer owns language contract and independent acceptance
 
@@ -2304,8 +2306,6 @@ Use concise professional terminology throughout the interface
 **Depends on:** [YMP-145](#ymp-145)
 
 Primary rows currently include provenance prose and ambiguous membership values. Terminology needs a consistent interface-wide review without losing meaningful states or changing stored evidence.
-
-**Latest progress note:** Read-only terminology inventory completed, including table/filter/sort hints, generated strings and human-readable CLI. Maintainer accepted scoped corrections and rejected replacing READING with another metadata column, conflating pool/catalog, inventing profile-version events, using unconfirmed for missing native settings or broad branding changes. Durable audit recorded; implementation remains sequenced after independent145acceptance, with no wording tests/install claim.
 
 **Acceptance criteria:**
 
@@ -2414,7 +2414,7 @@ At60x8, palette search and separator use the entire two-row modal body, hiding e
 
 **Evidence:**
 
-- Pending.
+- ymp-docs/evidence/ymp-145/independent/README.md
 
 ## Intent coverage
 

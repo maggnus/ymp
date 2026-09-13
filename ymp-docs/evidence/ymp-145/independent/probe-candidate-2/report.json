@@ -1,0 +1,306 @@
+{
+ "binary": "/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp145-popup-component/target/debug/ymp",
+ "mode": "candidate",
+ "native_inference": false,
+ "cases": [
+  {
+   "label": "dark-palette-first",
+   "rect": [
+    14,
+    5,
+    72,
+    17
+   ],
+   "marker_rows": 1,
+   "row": "› /chat         Return to the conversation.                         ",
+   "cells": 68,
+   "selection_bg": "(2, 216, 163, 76)",
+   "uncovered": 0,
+   "padding_bg": [
+    "(2, 0, 0, 0)",
+    "(2, 0, 0, 0)"
+   ],
+   "C2": true,
+   "C3": true,
+   "C4": true,
+   "passed": true
+  },
+  {
+   "label": "dark-palette-moved",
+   "rect": [
+    14,
+    5,
+    72,
+    17
+   ],
+   "marker_rows": 1,
+   "row": "› /help         Command reference and keyboard map.                 ",
+   "cells": 68,
+   "selection_bg": "(2, 216, 163, 76)",
+   "uncovered": 0,
+   "padding_bg": [
+    "(2, 0, 0, 0)",
+    "(2, 0, 0, 0)"
+   ],
+   "C2": true,
+   "C3": true,
+   "C4": true,
+   "passed": true
+  },
+  {
+   "label": "dark-theme-chooser-row",
+   "rect": [
+    21,
+    4,
+    58,
+    18
+   ],
+   "marker_rows": 1,
+   "row": "› Ember               dark                            ",
+   "cells": 54,
+   "selection_bg": "(2, 216, 163, 76)",
+   "uncovered": 0,
+   "padding_bg": [
+    "(2, 0, 0, 0)",
+    "(2, 0, 0, 0)"
+   ],
+   "C2": true,
+   "C3": true,
+   "C4": true,
+   "passed": true
+  },
+  {
+   "label": "light-theme-chooser-row",
+   "rect": [
+    21,
+    4,
+    58,
+    18
+   ],
+   "marker_rows": 1,
+   "row": "› Catppuccin Latte    light                           ",
+   "cells": 54,
+   "selection_bg": "(2, 30, 102, 245)",
+   "uncovered": 0,
+   "padding_bg": [
+    "(2, 227, 229, 236)",
+    "(2, 227, 229, 236)"
+   ],
+   "C2": true,
+   "C3": true,
+   "C4": true,
+   "passed": true
+  },
+  {
+   "label": "light-palette-first",
+   "rect": [
+    14,
+    5,
+    72,
+    17
+   ],
+   "marker_rows": 1,
+   "row": "› /chat         Return to the conversation.                         ",
+   "cells": 68,
+   "selection_bg": "(2, 30, 102, 245)",
+   "uncovered": 0,
+   "padding_bg": [
+    "(2, 227, 229, 236)",
+    "(2, 227, 229, 236)"
+   ],
+   "C2": true,
+   "C3": true,
+   "C4": true,
+   "passed": true
+  },
+  {
+   "label": "light-palette-moved",
+   "rect": [
+    14,
+    5,
+    72,
+    17
+   ],
+   "marker_rows": 1,
+   "row": "› /details      Toggle full attributed agent messages instead of co…",
+   "cells": 68,
+   "selection_bg": "(2, 30, 102, 245)",
+   "uncovered": 0,
+   "padding_bg": [
+    "(2, 227, 229, 236)",
+    "(2, 227, 229, 236)"
+   ],
+   "C2": true,
+   "C3": true,
+   "C4": true,
+   "passed": true
+  },
+  {
+   "label": "light-completion-first",
+   "rect": [
+    1,
+    21,
+    67,
+    8
+   ],
+   "marker_rows": 1,
+   "row": "› /chat         Return to the conversation.                    ",
+   "cells": 63,
+   "selection_bg": "(2, 30, 102, 245)",
+   "uncovered": 0,
+   "padding_bg": [
+    "(2, 227, 229, 236)",
+    "(2, 227, 229, 236)"
+   ],
+   "C2": true,
+   "C3": true,
+   "C4": true,
+   "passed": true
+  },
+  {
+   "label": "light-completion-moved",
+   "rect": [
+    1,
+    21,
+    67,
+    8
+   ],
+   "marker_rows": 1,
+   "row": "› /details      Toggle full attributed agent messages instead …",
+   "cells": 63,
+   "selection_bg": "(2, 30, 102, 245)",
+   "uncovered": 0,
+   "padding_bg": [
+    "(2, 227, 229, 236)",
+    "(2, 227, 229, 236)"
+   ],
+   "C2": true,
+   "C3": true,
+   "C4": true,
+   "passed": true
+  },
+  {
+   "label": "small-palette-60x9",
+   "distinct_rects": [
+    [
+     2,
+     0,
+     56,
+     7
+    ]
+   ],
+   "steps": 50,
+   "bad_steps": [],
+   "passed": true
+  },
+  {
+   "label": "small-palette-60x8",
+   "distinct_rects": [
+    [
+     2,
+     0,
+     56,
+     6
+    ]
+   ],
+   "steps": 50,
+   "bad_steps": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    26,
+    27,
+    28,
+    29,
+    30,
+    31,
+    32,
+    33,
+    34,
+    35,
+    36,
+    37,
+    38,
+    39,
+    40,
+    41,
+    42,
+    43,
+    44,
+    45,
+    46,
+    47,
+    48,
+    49
+   ],
+   "passed": false
+  },
+  {
+   "label": "small-palette-44x10",
+   "distinct_rects": [
+    [
+     2,
+     0,
+     40,
+     8
+    ]
+   ],
+   "steps": 50,
+   "bad_steps": [],
+   "passed": true
+  },
+  {
+   "label": "mono-palette",
+   "rect": [
+    14,
+    5,
+    72,
+    17
+   ],
+   "marker_rows": 1,
+   "row": "› /chat         Return to the conversation.                         ",
+   "cells": 68,
+   "selection_bg": "None",
+   "uncovered": 0,
+   "padding_bg": [
+    "None",
+    "None"
+   ],
+   "C2": false,
+   "C3": true,
+   "C4": false,
+   "M2": true,
+   "M3": false,
+   "M4": true,
+   "passed": false
+  }
+ ],
+ "failures": [
+  "small-palette-60x8",
+  "mono-palette"
+ ],
+ "passed": false
+}

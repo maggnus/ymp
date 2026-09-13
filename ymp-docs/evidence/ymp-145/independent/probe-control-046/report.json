@@ -1,0 +1,57 @@
+{
+ "binary": "/Users/maggnus/Code/ymp2/target/release/ymp",
+ "mode": "control",
+ "native_inference": false,
+ "cases": [
+  {
+   "label": "dark-theme-chooser-row",
+   "rect": [
+    21,
+    4,
+    58,
+    18
+   ],
+   "marker_rows": 1,
+   "row": "› Ember               dark                            ",
+   "cells": 54,
+   "selection_bg": "(2, 216, 163, 76)",
+   "uncovered": 22,
+   "padding_bg": [
+    "(2, 0, 0, 0)",
+    "(2, 0, 0, 0)"
+   ],
+   "C2": true,
+   "C3": false,
+   "C4": true,
+   "passed": false
+  },
+  {
+   "label": "light-theme-chooser-row",
+   "rect": [
+    21,
+    4,
+    58,
+    18
+   ],
+   "marker_rows": 1,
+   "row": "› Catppuccin Latte    light                           ",
+   "cells": 54,
+   "selection_bg": "(2, 30, 102, 245)",
+   "uncovered": 22,
+   "padding_bg": [
+    "(2, 227, 229, 236)",
+    "(2, 227, 229, 236)"
+   ],
+   "C2": true,
+   "C3": false,
+   "C4": true,
+   "passed": false
+  }
+ ],
+ "failures": [
+  "dark-theme-chooser-row",
+  "light-theme-chooser-row"
+ ],
+ "control_detects_gap": true,
+ "passed": true
+}

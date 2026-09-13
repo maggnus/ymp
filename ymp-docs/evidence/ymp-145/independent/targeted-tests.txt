@@ -1,0 +1,23 @@
+    Finished `test` profile [unoptimized] target(s) in 0.08s
+     Running unittests src/lib.rs (target/debug/deps/ymp_tui-f55d63242f5485a4)
+
+running 9 tests
+test theme::tests::every_palette_keeps_its_text_labels_and_selected_row_readable ... ok
+test tests::typing_a_command_offers_completions_and_tab_accepts_one ... ok
+test tests::the_last_theme_of_the_long_chooser_is_previewed_saved_cancelled_and_reloaded_in_a_short_window ... ok
+test tests::the_palette_keeps_its_selection_in_view_on_a_short_terminal ... ok
+test tests::the_theme_chooser_keeps_its_selection_in_view_on_a_short_terminal ... ok
+test tests::a_read_only_surface_keeps_its_size_in_small_terminals_and_other_themes ... ok
+test tests::a_chosen_popup_row_is_highlighted_from_its_marker_through_its_gaps_to_its_last_cell ... ok
+test tests::choosers_keep_their_size_in_small_terminals_with_unicode_and_boundary_lengths ... ok
+test tests::a_choice_list_longer_than_its_surface_keeps_its_size_from_the_first_entry_to_the_last ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 262 filtered out; finished in 0.56s
+
+   Doc-tests ymp_tui
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+exit 0

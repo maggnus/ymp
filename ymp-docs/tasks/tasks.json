@@ -3900,7 +3900,7 @@
       "title": "Unify full-row popup selection and verify stable scrolling geometry",
       "type": "implementation",
       "priority": "P1",
-      "status": "in_progress",
+      "status": "done",
       "owner": "Background Claude Code claude-opus-5 high; maintainer owns scope, integration and independent acceptance",
       "authorization": "Owner supplied a branch-chooser screenshot showing broken selection background and again reported popup height collapsing at the end of scrolling. Owner explicitly requested correcting the shared popup component.",
       "depends_on": [
@@ -3915,7 +3915,11 @@
         "Demonstrate meaningful failing-before and passing-after checks; verify full-row cell backgrounds and stable geometry through the first, middle and final visible positions. Record unresolved reproduction details explicitly.",
         "Delegate implementation and checks to an isolated Claude Code high worktree. Run fmt, strict Clippy, workspace tests and relevant terminal checks once on final code; independently review before integration. Reuse existing Ratatui and popup helpers without new dependencies."
       ],
-      "evidence": [],
+      "evidence": [
+        "ymp-docs/evidence/ymp-145/README.md",
+        "ymp-docs/evidence/ymp-145/independent/README.md",
+        "ymp-docs/evidence/ymp-145/independent/manifest.json"
+      ],
       "history": [
         {
           "at": "2026-09-13T14:19:41.539430+00:00",
@@ -3931,6 +3935,11 @@
           "at": "2026-09-13T16:25:35.129681+00:00",
           "status": "in_progress",
           "note": "Independent Opus review and parent source inspection accept35786ec product code conditionally on two README corrections: NO_COLOR is marker-only, and the existing60x8 palette hides its selected command. Independent terminal observer detects baseline gaps and confirms candidate full rows in dark/light,9geometry cases and small60x9/44x10positions. Renewed shrinking remains unobserved, not claimed fixed. Author instructed to make docs-only correction and remove the exact reviewer-generated pyc before integration."
+        },
+        {
+          "at": "2026-09-13T16:31:02.026500+00:00",
+          "status": "done",
+          "note": "Accepted and integrated35786ec+ee02248after independent review and parent source comparison; application/checker bytes match the reviewed revision. Full-row selection is fixed through the shared component. Authorfmt/clippy/579tests2ignored and independent targeted/terminal/negative-control evidence retained with hashes. Renewed shrinking remains not reproduced and is not claimed fixed; existing60x8selection issue is separate152. NO_COLOR marker-only wording corrected. Installed0.4.6is unchanged pending the next accepted release."
         }
       ]
     },
@@ -4084,7 +4093,7 @@
       "title": "Use concise professional terminology throughout the interface",
       "type": "implementation",
       "priority": "P1",
-      "status": "planned",
+      "status": "in_progress",
       "owner": "Claude Code claude-opus-5 high; maintainer owns language contract and independent acceptance",
       "authorization": "Owner explicitly requested reviewing and cleaning all interface terminology, removing verbose implementation explanations from primary rows. Examples: omit read from the installation and display team membership as true/false. Owner also accepted the separate agent-catalog/team responsibilities.",
       "depends_on": [
@@ -4112,6 +4121,11 @@
           "at": "2026-09-13T16:21:48.094911+00:00",
           "status": "planned",
           "note": "Read-only terminology inventory completed, including table/filter/sort hints, generated strings and human-readable CLI. Maintainer accepted scoped corrections and rejected replacing READING with another metadata column, conflating pool/catalog, inventing profile-version events, using unconfirmed for missing native settings or broad branding changes. Durable audit recorded; implementation remains sequenced after independent145acceptance, with no wording tests/install claim."
+        },
+        {
+          "at": "2026-09-13T16:31:02.026500+00:00",
+          "status": "in_progress",
+          "note": "Shared popup145source accepted in main; language audit and maintainer decisions complete. Dispatching a separate Claude Code high implementation fork on that baseline. Apply accepted concise wording only; true/false next-session preference labels remain honest until150live-team composition work. P0recovery review continues independently."
         }
       ]
     },
@@ -4203,7 +4217,9 @@
         "Define behavior at the actual supported lower height/width bound; cover one smaller/larger boundary and avoid claiming visibility where no content row can exist.",
         "Use shared modal/list components, meaningful before/after rendering and terminal checks, required Rust checks and independent review; keep it separate from the unreplicated shrinking report."
       ],
-      "evidence": [],
+      "evidence": [
+        "ymp-docs/evidence/ymp-145/independent/README.md"
+      ],
       "history": [
         {
           "at": "2026-09-13T16:25:35.129681+00:00",
@@ -4213,7 +4229,7 @@
       ]
     }
   ],
-  "updated_at": "2026-09-13T16:28:14.440363+00:00",
+  "updated_at": "2026-09-13T16:31:02.026500+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",
