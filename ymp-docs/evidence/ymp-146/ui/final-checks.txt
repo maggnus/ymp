@@ -1,0 +1,16 @@
+Base: 211f314 (feat/ymp146-recovery-ui)
+CARGO_TARGET_DIR=/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-recovery-backend/target
+Working directory: ymp-rust
+
+cargo fmt --all --check                                  exit 0
+cargo clippy --workspace --all-targets -- -D warnings    exit 0
+cargo test --workspace                                   exit 0
+  632 passed, 0 failed, 2 ignored, 36 result blocks
+
+ymp-tui sources were hashed before the sequence and matched after it.
+
+Terminal scenario (debug ymp binary, offline protocol fixtures, tmux on macOS):
+python3 ymp-evals/scripts/check-session-recovery.py <target>/debug/ymp --output terminal/unicode-100x32
+  passed, 11 / 11 checks
+python3 ymp-evals/scripts/check-session-recovery.py <target>/debug/ymp --ascii --width 60 --height 18 --output terminal/ascii-60x18
+  passed, 11 / 11 checks

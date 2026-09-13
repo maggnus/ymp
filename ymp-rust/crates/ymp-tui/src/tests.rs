@@ -23,6 +23,8 @@ use ymp_core::{
 };
 use ymp_storage::Store;
 
+mod recovery;
+
 struct Fixture {
     _home: TempDir,
     project: TempDir,
@@ -884,10 +886,17 @@ fn quit_and_ctrl_d_still_leave_on_one_explicit_request() {
 
 #[test]
 fn the_closing_status_names_the_work_it_waits_on() {
-    assert_eq!(exit::closing_status(false, false), "Leaving ymp");
-    assert!(exit::closing_status(true, false).contains("stopping the active run and waiting"));
-    assert!(exit::closing_status(false, true).contains("stopping the catalog reading"));
-    assert!(exit::closing_status(true, true).contains("the active run and the catalog reading"));
+    assert_eq!(exit::closing_status(false, false, false), "Leaving ymp");
+    assert!(
+        exit::closing_status(true, false, false).contains("stopping the active run and waiting")
+    );
+    assert!(exit::closing_status(false, true, false).contains("stopping the catalog reading"));
+    assert!(
+        exit::closing_status(true, true, false).contains("the active run and the catalog reading")
+    );
+    assert!(exit::closing_status(false, false, true).contains("stopping the owner action"));
+    assert!(exit::closing_status(true, true, true)
+        .contains("the active run, the catalog reading, the owner action"));
 }
 
 #[tokio::test]
@@ -917,10 +926,14 @@ async fn leaving_stops_the_work_and_names_a_session_opened_while_it_stopped() {
     });
 
     let departure = exit::stop_and_wait(
-        &cancel,
-        &scan_cancel,
-        Some(run),
-        Some(scan),
+        exit::Stopping {
+            cancel: &cancel,
+            scan_cancel: &scan_cancel,
+            owner_cancel: &tokio_util::sync::CancellationToken::new(),
+            running: Some(run),
+            scanning: Some(scan),
+            owner: Vec::<tokio::task::JoinHandle<()>>::new(),
+        },
         &mut received,
         None,
         Duration::from_secs(30),
@@ -942,10 +955,14 @@ async fn leaving_waits_only_so_long_for_work_that_does_not_stop() {
     let stuck = tokio::spawn(std::future::pending::<()>());
 
     let departure = exit::stop_and_wait(
-        &cancel,
-        &tokio_util::sync::CancellationToken::new(),
-        Some(stuck),
-        None::<tokio::task::JoinHandle<()>>,
+        exit::Stopping {
+            cancel: &cancel,
+            scan_cancel: &tokio_util::sync::CancellationToken::new(),
+            owner_cancel: &tokio_util::sync::CancellationToken::new(),
+            running: Some(stuck),
+            scanning: None::<tokio::task::JoinHandle<()>>,
+            owner: Vec::<tokio::task::JoinHandle<()>>::new(),
+        },
         &mut received,
         Some("loaded".into()),
         Duration::from_millis(50),
@@ -2769,8 +2786,20 @@ fn the_sidebar_shows_the_team_the_session_captured_not_the_edited_configuration(
     assert!(captured);
     assert_eq!(members.len(), 2);
 
-    // Editing the configuration describes the next run, not this one.
+    // With a session loaded, /team names its live team: the starting preference stays as it was.
     app.command("/team remove claude", 100);
+    assert_eq!(app.config.members().len(), 2);
+
+    // Editing the preference on the agents page describes the next run, not this one.
+    app.command("/agents", 100);
+    let width = app.page_width(100);
+    app.page_selected = app
+        .page(width)
+        .items
+        .iter()
+        .position(|item| item.kind == crate::views::ItemKind::Row && item.key == "claude")
+        .expect("the agents page lists claude");
+    app.on_key(key(KeyCode::Char('t')), 100);
     assert_eq!(app.config.members().len(), 1);
     let (members, captured) = app.active_team();
     assert!(captured, "a loaded session keeps the team it captured");

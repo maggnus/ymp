@@ -253,6 +253,8 @@ pub struct Ctx<'a> {
     pub records: &'a Records,
     /// What the controller last found installed on this machine.
     pub pool: &'a Pool,
+    /// What the controller last read of the loaded session's current team and stopped work.
+    pub control: &'a crate::control::Control,
     pub memory_query: &'a str,
     pub width: usize,
 }
@@ -1838,6 +1840,9 @@ fn team(ctx: &Ctx) -> Page {
         "What membership means here",
         WHAT_MEMBERSHIP_MEANS,
     )];
+    // A loaded session is changed through its owner controls; starting preferences are only
+    // the page's subject when no session is loaded.
+    items.extend(crate::control_page::items(ctx));
     let members = ctx.team;
     // The captured identities split into the roster a turn may be given to now and the ones
     // a run replaced. Without a recorded roster there is nothing to split by, and every
@@ -1922,11 +1927,19 @@ fn team(ctx: &Ctx) -> Page {
             "A run needs at least two profiles, so that no agent accepts its own work. Add one with /agent add ID PROVIDER, then /team add ID.",
             ctx.width,
         ),
-        hints: vec![
-            ("Space", "toggle preferred"),
-            ("Enter", "inspect"),
-            ("Esc", "back"),
-        ],
+        hints: if ctx.session.is_some() {
+            vec![
+                ("Enter", "actions"),
+                ("Space", "add or remove"),
+                ("Esc", "back"),
+            ]
+        } else {
+            vec![
+                ("Space", "toggle preferred"),
+                ("Enter", "inspect"),
+                ("Esc", "back"),
+            ]
+        },
     }
 }
 

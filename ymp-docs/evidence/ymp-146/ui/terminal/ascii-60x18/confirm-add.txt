@@ -1,0 +1,18 @@
+ymp  project                641f581b  x blocked  - tok  2/40
+------------------------------------------------------------
+                                                           …
+- ┌ Confirm ──────────────────────── changes the session ┐ -
+  │ Add fresh to session 641f581b?                       │
+  │ This session has a fixed roster; confirming also     │
+  │ amends it.                                           │
+  │ Starting preferences are not changed.                │
+  │                                                      │
+  │ y yes  n no  Esc cancel                              │
+  └──────────────────────────────────────────────────────┘
+
+   +  unknown model  author  member  idle
+   +  fixture-model  failed  member  idle
+
+------------------------------------------------------------
+> Describe a task, or type / for commands.
+Ready main Enter actions  Space add or remove  Esc back  / …

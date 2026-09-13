@@ -1,0 +1,3 @@
+test tests::recovery::a_busy_member_is_replaced_during_a_run_without_touching_starting_preferences ... FAILED
+thread 'tests::recovery::a_busy_member_is_replaced_during_a_run_without_touching_starting_preferences' panicked at ymp-rust/crates/ymp-tui/src/tests/recovery.rs:1145:18:
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 275 filtered out; finished in 0.12s

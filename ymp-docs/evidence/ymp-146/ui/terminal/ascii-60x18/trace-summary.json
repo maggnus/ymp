@@ -1,0 +1,219 @@
+{
+  "session": {
+    "id": "641f581b-61b5-44d4-9692-9b3299a8c327",
+    "status": "completed"
+  },
+  "decision_kinds": {
+    "allocation_committed": 10,
+    "resource_allocation_committed": 8,
+    "workspace_access_acquired": 9,
+    "workspace_access_admitted": 8,
+    "workspace_access_released": 9,
+    "plan_proposed": 1,
+    "invocation_failure": 2,
+    "recovery_proposed": 1,
+    "plan_review": 1,
+    "owner_current_files_authorized": 1,
+    "plan_committed": 1,
+    "task_claimed": 1,
+    "result_submitted": 1,
+    "candidate_review": 1,
+    "task_accepted": 1,
+    "result_aggregated": 1,
+    "final_review": 1,
+    "final_accepted": 1
+  },
+  "tasks": [
+    {
+      "state": "accepted"
+    }
+  ],
+  "failures": [
+    {
+      "class": "unknown",
+      "native_code": null,
+      "assignment_id": "082282a2-6934-4bf9-9e73-0510f349b135",
+      "invocation_id": "d783cfb3-b677-450b-8bd8-60c3d434c7e3",
+      "agent_id": "failed",
+      "provider_id": "failed-native",
+      "effective_access": {
+        "mode": "write_all"
+      },
+      "termination": "backend_ended"
+    },
+    {
+      "class": "unknown",
+      "native_code": null,
+      "assignment_id": "e5291683-d396-45a4-848c-00a6b06a09e0",
+      "invocation_id": "677db390-a0fe-4a73-a3f4-99e49172475e",
+      "agent_id": "fresh",
+      "provider_id": "fresh-native",
+      "effective_access": {
+        "mode": "read_all"
+      },
+      "termination": "backend_ended"
+    }
+  ],
+  "protocol_requests": [
+    {
+      "actor": "fresh",
+      "purpose": null
+    },
+    {
+      "actor": "fresh",
+      "purpose": null
+    },
+    {
+      "actor": "fresh",
+      "purpose": null
+    },
+    {
+      "actor": "author",
+      "purpose": null
+    },
+    {
+      "actor": "author",
+      "purpose": null
+    },
+    {
+      "actor": "author",
+      "purpose": null
+    },
+    {
+      "actor": "author",
+      "purpose": null
+    },
+    {
+      "actor": "author",
+      "purpose": "plan"
+    },
+    {
+      "actor": "failed",
+      "purpose": null
+    },
+    {
+      "actor": "failed",
+      "purpose": null
+    },
+    {
+      "actor": "fresh",
+      "purpose": null
+    },
+    {
+      "actor": "fresh",
+      "purpose": null
+    },
+    {
+      "actor": "fresh",
+      "purpose": null
+    },
+    {
+      "actor": "fresh",
+      "purpose": null
+    },
+    {
+      "actor": "fresh",
+      "purpose": "review_plan"
+    },
+    {
+      "actor": "author",
+      "purpose": null
+    },
+    {
+      "actor": "author",
+      "purpose": null
+    },
+    {
+      "actor": "author",
+      "purpose": null
+    },
+    {
+      "actor": "author",
+      "purpose": null
+    },
+    {
+      "actor": "author",
+      "purpose": "execute"
+    },
+    {
+      "actor": "fresh",
+      "purpose": null
+    },
+    {
+      "actor": "fresh",
+      "purpose": null
+    },
+    {
+      "actor": "fresh",
+      "purpose": null
+    },
+    {
+      "actor": "fresh",
+      "purpose": null
+    },
+    {
+      "actor": "fresh",
+      "purpose": "review"
+    },
+    {
+      "actor": "fresh",
+      "purpose": null
+    },
+    {
+      "actor": "fresh",
+      "purpose": null
+    },
+    {
+      "actor": "fresh",
+      "purpose": null
+    },
+    {
+      "actor": "fresh",
+      "purpose": null
+    },
+    {
+      "actor": "fresh",
+      "purpose": "final_review"
+    },
+    {
+      "actor": "fresh",
+      "purpose": null
+    },
+    {
+      "actor": "fresh",
+      "purpose": null
+    },
+    {
+      "actor": "fresh",
+      "purpose": null
+    },
+    {
+      "actor": "fresh",
+      "purpose": null
+    },
+    {
+      "actor": "fresh",
+      "purpose": "learn"
+    },
+    {
+      "actor": "fresh",
+      "purpose": null
+    },
+    {
+      "actor": "fresh",
+      "purpose": null
+    },
+    {
+      "actor": "fresh",
+      "purpose": null
+    },
+    {
+      "actor": "fresh",
+      "purpose": null
+    },
+    {
+      "actor": "fresh",
+      "purpose": "synthesis"
+    }
+  ]
+}

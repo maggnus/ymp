@@ -1,0 +1,94 @@
+version = 1
+team = [
+    "author",
+    "failed",
+]
+
+[limits]
+parallel = 1
+turns = 40
+turn_timeout_secs = 5
+attempts = 3
+
+[limits.resources]
+unknown_usage = "stop"
+startup_invocations = 10
+required_review_invocations = 2
+max_context_chars = 128000
+startup_context_chars = 32000
+max_output_chars = 64000
+native_max_turns = 16
+
+[[providers]]
+id = "author-native"
+kind = "codex"
+command = "python3"
+args = [
+    "/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-recovery-ui/ymp-rust/crates/ymp-runtime/tests/fixtures/fresh_plan_review.py",
+    "codex",
+    "author",
+    "/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-recovery-ui/ymp-docs/evidence/ymp-146/ui/terminal/unicode-100x32/protocol.jsonl",
+    "native-v1",
+]
+enabled = true
+
+[providers.env_refs]
+
+[[providers]]
+id = "failed-native"
+kind = "acp"
+command = "python3"
+args = [
+    "/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-recovery-ui/ymp-rust/crates/ymp-runtime/tests/fixtures/fresh_plan_review.py",
+    "acp",
+    "failed",
+    "/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-recovery-ui/ymp-docs/evidence/ymp-146/ui/terminal/unicode-100x32/protocol.jsonl",
+    "native-v1",
+]
+enabled = true
+
+[providers.env_refs]
+
+[[providers]]
+id = "fresh-native"
+kind = "codex"
+command = "python3"
+args = [
+    "/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-recovery-ui/ymp-rust/crates/ymp-runtime/tests/fixtures/fresh_plan_review.py",
+    "codex",
+    "fresh",
+    "/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-recovery-ui/ymp-docs/evidence/ymp-146/ui/terminal/unicode-100x32/protocol.jsonl",
+    "native-v1",
+]
+enabled = true
+
+[providers.env_refs]
+
+[[agents]]
+id = "author"
+name = "Author"
+provider = "author-native"
+instructions = ""
+enabled = true
+
+[[agents]]
+id = "failed"
+name = "Failed"
+provider = "failed-native"
+instructions = ""
+enabled = true
+
+[[agents]]
+id = "fresh"
+name = "Fresh"
+provider = "fresh-native"
+model = "fixture-model"
+instructions = ""
+enabled = true
+
+[team_constraints]
+fixed_roster = [
+    "author",
+    "failed",
+]
+max_members = 4

@@ -1,0 +1,18 @@
+ymp  project                641f581b  x blocked  - tok  2/40
+------------------------------------------------------------
+ Team[11]  /team 2 captured by this session · 3 eligible on…
+------------------------------------------------------------
+      SESSION                       STATE
+   +  Session 641f581b · 2 in team  no hold
+
+   CURRENT TEAM
+      AGENT                  STATE   WORK
+   +  unknown model  author  member  idle
+   +  fixture-model  failed  member  idle
+
+   STOPPED WORK
+      STAGE                REASON
+ > !  plan review · Exac…  failed call effects unverified
+------------------------------------------------------------
+> Describe a task, or type / for commands.
+Ready main Enter actions  Space add or remove  Esc back  / …

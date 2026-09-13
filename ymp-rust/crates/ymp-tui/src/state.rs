@@ -7,6 +7,7 @@
 //! and what lets the keyboard contract be tested without a terminal or a provider.
 
 use crate::commands;
+use crate::control::{self, Control};
 use crate::exit;
 use crate::files::{self, Files};
 use crate::frame;
@@ -30,6 +31,10 @@ use ymp_storage::Store;
 use ymp_workspace::git;
 use ymp_workspace::preview::{self, Preview};
 use ymp_workspace::repository::{self, Repository};
+
+mod owner;
+
+pub use owner::ChoiceOption;
 
 /// The runtime reports tool use inside a turn as agent activity: this prefix, then the tool.
 const TOOL_ACTIVITY: &str = "tool: ";
@@ -84,6 +89,13 @@ pub enum Overlay {
         options: Vec<GitOption>,
         selected: usize,
     },
+    /// Choose an owner action for the loaded session: a stage action, a reviewer, a replacement.
+    Choose {
+        title: String,
+        badge: String,
+        options: Vec<ChoiceOption>,
+        selected: usize,
+    },
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -92,9 +104,20 @@ pub enum PromptTarget {
     AgentInstructions(String),
     Limit(&'static str),
     MemorySearch,
+    /// The condition a stage of `session` waits for, offered at stage revision `revision`.
+    StageWait {
+        session: String,
+        stage: String,
+        revision: u64,
+    },
+    /// The condition the whole session waits for, offered at team revision `revision`.
+    SessionWait {
+        session: String,
+        revision: u64,
+    },
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Confirm {
     ForgetMemory(String),
     /// Check out `branch` in the worktree at `root`, which read `expected_head` when it was asked.
@@ -102,6 +125,11 @@ pub enum Confirm {
         root: PathBuf,
         branch: String,
         expected_head: Option<String>,
+    },
+    /// Send this exact owner command.
+    Owner {
+        request: Box<control::Request>,
+        badge: &'static str,
     },
 }
 
@@ -146,6 +174,12 @@ pub enum Action {
     /// Continue an interrupted run.
     Resume {
         session: String,
+    },
+    /// Start the ordinary run of `session` in its recorded directory, after the owner's
+    /// continuation with current files was authorized.
+    ContinueRun {
+        session: String,
+        directory: PathBuf,
     },
     /// Stop active turns.
     Cancel,
@@ -329,6 +363,9 @@ pub struct App {
     /// What the controller last found installed on this machine. Inspecting it looks for
     /// executables on `PATH`, so it happens here and never while a page is painted.
     pub pool: Pool,
+    /// The loaded session's current team and stopped work as the owner API last described them,
+    /// and the one owner command admitted for it.
+    pub control: Control,
     /// Which invocation wrote each message and which one each agent is running, as last read.
     /// The transcript, the sidebar and the status row name agents from this read.
     pub attribution: Attribution,
@@ -397,6 +434,7 @@ impl App {
             session_team: Vec::new(),
             records: Records::unopened(),
             pool,
+            control: Control::default(),
             attribution: Attribution::default(),
             stats: Stats::default(),
             turns_used: 0,
@@ -540,6 +578,7 @@ impl App {
                     live: self.active,
                     records: &self.records,
                     pool: &self.pool,
+                    control: &self.control,
                     memory_query: &self.memory_query,
                     width: width as usize,
                 },
@@ -666,6 +705,7 @@ impl App {
                 }
                 let opened = self.session.as_deref() != Some(message.session_id.as_str());
                 self.session = Some(message.session_id.clone());
+                self.control.bind(self.session.as_deref());
                 let agent = !matches!(message.author.as_str(), "you" | "ymp");
                 self.streams.remove(&message.author);
                 if !self.messages.iter().any(|old| old.seq == message.seq) {
@@ -738,6 +778,7 @@ impl App {
             UiEvent::Status(status) => self.status = status,
             UiEvent::Finished { session_id, status } => {
                 self.session = Some(session_id);
+                self.control.bind(self.session.as_deref());
                 self.session_status = status;
                 self.streams.clear();
                 self.refresh_session_facts();
@@ -859,6 +900,10 @@ impl App {
     /// store itself, which is what keeps opening one a pure read.
     fn refresh_records(&mut self) {
         self.records = Records::read(&self.store, self.session.as_deref());
+        if self.view == View::Team {
+            // The team page also presents the owner model, which is read off the key path.
+            self.control.want_read();
+        }
         self.invalidate_page();
     }
 
@@ -889,6 +934,7 @@ impl App {
         self.messages = self.store.messages(id, 0, 10_000)?;
         self.tasks = self.store.tasks(id)?;
         self.session = Some(id.to_owned());
+        self.control.bind(Some(id));
         self.session_status = session.status;
         self.turns_used = session.turns_used;
         self.session_team = session.team;
@@ -925,6 +971,9 @@ impl App {
         }
         if view.reads_pool() {
             self.refresh_pool();
+        }
+        if view == View::Team {
+            self.control.want_read();
         }
         self.view = view;
         self.page_selected = 0;
@@ -1639,6 +1688,11 @@ impl App {
                     ))
                 });
             }
+            // A loaded session's team is changed through its owner controls, never through the
+            // starting preferences a new session reads.
+            (View::Team, KeyCode::Char(' ') | KeyCode::Enter) if self.session.is_some() => {
+                return self.team_session_key(&item, key.code, width);
+            }
             (View::Agents, KeyCode::Char('t')) | (View::Team, KeyCode::Char(' ')) => {
                 let id = item.key.clone();
                 self.toggle_membership(&id);
@@ -1973,6 +2027,12 @@ impl App {
                 options,
                 selected,
             } => self.git_choice_key(key, purpose, options, selected),
+            Overlay::Choose {
+                title,
+                badge,
+                options,
+                selected,
+            } => self.choose_key(key, title, badge, options, selected),
             Overlay::Inspect {
                 title,
                 body,
@@ -2088,6 +2148,7 @@ impl App {
                             branch,
                             expected_head,
                         } => self.confirm_switch(root, branch, expected_head),
+                        Confirm::Owner { request, .. } => self.submit_owner(*request),
                     },
                     KeyCode::Esc | KeyCode::Char('n') => {}
                     _ => self.overlay = Some(Overlay::Confirm { question, target }),
@@ -2336,6 +2397,8 @@ impl App {
     fn confirm_switch(&mut self, root: PathBuf, branch: String, expected_head: Option<String>) {
         if self.active {
             self.fail("A run is active. Stop it with /stop before switching branches.");
+        } else if self.control.holds_workspace() {
+            self.fail("An owner action is using the session directory. Switch branches once it has finished.");
         } else if let Some(pending) = self.git.switching() {
             let message = format!(
                 "A switch to {} has not finished yet.",
@@ -2513,6 +2576,9 @@ impl App {
                 self.memory_query = value;
                 self.invalidate_page();
                 self.set_view(View::Memory);
+            }
+            target @ (PromptTarget::StageWait { .. } | PromptTarget::SessionWait { .. }) => {
+                self.commit_wait(target, value)
             }
         }
     }
@@ -2698,6 +2764,7 @@ impl App {
                 self.statuses.clear();
                 self.expanded.clear();
                 self.session = None;
+                self.control.bind(None);
                 self.session_status = "no session".into();
                 self.session_team.clear();
                 self.attribution = Attribution::default();
@@ -2708,6 +2775,14 @@ impl App {
             }
             "/pause" | "/stop" => {
                 if !self.active {
+                    if self
+                        .control
+                        .pending()
+                        .is_some_and(control::Request::cancellable)
+                    {
+                        self.notice("Stopping the owner action. What it recorded stays recorded.");
+                        return Ok(vec![Action::Cancel]);
+                    }
                     bail!("No run is active.");
                 }
                 self.notice("Stopping active turns. Continue later with /resume.");
@@ -2731,6 +2806,19 @@ impl App {
             }
             "/team" => {
                 match (parts.get(1).copied(), parts.len()) {
+                    // With a session loaded the command changes that session's team through the
+                    // owner API; the starting preferences stay as they are.
+                    (Some(verb @ ("add" | "remove")), 3) if self.session.is_some() => {
+                        let agent_id = parts[2].to_owned();
+                        let action = if verb == "add" {
+                            ymp_core::OwnerTeamAction::Add { agent_id }
+                        } else {
+                            ymp_core::OwnerTeamAction::Remove { agent_id }
+                        };
+                        self.set_view(View::Team);
+                        self.team_command_typed(action);
+                        return Ok(Vec::new());
+                    }
                     (Some("add"), 3) | (Some("remove"), 3) => {
                         let id = parts[2].to_owned();
                         let adding = parts[1] == "add";

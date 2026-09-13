@@ -1,0 +1,22 @@
+{
+  "mutation": "continuation-for-hidden-session",
+  "file": "state/owner.rs",
+  "original_sha256": "9784323dfbb777daa46ef15089e99001924d2c59d33bfdad1fe5fbf20ba4695b",
+  "restored": true,
+  "tests": {
+    "tests::recovery::owner_work_stays_with_its_session_and_a_native_review_stops_with_the_window": {
+      "exit": 0,
+      "passed": true,
+      "failed": false,
+      "compiled": true,
+      "first_failure": ""
+    },
+    "tests::recovery::a_saved_plan_is_reviewed_again_and_continued_with_current_files_from_the_team_page": {
+      "exit": 0,
+      "passed": true,
+      "failed": false,
+      "compiled": true,
+      "first_failure": ""
+    }
+  }
+}

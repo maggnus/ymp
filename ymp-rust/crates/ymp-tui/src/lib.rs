@@ -20,6 +20,8 @@ use ymp_storage::Store;
 use ymp_workspace::git::GitError;
 
 mod commands;
+mod control;
+mod control_page;
 mod diff;
 mod exit;
 mod files;
@@ -84,6 +86,12 @@ pub async fn run(
     // The Git page's one admitted request. Its library work cannot be stopped part way, so no
     // second request starts beside it, whatever the page does meanwhile.
     let mut git_job: Option<JoinHandle<git_view::Reply>> = None;
+    // One owner command and one read of the session team at a time. A command may hold the
+    // session's directory, so no run or branch switch starts beside it; its own token stops a
+    // native review or inspection without touching an active run.
+    let mut owner_job: Option<JoinHandle<control::Reply>> = None;
+    let mut owner_cancel = CancellationToken::new();
+    let mut control_read: Option<JoinHandle<control::Reply>> = None;
     let mut cancel = CancellationToken::new();
     let mut ticker = tokio::time::interval(TICK);
     ticker.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
@@ -187,21 +195,59 @@ pub async fn run(
         }
         if git_job.is_none() {
             if let Some(request) = app.git_request(Instant::now()) {
-                git_job = Some(spawn_git(&store, request, running.is_some()));
+                let busy = if running.is_some() {
+                    Some("A run is active. Stop it with /stop before switching branches.")
+                } else if app.control.holds_workspace() {
+                    Some("An owner action is using the session directory. Switch branches once it has finished.")
+                } else {
+                    None
+                };
+                git_job = Some(spawn_git(&store, request, busy));
+            }
+        }
+
+        if control_read.as_ref().is_some_and(JoinHandle::is_finished) {
+            if let Some(handle) = control_read.take() {
+                match handle.await {
+                    Ok(reply) => actions.extend(app.control_reply(reply)),
+                    Err(error) => app.control_read_abandoned(format!("{error}")),
+                }
+            }
+        }
+        if owner_job.as_ref().is_some_and(JoinHandle::is_finished) {
+            if let Some(handle) = owner_job.take() {
+                match handle.await {
+                    Ok(reply) => actions.extend(app.control_reply(reply)),
+                    Err(error) => app.control_abandoned(format!("The owner task failed: {error}")),
+                }
+            }
+        }
+        if control_read.is_none() {
+            if let Some(request) = app.control.take_read(Instant::now()) {
+                control_read = Some(tokio::spawn(control::perform(
+                    request,
+                    store.clone(),
+                    app.config.clone(),
+                    CancellationToken::new(),
+                )));
             }
         }
 
         for action in actions {
             if matches!(
                 action,
-                Action::StartRun { .. } | Action::FollowUp { .. } | Action::Resume { .. }
+                Action::StartRun { .. }
+                    | Action::FollowUp { .. }
+                    | Action::Resume { .. }
+                    | Action::ContinueRun { .. }
             ) {
-                if let Some(branch) = app.git.switching() {
-                    let message = format!(
-                        "A switch to {} is in progress. Runs can start once it has finished.",
-                        text::sanitize(branch)
-                    );
-                    app.fail(message);
+                if let Some(refusal) = app.run_refusal() {
+                    match &action {
+                        Action::ContinueRun { session, .. } => {
+                            app.continuation_not_started(session, &refusal)
+                        }
+                        _ => app.fail(refusal),
+                    }
                     continue;
                 }
             }
@@ -214,6 +260,7 @@ pub async fn run(
                 Action::Cancel => {
                     cancel.cancel();
                     scan_cancel.cancel();
+                    owner_cancel.cancel();
                     app.status = "Stopping active turns".into();
                 }
                 Action::RefreshCatalog { provider } => {
@@ -322,19 +369,68 @@ pub async fn run(
                         Err(error) => app.fail(format!("{error:#}")),
                     }
                 }
+                Action::ContinueRun { session, directory } => {
+                    if running.is_some() {
+                        app.continuation_not_started(&session, "a run is already active");
+                        continue;
+                    }
+                    // The authorization names one session. Its run is never started for another.
+                    if app.session.as_deref() != Some(session.as_str()) {
+                        app.continuation_not_started(&session, "another session is displayed");
+                        continue;
+                    }
+                    match start(&store, &app.config, &events, &mut cancel) {
+                        Ok(engine) => {
+                            app.continuation_started(&session);
+                            app.set_view(views::View::Chat);
+                            app.active = true;
+                            app.started = Some(Instant::now());
+                            app.status = "Continuing with current files".into();
+                            running = Some(tokio::spawn(async move {
+                                engine.run(&directory, "", Some(&session)).await
+                            }));
+                        }
+                        Err(error) => app.continuation_not_started(&session, &format!("{error:#}")),
+                    }
+                }
+            }
+        }
+
+        // Started after the actions, so a command confirmed by a key in this pass is refused
+        // beside a run that pass started, and a run is refused beside a command started earlier.
+        if owner_job.is_none() && !quit {
+            if let Some(request) = app.control.take_request() {
+                owner_cancel = CancellationToken::new();
+                app.status = request.activity().into();
+                owner_job = Some(tokio::spawn(control::perform(
+                    request,
+                    store.clone(),
+                    app.config.clone(),
+                    owner_cancel.clone(),
+                )));
             }
         }
 
         if quit {
             // Stopping a run can take seconds, so the window says what it waits on first.
             app.exit_requested = None;
-            app.status = exit::closing_status(running.is_some(), scanning.is_some());
+            app.control.withdraw();
+            app.status =
+                exit::closing_status(running.is_some(), scanning.is_some(), owner_job.is_some());
             let _ = terminal.draw(|frame| ui::render(frame, &mut app));
             break exit::stop_and_wait(
-                &cancel,
-                &scan_cancel,
-                running.take(),
-                scanning.take(),
+                exit::Stopping {
+                    cancel: &cancel,
+                    scan_cancel: &scan_cancel,
+                    owner_cancel: &owner_cancel,
+                    running: running.take(),
+                    scanning: scanning.take(),
+                    owner: owner_job
+                        .take()
+                        .into_iter()
+                        .chain(control_read.take())
+                        .collect(),
+                },
                 &mut runtime_events,
                 app.session.clone(),
                 exit::SHUTDOWN_WAIT,
@@ -360,13 +456,13 @@ pub async fn run(
     Ok(())
 }
 
-/// Hand one request to the Git backend. A branch switch is refused while a run is active, and
-/// otherwise takes the lock a run of that directory takes and moves it into the backend, which
-/// keeps it until the checkout has ended.
+/// Hand one request to the Git backend. A branch switch is refused while `busy` names work that
+/// holds the directory, and otherwise takes the lock a run of that directory takes and moves it
+/// into the backend, which keeps it until the checkout has ended.
 fn spawn_git(
     store: &Store,
     request: git_view::Request,
-    run_active: bool,
+    busy: Option<&str>,
 ) -> JoinHandle<git_view::Reply> {
     let mut lock = None;
     if let git_view::Request::Switch { root, branch, .. } = &request {
@@ -374,9 +470,8 @@ fn spawn_git(
             branch: branch.clone(),
             result: Err(GitError::Failed(message)),
         };
-        if run_active {
-            let reply =
-                refused("A run is active. Stop it with /stop before switching branches.".into());
+        if let Some(busy) = busy {
+            let reply = refused(busy.into());
             return tokio::spawn(async move { reply });
         }
         match store

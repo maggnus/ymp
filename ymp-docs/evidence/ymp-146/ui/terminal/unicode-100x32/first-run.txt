@@ -1,0 +1,21 @@
+
+Run blocked: Uncertain execution effects: establish termination and inspect actual effects before replay; no rollback is available
+
+Session: 8f8412c0-82ff-4725-b21f-3bd82e53cec2
+Status: blocked
+Workspace: /Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-recovery-ui/ymp-docs/evidence/ymp-146/ui/terminal/unicode-100x32/project
+
+[you · user]
+Inspect the directory
+Working in /Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-recovery-ui/ymp-docs/evidence/ymp-146/ui/terminal/unicode-100x32/project
+Session 8f8412c0 · 2 agents
+Collecting independent proposals
+
+[unknown model · plan]
+{"summary": "Exact native proposal", "tasks": [{"title": "Inspect independently", "description": "Produce a finding from the current workspace", "access": "write", "competence": "analysis", "difficulty": "simple", "dependencies": [], "checks": []}]}
+
+[ymp · summary]
+Run blocked: Uncertain execution effects: establish termination and inspect actual effects before replay; no rollback is available
+
+Workspace: /Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-recovery-ui/ymp-docs/evidence/ymp-146/ui/terminal/unicode-100x32/project
+ymp: Session 8f8412c0-82ff-4725-b21f-3bd82e53cec2 is blocked

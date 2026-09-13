@@ -1,0 +1,15 @@
+{
+  "mutation": "stage-hold-ignored",
+  "file": "state/owner.rs",
+  "original_sha256": "9784323dfbb777daa46ef15089e99001924d2c59d33bfdad1fe5fbf20ba4695b",
+  "restored": true,
+  "tests": {
+    "tests::recovery::stage_holds_outlast_team_changes_and_unavailable_actions_name_their_cause": {
+      "exit": 101,
+      "passed": false,
+      "failed": true,
+      "compiled": true,
+      "first_failure": "thread 'tests::recovery::stage_holds_outlast_team_changes_and_unavailable_actions_name_their_cause' panicked at ymp-rust/crates/ymp-tui/src/tests/recovery.rs:676:5:"
+    }
+  }
+}

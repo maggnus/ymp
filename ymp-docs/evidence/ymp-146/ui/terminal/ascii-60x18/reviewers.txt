@@ -1,0 +1,18 @@
+ymp  project                641f581b  x blocked  - tok  2/40
+------------------------------------------------------------
+                                                           …
+- ┌ Choose a reviewer ───────────────── read-only review ┐ -
+  │ > fixture-model  fresh                               │
+  │                                                      │
+  │ agent fresh · fresh-native · session member          │
+  │                                                      │
+  │ Up/Down select  Enter choose  Esc cancel             │
+  └──────────────────────────────────────────────────────┘
+
+
+   STOPPED WORK
+      STAGE                REASON
+ > !  plan review · Exac…  failed call effects unverified
+------------------------------------------------------------
+> Describe a task, or type / for commands.
+Removed failed from session 641f581b. Starting preference…

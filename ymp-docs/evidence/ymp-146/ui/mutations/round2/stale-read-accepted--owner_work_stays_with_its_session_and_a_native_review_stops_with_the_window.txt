@@ -1,0 +1,4 @@
+test tests::recovery::owner_work_stays_with_its_session_and_a_native_review_stops_with_the_window ... FAILED
+thread 'tests::recovery::owner_work_stays_with_its_session_and_a_native_review_stops_with_the_window' panicked at ymp-rust/crates/ymp-tui/src/tests/recovery.rs:785:5:
+the team of session 17bdeaac-4f91-4108-93a3-bf5644a15444 was shown for session 046a8929-fb16-4592-9be1-199e949ba62e
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 275 filtered out; finished in 6.32s

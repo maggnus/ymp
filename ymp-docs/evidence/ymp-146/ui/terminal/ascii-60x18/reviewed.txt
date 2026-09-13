@@ -1,0 +1,18 @@
+ymp  project                641f581b  x blocked  - tok  2/40
+------------------------------------------------------------
+ Team[13]  /team 1 in the roster · 2 captured by this sessi…
+------------------------------------------------------------
+
+   CURRENT TEAM
+      AGENT                  STATE    WORK
+   +  unknown model  author  member   idle
+   +  fixture-model  fresh   member   idle
+   o  fixture-model  failed  removed  idle
+
+   STOPPED WORK
+      STAGE             STATUS   REASON
+ > !  plan review · E…  waiting  new plan review recorded
+
+------------------------------------------------------------
+> Describe a task, or type / for commands.
+New review of the saved plan: approved by fresh. Independ…

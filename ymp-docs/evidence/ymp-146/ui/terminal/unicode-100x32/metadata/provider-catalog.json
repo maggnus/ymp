@@ -1,0 +1,24 @@
+{
+  "providers": {
+    "fresh-native": {
+      "provider_fingerprint": "362ec255a59d8c2a14a59191639c1a4de8010e71c74d8f55af74b4b57886b717",
+      "last_attempt": "2026-09-13T20:35:52.754431+00:00",
+      "failure": null,
+      "catalog": {
+        "source": {
+          "kind": "native_metadata",
+          "method": "model/list",
+          "observed_at": "2026-09-13T20:35:50.749697+00:00"
+        },
+        "models_complete": true,
+        "models": [
+          {
+            "id": "fixture-model"
+          }
+        ],
+        "default_model": "fixture-model"
+      }
+    }
+  },
+  "generated_agents": {}
+}

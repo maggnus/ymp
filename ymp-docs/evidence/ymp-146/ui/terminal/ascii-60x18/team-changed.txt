@@ -1,0 +1,18 @@
+ymp  project                641f581b  x blocked  - tok  2/40
+------------------------------------------------------------
+ Team[12]  /team 1 in the roster · 2 captured by this sessi…
+------------------------------------------------------------
+ > - What membership means here  what this page is
+
+   SESSION CONTROL
+      SESSION                       STATE
+   +  Session 641f581b · 3 in team  no hold
+
+   CURRENT TEAM
+      AGENT                  STATE   WORK
+   +  unknown model  author  member  idle
+   +  fixture-model  failed  member  idle
+   +  fixture-model  fresh   member  idle
+------------------------------------------------------------
+> Describe a task, or type / for commands.
+Removed failed from session 641f581b. Starting preference…

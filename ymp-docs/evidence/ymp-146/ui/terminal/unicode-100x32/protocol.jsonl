@@ -1,0 +1,40 @@
+{"actor": "fresh", "method": "initialize", "version": "native-v1"}
+{"actor": "fresh", "method": "initialized", "version": "native-v1"}
+{"actor": "fresh", "method": "model/list", "version": "native-v1"}
+{"actor": "author", "method": "initialize", "version": "native-v1"}
+{"actor": "author", "method": "initialized", "version": "native-v1"}
+{"actor": "author", "method": "model/list", "version": "native-v1"}
+{"actor": "author", "method": "thread/start", "version": "native-v1", "sandbox": "read-only", "approvalPolicy": "never"}
+{"actor": "author", "method": "turn/start", "version": "native-v1", "threadId": "author-73079", "purpose": "plan"}
+{"actor": "failed", "method": "initialize", "version": "native-v1"}
+{"actor": "failed", "method": "session/new", "version": "native-v1"}
+{"actor": "fresh", "method": "initialize", "version": "native-v1"}
+{"actor": "fresh", "method": "initialized", "version": "native-v1"}
+{"actor": "fresh", "method": "model/list", "version": "native-v1"}
+{"actor": "fresh", "method": "thread/start", "version": "native-v1", "sandbox": "read-only", "approvalPolicy": "never"}
+{"actor": "fresh", "method": "turn/start", "version": "native-v1", "threadId": "fresh-73396", "purpose": "review_plan"}
+{"actor": "author", "method": "initialize", "version": "native-v1"}
+{"actor": "author", "method": "initialized", "version": "native-v1"}
+{"actor": "author", "method": "model/list", "version": "native-v1"}
+{"actor": "author", "method": "thread/start", "version": "native-v1", "sandbox": "danger-full-access", "approvalPolicy": "never"}
+{"actor": "author", "method": "turn/start", "version": "native-v1", "threadId": "author-73605", "purpose": "execute"}
+{"actor": "fresh", "method": "initialize", "version": "native-v1"}
+{"actor": "fresh", "method": "initialized", "version": "native-v1"}
+{"actor": "fresh", "method": "model/list", "version": "native-v1"}
+{"actor": "fresh", "method": "thread/resume", "version": "native-v1", "threadId": "fresh-73396", "sandbox": "read-only", "approvalPolicy": "never"}
+{"actor": "fresh", "method": "turn/start", "version": "native-v1", "threadId": "fresh-73724", "purpose": "review"}
+{"actor": "fresh", "method": "initialize", "version": "native-v1"}
+{"actor": "fresh", "method": "initialized", "version": "native-v1"}
+{"actor": "fresh", "method": "model/list", "version": "native-v1"}
+{"actor": "fresh", "method": "thread/resume", "version": "native-v1", "threadId": "fresh-73724", "sandbox": "read-only", "approvalPolicy": "never"}
+{"actor": "fresh", "method": "turn/start", "version": "native-v1", "threadId": "fresh-73858", "purpose": "final_review"}
+{"actor": "fresh", "method": "initialize", "version": "native-v1"}
+{"actor": "fresh", "method": "initialized", "version": "native-v1"}
+{"actor": "fresh", "method": "model/list", "version": "native-v1"}
+{"actor": "fresh", "method": "thread/resume", "version": "native-v1", "threadId": "fresh-73858", "sandbox": "read-only", "approvalPolicy": "never"}
+{"actor": "fresh", "method": "turn/start", "version": "native-v1", "threadId": "fresh-73984", "purpose": "learn"}
+{"actor": "fresh", "method": "initialize", "version": "native-v1"}
+{"actor": "fresh", "method": "initialized", "version": "native-v1"}
+{"actor": "fresh", "method": "model/list", "version": "native-v1"}
+{"actor": "fresh", "method": "thread/start", "version": "native-v1", "sandbox": "read-only", "approvalPolicy": "never"}
+{"actor": "fresh", "method": "turn/start", "version": "native-v1", "threadId": "fresh-73998", "purpose": "synthesis"}

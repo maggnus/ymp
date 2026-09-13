@@ -1,0 +1,32 @@
+ymp  project  /Users/maggnus/.paseo/worktrees…  8f8412c0  ✗ blocked  — tokens  2 / 40 turns captured
+────────────────────────────────────────────────────────────────────────────────────────────────────
+ Team[11]  /team 2 captured by this session · 3 eligible on this mac…│ SESSION
+─────────────────────────────────────────────────────────────────────│ 8f8412c0           ✗ blocked
+ › ◇ What membership means here  what this page is                   │ turns this session    2 / 40
+                                                                     │ dir …/unicode-100x32/project
+   SESSION CONTROL                                                   │
+      SESSION                                                        │                            —
+   ✓  Session 8 ┌ Confirm ──────────────────────────────────── changes the session ┐  TOKENS
+                │ Add fresh to session 8f8412c0?                                   │       —
+   CURRENT TEAM │ This session has a fixed roster; confirming also amends it.      │       —
+      AGENT     │ Starting preferences are not changed.                            │
+   ✓  unknown m │                                                                  │   this session
+   ✓  fixture-m │ y yes  n no  Esc cancel                                          │    STATE
+                └──────────────────────────────────────────────────────────────────┘ l  idle
+   STOPPED WORK                                                      │               l  idle
+      STAGE            STATUS       REASON                           │
+   ▲  plan review · …  needs owner  failed call effects unverified   │ TASKS
+                                                                     │ no task graph yet
+   MEMBERS OF THIS SESSION                                           │
+      AGENT                             PROVIDER       STATE         │
+   ✓  unknown model · model not recor…  author-native  1 turn here   │
+   ✓  fixture-model                     failed-native  1 turn here   │
+                                                                     │
+   HOW THE ROSTER IS BOUNDED                                         │
+      RULE          VALUE                                            │
+   ✓  roster        2 members · revision 5                           │
+   •  roster rules  exactly the 2 named                              │
+                                                                     │
+────────────────────────────────────────────────────────────────────────────────────────────────────
+› Describe a task, or type / for commands.
+Ready      main Enter actions  Space add or remove  Esc back  / filter  Shift+letter sort  d inspect

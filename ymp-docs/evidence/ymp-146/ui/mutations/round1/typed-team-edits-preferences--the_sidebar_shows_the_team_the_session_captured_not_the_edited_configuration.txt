@@ -1,0 +1,6 @@
+test tests::the_sidebar_shows_the_team_the_session_captured_not_the_edited_configuration ... FAILED
+thread 'tests::the_sidebar_shows_the_team_the_session_captured_not_the_edited_configuration' panicked at ymp-rust/crates/ymp-tui/src/tests.rs:2791:5:
+assertion `left == right` failed
+  left: 1
+ right: 2
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 275 filtered out; finished in 0.03s

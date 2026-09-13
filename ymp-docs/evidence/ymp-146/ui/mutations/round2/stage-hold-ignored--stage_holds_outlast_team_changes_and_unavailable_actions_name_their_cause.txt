@@ -1,0 +1,6 @@
+test tests::recovery::stage_holds_outlast_team_changes_and_unavailable_actions_name_their_cause ... FAILED
+thread 'tests::recovery::stage_holds_outlast_team_changes_and_unavailable_actions_name_their_cause' panicked at ymp-rust/crates/ymp-tui/src/tests/recovery.rs:676:5:
+assertion `left == right` failed
+  left: None
+ right: Some("This stage is held. Release the hold first.")
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 275 filtered out; finished in 6.25s

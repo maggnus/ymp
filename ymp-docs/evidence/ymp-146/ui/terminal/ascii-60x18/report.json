@@ -1,0 +1,35 @@
+{
+  "binary": "/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-recovery-backend/target/debug/ymp",
+  "ascii": true,
+  "size": [
+    60,
+    18
+  ],
+  "native_inference": false,
+  "steps": [
+    "team-page",
+    "confirm-add",
+    "team-changed",
+    "stage-actions",
+    "reviewers",
+    "reviewed",
+    "stage-actions-after-review",
+    "confirm-current-files",
+    "continued"
+  ],
+  "checks": {
+    "session_completed": true,
+    "tasks_accepted": true,
+    "one_plan": true,
+    "one_plan_review": true,
+    "one_current_files_authorization": true,
+    "no_new_planning_call": true,
+    "failed_agent_not_called_again": true,
+    "one_new_review_and_one_execution": true,
+    "historical_failure_recorded": true,
+    "result_written": true,
+    "configuration_unchanged": true
+  },
+  "session": "641f581b-61b5-44d4-9692-9b3299a8c327",
+  "passed": true
+}

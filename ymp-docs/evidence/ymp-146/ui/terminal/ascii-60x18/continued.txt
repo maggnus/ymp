@@ -1,0 +1,18 @@
+ymp  project              641f581b  + completed  - tok  8/40
+------------------------------------------------------------
+    New work completed; historical effects remain unknown.
+
+    Acceptance: accepted; confirmation: unconfirmed.
+
+    Workspace:
+    /Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-recove
+    ry-ui/ymp-docs/evidence/ymp-146/ui/terminal/ascii-60x1
+    8/project
+  - Session loaded for reading. Send a message to …  20:36
+  - Added fresh to session 641f581b. Starting pref…  20:36
+  - Removed failed from session 641f581b. Starting…  20:36
+  - New review of the saved plan: approved by fres…  20:36
+  - Continuation with current files is authorized …  20:36
+------------------------------------------------------------
+> Describe a task, or type / for commands.
+Run completed. Files are in /Users/maggnus/.paseo/worktre…

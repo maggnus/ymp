@@ -1,0 +1,18 @@
+ymp  project                641f581b  x blocked  - tok  2/40
+--┌ plan review ─────────────── new plan review recorded ┐--
+  │   Inspect effects                                    │ …
+- │ > Continue with current files                        │ -
+  │   Continue                                           │
+  │   Wait                                               │
+  │   Pause                                              │
+  │                                                      │
+  │ New work starts from the files as they are now.      │
+  │ Effects of the failed calls stay unverified.         │
+  │                                                      │
+  │                                                      │
+  │ Up/Down select  Enter choose  Esc cancel             │
+  └──────────────────────────────────────────────────────┘
+
+------------------------------------------------------------
+> Describe a task, or type / for commands.
+New review of the saved plan: approved by fresh. Independ…

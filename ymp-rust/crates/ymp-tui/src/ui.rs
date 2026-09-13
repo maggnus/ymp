@@ -903,6 +903,8 @@ const COMPLETION_ROWS: usize = 6;
 const COMPLETION_MAX_WIDTH: u16 = 88;
 /// The most commands the palette lists at once, when the terminal has the rows for them.
 const PALETTE_ROWS: usize = 10;
+/// The most rows an owner chooser gives the explanation of its chosen option.
+const CHOICE_EXPLANATION_ROWS: usize = 3;
 /// The most themes the chooser lists at once. With the chosen theme's summary, the count below
 /// and the hint, the chooser then fits inside the body of a 24-row terminal.
 const THEME_ROWS: usize = 9;
@@ -1328,10 +1330,102 @@ fn overlay(frame: &mut Frame, area: Rect, regions: &[Rect], app: &App) -> Option
             );
             None
         }
+        Overlay::Choose {
+            title,
+            badge,
+            options,
+            selected,
+        } => {
+            let width = 76u16.min(area.width.saturating_sub(4));
+            let inner = frame::modal_content_width(width) as usize;
+            // The chosen option's explanation follows the list, given the rows of the longest so
+            // the surface keeps one height whichever option is chosen.
+            let explain = |option: &crate::state::ChoiceOption| {
+                let mut pieces =
+                    text::wrap(option.reason.as_deref().unwrap_or(&option.detail), inner);
+                pieces.truncate(CHOICE_EXPLANATION_ROWS);
+                pieces
+            };
+            let explanation_rows = options.iter().map(|o| explain(o).len()).max().unwrap_or(0);
+            let rows = frame::modal_body_rows(area.height, true)
+                .saturating_sub(explanation_rows + 1)
+                .max(1);
+            let mut visible = options.len();
+            if visible > rows {
+                visible = rows.saturating_sub(1).max(1);
+            }
+            let first = selected.saturating_sub(visible.saturating_sub(1));
+            let mut body = Vec::new();
+            let mut chosen_line = None;
+            for (index, option) in options.iter().enumerate().skip(first).take(visible) {
+                let chosen = index == *selected;
+                let enabled = option.reason.is_none();
+                let style = if chosen {
+                    chosen_line = Some(body.len());
+                    theme.selected()
+                } else if enabled {
+                    theme.body()
+                } else {
+                    theme.faint()
+                };
+                let marker = if chosen { theme.markers.selection } else { " " };
+                let tag = if enabled { "" } else { "unavailable" };
+                let room = inner.saturating_sub(text::width(marker) + 1 + text::width(tag) + 2);
+                body.push(text::row(
+                    inner,
+                    vec![Span::styled(
+                        format!("{marker} {}", text::truncate(&option.label, room)),
+                        style,
+                    )],
+                    vec![Span::styled(
+                        tag.to_owned(),
+                        if chosen { style } else { theme.warn() },
+                    )],
+                ));
+            }
+            if options.len() > visible {
+                let below = options.len().saturating_sub(first + visible);
+                body.push(more_line(below, theme));
+            }
+            body.push(Line::default());
+            let shown = options.get(*selected).map(explain).unwrap_or_default();
+            let padding = explanation_rows.saturating_sub(shown.len());
+            let reason = options.get(*selected).is_some_and(|o| o.reason.is_some());
+            for piece in shown {
+                body.push(Line::from(Span::styled(
+                    piece,
+                    if reason { theme.warn() } else { theme.faint() },
+                )));
+            }
+            body.extend(std::iter::repeat_n(Line::default(), padding));
+            frame::render_modal(
+                frame,
+                area,
+                regions,
+                &ModalSpec {
+                    title: title.clone(),
+                    badge: badge.clone(),
+                    role: ModalRole::Choice,
+                    width,
+                    body,
+                    footer: vec![
+                        ("Up/Down", "select"),
+                        ("Enter", "choose"),
+                        ("Esc", "cancel"),
+                    ],
+                    scroll: 0,
+                    selected: chosen_line,
+                },
+                theme,
+            );
+            None
+        }
         Overlay::Confirm { question, target } => {
             let width = 68u16.min(area.width.saturating_sub(4));
-            let body = text::wrap(question, frame::modal_content_width(width) as usize)
-                .into_iter()
+            // A question may name several facts, one to a line.
+            let body = question
+                .lines()
+                .flat_map(|line| text::wrap(line, frame::modal_content_width(width) as usize))
                 .map(|piece| Line::from(Span::styled(piece, theme.body())))
                 .collect();
             frame::render_modal(
@@ -1343,6 +1437,7 @@ fn overlay(frame: &mut Frame, area: Rect, regions: &[Rect], app: &App) -> Option
                     badge: match target {
                         Confirm::ForgetMemory(_) => "cannot be undone",
                         Confirm::SwitchBranch { .. } => "checks out",
+                        Confirm::Owner { badge, .. } => badge,
                     }
                     .into(),
                     role: ModalRole::Choice,

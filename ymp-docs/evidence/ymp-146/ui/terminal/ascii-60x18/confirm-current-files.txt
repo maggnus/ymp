@@ -1,0 +1,18 @@
+ym┌ Confirm ───────────────────────────── starts the run ┐40
+--│ Continue session 641f581b with the current files?    │--
+  │ Directory:                                           │ …
+- │ /Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-reco │ -
+  │ very-ui/ymp-docs/evidence/ymp-146/ui/terminal/ascii- │
+  │ 60x18/project                                        │
+  │ Stage: plan review · new plan review recorded        │
+  │ Failed calls: failed (d783cfb3)                      │
+  │ Files listed: 0                                      │
+  │ Effects of the failed calls stay unverified, and     │
+  │ nothing is rolled back.                              │
+  │ Confirming records this decision, then starts the    │
+  │ ordinary run of this session.                        │
+  │                                                      │
+  │ y yes  n no  Esc cancel                              │
+--└──────────────────────────────────────────────────────┘--
+> Describe a task, or type / for commands.
+New review of the saved plan: approved by fresh. Independ…

@@ -1,0 +1,18 @@
+ymp  project                641f581b  x blocked  - tok  2/40
+--┌ plan review ───────── failed call effects unverified ┐--
+  │ > Review saved plan again                            │ …
+- │   Inspect effects                                    │ -
+  │   Continue with current files                        │
+  │   Wait                                               │
+  │   Pause                                              │
+  │                                                      │
+  │ A new independent read-only review of the exact      │
+  │ saved plan. No task starts.                          │
+  │                                                      │
+  │                                                      │
+  │ Up/Down select  Enter choose  Esc cancel             │
+  └──────────────────────────────────────────────────────┘
+
+------------------------------------------------------------
+> Describe a task, or type / for commands.
+Removed failed from session 641f581b. Starting preference…

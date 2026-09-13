@@ -1,0 +1,15 @@
+{
+  "mutation": "stale-read-accepted",
+  "file": "control.rs",
+  "original_sha256": "277167112ea7ffe0dde0ce7e1d3460c2ebe91e8134bd009064334f58ec8a1690",
+  "restored": true,
+  "tests": {
+    "tests::recovery::owner_work_stays_with_its_session_and_a_native_review_stops_with_the_window": {
+      "exit": 101,
+      "passed": false,
+      "failed": true,
+      "compiled": true,
+      "first_failure": "thread 'tests::recovery::owner_work_stays_with_its_session_and_a_native_review_stops_with_the_window' panicked at ymp-rust/crates/ymp-tui/src/tests/recovery.rs:785:5:"
+    }
+  }
+}

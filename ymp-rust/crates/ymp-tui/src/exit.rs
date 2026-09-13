@@ -24,20 +24,41 @@ pub const CONFIRM_PROMPT: &str = "Press Ctrl-C again to exit";
 pub const SHUTDOWN_WAIT: Duration = Duration::from_secs(10);
 
 /// The status painted once leaving is committed, before anything is waited on.
-pub fn closing_status(run: bool, scan: bool) -> String {
+pub fn closing_status(run: bool, scan: bool, owner: bool) -> String {
     let wait = SHUTDOWN_WAIT.as_secs();
-    match (run, scan) {
-        (false, false) => "Leaving ymp".into(),
-        (true, false) => format!(
-            "Leaving ymp: stopping the active run and waiting up to {wait} s while it records its state"
+    let work: Vec<&str> = [
+        (run, "the active run"),
+        (scan, "the catalog reading"),
+        (owner, "the owner action"),
+    ]
+    .into_iter()
+    .filter_map(|(present, name)| present.then_some(name))
+    .collect();
+    match work.as_slice() {
+        [] => "Leaving ymp".into(),
+        [one] => format!(
+            "Leaving ymp: stopping {one} and waiting up to {wait} s while it records its state"
         ),
-        (false, true) => format!(
-            "Leaving ymp: stopping the catalog reading and waiting up to {wait} s for it to finish"
+        [first, second] => format!(
+            "Leaving ymp: stopping {first} and {second}, waiting up to {wait} s for both to finish"
         ),
-        (true, true) => format!(
-            "Leaving ymp: stopping the active run and the catalog reading, waiting up to {wait} s for both to finish"
+        _ => format!(
+            "Leaving ymp: stopping {}, waiting up to {wait} s for all of them to finish",
+            work.join(", ")
         ),
     }
+}
+
+/// The work still running when leaving is committed, and what stops it.
+pub struct Stopping<'a, R, S, O> {
+    pub cancel: &'a CancellationToken,
+    pub scan_cancel: &'a CancellationToken,
+    pub owner_cancel: &'a CancellationToken,
+    pub running: Option<JoinHandle<R>>,
+    pub scanning: Option<JoinHandle<S>>,
+    /// Owner commands and session-team reads. A command that holds the working directory is
+    /// waited on like a run, so its locks and native calls end before the window does.
+    pub owner: Vec<JoinHandle<O>>,
 }
 
 /// How leaving ended, as far as the command printed afterwards needs to know.
@@ -49,30 +70,31 @@ pub struct Departure {
     pub unfinished: bool,
 }
 
-/// Stop the run and the catalog reading, and wait for both within one bound.
+/// Stop the run, the catalog reading and owner work, and wait for all of them within one bound.
 ///
 /// The events the run sent on its way out are read too. A run started just before leaving
 /// may report the session it opened only there, and that is the session to resume.
-pub async fn stop_and_wait<R, S>(
-    cancel: &CancellationToken,
-    scan_cancel: &CancellationToken,
-    running: Option<JoinHandle<R>>,
-    scanning: Option<JoinHandle<S>>,
+pub async fn stop_and_wait<R, S, O>(
+    work: Stopping<'_, R, S, O>,
     events: &mut mpsc::UnboundedReceiver<UiEvent>,
     session: Option<String>,
     wait: Duration,
 ) -> Departure {
-    cancel.cancel();
-    scan_cancel.cancel();
+    work.cancel.cancel();
+    work.scan_cancel.cancel();
+    work.owner_cancel.cancel();
     let deadline = tokio::time::Instant::now() + wait;
     let mut departure = Departure {
         session,
         unfinished: false,
     };
-    if let Some(handle) = running {
+    if let Some(handle) = work.running {
         departure.unfinished |= tokio::time::timeout_at(deadline, handle).await.is_err();
     }
-    if let Some(handle) = scanning {
+    if let Some(handle) = work.scanning {
+        departure.unfinished |= tokio::time::timeout_at(deadline, handle).await.is_err();
+    }
+    for handle in work.owner {
         departure.unfinished |= tokio::time::timeout_at(deadline, handle).await.is_err();
     }
     while let Ok(event) = events.try_recv() {

@@ -1,0 +1,22 @@
+{
+  "mutation": "typed-team-edits-preferences",
+  "file": "state.rs",
+  "original_sha256": "48f2e4ec125d98267d1fa4dd61aca167d7efcb5f128934dcb16905fe77234d17",
+  "restored": true,
+  "tests": {
+    "tests::the_sidebar_shows_the_team_the_session_captured_not_the_edited_configuration": {
+      "exit": 101,
+      "passed": false,
+      "failed": true,
+      "compiled": true,
+      "first_failure": "thread 'tests::the_sidebar_shows_the_team_the_session_captured_not_the_edited_configuration' panicked at ymp-rust/crates/ymp-tui/src/tests.rs:2791:5:"
+    },
+    "tests::recovery::a_busy_member_is_replaced_during_a_run_without_touching_starting_preferences": {
+      "exit": 101,
+      "passed": false,
+      "failed": true,
+      "compiled": true,
+      "first_failure": "thread 'tests::recovery::a_busy_member_is_replaced_during_a_run_without_touching_starting_preferences' panicked at ymp-rust/crates/ymp-tui/src/tests/recovery.rs:1145:18:"
+    }
+  }
+}
