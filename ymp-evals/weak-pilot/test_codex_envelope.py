@@ -82,6 +82,15 @@ class EnvelopeTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             rewrite(self.request, self.policy)
 
+    def test_exact_working_directory_grant_reopens_denied_ancestor(self):
+        self.policy["deny_paths"].append(str(self.root))
+        _, profile = profile_for(self.policy, str(self.root / "visible"), "danger-full-access")
+        self.assertEqual(
+            {str(self.root): profile["filesystem"][str(self.root)],
+             str(self.root / "visible"): profile["filesystem"][str(self.root / "visible")]},
+            {str(self.root): "deny", str(self.root / "visible"): "write"},
+        )
+
     def test_controls_override_conflicting_thread_feature_flags(self):
         self.request["params"]["config"] = {"features": {"multi_agent": True, "memories": True}}
         actual, _ = rewrite(self.request, self.policy)

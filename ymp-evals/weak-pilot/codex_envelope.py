@@ -51,8 +51,10 @@ def profile_for(policy, cwd, sandbox):
     protected = [policy["native_home"], *policy["deny_paths"]]
     for raw in protected:
         path = str(Path(raw).resolve())
-        if Path(cwd).is_relative_to(path) or Path(path).is_relative_to(cwd):
-            raise ValueError("Solving workspace and protected paths must not overlap")
+        # A more specific cwd grant reopens that directory beneath a denied
+        # ancestor. Exact matches and protected children remain invalid.
+        if Path(path).is_relative_to(cwd):
+            raise ValueError("Protected paths must not equal or lie inside the solving workspace")
         filesystem[path] = "deny"
     return name, {"filesystem": filesystem, "network": {"enabled": False}}
 

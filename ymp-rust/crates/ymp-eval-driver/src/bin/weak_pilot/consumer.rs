@@ -51,6 +51,7 @@ pub struct Manifest {
     pub codex: PathBuf,
     pub codex_sha256: String,
     pub native_home: PathBuf,
+    pub protected_roots: Vec<PathBuf>,
     pub controls: BTreeMap<String, Value>,
     pub control_evidence: PathBuf,
     pub control_evidence_sha256: String,
@@ -103,6 +104,11 @@ impl Manifest {
                 && self.python.is_absolute()
                 && self.codex.is_absolute(),
             "Manifest paths must be absolute"
+        );
+        ensure!(
+            !self.protected_roots.is_empty()
+                && self.protected_roots.iter().all(|p| p.is_absolute()),
+            "Freeze the private user-data and prior-study roots"
         );
         ensure!(
             !self.workspace_root.exists()
@@ -169,13 +175,35 @@ impl Manifest {
             "Live application data is forbidden"
         );
         let current = std::process::Command::new("git")
-            .args(["rev-parse", "HEAD"])
+            .args(["merge-base", "--is-ancestor", &self.source_revision, "HEAD"])
             .current_dir(&self.repository)
-            .output()?;
+            .status()?;
         ensure!(
-            current.status.success()
-                && String::from_utf8(current.stdout)?.trim() == self.source_revision,
-            "Manifest source revision differs from the checkout"
+            current.success(),
+            "Manifest source revision is not part of the checkout history"
+        );
+        let product = std::process::Command::new("git")
+            .args([
+                "diff",
+                "--quiet",
+                "1c17f4e",
+                "--",
+                "Cargo.toml",
+                "Cargo.lock",
+                "ymp-bridges",
+                "ymp-rust/crates/ymp-core",
+                "ymp-rust/crates/ymp-storage",
+                "ymp-rust/crates/ymp-providers",
+                "ymp-rust/crates/ymp-runtime",
+                "ymp-rust/crates/ymp-cli",
+                "ymp-rust/crates/ymp-tui",
+                "ymp-rust/crates/ymp-workspace",
+            ])
+            .current_dir(&self.repository)
+            .status()?;
+        ensure!(
+            product.success(),
+            "Product bytes differ from accepted P0 base 1c17f4e"
         );
         for (relative, expected) in &self.frozen_files {
             let path = Path::new(relative);
@@ -386,7 +414,9 @@ fn authorize(
 ) -> Result<()> {
     let path = approval.context("owner_approval_required: no measured launch is authorized")?;
     ensure!(
-        path.is_absolute() && !path.starts_with(&manifest.output),
+        path.is_absolute()
+            && !path.starts_with(&manifest.output)
+            && !path.starts_with(&manifest.workspace_root),
         "Approval must be supplied outside model workspaces"
     );
     let record: Approval = serde_json::from_slice(&std::fs::read(path)?)?;
@@ -433,9 +463,10 @@ pub async fn run(
     let mut outcomes = Vec::new();
     let mut interrupted = false;
     for attempt in &manifest.attempts {
+        let started = Instant::now();
         let result = if interrupted {
             Ok(
-                json!({"attempt_id":attempt.id,"condition":attempt.condition,"status":"not_started","reason":"prior_condition_interruption","interpretable":false,"objective_success":null}),
+                json!({"attempt_id":attempt.id,"condition":attempt.condition,"status":"not_started","reason":"prior_condition_interruption","interpretable":false,"objective_success":null,"runtime":null,"usage":null,"elapsed_seconds":null}),
             )
         } else {
             execute(&manifest, attempt, scripted).await
@@ -443,7 +474,15 @@ pub async fn run(
         let outcome = match result {
             Ok(value) => value,
             Err(error) => {
-                json!({"attempt_id":attempt.id,"condition":attempt.condition,"status":"failed","error":format!("{error:#}"),"objective_success":false,"interpretable":false})
+                let relative = if attempt.condition.starts_with("cooperation") {
+                    "summary.json"
+                } else {
+                    "group/summary.json"
+                };
+                let runtime = std::fs::read(manifest.output.join(&attempt.id).join(relative))
+                    .ok()
+                    .and_then(|bytes| serde_json::from_slice::<Value>(&bytes).ok());
+                json!({"attempt_id":attempt.id,"condition":attempt.condition,"status":"failed","error":format!("{error:#}"),"objective_success":false,"interpretable":false,"runtime":runtime,"elapsed_seconds":started.elapsed().as_secs_f64()})
             }
         };
         write_json(
@@ -563,6 +602,7 @@ fn config(
         manifest.output.clone(),
         manifest.native_home.clone(),
     ];
+    denied.extend(manifest.protected_roots.iter().cloned());
     for row in &manifest.attempts {
         let parent = manifest.workspace_root.join(&row.id);
         if row.condition.starts_with("cooperation") {

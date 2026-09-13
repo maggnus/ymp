@@ -28,7 +28,10 @@ correctness remain separate observations.
 
 Private controller directories and solving directories are disjoint. Each
 request's permission profile denies the repository/evaluator, controller, native
-home and every other solving directory. Only its own current working directory
+home and every other solving directory. Frozen user-home and temporary-data roots
+also deny prior scripted/calibration outputs and live application data, with the
+native, more-specific current-workspace grant verified by a parent-deny canary.
+Only its own current working directory
 receives the original read/write access. Native state/authentication is still
 managed by the provider host; model commands cannot read it. The public-only
 selector, staging and sealing share the condition's absolute deadline. External
@@ -105,8 +108,11 @@ requires the completed native calibration report bound to its frozen prerequisit
 A scripted report cannot satisfy that condition.
 
 Native manifests must descend from accepted P0 base **1c17f4e**; a stale trial
-against the earlier main is rejected. Current checkout, binary and frozen files
-must match. Checksum or scope failures are concrete refusals, not permanent flags.
+against the earlier main is rejected. The pinned source commit must be an ancestor
+of the checkout; documentation/evidence-only descendants are allowed, while all
+frozen consumer/fixture bytes, the executable digest, and accepted product bytes
+must still match. This allows a manifest to be committed without invalidating its
+own source reference. Checksum or scope failures are concrete refusals.
 
 ## Proposed calibration and conditional pilot
 

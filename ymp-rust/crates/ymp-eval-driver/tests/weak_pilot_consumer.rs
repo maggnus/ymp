@@ -93,7 +93,17 @@ fn all_six_conditions_consume_real_task_exports_and_freeze_one_blind_result() {
             }
             if request["method"] == "turn/start" {
                 assert_eq!(request["effort"], "low");
-                assert!(!request["input"].to_string().contains("private/"));
+                let hidden = repo()
+                    .join("ymp-evals/weak-pilot/fixtures")
+                    .join(row["variant"].as_str().unwrap())
+                    .join(row["task"].as_str().unwrap())
+                    .join("private");
+                assert!(!request["input"]
+                    .to_string()
+                    .contains(hidden.to_str().unwrap()));
+                if request["purpose"] == "pilot_candidate" {
+                    assert_eq!(request["input"][0]["text"], spec["task_prompt"]);
+                }
             }
         }
     }

@@ -10,6 +10,7 @@ import random
 import shutil
 import subprocess
 import sys
+import tempfile
 from datetime import datetime, timezone
 
 from native_controls_probe import CONTROLS
@@ -81,6 +82,7 @@ def generate(runner, output, workspaces, phase, seed=2010914, prerequisite=None)
             "repository": str(ROOT), "output": str(Path(output).resolve()), "workspace_root": str(Path(workspaces).resolve()),
             "runner_sha256": sha(runner), "python": str(Path(sys.executable).resolve()), "codex": str(codex), "codex_sha256": sha(codex),
             "native_home": str(Path(os.environ.get("CODEX_HOME", Path.home() / ".codex")).resolve()),
+            "protected_roots": sorted({str(Path.home().resolve()), str(Path("/tmp").resolve()), str(Path(tempfile.gettempdir()).resolve())}),
             "controls": CONTROLS, "control_evidence": str(evidence), "control_evidence_sha256": sha(evidence) if evidence.exists() else "",
             "config": config, "catalog": catalog, "weak_model": models["weak"], "strong_model": models["strong"],
             "max_invocations": calls, "group_seconds": seconds, "seed": seed,
