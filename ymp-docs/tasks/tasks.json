@@ -3831,7 +3831,7 @@
       "title": "Research recovery of sessions after one or more agent failures",
       "type": "research",
       "priority": "P1",
-      "status": "in_progress",
+      "status": "done",
       "owner": "Two background Paseo researchers; maintainer owns product discussion and synthesis",
       "authorization": "Owner reported session 3223c6a9 blocking after an agent connection failure and explicitly requested brainstorming before solving it. Owner pointed to paseo-cto:paseo-researcher. Research only; do not resume the real session or implement recovery.",
       "depends_on": [],
@@ -3842,12 +3842,19 @@
         "Present a compact product recommendation, alternatives, acceptance scenarios and unresolved owner decisions. Keep implementation and real-session recovery outside authorization.",
         "Use the requested researcher role for bounded evidence review and preserve the primary conversation for product discussion."
       ],
-      "evidence": [],
+      "evidence": [
+        "ymp-docs/research/session-recovery-144.md"
+      ],
       "history": [
         {
           "at": "2026-09-13T14:19:41.539430+00:00",
           "status": "in_progress",
           "note": "Started read-only committee agents 332e0b99-79a7-4255-82ae-be642ff7707e (claude-opus-5 high) and 52111c72-73e2-4ddc-b677-5573306ba1a9 (gpt-6-astra xhigh). Adapting existing assignments to the requested researcher skill; no extra researchers, provider probes, application edits or session resumes."
+        },
+        {
+          "at": "2026-09-13T14:27:39.254497+00:00",
+          "status": "done",
+          "note": "Both independent researchers and maintainer source review confirm saved plan proposal, missing pre-task review recovery, ineffectual failure reassignment and no unknown-usage admission block for this incident without numeric token caps. Researchers reconciled existing task recovery, genuine versus fabricated participant IDs, fixed-size versus pinned-roster constraints and negative-review handling. Research recommendation and acceptance scenarios recorded; owner-controlled policy amendment remains an open product option. No application implementation, tests, provider probes or live-session recovery was performed. Implementation requires separate authorization."
         }
       ]
     },
@@ -3881,7 +3888,7 @@
       ]
     }
   ],
-  "updated_at": "2026-09-13T14:19:41.539430+00:00",
+  "updated_at": "2026-09-13T14:27:39.254497+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",

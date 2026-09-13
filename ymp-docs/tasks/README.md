@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-13 14:19 UTC.
+Updated: 2026-09-13 14:27 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -16,7 +16,7 @@ A planned task is not implemented functionality. Completed research and planning
 | experiment | 0 | 4 |
 | implementation | 35 | 39 |
 | maintenance | 1 | 1 |
-| research | 9 | 10 |
+| research | 10 | 10 |
 | verification | 2 | 2 |
 
 ## Index
@@ -84,7 +84,7 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-141](#ymp-141) | P1 | Keep popup geometry stable while scrolling content | 2026-09-13 14:04 |
 | `[x]` | [YMP-142](#ymp-142) | P1 | Assess ratatui-code-editor for opening files inside ymp | 2026-09-13 11:52 |
 | `[x]` | [YMP-143](#ymp-143) | P1 | Provide a separate /git changes view modeled on Paseo | 2026-09-13 14:04 |
-| `[~]` | [YMP-144](#ymp-144) | P1 | Research recovery of sessions after one or more agent failures | 2026-09-13 14:19 |
+| `[x]` | [YMP-144](#ymp-144) | P1 | Research recovery of sessions after one or more agent failures | 2026-09-13 14:27 |
 | `[~]` | [YMP-145](#ymp-145) | P1 | Unify full-row popup selection and verify stable scrolling geometry | 2026-09-13 14:19 |
 
 ## YMP-001
@@ -2127,11 +2127,11 @@ The current Git-marker discovery and session changes page do not expose actual s
 
 Research recovery of sessions after one or more agent failures
 
-**State:** `[~]` (in_progress) · **Type:** research · **Priority:** P1
+**State:** `[x]` (done) · **Type:** research · **Priority:** P1
 
-**Last update (UTC):** 2026-09-13 14:19
+**Last update (UTC):** 2026-09-13 14:27
 
-**Current reason:** Started read-only committee agents 332e0b99-79a7-4255-82ae-be642ff7707e (claude-opus-5 high) and 52111c72-73e2-4ddc-b677-5573306ba1a9 (gpt-6-astra xhigh). Adapting existing assignments to the requested researcher skill; no extra researchers, provider probes, application edits or session resumes.
+**Current reason:** Both independent researchers and maintainer source review confirm saved plan proposal, missing pre-task review recovery, ineffectual failure reassignment and no unknown-usage admission block for this incident without numeric token caps. Researchers reconciled existing task recovery, genuine versus fabricated participant IDs, fixed-size versus pinned-roster constraints and negative-review handling. Research recommendation and acceptance scenarios recorded; owner-controlled policy amendment remains an open product option. No application implementation, tests, provider probes or live-session recovery was performed. Implementation requires separate authorization.
 
 **Owner:** Two background Paseo researchers; maintainer owns product discussion and synthesis
 
@@ -2150,7 +2150,7 @@ A failed plan-review invocation leaves an existing session blocked even though p
 
 **Evidence:**
 
-- Pending.
+- ymp-docs/research/session-recovery-144.md
 
 ## YMP-145
 
