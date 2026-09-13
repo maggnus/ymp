@@ -4126,7 +4126,8 @@
       ],
       "evidence": [
         "ymp-docs/guides/ui-language.md",
-        "ymp-docs/evidence/ymp-149/audit.md"
+        "ymp-docs/evidence/ymp-149/audit.md",
+        "ymp-docs/evidence/ymp-149/acceptance-round1.md"
       ],
       "history": [
         {
@@ -4153,6 +4154,11 @@
           "at": "2026-09-13T17:02:15.975597+00:00",
           "status": "in_progress",
           "note": "Author delivered07025c5onfix/ymp149-ui-language with clean tree. Reports579workspacepasses2ignored, strictClippy0, fmt0after whitespace-only test rewrap plus two targeted passes,27agent-row terminal records and19table cases inUnicode/ASCII. Independent Claude reviewer332e0b99 now checks concise wording, actual metadata/current-next scope, historical identity, changedsortkeys and retained testmeaning. No acceptance or installed-release claim; P0rework continues separately."
+        },
+        {
+          "at": "2026-09-13T17:16:42.296047+00:00",
+          "status": "in_progress",
+          "note": "Independent149review RETURN accepted for bounded semantic rework: rename Config.team flag toPREFERRED, distinguish unavailablemetadata from unavailableagent, preserve distinct prefix modelIDs, and check actualcatalogfieldvalue. Parent disproved review premise that runtime ignoresConfig.team: eligible_from explicitly uses it to order candidates. Author instructed not to change runtime or use not-used wording; reviewer asked to reconcile sourcefact. No integration/install."
         }
       ]
     },
@@ -4256,7 +4262,7 @@
       ]
     }
   ],
-  "updated_at": "2026-09-13T17:02:15.975597+00:00",
+  "updated_at": "2026-09-13T17:16:42.296047+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",

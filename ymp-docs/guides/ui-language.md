@@ -13,7 +13,10 @@ Do not turn implementation explanations into table values or status labels.
 - Display known team-membership booleans as `true` and `false`, not `in team`
   versus an empty cell. Preserve an explicit unknown where membership is not
   established. Name the scope: selected session or next-session configuration.
-  A Config.team preference must not be labeled as effective current membership.
+  A Config.team preference must not be labeled as effective current membership
+  or a guaranteed future roster. Use `PREFERRED` for that input flag: runtime
+  uses it to order eligible candidates, while constraints and allocation still
+  determine the actual team.
 - Prefer one stable term for each concept: agent, provider, model, session,
   task, assignment, invocation, review and confirmation. Do not collapse distinct
   states merely to shorten text. In particular, accepted and confirmed differ.
