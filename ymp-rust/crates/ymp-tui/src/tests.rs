@@ -7150,6 +7150,63 @@ fn native_turn(
     identity: ymp_core::AgentIdentity,
     reported: (Option<&str>, Option<&str>),
 ) -> String {
+    let (assignment, invocation) = native_records(fixture, session, agent, identity);
+    fixture
+        .store
+        .begin_invocation_with_grants(&assignment, &invocation, &[])
+        .unwrap();
+    report(fixture, session, &invocation.id, reported);
+    invocation.id
+}
+
+/// Record the model and effort an installation reported for a running invocation.
+fn report(
+    fixture: &Fixture,
+    session: &str,
+    invocation: &str,
+    reported: (Option<&str>, Option<&str>),
+) {
+    fixture
+        .store
+        .observe_invocation(
+            session,
+            invocation,
+            &ymp_core::InvocationObservation {
+                reported: Some(ymp_core::ExecutionSettings {
+                    model: reported.0.map(str::to_owned),
+                    effort: reported.1.map(str::to_owned),
+                    permission_mode: None,
+                }),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+}
+
+/// The name the transcript gives the entry that carries exactly `text`.
+fn author_of(app: &mut App, text: &str) -> String {
+    let entries = app.entries();
+    entries
+        .iter()
+        .find(|entry| entry.raw == text)
+        .map(|entry| entry.author.clone())
+        .unwrap_or_else(|| {
+            let authors: Vec<(&String, &String)> = entries
+                .iter()
+                .map(|entry| (&entry.raw, &entry.author))
+                .collect();
+            panic!("no entry carries {text:?}: {authors:#?}")
+        })
+}
+
+/// The records a run writes when it admits one turn: the assignment with the identity it
+/// captured, and a running invocation that asks for the identity's model.
+fn native_records(
+    fixture: &Fixture,
+    session: &str,
+    agent: &str,
+    identity: ymp_core::AgentIdentity,
+) -> (ymp_core::AssignmentRecord, ymp_core::InvocationRecord) {
     let turn = fixture.store.trace(session).unwrap().invocations.len() as u64 + 1;
     let requested = ymp_core::ExecutionSettings {
         model: identity.model.clone(),
@@ -7194,26 +7251,7 @@ fn native_turn(
         usage: None,
         terminal_reason: None,
     };
-    fixture
-        .store
-        .begin_invocation_with_grants(&assignment, &invocation, &[])
-        .unwrap();
-    fixture
-        .store
-        .observe_invocation(
-            session,
-            &invocation.id,
-            &ymp_core::InvocationObservation {
-                reported: Some(ymp_core::ExecutionSettings {
-                    model: reported.0.map(str::to_owned),
-                    effort: reported.1.map(str::to_owned),
-                    permission_mode: None,
-                }),
-                ..Default::default()
-            },
-        )
-        .unwrap();
-    invocation.id
+    (assignment, invocation)
 }
 
 #[test]
@@ -7714,4 +7752,190 @@ fn an_unlinked_native_message_stays_unknown_after_its_actor_runs_as_a_local_fixt
         "Local fixture",
         "a bound local fixture turn lost the name it captured"
     );
+}
+
+#[test]
+fn a_conversation_that_moves_to_a_new_session_keeps_naming_the_earlier_messages() {
+    let fixture = fixture();
+    let config = native_label_config();
+    let store = &fixture.store;
+    let earlier = native_label_session(&fixture, &config);
+    let turn = native_turn(
+        &fixture,
+        &earlier,
+        "transport-one",
+        captured(
+            "Default (recommended)",
+            "default",
+            Some("claude-opus-5[1m]"),
+        ),
+        (Some("claude-opus-5"), None),
+    );
+    store
+        .invocation_message(&earlier, &turn, "chat", "The earlier answer")
+        .unwrap();
+    store
+        .finish_invocation(&earlier, &turn, ymp_core::InvocationState::Completed, None)
+        .unwrap();
+    let mut app = app_with(&fixture, config.clone());
+    app.load_session(&earlier).unwrap();
+    assert_eq!(
+        author_of(&mut app, "The earlier answer"),
+        "claude-opus-5 none"
+    );
+
+    // A follow-up that needs new work records a child session. Its first message opens that
+    // session in the same window, below the conversation already shown.
+    let child = native_label_session(&fixture, &config);
+    let later = native_turn(
+        &fixture,
+        &child,
+        "transport-one",
+        captured("Latest release", "glm-5.2", None),
+        (Some("glm-5.2"), Some("max")),
+    );
+    let message = store
+        .invocation_message(&child, &later, "chat", "The follow-up answer")
+        .unwrap();
+    app.event(UiEvent::Message(message));
+    assert_eq!(app.session.as_deref(), Some(child.as_str()));
+    assert_eq!(
+        author_of(&mut app, "The earlier answer"),
+        "claude-opus-5 none",
+        "the earlier session's message lost the invocation it is linked to"
+    );
+    assert_eq!(author_of(&mut app, "The follow-up answer"), "glm-5.2 max");
+
+    // A message of the earlier session that was never read is named from that session's own
+    // records, not from the session that is open now.
+    app.attribution = crate::provenance::Attribution::default();
+    app.event(UiEvent::AgentStatus {
+        agent: "transport-one".into(),
+        status: "idle".into(),
+    });
+    assert_eq!(
+        author_of(&mut app, "The earlier answer"),
+        "claude-opus-5 none",
+        "an earlier session's message was not resolved from its own records"
+    );
+}
+
+#[test]
+fn a_model_and_effort_reported_after_a_message_was_linked_rename_that_message() {
+    let fixture = fixture();
+    let config = native_label_config();
+    let session = native_label_session(&fixture, &config);
+    let store = &fixture.store;
+    // The turn posts its answer before the installation has reported what it ran.
+    let turn = native_turn(
+        &fixture,
+        &session,
+        "transport-one",
+        captured("Latest release", "glm-5.2", None),
+        (None, None),
+    );
+    store
+        .invocation_message(&session, &turn, "chat", "An answer written mid-turn")
+        .unwrap();
+    let mut app = app_with(&fixture, config);
+    app.load_session(&session).unwrap();
+    app.active = true;
+    assert_eq!(
+        author_of(&mut app, "An answer written mid-turn"),
+        "glm-5.2 none"
+    );
+
+    report(&fixture, &session, &turn, (Some("glm-5.2"), Some("max")));
+    app.event(UiEvent::AgentStatus {
+        agent: "transport-one".into(),
+        status: "execute".into(),
+    });
+    assert_eq!(
+        author_of(&mut app, "An answer written mid-turn"),
+        "glm-5.2 max",
+        "a message linked before its invocation reported kept the settings read first"
+    );
+
+    // The turn ends, and its message keeps what the turn reported.
+    store
+        .finish_invocation(&session, &turn, ymp_core::InvocationState::Completed, None)
+        .unwrap();
+    app.event(UiEvent::AgentStatus {
+        agent: "transport-one".into(),
+        status: "idle".into(),
+    });
+    assert_eq!(
+        author_of(&mut app, "An answer written mid-turn"),
+        "glm-5.2 max"
+    );
+}
+
+#[test]
+fn a_shared_chat_post_is_named_by_the_invocation_its_team_operation_committed() {
+    let fixture = fixture();
+    let config = native_label_config();
+    let session = native_label_session(&fixture, &config);
+    let store = &fixture.store;
+    let (mut assignment, invocation) = native_records(
+        &fixture,
+        &session,
+        "transport-one",
+        captured("Latest release", "glm-5.2", None),
+    );
+    let grant = ymp_core::GrantRecord::for_assignment(
+        &assignment,
+        &invocation,
+        vec![ymp_core::TeamOperation::TeamPost],
+    );
+    assignment.grant_ids.push(grant.id.clone());
+    store
+        .begin_invocation_with_grants(&assignment, &invocation, std::slice::from_ref(&grant))
+        .unwrap();
+    report(
+        &fixture,
+        &session,
+        &invocation.id,
+        (Some("glm-5.2"), Some("max")),
+    );
+    let (_, posted) = store
+        .team_call(
+            &grant,
+            ymp_core::TeamOperation::TeamPost,
+            &serde_json::json!({"text": "A shared finding"}),
+            "post-1",
+        )
+        .unwrap();
+    let posted = posted.expect("a team post writes a chat message");
+    store
+        .finish_invocation(
+            &session,
+            &invocation.id,
+            ymp_core::InvocationState::Completed,
+            None,
+        )
+        .unwrap();
+    // Only the committed team operation names the post's sequence.
+    let naming: Vec<String> = store
+        .trace(&session)
+        .unwrap()
+        .history
+        .iter()
+        .filter(|event| {
+            event
+                .data
+                .get("message_seq")
+                .and_then(serde_json::Value::as_i64)
+                == Some(posted.seq)
+        })
+        .map(|event| event.kind.clone())
+        .collect();
+    assert_eq!(
+        naming,
+        ["provenance"],
+        "the post is not linked through its team operation alone"
+    );
+
+    let mut app = app_with(&fixture, config);
+    app.load_session(&session).unwrap();
+    assert_eq!(author_of(&mut app, &posted.text), "glm-5.2 max");
 }

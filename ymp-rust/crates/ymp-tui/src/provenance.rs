@@ -33,69 +33,127 @@ use ymp_storage::Store;
 /// link is committed together with the message, so the controller reads the session again when an
 /// agent message arrives, when a stream starts and when a turn starts or ends, and presents from
 /// that read. A message nothing links stays unlinked.
+///
+/// Links are kept by the session and sequence of the message they name, and only for messages
+/// still shown. A conversation that goes on in a new session therefore keeps naming the messages
+/// an earlier session wrote, from that session's own records.
 #[derive(Default)]
 pub struct Attribution {
+    /// The active session, as last read.
     pub trace: Option<SessionTrace>,
-    /// Keyed by message sequence. `None` is a message no invocation is linked to.
-    linked: BTreeMap<i64, Option<AgentAttribution>>,
+    /// Keyed by the message's session, then by its sequence.
+    linked: BTreeMap<String, BTreeMap<i64, Link>>,
+}
+
+/// What a read found for one message.
+struct Link {
+    /// `None` is a message no invocation is linked to.
+    attribution: Option<AgentAttribution>,
+    /// Whether the linked invocation had stopped running when this was read. A running
+    /// invocation can still report the model and effort it used after its message was linked.
+    settled: bool,
 }
 
 impl Attribution {
-    /// Read the session again. Links already resolved are kept, because a written link never
-    /// changes; a read that fails leaves the messages it could not resolve for the next read.
+    /// Read the active session again and resolve the messages still shown.
+    ///
+    /// A written link never changes, so a resolved link is kept. The one exception is a link to
+    /// an invocation of the active session that was still running: it is read again until that
+    /// invocation stops, so settings reported late replace the ones read first. A message from
+    /// another session is resolved once, from that session's own records, which are not kept. A
+    /// read that fails leaves the messages it could not resolve for the next read.
     pub fn refresh(&mut self, store: &Store, session: Option<&str>, messages: &[Message]) {
-        let same = matches!(
-            (&self.trace, session),
-            (Some(trace), Some(id)) if trace.session.id == id
-        );
-        if !same {
-            self.linked.clear();
+        let mut shown: BTreeMap<&str, BTreeSet<i64>> = BTreeMap::new();
+        for message in messages {
+            shown
+                .entry(message.session_id.as_str())
+                .or_default()
+                .insert(message.seq);
         }
+        for (id, links) in &mut self.linked {
+            let seqs = shown.get(id.as_str());
+            links.retain(|seq, _| seqs.is_some_and(|seqs| seqs.contains(seq)));
+        }
+        self.linked.retain(|_, links| !links.is_empty());
         self.trace = session.and_then(|id| store.trace(id).ok());
-        self.resolve(messages);
+
+        let mut pending: BTreeMap<&str, Vec<&Message>> = BTreeMap::new();
+        for message in messages {
+            if matches!(message.author.as_str(), "you" | "ymp") {
+                continue;
+            }
+            let active = session == Some(message.session_id.as_str());
+            let known = self
+                .linked
+                .get(message.session_id.as_str())
+                .and_then(|links| links.get(&message.seq))
+                .is_some_and(|link| link.settled || !active);
+            if !known {
+                pending
+                    .entry(message.session_id.as_str())
+                    .or_default()
+                    .push(message);
+            }
+        }
+        for (id, waiting) in pending {
+            if session == Some(id) {
+                if let Some(trace) = self.trace.as_mut() {
+                    resolve(&mut self.linked, trace, &waiting);
+                }
+            } else if let Ok(mut trace) = store.trace(id) {
+                resolve(&mut self.linked, &mut trace, &waiting);
+            }
+        }
     }
 
     /// The invocation linked to one message, where one is.
-    pub fn message(&self, seq: i64) -> Option<&AgentAttribution> {
-        self.linked.get(&seq).and_then(Option::as_ref)
+    pub fn message(&self, message: &Message) -> Option<&AgentAttribution> {
+        self.linked
+            .get(message.session_id.as_str())?
+            .get(&message.seq)?
+            .attribution
+            .as_ref()
     }
+}
 
-    fn resolve(&mut self, messages: &[Message]) {
-        let Some(trace) = self.trace.as_mut() else {
-            return;
-        };
-        let pending: Vec<&Message> = messages
-            .iter()
-            .filter(|message| {
-                message.session_id == trace.session.id
-                    && !matches!(message.author.as_str(), "you" | "ymp")
-                    && !self.linked.contains_key(&message.seq)
-            })
-            .collect();
-        if pending.is_empty() {
-            return;
+/// Link each of `messages`, all written in `trace`'s session, to the invocation its records name.
+fn resolve(
+    linked: &mut BTreeMap<String, BTreeMap<i64, Link>>,
+    trace: &mut SessionTrace,
+    messages: &[&Message],
+) {
+    // `message_attribution` considers only the events that name the message's sequence.
+    // Handing it exactly those keeps a read linear in the history rather than scanning the
+    // whole history once per message.
+    let history = std::mem::take(&mut trace.history);
+    let mut named: BTreeMap<i64, Vec<HistoryEvent>> = BTreeMap::new();
+    for event in &history {
+        if let Some(seq) = event
+            .data
+            .get("message_seq")
+            .and_then(serde_json::Value::as_i64)
+        {
+            named.entry(seq).or_default().push(event.clone());
         }
-        // `message_attribution` considers only the events that name the message's sequence.
-        // Handing it exactly those keeps a read linear in the history rather than scanning the
-        // whole history once per message.
-        let history = std::mem::take(&mut trace.history);
-        let mut named: BTreeMap<i64, Vec<HistoryEvent>> = BTreeMap::new();
-        for event in &history {
-            if let Some(seq) = event
-                .data
-                .get("message_seq")
-                .and_then(serde_json::Value::as_i64)
-            {
-                named.entry(seq).or_default().push(event.clone());
-            }
-        }
-        for message in pending {
-            trace.history = named.remove(&message.seq).unwrap_or_default();
-            self.linked
-                .insert(message.seq, trace.message_attribution(message));
-        }
-        trace.history = history;
     }
+    let links = linked.entry(trace.session.id.clone()).or_default();
+    for message in messages {
+        trace.history = named.remove(&message.seq).unwrap_or_default();
+        let attribution = trace.message_attribution(message);
+        let running = attribution.as_ref().is_some_and(|found| {
+            trace.invocations.iter().any(|invocation| {
+                invocation.id == found.invocation_id && invocation.state == InvocationState::Running
+            })
+        });
+        links.insert(
+            message.seq,
+            Link {
+                attribution,
+                settled: !running,
+            },
+        );
+    }
+    trace.history = history;
 }
 
 /// Whether the files an accepted result named are still the ones it was accepted with.

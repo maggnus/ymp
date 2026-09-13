@@ -170,7 +170,7 @@ fn origin_words(agent: &str, linked: Option<&AgentAttribution>, unlinked: &str) 
 fn entry(message: &Message, attribution: &Attribution, details: bool) -> Entry {
     // Every surface names agents by one rule, so the transcript, the window and the headless
     // command say the same thing about the same invocation.
-    let linked = attribution.message(message.seq);
+    let linked = attribution.message(message);
     let author = label::author(message, linked);
     let origin = (!matches!(message.author.as_str(), "you" | "ymp")).then(|| {
         origin_words(
