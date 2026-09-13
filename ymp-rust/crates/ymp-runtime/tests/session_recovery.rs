@@ -12,6 +12,9 @@ use ymp_providers::{ExecutionBackend, ExecutionFuture, ProviderEvent, TurnReques
 use ymp_runtime::*;
 use ymp_storage::Store;
 
+#[path = "session_recovery/rework.rs"]
+mod rework;
+
 #[derive(Clone, Copy)]
 enum Mode {
     Unknown,

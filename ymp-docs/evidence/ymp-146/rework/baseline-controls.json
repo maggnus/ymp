@@ -1,0 +1,18 @@
+{
+  "command": [
+    "cargo",
+    "test",
+    "-p",
+    "ymp-runtime",
+    "--test",
+    "session_recovery",
+    "rework::",
+    "--",
+    "--nocapture"
+  ],
+  "head": "cfdceff06cc703352b1234892729fb72a85dbf09",
+  "production_diff": "",
+  "test_sha256": "059cad272d424d5a87adbfa200c557de73cbbfd21b3b1d543f4d750468f197fe",
+  "started": "2026-09-13T16:45:34.378714+00:00",
+  "exit_code": 101
+}
