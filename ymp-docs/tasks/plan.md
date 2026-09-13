@@ -1,6 +1,6 @@
 # Delivery plan and progress
 
-Updated: 2026-09-13 14:04 UTC.
+Updated: 2026-09-13 14:12 UTC.
 
 [Approved intent](../../intent.md) · [Task details and evidence](README.md) · [Canonical register](tasks.json)
 
@@ -115,13 +115,14 @@ No delivery task is ready. See the dependency reasons below.
 - Keep YMP-116 small: one transition contract and the missing fields in the existing Rust packages and SQLite. No new orchestrator, identity service, storage rewrite or generic optimizer is required.
 - Implement useful concurrency first for the existing task graph. Dynamic team changes and replanning are separate; conflicting writes remain coordinated under the current workspace policy.
 - Prepare universal fixtures in YMP-119 early. The final integration task YMP-121 runs them against completed features; fixture preparation is not product completion.
-- Integrate core visibility as soon as the core records are available. Later features extend the same views as part of their own acceptance; all application UI work uses Claude Opus 5 max through Paseo.
+- Integrate core visibility as soon as the core records are available. Later features extend the same views as part of their own acceptance; future application UI assignments use Claude Code claude-opus-5 high through Paseo, following AGENTS.md; already-running assignments keep their launch settings.
 - Preserve accepted-but-unconfirmed outcomes and award no reputation without confirmation. Keep native authentication and honest resource-coverage limits; an effort level is not a spending cap.
 - Real-provider checks and experiments require their concrete quota authorization. Unattended checks use fixtures. After changes run cargo fmt, clippy with warnings denied and workspace tests; bridge changes also require bridge checks.
 - Favor narrow typed subsystem interfaces and injectable built-in implementations. Replacement algorithms propose work or provide observations; trusted runtime rules still own grants, budgets, acceptance and evidence. See subsystem-interfaces.md and YMP-122.
 - Release 0.4.0 is an MVP. Its owner-approved direct workspace policy is a temporary limitation; YMP-124 tracks post-MVP isolated execution and recoverable publication.
 - After110/113 backend integration was independently accepted,112/114 readiness uses their completed core prerequisites; remaining110/113 UI acceptance is an explicit121 dependency. Their full acceptance and completion counts remain unchanged.
 - Owner direction2026-09-13: unify library use across features. Reuse shared implementations; justify a new or overlapping dependency by a demonstrated gap and integration/maintenance cost. Prefer replacing and retiring superseded dependencies over keeping parallel stacks. Complementary roles are not duplication. This does not authorize implementation while research-only scope applies.
+- Owner direction2026-09-13: keep the primary conversation available for product discussion. Delegate agreed implementation and verification to background Paseo agents with completion notifications. Sequence dependencies/conflicting writes, preserve independent review, and keep the parent accountable for scope/contracts/integration/acceptance. Do not start unscheduled backlog work automatically; report concise outcomes rather than occupying the conversation with long execution loops.
 
 ## Planning and deferred work
 

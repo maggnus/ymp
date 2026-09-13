@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-13 14:04 UTC.
+Updated: 2026-09-13 14:12 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
