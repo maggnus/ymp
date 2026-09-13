@@ -1,0 +1,14 @@
+{
+  "command": [
+    "cargo",
+    "test",
+    "-p",
+    "ymp-runtime",
+    "--test",
+    "fresh_plan_review",
+    "current_files_decision_refuses_active_native_execution_and_unreleased_ownership",
+    "--",
+    "--nocapture"
+  ],
+  "exit_code": 0
+}

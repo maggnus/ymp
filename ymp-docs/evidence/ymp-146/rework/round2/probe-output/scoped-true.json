@@ -1,12 +1,12 @@
 {
   "failure": {
     "agent_id": "reserve",
-    "assignment_id": "1e308c2c-6867-4d99-ba82-b8d788fc4545",
+    "assignment_id": "68cc34b2-4a70-4875-b9b6-02d6475ab9b3",
     "class": "malformed_response",
     "effective_access": {
       "mode": "write_all"
     },
-    "invocation_id": "606f7f78-12dd-44b0-9ef4-8aa578073a13",
+    "invocation_id": "e4361ce7-f432-45b1-874b-f49cc58a3e7d",
     "native_code": null,
     "provider_id": "offline",
     "termination": "backend_ended"
@@ -21,24 +21,24 @@
     ]
   },
   "stage": {
-    "active_invocation_id": "606f7f78-12dd-44b0-9ef4-8aa578073a13",
+    "active_invocation_id": "e4361ce7-f432-45b1-874b-f49cc58a3e7d",
     "admission_denial": null,
     "condition": "Uncertain execution effects: establish termination and inspect actual effects before replay; no rollback is available",
     "failures": [
       {
         "agent_id": "reserve",
-        "assignment_id": "1e308c2c-6867-4d99-ba82-b8d788fc4545",
+        "assignment_id": "68cc34b2-4a70-4875-b9b6-02d6475ab9b3",
         "class": "malformed_response",
         "effective_access": {
           "mode": "write_all"
         },
-        "invocation_id": "606f7f78-12dd-44b0-9ef4-8aa578073a13",
+        "invocation_id": "e4361ce7-f432-45b1-874b-f49cc58a3e7d",
         "native_code": null,
         "provider_id": "offline",
         "termination": "backend_ended"
       }
     ],
-    "id": "plan-review-e0336119-befb-4618-9ed9-2d61e9f3bbdc-1",
+    "id": "plan-review-2f059c4d-bc24-4e74-9a5e-605923361f71-1",
     "manual_permit": false,
     "plan": {
       "plan": {
@@ -55,9 +55,9 @@
           }
         ]
       },
-      "producer_assignment_id": "33aa6f5e-c520-4339-8c87-bc0ca467461d",
-      "producer_invocation_id": "a34c597e-8ca5-426f-b0b7-8cf7021fb5a6",
-      "proposal_id": "e0336119-befb-4618-9ed9-2d61e9f3bbdc",
+      "producer_assignment_id": "23a9ea81-2e79-4e71-b680-956672409a4b",
+      "producer_invocation_id": "078bbcce-72af-48a5-b2d5-227e81fff9ab",
+      "proposal_id": "2f059c4d-bc24-4e74-9a5e-605923361f71",
       "revision": 1
     },
     "purpose": "review_plan",
@@ -69,10 +69,10 @@
     "revision": 7,
     "schema_version": 1,
     "selected_agent": "reserve",
-    "session_id": "5a6aa754-a3cb-4b57-87ed-d29927f5e02c",
+    "session_id": "5c3e022f-e823-4b4d-aafd-a6bf729f3c1a",
     "status": "owner_action",
     "task": null,
-    "updated_at": "2026-09-13T18:24:25.150654+00:00",
+    "updated_at": "2026-09-13T19:13:40.392426+00:00",
     "wait_reason": "uncertain_effects"
   }
 }

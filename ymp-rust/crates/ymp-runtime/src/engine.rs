@@ -5,6 +5,7 @@ mod confirmation;
 mod confirmation_tests;
 #[cfg(test)]
 mod contract_ingress_tests;
+mod current_files;
 mod fresh_plan_review;
 #[cfg(test)]
 mod knowledge_tests;
@@ -1205,11 +1206,22 @@ impl Engine {
         };
         // Existing per-run permits remain a secondary bound for legacy callers.
         let _permit = tokio::select! {_=self.cancel.cancelled()=>bail!("Cancelled"),p=ctx.permits.acquire()=>p?};
+        let acknowledged_actor = self
+            .store
+            .current_files_authorizations(&ctx.session.id)?
+            .iter()
+            .any(|a| {
+                a.command
+                    .context
+                    .failures
+                    .iter()
+                    .any(|f| f.agent_id == agent.id)
+            });
         let continuation = self
             .store
             .value(&key)?
             .and_then(|v| serde_json::from_value::<NativeContinuation>(v).ok())
-            .filter(|_| self.fresh_plan_review_binding.is_none())
+            .filter(|_| self.fresh_plan_review_binding.is_none() && !acknowledged_actor)
             .filter(|saved| saved.config_version == config_version && saved.requested == requested);
         let resume = continuation.as_ref().map(|saved| saved.session_id.clone());
         request.resume = resume.clone();
@@ -1847,6 +1859,7 @@ impl Engine {
             if self.cancel.is_cancelled() {
                 bail!("Cancelled");
             }
+            self.check_fresh_plan_dependencies(&ctx.session.id)?;
             self.commit_board_proposals(&ctx.session.id)?;
             tasks = self.store.tasks(&ctx.session.id)?;
             self.validate_contract_bindings(

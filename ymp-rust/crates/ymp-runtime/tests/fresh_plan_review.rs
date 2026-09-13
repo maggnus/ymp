@@ -544,3 +544,500 @@ async fn native_fresh_review_rejects_foreign_stale_self_unknown_and_exhausted_in
     }
     Ok(())
 }
+
+fn reopen(f: &Fixture) -> Result<Engine> {
+    let (events, _) = mpsc::unbounded_channel();
+    let mut engine = Engine::new(
+        Store::open(&f.store.home)?,
+        f.engine.config.clone(),
+        events,
+        CancellationToken::new(),
+    )?;
+    engine.use_memory = false;
+    Ok(engine)
+}
+fn current_command(f: &Fixture) -> Result<ContinueWithCurrentFilesCommand> {
+    Ok(ContinueWithCurrentFilesCommand {
+        command_id: new_id(),
+        context: f
+            .engine
+            .current_files_context(&f.stage.session_id, &f.stage.id)?,
+    })
+}
+
+#[tokio::test]
+async fn current_files_owner_decision_survives_restart_and_finishes_native_legacy_work(
+) -> Result<()> {
+    let mut f = Fixture::new().await?;
+    f.warm_fresh_context().await?;
+    let reviewed = f.engine.review_saved_plan_fresh(&f.command()?).await?;
+    let before = f.store.trace(&f.stage.session_id)?;
+    let native_before = f.requests()?;
+    let command = current_command(&f)?;
+    let receipt = f.engine.continue_with_current_files(&command)?;
+    assert_eq!(
+        f.requests()?,
+        native_before,
+        "Authorization itself invokes no backend"
+    );
+    assert_eq!(f.engine.continue_with_current_files(&command)?, receipt);
+    let engine = reopen(&f)?;
+    assert_eq!(engine.continue_with_current_files(&command)?, receipt);
+    let stage = engine
+        .recovery_stages(&f.stage.session_id)?
+        .into_iter()
+        .find(|s| s.id == f.stage.id)
+        .unwrap();
+    assert!(!stage.manual_permit);
+    assert!(stage.effect_resolution.is_none());
+    assert_eq!(stage.failures, f.stage.failures);
+    let result = engine.run(&f.path, "", Some(&f.stage.session_id)).await?;
+    assert_eq!(result.session.status, "completed", "{}", result.summary);
+    assert_eq!(
+        std::fs::read_to_string(f.path.join("current-result.txt"))?,
+        "New work from current files; historical effects remain unknown.\n"
+    );
+    let after = f.store.trace(&f.stage.session_id)?;
+    assert!(after.tasks.iter().all(|t| t.state == TaskState::Accepted));
+    assert_eq!(after.tasks.len(), 1);
+    assert_eq!(
+        after.budget.as_ref().unwrap().limits,
+        before.budget.as_ref().unwrap().limits
+    );
+    assert!(
+        after.budget.as_ref().unwrap().admitted_invocations
+            > before.budget.as_ref().unwrap().admitted_invocations
+    );
+    assert_eq!(
+        after
+            .decisions
+            .iter()
+            .filter(|d| d.kind == "plan_proposed")
+            .count(),
+        1
+    );
+    assert_eq!(
+        after
+            .decisions
+            .iter()
+            .filter(|d| d.kind == "plan_review")
+            .count(),
+        1
+    );
+    assert_eq!(
+        after
+            .decisions
+            .iter()
+            .filter(|d| d.kind == "owner_current_files_authorized")
+            .count(),
+        1
+    );
+    assert!(after
+        .decisions
+        .iter()
+        .filter_map(|d| d.links.workspace_access.as_ref())
+        .all(|a| a.local_effect_scope.is_none()));
+    assert!(engine
+        .recovery_stages(&f.stage.session_id)?
+        .iter()
+        .all(|s| s.effect_resolution.is_none()));
+    assert_eq!(
+        engine
+            .recovery_stages(&f.stage.session_id)?
+            .into_iter()
+            .find(|s| s.id == f.stage.id)
+            .unwrap()
+            .failures,
+        f.stage.failures
+    );
+    assert!(after
+        .assignments
+        .iter()
+        .any(|a| a.purpose == "execute" && a.agent_id != f.stage.failures[0].agent_id));
+    assert!(f.requests()?[native_before.len()..]
+        .iter()
+        .all(|r| r["actor"] != "failed" && r["purpose"] != "plan"));
+    assert_eq!(
+        f.requests()?
+            .iter()
+            .filter(|r| r["purpose"] == "execute")
+            .count(),
+        1
+    );
+    for invocation in before.invocations {
+        assert_eq!(
+            serde_json::to_value(f.store.invocation(&f.stage.session_id, &invocation.id)?)?,
+            serde_json::to_value(invocation)?
+        );
+    }
+    assert!(after
+        .decisions
+        .iter()
+        .any(|d| d.id == reviewed.review_record_id));
+    assert!(f.store.observations()?.is_empty());
+    assert_eq!(reopen(&f)?.continue_with_current_files(&command)?, receipt);
+    Ok(())
+}
+
+#[tokio::test]
+async fn current_files_authorization_rejects_changed_context_holds_and_unknown_termination(
+) -> Result<()> {
+    let f = Fixture::new().await?;
+    let initial_calls = f.requests()?;
+    let original = current_command(&f)?;
+    for mutation in 0..4 {
+        let mut changed = original.clone();
+        match mutation {
+            0 => changed.context.session_id = new_id(),
+            1 => changed.context.stage_revision += 1,
+            2 => changed.context.failures.clear(),
+            _ => changed.context.team_revision += 1,
+        }
+        assert!(f.engine.continue_with_current_files(&changed).is_err());
+    }
+    std::fs::write(
+        f.path.join("new-file.txt"),
+        "Changed while owner was reviewing",
+    )?;
+    assert!(f
+        .engine
+        .continue_with_current_files(&original)
+        .unwrap_err()
+        .to_string()
+        .contains("stale_current_files"));
+    assert!(f
+        .store
+        .current_files_authorizations(&f.stage.session_id)?
+        .is_empty());
+    for hold in [
+        RecoveryControl::Pause,
+        RecoveryControl::Wait {
+            condition: "Owner hold".into(),
+        },
+    ] {
+        f.control(hold)?;
+        assert!(f
+            .engine
+            .continue_with_current_files(&current_command(&f)?)
+            .unwrap_err()
+            .to_string()
+            .contains("owner_hold"));
+        f.control(RecoveryControl::ReleaseHold)?;
+        assert!(
+            !f.engine
+                .recovery_stages(&f.stage.session_id)?
+                .into_iter()
+                .find(|s| s.id == f.stage.id)
+                .unwrap()
+                .manual_permit
+        );
+    }
+    f.owner(OwnerTeamAction::Pause)?;
+    assert!(f
+        .engine
+        .continue_with_current_files(&current_command(&f)?)
+        .is_err());
+    f.owner(OwnerTeamAction::Continue)?;
+    assert_eq!(f.requests()?, initial_calls);
+    let command = current_command(&f)?;
+    f.engine.continue_with_current_files(&command)?;
+    let mut conflict = command.clone();
+    conflict.context.failures.clear();
+    assert!(f
+        .engine
+        .continue_with_current_files(&conflict)
+        .unwrap_err()
+        .to_string()
+        .contains("owner_command_conflict"));
+    assert!(f
+        .control(RecoveryControl::Retry)
+        .unwrap_err()
+        .to_string()
+        .contains("uncertain_effects"));
+    let unknown = Fixture::configured(40, true).await?;
+    assert!(unknown
+        .engine
+        .continue_with_current_files(&current_command(&unknown)?)
+        .is_err());
+    assert!(unknown
+        .store
+        .current_files_authorizations(&unknown.stage.session_id)?
+        .is_empty());
+    Ok(())
+}
+
+#[tokio::test]
+async fn a_later_uncertain_failure_is_not_covered_by_the_previous_current_files_decision(
+) -> Result<()> {
+    let mut f = Fixture::new().await?;
+    f.warm_fresh_context().await?;
+    f.engine.review_saved_plan_fresh(&f.command()?).await?;
+    let old = current_command(&f)?;
+    let old_receipt = f.engine.continue_with_current_files(&old)?;
+    std::fs::write(
+        f.log.parent().unwrap().join("control.json"),
+        json!({"fail_execute":true}).to_string(),
+    )?;
+    let result = f.engine.run(&f.path, "", Some(&f.stage.session_id)).await?;
+    assert_ne!(result.session.status, "completed");
+    assert!(
+        f.path.join("current-result.txt").exists(),
+        "The new failed call had a real local effect"
+    );
+    let after_failure = f.requests()?;
+    let failures = f.store.current_files_failures(&f.stage.session_id)?;
+    assert!(failures
+        .iter()
+        .any(|failure| !old.context.failures.contains(failure)));
+    assert_eq!(reopen(&f)?.continue_with_current_files(&old)?, old_receipt);
+    let resumed = reopen(&f)?
+        .run(&f.path, "", Some(&f.stage.session_id))
+        .await?;
+    assert_ne!(resumed.session.status, "completed");
+    assert!(
+        resumed.summary.contains("unresolved_effect_dependencies"),
+        "{}",
+        resumed.summary
+    );
+    assert_eq!(
+        f.requests()?,
+        after_failure,
+        "Old owner decision cannot authorize another call after new uncertainty"
+    );
+    assert_eq!(
+        f.store
+            .current_files_authorizations(&f.stage.session_id)?
+            .len(),
+        1
+    );
+    assert!(f
+        .store
+        .tasks(&f.stage.session_id)?
+        .iter()
+        .any(|t| t.state == TaskState::Running));
+    Ok(())
+}
+
+#[tokio::test]
+async fn current_files_authorization_cannot_enlarge_the_original_budget() -> Result<()> {
+    let f = Fixture::configured(5, false).await?;
+    f.owner(OwnerTeamAction::Add {
+        agent_id: "fresh".into(),
+    })?;
+    f.engine.review_saved_plan_fresh(&f.command()?).await?;
+    let before = f.store.session_budget(&f.stage.session_id)?.unwrap();
+    let calls = f.requests()?;
+    f.engine
+        .continue_with_current_files(&current_command(&f)?)?;
+    let result = f.engine.run(&f.path, "", Some(&f.stage.session_id)).await?;
+    assert_ne!(result.session.status, "completed");
+    let after = f.store.session_budget(&f.stage.session_id)?.unwrap();
+    assert!(after.last_denial.is_some(), "{}", result.summary);
+    assert_eq!(after.limits, before.limits);
+    assert_eq!(after.admitted_invocations, before.admitted_invocations);
+    assert_eq!(f.requests()?, calls);
+    assert!(!f.path.join("current-result.txt").exists());
+    Ok(())
+}
+
+#[tokio::test]
+async fn native_fresh_negative_verdict_and_malformed_attempt_cannot_be_shopped_or_duplicated(
+) -> Result<()> {
+    for malformed in [false, true] {
+        let f = Fixture::new().await?;
+        f.owner(OwnerTeamAction::Add {
+            agent_id: "fresh".into(),
+        })?;
+        std::fs::write(
+            f.log.parent().unwrap().join("control.json"),
+            json!({"approved":false,"malformed":malformed}).to_string(),
+        )?;
+        let command = f.command()?;
+        let result = f.engine.review_saved_plan_fresh(&command).await;
+        let calls = f.requests()?;
+        if malformed {
+            assert!(result.is_err());
+            assert!(reopen(&f)?
+                .review_saved_plan_fresh(&command)
+                .await
+                .unwrap_err()
+                .to_string()
+                .contains("fresh_review_already_attempted"));
+        } else {
+            let receipt = result?;
+            assert!(!receipt.record.approved);
+            assert!(receipt.record.reason.contains("preserves this objection"));
+            assert_eq!(
+                reopen(&f)?.review_saved_plan_fresh(&command).await?,
+                receipt
+            );
+            assert!(f
+                .engine
+                .review_saved_plan_fresh(&f.command()?)
+                .await
+                .is_err());
+            f.control(RecoveryControl::Continue)?;
+            assert_ne!(
+                f.engine
+                    .run(&f.path, "", Some(&f.stage.session_id))
+                    .await?
+                    .session
+                    .status,
+                "completed"
+            );
+            let verdicts = f
+                .store
+                .decisions(&f.stage.session_id)?
+                .into_iter()
+                .filter(|d| d.kind == "plan_review")
+                .collect::<Vec<_>>();
+            assert_eq!(verdicts.len(), 1);
+            assert_eq!(verdicts[0].outcome, Some(DecisionOutcome::Rejected));
+        }
+        assert_eq!(f.requests()?, calls);
+    }
+    Ok(())
+}
+
+struct ChangedNativeBackend;
+impl ymp_providers::ExecutionBackend for ChangedNativeBackend {
+    fn identity(&self) -> ExecutionBackendIdentity {
+        ExecutionBackendIdentity {
+            id: "fixture.new-native-build".into(),
+            version: "2".into(),
+        }
+    }
+    fn workspace_access(&self, request: &ymp_providers::TurnRequest) -> WorkspaceAccess {
+        ymp_providers::ExecutionBackend::workspace_access(
+            &ymp_providers::NativeExecutionBackend,
+            request,
+        )
+    }
+    fn execute(
+        &self,
+        request: ymp_providers::TurnRequest,
+        events: mpsc::UnboundedSender<ymp_providers::ProviderEvent>,
+    ) -> ymp_providers::ExecutionFuture<'_> {
+        ymp_providers::ExecutionBackend::execute(
+            &ymp_providers::NativeExecutionBackend,
+            request,
+            events,
+        )
+    }
+}
+#[tokio::test]
+async fn native_backend_version_change_preserves_old_origin_and_starts_fresh() -> Result<()> {
+    let mut f = Fixture::new().await?;
+    f.warm_fresh_context().await?;
+    let previous = f.store.trace(&f.stage.session_id)?;
+    f.engine = f
+        .engine
+        .with_execution_backend(std::sync::Arc::new(ChangedNativeBackend))?;
+    let before = f.requests()?.len();
+    let receipt = f.engine.review_saved_plan_fresh(&f.command()?).await?;
+    let invocation = f
+        .store
+        .invocation(&f.stage.session_id, &receipt.record.response.invocation_id)?;
+    assert_eq!(invocation.execution_backend.as_ref().unwrap().version, "2");
+    assert!(invocation.resumed_from.is_none());
+    assert!(!f.requests()?[before..]
+        .iter()
+        .any(|r| r["method"] == "thread/resume"));
+    for old in previous.invocations {
+        assert_eq!(
+            serde_json::to_value(f.store.invocation(&f.stage.session_id, &old.id)?)?,
+            serde_json::to_value(old)?
+        );
+    }
+    Ok(())
+}
+
+#[tokio::test]
+async fn fresh_acp_reviewer_is_refused_before_native_call_despite_requested_read_only() -> Result<()>
+{
+    let mut f = Fixture::new().await?;
+    let mut unsafe_agent = f
+        .engine
+        .config
+        .agents
+        .iter()
+        .find(|a| a.id == "failed")
+        .unwrap()
+        .clone();
+    unsafe_agent.id = "unsafe-reviewer".into();
+    unsafe_agent.model = Some("fixture-model".into());
+    f.engine.config.agents.push(unsafe_agent);
+    ymp_providers::discovery::refresh_catalog(
+        &mut f.engine.config,
+        &f._temp.path().join("acp-catalog"),
+        &f.path,
+        &PathBuf::new(),
+        ymp_providers::discovery::ScanOptions {
+            provider: Some("failed-native".into()),
+            timeout_secs: 5,
+        },
+        CancellationToken::new(),
+    )
+    .await?;
+    f.owner(OwnerTeamAction::Add {
+        agent_id: "unsafe-reviewer".into(),
+    })?;
+    let calls = f.requests()?;
+    let mut command = f.command()?;
+    command.reviewer_id = "unsafe-reviewer".into();
+    let error = f
+        .engine
+        .review_saved_plan_fresh(&command)
+        .await
+        .unwrap_err();
+    assert!(error.to_string().contains("inspection_access"), "{error}");
+    assert_eq!(f.requests()?, calls);
+    Ok(())
+}
+
+#[tokio::test]
+async fn current_files_decision_refuses_active_native_execution_and_unreleased_ownership(
+) -> Result<()> {
+    let f = Fixture::new().await?;
+    f.owner(OwnerTeamAction::Add {
+        agent_id: "fresh".into(),
+    })?;
+    let controls = f.log.parent().unwrap();
+    std::fs::write(
+        controls.join("control.json"),
+        json!({"gate_review":true}).to_string(),
+    )?;
+    let engine = f.engine.clone();
+    let command = f.command()?;
+    let running = tokio::spawn(async move { engine.review_saved_plan_fresh(&command).await });
+    tokio::time::timeout(std::time::Duration::from_secs(5), async {
+        while !controls.join("review-started").exists() {
+            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+        }
+    })
+    .await?;
+    let live = current_command(&f)?;
+    assert!(f.engine.continue_with_current_files(&live).is_err());
+    assert!(f
+        .store
+        .authorize_current_files(&live)
+        .unwrap_err()
+        .to_string()
+        .contains("active_responsibility"));
+    assert!(f
+        .store
+        .current_files_authorizations(&f.stage.session_id)?
+        .is_empty());
+    assert!(f
+        .store
+        .active_responsibilities(&f.stage.session_id)?
+        .iter()
+        .any(|r| r.kind == "workspace_access"));
+    std::fs::write(controls.join("review-release"), "release")?;
+    running.await??;
+    assert!(f
+        .engine
+        .continue_with_current_files(&current_command(&f)?)
+        .is_ok());
+    Ok(())
+}

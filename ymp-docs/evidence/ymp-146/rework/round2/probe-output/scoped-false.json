@@ -1,12 +1,12 @@
 {
   "failure": {
     "agent_id": "reserve",
-    "assignment_id": "026cd67f-cb56-44ad-b8f7-0f863f4a0e49",
+    "assignment_id": "da95c9b0-565b-495b-b5ff-6d6fe4cf8bd7",
     "class": "unknown",
     "effective_access": {
       "mode": "write_all"
     },
-    "invocation_id": "3065fed1-12fc-4e73-b11b-ca9b91256fe9",
+    "invocation_id": "e8c4d6c8-208f-477a-b12c-65bf747eba3c",
     "native_code": null,
     "provider_id": "offline",
     "termination": "backend_ended"
@@ -21,24 +21,24 @@
     ]
   },
   "stage": {
-    "active_invocation_id": "3065fed1-12fc-4e73-b11b-ca9b91256fe9",
+    "active_invocation_id": "e8c4d6c8-208f-477a-b12c-65bf747eba3c",
     "admission_denial": null,
     "condition": "Uncertain execution effects: establish termination and inspect actual effects before replay; no rollback is available",
     "failures": [
       {
         "agent_id": "reserve",
-        "assignment_id": "026cd67f-cb56-44ad-b8f7-0f863f4a0e49",
+        "assignment_id": "da95c9b0-565b-495b-b5ff-6d6fe4cf8bd7",
         "class": "unknown",
         "effective_access": {
           "mode": "write_all"
         },
-        "invocation_id": "3065fed1-12fc-4e73-b11b-ca9b91256fe9",
+        "invocation_id": "e8c4d6c8-208f-477a-b12c-65bf747eba3c",
         "native_code": null,
         "provider_id": "offline",
         "termination": "backend_ended"
       }
     ],
-    "id": "plan-review-ff97fa4a-201a-4ef8-a569-659a663d32c7-1",
+    "id": "plan-review-47f16edf-e5bb-4c0e-a2aa-fa95a566f06a-1",
     "manual_permit": false,
     "plan": {
       "plan": {
@@ -55,9 +55,9 @@
           }
         ]
       },
-      "producer_assignment_id": "6f921371-39fa-418d-a106-74e4d8a5ac56",
-      "producer_invocation_id": "6fa8a269-e13d-4e5a-b67d-517eee40049a",
-      "proposal_id": "ff97fa4a-201a-4ef8-a569-659a663d32c7",
+      "producer_assignment_id": "b7d7692f-928b-45ad-b018-5d9ef340c4fe",
+      "producer_invocation_id": "61b68c40-0b38-4f71-923c-9c7e82337596",
+      "proposal_id": "47f16edf-e5bb-4c0e-a2aa-fa95a566f06a",
       "revision": 1
     },
     "purpose": "review_plan",
@@ -69,10 +69,10 @@
     "revision": 6,
     "schema_version": 1,
     "selected_agent": "reserve",
-    "session_id": "e00cd730-fb85-4c38-ad76-598bc11ed501",
+    "session_id": "f1a3a909-ee6c-4c60-87ef-35ab9d0ad3c2",
     "status": "owner_action",
     "task": null,
-    "updated_at": "2026-09-13T18:24:25.150646+00:00",
+    "updated_at": "2026-09-13T19:13:40.396303+00:00",
     "wait_reason": "uncertain_effects"
   }
 }

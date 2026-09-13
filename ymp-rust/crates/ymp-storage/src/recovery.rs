@@ -4,15 +4,7 @@ pub(super) fn key(session: &str, id: &str) -> String {
 }
 impl Store {
     pub fn recovery_stages(&self, session: &str) -> Result<Vec<RecoveryStage>> {
-        let db = self.db()?;
-        let prefix = format!("recovery:v1:{session}:");
-        let mut q = db.prepare("SELECT value FROM kv WHERE substr(key,1,?1)=?2 ORDER BY key")?;
-        let raw = q
-            .query_map(params![prefix.len(), prefix], |r| r.get::<_, String>(0))?
-            .collect::<rusqlite::Result<Vec<_>>>()?;
-        raw.into_iter()
-            .map(|s| Ok(serde_json::from_str(&s)?))
-            .collect()
+        stages(&*self.db()?, session)
     }
     /// Compare-and-swap the stage and its proposal record under one write transaction.
     pub fn transition_recovery(
@@ -255,6 +247,7 @@ pub(super) fn bind_admission(
 ) -> Result<()> {
     super::recovery_inspection::check_admission(tx, assignment)?;
     super::fresh_plan_review::check_admission(tx, assignment, invocation)?;
+    super::current_files::check_admission(tx, assignment, invocation)?;
     let binding: Option<String> = tx
         .query_row(
             "SELECT value FROM kv WHERE key=?",
@@ -317,4 +310,15 @@ impl Store {
         tx.commit()?;
         Ok(())
     }
+}
+
+pub(super) fn stages(db: &rusqlite::Connection, session: &str) -> Result<Vec<RecoveryStage>> {
+    let prefix = format!("recovery:v1:{session}:");
+    let mut q = db.prepare("SELECT value FROM kv WHERE substr(key,1,?1)=?2 ORDER BY key")?;
+    let raw = q
+        .query_map(params![prefix.len(), prefix], |r| r.get::<_, String>(0))?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+    raw.into_iter()
+        .map(|s| Ok(serde_json::from_str(&s)?))
+        .collect()
 }

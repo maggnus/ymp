@@ -351,23 +351,45 @@ impl Store {
         &self,
         session: &str,
     ) -> Result<Option<UnresolvedEffectDependencies>> {
-        for stage in self.recovery_stages(session)? {
-            if stage.fresh_plan_review.is_some()
-                && !super::recovery_inspection::replay_safe(&*self.db()?, &stage)?
-            {
-                return Ok(Some(UnresolvedEffectDependencies {
-                    session_id: session.into(),
-                    stage_id: stage.id,
-                    proposal: stage.plan.context("Fresh review has no saved proposal")?,
-                    invocation_ids: stage
-                        .failures
-                        .iter()
-                        .filter(|f| !f.effective_access.is_read_only())
-                        .map(|f| f.invocation_id.clone())
-                        .collect(),
-                }));
-            }
+        let db = self.db()?;
+        let stages = super::recovery::stages(&db, session)?;
+        let authorizations = super::current_files::authorizations(&db, session)?;
+        if !stages.iter().any(|s| s.fresh_plan_review.is_some()) && authorizations.is_empty() {
+            return Ok(None);
         }
-        Ok(None)
+        let uncovered = super::current_files::uncovered(&db, session)?;
+        if uncovered.is_empty() {
+            return Ok(None);
+        }
+        let selected = stages
+            .iter()
+            .find(|s| s.fresh_plan_review.is_some())
+            .or_else(|| {
+                authorizations
+                    .last()
+                    .and_then(|a| stages.iter().find(|s| s.id == a.command.context.stage_id))
+            })
+            .context("unresolved_effect_dependencies: current saved stage is unavailable")?;
+        let proposal = selected
+            .plan
+            .clone()
+            .or_else(|| {
+                provenance::records::<DecisionRecord>(&db, "decisions", session)
+                    .ok()?
+                    .into_iter()
+                    .rev()
+                    .find(|d| d.kind == "plan_proposed")?
+                    .links
+                    .plan_proposal
+            })
+            .context(
+                "unresolved_effect_dependencies: saved proposal must be identified before new work",
+            )?;
+        Ok(Some(UnresolvedEffectDependencies {
+            session_id: session.into(),
+            stage_id: selected.id.clone(),
+            proposal,
+            invocation_ids: uncovered.into_iter().map(|f| f.invocation_id).collect(),
+        }))
     }
 }

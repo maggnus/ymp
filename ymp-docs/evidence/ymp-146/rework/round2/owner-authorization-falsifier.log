@@ -1,0 +1,22 @@
+   Compiling ymp-storage v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-review-findings/ymp-rust/crates/ymp-storage)
+   Compiling ymp-runtime v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-review-findings/ymp-rust/crates/ymp-runtime)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.99s
+     Running tests/fresh_plan_review.rs (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-recovery-backend/target/debug/deps/fresh_plan_review-05f410536c030854)
+
+running 1 test
+
+thread 'current_files_owner_decision_survives_restart_and_finishes_native_legacy_work' panicked at ymp-rust/crates/ymp-runtime/tests/fresh_plan_review.rs:595:5:
+assertion `left == right` failed: Run blocked: unresolved_effect_dependencies: saved plan d8291b33-9934-450f-a7ce-350b4bdf6969 was independently reviewed, but dependencies on historical effects of 7307d300-c556-4a76-8927-6a575a44c205 remain unestablished; no production or revision is admitted
+  left: "blocked"
+ right: "completed"
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test current_files_owner_decision_survives_restart_and_finishes_native_legacy_work ... FAILED
+
+failures:
+
+failures:
+    current_files_owner_decision_survives_restart_and_finishes_native_legacy_work
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 11 filtered out; finished in 10.43s
+
+error: test failed, to rerun pass `-p ymp-runtime --test fresh_plan_review`

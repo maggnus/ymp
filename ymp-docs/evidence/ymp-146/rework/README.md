@@ -1,5 +1,9 @@
 # YMP-146 required RETURN rework
 
+Second-round corrections and the subsequently approved current-files owner action
+are recorded in [round2/README.md](round2/README.md). The evidence below preserves
+the first-round checked source and results.
+
 Scope: the parent-owned `acceptance-round1.md`, candidate
 `cfdceff06cc703352b1234892729fb72a85dbf09`, isolated branch
 `fix/ymp146-review-findings`. This evidence supplements the preserved backend

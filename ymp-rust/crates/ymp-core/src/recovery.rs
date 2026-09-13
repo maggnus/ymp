@@ -322,6 +322,44 @@ impl std::fmt::Display for UnresolvedEffectDependencies {
 }
 impl std::error::Error for UnresolvedEffectDependencies {}
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CurrentFileVersion {
+    pub path: std::path::PathBuf,
+    pub sha256: Option<String>,
+    pub length: Option<u64>,
+    pub symlink_target: Option<std::path::PathBuf>,
+}
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CurrentFilesContext {
+    pub session_id: String,
+    pub stage_id: String,
+    pub stage_revision: u64,
+    pub plan: Option<PlanVersion>,
+    pub result: Option<ResultVersion>,
+    pub task: Option<TaskAttemptRef>,
+    pub team_revision: u64,
+    pub budget: SessionBudget,
+    pub board_version: String,
+    pub failures: Vec<InvocationFailure>,
+    pub directory: std::path::PathBuf,
+    pub files: Vec<CurrentFileVersion>,
+}
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ContinueWithCurrentFilesCommand {
+    pub command_id: String,
+    pub context: CurrentFilesContext,
+}
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CurrentFilesAuthorization {
+    pub command: ContinueWithCurrentFilesCommand,
+}
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CurrentFilesReceipt {
+    pub command: ContinueWithCurrentFilesCommand,
+    pub authorization_id: String,
+    pub resulting_revision: u64,
+}
+
 /// Trusted local inspection ingress. It neither retries the failed call nor
 /// releases an owner hold. Continue remains a separate versioned owner command.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

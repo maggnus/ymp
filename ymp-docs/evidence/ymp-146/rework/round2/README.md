@@ -52,11 +52,54 @@ lacked a resolved native model until the fixture used its actually scanned model
 Compile iterations caught connection-guard coercion and helper visibility; these
 are not counted as successful behavioral controls.
 
-## Remaining second-round work
+## Owner-authorized new work from current files
 
-The separately authorized fresh saved-plan review is implemented. Next implement
-the owner-approved Continue with current files authorization. It must not create effect_resolution or historical local scope, reuse
-native context, run production, or bypass holds/budgets/unknown dependencies.
-The parent has been asked to confirm the concrete downstream dependency boundary:
-current tasks do not model dependencies on unknown effects of older invocations.
-The final required check chain is reserved for the complete second-round source.
+The owner subsequently approved Continue with current files. The earlier typed
+write refusal remains the default/negative control; a distinct scoped owner
+command now permits ordinary new work without resolving old effects. The actual
+API and reachable hold-release flow are documented in [API.md](API.md).
+
+The reviewable context binds canonical workspace file metadata, full saved
+stage/proposal/result, board/team revision, exact failures and actual budget.
+File contents are hashed with the existing adapter and are not copied into
+application storage. Project/session ownership and a storage transaction reject
+changed context, active/unknown local execution, unreleased prior access and
+owner holds. Durable idempotent receipts survive restart. Authorization sets
+neither manual_permit nor effect_resolution and never invokes a provider itself.
+
+Only exact acknowledged failures are covered. Subsequent uncertain failures
+remain blocked in the runtime and at native admission. The latter also enforces
+the no-authorization case once a fresh-plan-review stage exists. An acknowledged
+uncertain actor cannot reuse its previous native context for new work.
+
+`final-focused.json` binds the complete candidate source to four successful
+commands: 12 default-native protocol scenarios, 33 session_recovery scenarios,
+the unchanged two-case external strict-inspection probe, and both saved
+revision/arbitration subcases of the preserved independent probe. All exits are
+**0**. The accepted R4 storage implementation and its regression file remain
+byte-identical to 1dff2cb.
+
+The positive native scenario issues the owner command, reopens Store/Engine and
+runs the same session to actual task completion with a real temporary file write.
+It asserts one original planner, no old ACP replay, one saved fresh verdict,
+unchanged historical invocations/uncertainty, no scope/resolution backfill,
+unchanged limits and no reputation. Negative controls retain the default refusal,
+unknown and actively running native work, unreleased access, changed files or
+revision/context, foreign/reused commands, holds and explicit hold release,
+resource exhaustion, negative verdict/malformed-attempt idempotence, native
+backend-version changes and a later unacknowledged write-capable failure. The old
+receipt is replayed after that later failure without expanding its scope.
+
+`owner-authorization-falsifier.json` records a real source mutation ignoring the
+owner authorization. The positive end-to-end test then exited **101**, stopping
+at unknown dependencies without execution. Source was restored byte-for-byte
+with matching SHA-256. After a subsequent admission hardening, the complete
+focused sequence passed. No successful suite was repeated for documentation edits.
+
+## Final verification and limits
+
+The required fmt, strict Clippy and workspace-test sequence follows this complete
+source. Results will be recorded separately. No real provider inference, user
+home/session access, integration, installation, UI, dependency or release change
+is included. Linux and actual native process/external-effect guarantees remain
+unverified. Parent owns independent final acceptance and UI/integration.
