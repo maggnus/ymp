@@ -1,0 +1,7 @@
+{
+  "replacement_boundary": "File-content widget can be replaced; the syntax backend could migrate separately. Navigation, bounded I/O, host save contracts, Markdown/stream presentation and reported-patch parsing are not supplied by this editor.",
+  "recommendation": "Do not replace the installed stack now. Evaluate as a future explicit editor after resolving reproduced integration issues.",
+  "author_review": "Native Claude performed source-only review; parent owns compilation and behavioral probes.",
+  "source_unchanged": true,
+  "installed_sha256": "d9aaa2bb7f40b586049c5d85b9e2c02bfde17281fded4810ebb2f84dade21943"
+}

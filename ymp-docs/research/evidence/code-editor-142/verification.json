@@ -1,0 +1,65 @@
+{
+  "mode": "research_only",
+  "installed_release_unchanged": "0.4.5",
+  "crate": "ratatui-code-editor",
+  "version": "0.0.6",
+  "upstream_revision": "40ff181514914a8602d2e5d2df647cca1f0ef621",
+  "published_source_matches_upstream": true,
+  "rustc": "rustc 1.89.0 (29483883e 2025-08-04)",
+  "probe_compile_exit": 0,
+  "probe_run_exit": 0,
+  "ratatui": "0.30.2",
+  "crossterm": "0.29.0",
+  "profile": "dev, debug=0; timings are observations, not benchmark conclusions",
+  "source_hashes": {
+    "src/editor_crossterm.rs": "0dfff47b4789b4f84b6cf12d11e2d7d13c1e614d671f9e6121bd4af9aff1356e",
+    "src/actions.rs": "78b69666dcd9c3e3b55012ae25e3dcec229782059effc26bf802e5a33fb87739",
+    "src/code.rs": "92d0a8ef9b7986f6b8733a25dac5b9fea14c3703f6011cbea70e853681d814db",
+    "src/types.rs": "abced8a5b35e16bdf7a72bcfecd538914df8425da15ec416c4b59a1d3c0e835a",
+    "src/render.rs": "7db96fd9cc89b40673f1f2380d86500bc515810968f70c0620f3b129d4fd40be",
+    "src/lib.rs": "e8ef0291f730d5562d52ca745b1e855fabe2fab7d62ed57d016ed44affb7c2bd",
+    "src/theme.rs": "7f92c7f31bd2dc1b8138c9eaf13e3aadc7ce07a789d47840844d68796a2d694c",
+    "src/click.rs": "f228df593e03c761afde20cc2e1ce591ff1d5f344afbc1c63e8c549ae2b948ec",
+    "src/history.rs": "a09bc9a083bbe0ec4860029bfcdbf332f4d8fe39ec581d101bee30fee8c198d0",
+    "src/editor.rs": "feb056b824bb0a9fee4b00fbdc4f479557de49a4312db10d2cb6ed73a92f0411",
+    "src/selection.rs": "3a99804ce52f907ca683dcb08abffc9e165bf41878189b87b410c8ff7f04c6c8",
+    "src/diff.rs": "fb7194947349418e0a21b8cc39c7db8f3d5c3f2b55907fe49ad642ad5645455c",
+    "src/utils.rs": "ed72eb74ef35d4f724ae34335875e36d1f3e313ed53c7b0b5b6ad3e863ba976f",
+    "src/view.rs": "0f936b09fcfc0cc1115225855ce59ab5c1e26a809bc0acb2a4d1168221993790"
+  },
+  "sources": [
+    "https://github.com/vipmax/ratatui-code-editor/tree/40ff181514914a8602d2e5d2df647cca1f0ef621",
+    "https://crates.io/crates/ratatui-code-editor/0.0.6",
+    "https://api.github.com/repos/vipmax/ratatui-code-editor/issues?state=open&per_page=20"
+  ],
+  "not_verified": [
+    "Linux/Windows runtime behavior",
+    "Interactive file save integration",
+    "Fair release-mode performance comparison",
+    "All grammars and large hostile inputs"
+  ],
+  "compatible_dependency_resolution": {
+    "tree-sitter-language": "0.1.7",
+    "newer_version": "0.1.8",
+    "newer_required_rust": "1.90",
+    "selection": "Cargo selected latest compatible dependencies for package rust-version1.89; preserved in probe-Cargo.lock"
+  },
+  "grammar_crates": [
+    "tree-sitter-javascript",
+    "tree-sitter-rust",
+    "tree-sitter-typescript",
+    "tree-sitter-python",
+    "tree-sitter-go",
+    "tree-sitter-java",
+    "tree-sitter-c",
+    "tree-sitter-cpp",
+    "tree-sitter-html",
+    "tree-sitter-css",
+    "tree-sitter-c-sharp",
+    "tree-sitter-yaml",
+    "tree-sitter-json",
+    "tree-sitter-toml-ng",
+    "tree-sitter-bash",
+    "tree-sitter-md"
+  ]
+}

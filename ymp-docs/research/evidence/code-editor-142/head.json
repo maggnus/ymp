@@ -1,0 +1,137 @@
+{
+  "sha": "40ff181514914a8602d2e5d2df647cca1f0ef621",
+  "node_id": "C_kwDOPBPs49oAKDQwZmYxODE1MTQ5MTRhODYwMmQyZTVkMmRmNjQ3Y2NhMWYwZWY2MjE",
+  "commit": {
+    "author": {
+      "name": "vipmax",
+      "email": "djvipmax@gmail.com",
+      "date": "2026-07-07T12:48:55Z"
+    },
+    "committer": {
+      "name": "vipmax",
+      "email": "djvipmax@gmail.com",
+      "date": "2026-07-07T12:48:55Z"
+    },
+    "message": "release: 0.0.6",
+    "tree": {
+      "sha": "dd08e166f6d71d5efb9a50bf3923f3981c68ae84",
+      "url": "https://api.github.com/repos/vipmax/ratatui-code-editor/git/trees/dd08e166f6d71d5efb9a50bf3923f3981c68ae84"
+    },
+    "url": "https://api.github.com/repos/vipmax/ratatui-code-editor/git/commits/40ff181514914a8602d2e5d2df647cca1f0ef621",
+    "comment_count": 0,
+    "verification": {
+      "verified": false,
+      "reason": "unsigned",
+      "signature": null,
+      "payload": null,
+      "verified_at": null
+    }
+  },
+  "url": "https://api.github.com/repos/vipmax/ratatui-code-editor/commits/40ff181514914a8602d2e5d2df647cca1f0ef621",
+  "html_url": "https://github.com/vipmax/ratatui-code-editor/commit/40ff181514914a8602d2e5d2df647cca1f0ef621",
+  "comments_url": "https://api.github.com/repos/vipmax/ratatui-code-editor/commits/40ff181514914a8602d2e5d2df647cca1f0ef621/comments",
+  "author": {
+    "login": "vipmax",
+    "id": 4265482,
+    "node_id": "MDQ6VXNlcjQyNjU0ODI=",
+    "avatar_url": "https://avatars.githubusercontent.com/u/4265482?v=4",
+    "gravatar_id": "",
+    "url": "https://api.github.com/users/vipmax",
+    "html_url": "https://github.com/vipmax",
+    "followers_url": "https://api.github.com/users/vipmax/followers",
+    "following_url": "https://api.github.com/users/vipmax/following{/other_user}",
+    "gists_url": "https://api.github.com/users/vipmax/gists{/gist_id}",
+    "starred_url": "https://api.github.com/users/vipmax/starred{/owner}{/repo}",
+    "subscriptions_url": "https://api.github.com/users/vipmax/subscriptions",
+    "organizations_url": "https://api.github.com/users/vipmax/orgs",
+    "repos_url": "https://api.github.com/users/vipmax/repos",
+    "events_url": "https://api.github.com/users/vipmax/events{/privacy}",
+    "received_events_url": "https://api.github.com/users/vipmax/received_events",
+    "type": "User",
+    "user_view_type": "public",
+    "site_admin": false
+  },
+  "committer": {
+    "login": "vipmax",
+    "id": 4265482,
+    "node_id": "MDQ6VXNlcjQyNjU0ODI=",
+    "avatar_url": "https://avatars.githubusercontent.com/u/4265482?v=4",
+    "gravatar_id": "",
+    "url": "https://api.github.com/users/vipmax",
+    "html_url": "https://github.com/vipmax",
+    "followers_url": "https://api.github.com/users/vipmax/followers",
+    "following_url": "https://api.github.com/users/vipmax/following{/other_user}",
+    "gists_url": "https://api.github.com/users/vipmax/gists{/gist_id}",
+    "starred_url": "https://api.github.com/users/vipmax/starred{/owner}{/repo}",
+    "subscriptions_url": "https://api.github.com/users/vipmax/subscriptions",
+    "organizations_url": "https://api.github.com/users/vipmax/orgs",
+    "repos_url": "https://api.github.com/users/vipmax/repos",
+    "events_url": "https://api.github.com/users/vipmax/events{/privacy}",
+    "received_events_url": "https://api.github.com/users/vipmax/received_events",
+    "type": "User",
+    "user_view_type": "public",
+    "site_admin": false
+  },
+  "parents": [
+    {
+      "sha": "f1bd5a1629b657dc3513ff90ef6b4f144197ed26",
+      "url": "https://api.github.com/repos/vipmax/ratatui-code-editor/commits/f1bd5a1629b657dc3513ff90ef6b4f144197ed26",
+      "html_url": "https://github.com/vipmax/ratatui-code-editor/commit/f1bd5a1629b657dc3513ff90ef6b4f144197ed26"
+    }
+  ],
+  "stats": {
+    "total": 20,
+    "additions": 17,
+    "deletions": 3
+  },
+  "files": [
+    {
+      "sha": "f2a8be982cabf09c8554582f0f77c8a46132ea2d",
+      "filename": "CHANGELOG.md",
+      "status": "modified",
+      "additions": 14,
+      "deletions": 0,
+      "changes": 14,
+      "blob_url": "https://github.com/vipmax/ratatui-code-editor/blob/40ff181514914a8602d2e5d2df647cca1f0ef621/CHANGELOG.md",
+      "raw_url": "https://github.com/vipmax/ratatui-code-editor/raw/40ff181514914a8602d2e5d2df647cca1f0ef621/CHANGELOG.md",
+      "contents_url": "https://api.github.com/repos/vipmax/ratatui-code-editor/contents/CHANGELOG.md?ref=40ff181514914a8602d2e5d2df647cca1f0ef621",
+      "patch": "@@ -2,6 +2,20 @@\n \n All notable changes to this project will be documented in this file.\n \n+## 0.0.6 - 2026-07-07\n+\n+### Added\n+\n+- Added optional word highlighting under cursor (`set_word_highlight_enabled`, `word_highlight_enabled`, `word_highlight_ranges`).\n+- Added word-level intra-line diff highlighting for added and deleted lines with caching (`diff_added_word`, `diff_deleted_word`).\n+- Added list of projects built with this widget in README (mentioning `redai`).\n+\n+### Changed\n+\n+- Optimized diff computation by caching line-level diff calculations.\n+- Dimmed default diff colors and adjusted contrast for better terminal readability.\n+- Refactored diff row building internals to support intra-line changes.\n+\n ## 0.0.5 - 2026-06-29\n \n ### Added"
+    },
+    {
+      "sha": "ba4aed15399ee6473c47207023f23dd5ea9d49d8",
+      "filename": "Cargo.lock",
+      "status": "modified",
+      "additions": 1,
+      "deletions": 1,
+      "changes": 2,
+      "blob_url": "https://github.com/vipmax/ratatui-code-editor/blob/40ff181514914a8602d2e5d2df647cca1f0ef621/Cargo.lock",
+      "raw_url": "https://github.com/vipmax/ratatui-code-editor/raw/40ff181514914a8602d2e5d2df647cca1f0ef621/Cargo.lock",
+      "contents_url": "https://api.github.com/repos/vipmax/ratatui-code-editor/contents/Cargo.lock?ref=40ff181514914a8602d2e5d2df647cca1f0ef621",
+      "patch": "@@ -1597,7 +1597,7 @@ dependencies = [\n \n [[package]]\n name = \"ratatui-code-editor\"\n-version = \"0.0.5\"\n+version = \"0.0.6\"\n dependencies = [\n  \"anyhow\",\n  \"arboard\","
+    },
+    {
+      "sha": "f2beac7ff1b2446997eebe4823135db2753d5a5f",
+      "filename": "Cargo.toml",
+      "status": "modified",
+      "additions": 1,
+      "deletions": 1,
+      "changes": 2,
+      "blob_url": "https://github.com/vipmax/ratatui-code-editor/blob/40ff181514914a8602d2e5d2df647cca1f0ef621/Cargo.toml",
+      "raw_url": "https://github.com/vipmax/ratatui-code-editor/raw/40ff181514914a8602d2e5d2df647cca1f0ef621/Cargo.toml",
+      "contents_url": "https://api.github.com/repos/vipmax/ratatui-code-editor/contents/Cargo.toml?ref=40ff181514914a8602d2e5d2df647cca1f0ef621",
+      "patch": "@@ -15,7 +15,7 @@ members = [\n \n [package]\n name = \"ratatui-code-editor\"\n-version = \"0.0.5\"\n+version = \"0.0.6\"\n edition = \"2024\"\n authors = [\"vipmax\"]\n description = \"ratatui-code-editor is A code editor widget for ratatui, built with syntax highlighting powered by Tree-sitter.\""
+    },
+    {
+      "sha": "b84356787f2fced44a5f9f8be976cce728929378",
+      "filename": "README.md",
+      "status": "modified",
+      "additions": 1,
+      "deletions": 1,
+      "changes": 2,
+      "blob_url": "https://github.com/vipmax/ratatui-code-editor/blob/40ff181514914a8602d2e5d2df647cca1f0ef621/README.md",
+      "raw_url": "https://github.com/vipmax/ratatui-code-editor/raw/40ff181514914a8602d2e5d2df647cca1f0ef621/README.md",
+      "contents_url": "https://api.github.com/repos/vipmax/ratatui-code-editor/contents/README.md?ref=40ff181514914a8602d2e5d2df647cca1f0ef621",
+      "patch": "@@ -93,7 +93,7 @@ Add this to your `Cargo.toml`:\n anyhow = \"1.0\"\n crossterm = \"0.29\"\n ratatui = \"0.30\" # needed by your app terminal setup\n-ratatui-code-editor = { version = \"0.0.5\", features = [\"crossterm\"] }\n+ratatui-code-editor = { version = \"0.0.6\", features = [\"crossterm\"] }\n ```\n \n ### Basic Usage"
+    }
+  ]
+}

@@ -1,6 +1,6 @@
 # Delivery plan and progress
 
-Updated: 2026-09-13 11:15 UTC.
+Updated: 2026-09-13 11:37 UTC.
 
 [Approved intent](../../intent.md) · [Task details and evidence](README.md) · [Canonical register](tasks.json)
 
@@ -134,16 +134,17 @@ Deferred and post-MVP work:
 - `[=]` [YMP-204](README.md#ymp-204) — Evaluate a project-scoped prior-outcome router. A dedicated outcome-reuse router is optional; ordinary knowledge reuse is covered by core delivery.
 - `[=]` [YMP-301](README.md#ymp-301) — Confirm the initial success class and intended audience. External-audience positioning is deferred; it does not block the approved local universal product.
 - `[=]` [YMP-124](README.md#ymp-124) — Add isolated execution and recoverable publication for larger projects. Explicitly deferred until after the 0.4.0 MVP. Direct execution is accepted only for that MVP; larger-project isolation/publication requires this separate outcome.
+- `[=]` [YMP-141](README.md#ymp-141) — Keep popup geometry stable while scrolling content. Owner research-only scope remains in force. Shared modal geometry cause diagnosed. The isolated branch retains185 unrun test lines; no renderer fix, integration, package change or installed update was made. Parent retained the draft patch and recorded the independent editor research separately as142.
 
 ## Recent updates
 
 | Time (UTC) | Task | State | Update |
 | --- | --- | --- | --- |
+| 2026-09-13 11:37 | [YMP-141](README.md#ymp-141) | `[=]` | Owner research-only scope remains in force. Shared modal geometry cause diagnosed. The isolated branch retains185 unrun test lines; no renderer fix, integration, package change or installed update was made. Parent retained the draft patch and recorded the independent editor research separately as142. |
+| 2026-09-13 11:37 | [YMP-142](README.md#ymp-142) | `[x]` | Research only completed: parent compiled published0.0.6 on Rust1.89/Ratatui0.30.2 and reproduced light-theme, wide-cursor, CRLF, key-release, Markdown-source and raw-patch limitations. Claude independently reviewed source and agreed: editable file view can be replaced; syntax backend can migrate separately, while navigation/I/O/chat/patch contracts remain. No product integration or installation;0.4.5 unchanged. Compatible transitive version0.1.7 resolved automatically; preserve lockfile. |
 | 2026-09-13 11:15 | [YMP-138](README.md#ymp-138) | `[x]` | After 0.4.4/0.4.5 acceptance, archived the final two assignment agents/workspaces and removed their clean worktrees, the obsolete theme project and three remaining temporary build caches. Both branches/commits are retained; generated fixture data is verified in a compact recovery archive. Only the main Git worktree remains; installed executable, release backups and owner changes are preserved. |
 | 2026-09-13 11:13 | [YMP-140](README.md#ymp-140) | `[x]` | Independently accepted author 8d3da6a and integrated as 0829dc6. Release source f29bb7a passes fmt, strict Clippy and 554 tests (2 ignored), colour/monochrome inline+Inspect checks with immutable stored messages, 12+12 file cases, 19 table/theme cases and five exit cases. Installed 0.4.5 passes independent colour and monochrome checks in Ember/Latte. Cooperative timing, source-byte cache limits and plain streaming code are documented; no Linux/Windows or real-provider inference claim. |
 | 2026-09-13 11:07 | [YMP-137](README.md#ymp-137) | `[x]` | Installed release 0.4.4 is independently verified: required Rust checks pass (535 tests, 2 ignored), staged Unicode/ASCII file and table cases pass, and the installed command passes 12 file-navigation and 19 table/theme cases including all 18 themes. Previous executable is backed up. Inline agent output continues separately in YMP-140. |
-| 2026-09-13 11:07 | [YMP-139](README.md#ymp-139) | `[x]` | Installed release 0.4.4 is independently verified: required Rust checks pass (535 tests, 2 ignored), staged Unicode/ASCII file and table cases pass, and the installed command passes 12 file-navigation and 19 table/theme cases including all 18 themes. Previous executable is backed up. Inline agent output continues separately in YMP-140. |
-| 2026-09-13 08:42 | [YMP-136](README.md#ymp-136) | `[x]` | Independently reviewed and integrated the Ratatui 0.30.2 / Crossterm 0.29 candidate with the theme adapter. Production source matches candidate 508d7f5. Parent fmt, strict Clippy and all 504 tests pass; 19 real-terminal cases pass, including 18-theme reachability at 40x12. Dependency graph contains one Ratatui facade and one Crossterm version. Installed-release verification remains with YMP-137 and the combined YMP-139 delivery. |
 
 ## Maintenance
 

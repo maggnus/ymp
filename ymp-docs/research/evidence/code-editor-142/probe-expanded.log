@@ -1,0 +1,109 @@
+   Compiling ymp142-editor-probe v0.0.0 (/tmp/ymp142-editor-probe)
+    Finished `dev` profile [unoptimized] target(s) in 0.92s
+     Running `target/ymp142-editor-probe/debug/ymp142-editor-probe`
+[
+  {
+    "case": "unicode_lf",
+    "roundtrip_undo_redo": true
+  },
+  {
+    "case": "crlf",
+    "roundtrip_undo_redo": true
+  },
+  {
+    "case": "no_final_newline",
+    "roundtrip_undo_redo": true
+  },
+  {
+    "case": "controls",
+    "roundtrip_undo_redo": true
+  },
+  {
+    "case": "ascii",
+    "cursor": 50,
+    "offset_x": 39,
+    "visible_cursor": [
+      20,
+      0
+    ]
+  },
+  {
+    "case": "wide",
+    "cursor": 12,
+    "offset_x": 0,
+    "visible_cursor": null
+  },
+  {
+    "case": "emoji",
+    "cursor": 36,
+    "offset_x": 25,
+    "visible_cursor": [
+      15,
+      0
+    ]
+  },
+  {
+    "case": "press_and_release",
+    "content": "aa"
+  },
+  {
+    "case": "enter_crlf",
+    "content": "first\n\r\nsecond\r\n"
+  },
+  {
+    "bytes": 245760,
+    "case": "bounded_file",
+    "create_ms": 230,
+    "first_draw_ms": 105
+  },
+  {
+    "background": "White",
+    "case": "light_plain_text",
+    "foreground": "White"
+  },
+  {
+    "case": "render_markdown",
+    "has_grammar": true,
+    "rows": [
+      "    1  ▼ # Heading",
+      "    2  ▼ ```rust",
+      "    3    fn main() {}",
+      "    4    ```",
+      "    5",
+      "",
+      "",
+      "",
+      ""
+    ]
+  },
+  {
+    "case": "render_diff",
+    "has_grammar": false,
+    "rows": [
+      "    1    --- a/x",
+      "    2    +++ b/x",
+      "    3    @@ -1 +1 @@",
+      "    4    -old",
+      "    5    +new",
+      "    6",
+      "",
+      "",
+      ""
+    ]
+  },
+  {
+    "case": "render_text",
+    "has_grammar": false,
+    "rows": [
+      "    1    a b",
+      "    2",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      ""
+    ]
+  }
+]

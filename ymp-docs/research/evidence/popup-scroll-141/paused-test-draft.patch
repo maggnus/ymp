@@ -1,0 +1,196 @@
+diff --git a/ymp-rust/crates/ymp-tui/src/tests.rs b/ymp-rust/crates/ymp-tui/src/tests.rs
+index 26277d3..1812013 100644
+--- a/ymp-rust/crates/ymp-tui/src/tests.rs
++++ b/ymp-rust/crates/ymp-tui/src/tests.rs
+@@ -10145,6 +10145,191 @@ fn a_source_preview_takes_the_theme_colours_and_names_its_language() {
+     assert_eq!(buffer[(x + 3, y)].bg, app.theme.accent);
+ }
+ 
++/// The screen as drawn cells.
++fn drawn(app: &mut App, width: u16, height: u16) -> ratatui::buffer::Buffer {
++    let mut terminal = Terminal::new(TestBackend::new(width, height)).unwrap();
++    terminal.draw(|frame| ui::render(frame, app)).unwrap();
++    terminal.backend().buffer().clone()
++}
++
++/// The rect of the floating surface whose top border carries `badge`, read from its corners.
++fn surface_rect(buffer: &ratatui::buffer::Buffer, badge: &str) -> ratatui::layout::Rect {
++    let area = buffer.area;
++    let (_, top) = cell_of(buffer, badge).unwrap_or_else(|| panic!("{badge} is not drawn"));
++    let left = (0..area.width)
++        .find(|&x| buffer[(x, top)].symbol() == "┌")
++        .expect("the surface has a top left corner");
++    let right = (left + 1..area.width)
++        .find(|&x| buffer[(x, top)].symbol() == "┐")
++        .expect("the surface has a top right corner");
++    let bottom = (top + 1..area.height)
++        .find(|&y| buffer[(left, y)].symbol() == "└")
++        .expect("the surface has a bottom left corner");
++    ratatui::layout::Rect::new(left, top, right - left + 1, bottom - top + 1)
++}
++
++/// The body rows of a read-only surface: inside its border, above the blank row and its keys.
++fn surface_body(buffer: &ratatui::buffer::Buffer, rect: ratatui::layout::Rect) -> Vec<String> {
++    (rect.y + 1..rect.bottom().saturating_sub(3))
++        .map(|y| {
++            (rect.x + 1..rect.right() - 1)
++                .map(|x| buffer[(x, y)].symbol())
++                .collect::<String>()
++        })
++        .collect()
++}
++
++/// The number after `label` on a body row, such as 7 in `row 007`.
++fn numbered(row: &str, label: &str) -> Option<usize> {
++    let rest = &row[row.find(label)? + label.len()..];
++    rest.split(|c: char| !c.is_ascii_digit())
++        .next()
++        .and_then(|digits| digits.parse().ok())
++}
++
++#[test]
++fn a_file_preview_keeps_its_size_while_it_scrolls_to_its_last_line() {
++    let fixture = fixture();
++    let root = fixture.project.path();
++    let text: String = (1..=120)
++        .map(|n| {
++            if n % 3 == 0 {
++                format!("row {n:03} строка ✓ 表格\n")
++            } else {
++                format!("row {n:03} plain ascii\n")
++            }
++        })
++        .collect();
++    std::fs::write(root.join("notes.txt"), &text).unwrap();
++    let mut app = fixture.app();
++    let config = serde_json::to_string(&app.config).unwrap();
++    let before = tree(root);
++    app.command("/files", FILES_SCREEN.0);
++    select_file_row(&mut app, "notes.txt");
++    let mut actions = app.on_key(key(KeyCode::Enter), FILES_SCREEN.0);
++    assert!(matches!(app.overlay, Some(Overlay::Preview { .. })));
++
++    let (width, height) = FILES_SCREEN;
++    let buffer = drawn(&mut app, width, height);
++    let opened = surface_rect(&buffer, "read only");
++    let first = surface_body(&buffer, opened);
++    assert!(first[0].contains("Plain text · 120 lines"), "{first:?}");
++    let rows = first.len();
++
++    // One row at a time down past the end: the surface never changes, and the view stops with
++    // the last line on the last row rather than leaving blank rows below it.
++    for _ in 0..140 {
++        actions.extend(app.on_key(key(KeyCode::Down), width));
++        let buffer = drawn(&mut app, width, height);
++        assert_eq!(surface_rect(&buffer, "read only"), opened, "scrolling resized it");
++    }
++    let body = surface_body(&drawn(&mut app, width, height), opened);
++    assert_eq!(body.len(), rows);
++    assert!(body[rows - 1].contains("row 120 строка ✓ 表格"), "{body:?}");
++    assert!(body.iter().all(|row| !row.trim().is_empty()), "{body:?}");
++
++    // Presses past the end were not stored: the first Up moves the view.
++    app.on_key(key(KeyCode::Up), width);
++    let body = surface_body(&drawn(&mut app, width, height), opened);
++    assert_eq!(numbered(&body[rows - 1], "row "), Some(119), "{body:?}");
++
++    // A page is the rows the surface shows, so paging skips no line and repeats none.
++    app.on_key(key(KeyCode::Home), width);
++    let mut last = numbered(&surface_body(&drawn(&mut app, width, height), opened)[rows - 1], "row ");
++    for _ in 0..3 {
++        app.on_key(key(KeyCode::PageDown), width);
++        let buffer = drawn(&mut app, width, height);
++        assert_eq!(surface_rect(&buffer, "read only"), opened);
++        let body = surface_body(&buffer, opened);
++        assert_eq!(numbered(&body[0], "row "), last.map(|n| n + 1), "{body:?}");
++        last = numbered(&body[rows - 1], "row ");
++    }
++    app.on_key(key(KeyCode::PageDown), width);
++    let body = surface_body(&drawn(&mut app, width, height), opened);
++    assert_eq!(numbered(&body[rows - 1], "row "), Some(120), "{body:?}");
++    let top = numbered(&body[0], "row ").unwrap();
++    app.on_key(key(KeyCode::PageUp), width);
++    let body = surface_body(&drawn(&mut app, width, height), opened);
++    assert_eq!(numbered(&body[rows - 1], "row "), Some(top - 1), "{body:?}");
++
++    // A resize may change the size, and the end stays on the last row at either size.
++    app.on_key(key(KeyCode::End), width);
++    for tall in [30, 60, 40] {
++        let buffer = drawn(&mut app, width, tall);
++        let rect = surface_rect(&buffer, "read only");
++        let body = surface_body(&buffer, rect);
++        assert_eq!(body.len(), crate::frame::modal_body_rows(tall, true), "at {tall} rows");
++        assert!(body.last().unwrap().contains("row 120"), "at {tall} rows: {body:?}");
++        assert!(body.iter().all(|row| !row.trim().is_empty()), "at {tall} rows: {body:?}");
++    }
++    let buffer = drawn(&mut app, width, 60);
++    app.on_key(key(KeyCode::Up), width);
++    let buffer_after = drawn(&mut app, width, 60);
++    let rect = surface_rect(&buffer, "read only");
++    assert_eq!(surface_rect(&buffer_after, "read only"), rect);
++    let body = surface_body(&buffer_after, rect);
++    assert_eq!(numbered(body.last().unwrap(), "row "), Some(119), "{body:?}");
++
++    // Viewing wrote nothing, and Ctrl+C still leaves from the scrolled preview.
++    assert!(actions.is_empty(), "{actions:?}");
++    assert_eq!(app.on_key(control('c'), width), Vec::<Action>::new());
++    assert_eq!(app.on_key(control('c'), width), vec![Action::Quit]);
++    assert_eq!(serde_json::to_string(&app.config).unwrap(), config);
++    assert_eq!(tree(root), before, "viewing changed the project");
++}
++
++#[test]
++fn an_inspect_surface_keeps_its_size_for_long_short_and_empty_records() {
++    let fixture = fixture();
++    let mut app = fixture.app();
++    app.theme = theme::resolved(theme::DEFAULT_THEME, theme::ASCII);
++    let (width, height) = (100, 30);
++    let line = |n: usize| {
++        ratatui::text::Line::from(if n % 2 == 0 {
++            format!("entry {n:02} — ✓ 日本語")
++        } else {
++            format!("entry {n:02} - ascii")
++        })
++    };
++    let rows = crate::frame::modal_body_rows(height, true);
++    for count in [60, rows, rows + 1, 3, 1, 0] {
++        app.overlay = Some(Overlay::Inspect {
++            title: "Record".into(),
++            body: (1..=count).map(line).collect(),
++            scroll: 0,
++        });
++        let buffer = drawn(&mut app, width, height);
++        let opened = surface_rect(&buffer, "read only");
++        let shown = count.min(rows);
++        assert_eq!(opened.height as usize, shown + 4, "{count} lines");
++        let expected = |body: &[String], last: usize| {
++            assert_eq!(body.len(), shown, "{count} lines");
++            if shown > 0 {
++                assert_eq!(numbered(&body[shown - 1], "entry "), Some(last), "{body:?}");
++                assert!(body.iter().all(|row| !row.trim().is_empty()), "{body:?}");
++            }
++        };
++        let keys = [
++            (KeyCode::End, count),
++            (KeyCode::Up, count.saturating_sub(1).max(shown)),
++            (KeyCode::Down, count),
++            (KeyCode::Char('k'), count.saturating_sub(1).max(shown)),
++            (KeyCode::Char('j'), count),
++            (KeyCode::PageUp, count.saturating_sub(rows).max(shown)),
++            (KeyCode::PageDown, count),
++            (KeyCode::Home, shown),
++        ];
++        for (code, last) in keys {
++            assert!(app.on_key(key(code), width).is_empty());
++            let buffer = drawn(&mut app, width, height);
++            assert_eq!(surface_rect(&buffer, "read only"), opened, "{count} lines, {code:?}");
++            expected(&surface_body(&buffer, opened), last);
++        }
++        assert!(app.on_key(key(KeyCode::Esc), width).is_empty());
++        assert!(app.overlay.is_none());
++    }
++}
++
+ #[test]
+ fn large_binary_and_empty_files_are_described_rather_than_dumped() {
+     let fixture = fixture();

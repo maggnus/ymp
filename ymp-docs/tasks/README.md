@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-13 11:15 UTC.
+Updated: 2026-09-13 11:37 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -14,9 +14,9 @@ A planned task is not implemented functionality. Completed research and planning
 | design | 1 | 1 |
 | documentation | 4 | 4 |
 | experiment | 0 | 4 |
-| implementation | 33 | 36 |
+| implementation | 33 | 37 |
 | maintenance | 1 | 1 |
-| research | 8 | 8 |
+| research | 9 | 9 |
 | verification | 2 | 2 |
 
 ## Index
@@ -81,6 +81,8 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-138](#ymp-138) | P2 | Clean up obsolete Paseo workspaces and ymp2 development worktrees | 2026-09-13 11:15 |
 | `[x]` | [YMP-139](#ymp-139) | P1 | Integrate a ready-made Ratatui file navigator and code highlighting | 2026-09-13 11:07 |
 | `[x]` | [YMP-140](#ymp-140) | P1 | Render agent code and explicit diffs clearly using established AI-chat patterns | 2026-09-13 11:13 |
+| `[=]` | [YMP-141](#ymp-141) | P1 | Keep popup geometry stable while scrolling content | 2026-09-13 11:37 |
+| `[x]` | [YMP-142](#ymp-142) | P1 | Assess ratatui-code-editor for opening files inside ymp | 2026-09-13 11:37 |
 
 ## YMP-001
 
@@ -2019,6 +2021,67 @@ Agent output mixes prose, code, command output and proposed changes. It needs re
 - ymp-docs/research/evidence/agent-output-140/acceptance.md
 - ymp-docs/research/evidence/release-045/verification.json
 - ymp-docs/evidence/ymp-140/README.md
+
+## YMP-141
+
+Keep popup geometry stable while scrolling content
+
+**State:** `[=]` (paused) · **Type:** implementation · **Priority:** P1
+
+**Last update (UTC):** 2026-09-13 11:37
+
+**Current reason:** Owner research-only scope remains in force. Shared modal geometry cause diagnosed. The isolated branch retains185 unrun test lines; no renderer fix, integration, package change or installed update was made. Parent retained the draft patch and recorded the independent editor research separately as142.
+
+**Owner:** Claude Code claude-opus-5 high; maintainer owns reproduction, integration and acceptance
+
+**Authorization:** Owner reported that some or all popups shrink vertically when scrolling with arrow keys. Investigation and a focused fix are within the requested ongoing UI work.
+
+**Depends on:** [YMP-140](#ymp-140)
+
+The shared modal renderer derives height from the remaining visible slice, allowing scrolling near the end to move and shrink a popup.
+
+**Acceptance criteria:**
+
+- Reproduce the reported height change and identify affected popup paths; preserve a failing-before check.
+- Keep popup size and placement stable when only scrolling changes, clamp scroll to the actual viewport, preserve last-line reachability, and handle resize and small/empty bodies correctly.
+- Cover Inspect and file Preview, audit other modal callers and retain chooser/input/footer behavior. Delegate UI changes to Claude Code high; independently verify representative real-terminal Unicode/ASCII cases and run required Rust checks.
+- Record source and evidence, update task views and verify the installed maintenance release without provider inference.
+
+**Evidence:**
+
+- ymp-docs/research/evidence/popup-scroll-141/assignment.md
+- ymp-docs/research/evidence/popup-scroll-141/paused-test-draft.patch
+
+## YMP-142
+
+Assess ratatui-code-editor for opening files inside ymp
+
+**State:** `[x]` (done) · **Type:** research · **Priority:** P1
+
+**Last update (UTC):** 2026-09-13 11:37
+
+**Current reason:** Research only completed: parent compiled published0.0.6 on Rust1.89/Ratatui0.30.2 and reproduced light-theme, wide-cursor, CRLF, key-release, Markdown-source and raw-patch limitations. Claude independently reviewed source and agreed: editable file view can be replaced; syntax backend can migrate separately, while navigation/I/O/chat/patch contracts remain. No product integration or installation;0.4.5 unchanged. Compatible transitive version0.1.7 resolved automatically; preserve lockfile.
+
+**Owner:** Maintainer and the current Claude UI author compare source findings
+
+**Authorization:** Owner explicitly requested considering https://github.com/vipmax/ratatui-code-editor for opening files now that /files navigation and syntax highlighting exist. Viewing versus editing scope is being clarified. Owner subsequently clarified viewing and editing with explicit save as the intended capability, then explicitly limited current work to research only and asked whether the component can replace already-installed navigation/highlighting.
+
+**Depends on:** [YMP-139](#ymp-139)
+
+Determine whether the ready editor widget improves file interaction without duplicating navigation, losing text, or introducing unsound save behavior.
+
+**Acceptance criteria:**
+
+- Inspect the published crate and upstream source; record exact versions/revisions, Ratatui/Crossterm/Rust compatibility, license, features, dependencies and maintenance facts.
+- Check native buffer/path/read-only/edit/save responsibilities, syntax/theme integration, large/Unicode/control-containing content and event routing. Reproduce material compatibility findings with a standalone probe where useful.
+- Compare parent and Claude findings and record a function-by-function replacement assessment for navigation, file viewer/editor, syntax backends and grammars, chat/streaming Markdown and diff presentation. Current scope is research only: do not implement, replace installed components, fix UI, or add saving.
+
+**Evidence:**
+
+- ymp-docs/research/ratatui-code-editor-assessment.md
+- ymp-docs/research/evidence/code-editor-142/verification.json
+- ymp-docs/research/evidence/code-editor-142/probe-observations.json
+- ymp-docs/research/evidence/code-editor-142/joint-decision.json
 
 ## Intent coverage
 

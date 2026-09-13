@@ -1,0 +1,543 @@
+{
+  "crate": {
+    "id": "ratatui-code-editor",
+    "name": "ratatui-code-editor",
+    "updated_at": "2026-07-07T12:49:43.197734Z",
+    "versions": [
+      2733600,
+      2670243,
+      2391407,
+      2073488,
+      2071255,
+      1777348
+    ],
+    "keywords": [
+      "editor",
+      "ratatui",
+      "terminal",
+      "tree-sitter"
+    ],
+    "categories": [
+      "command-line-interface",
+      "text-editors"
+    ],
+    "badges": [],
+    "created_at": "2025-10-16T12:14:17.685022Z",
+    "downloads": 4759,
+    "recent_downloads": 2783,
+    "default_version": "0.0.6",
+    "num_versions": 6,
+    "yanked": false,
+    "max_version": "0.0.6",
+    "newest_version": "0.0.6",
+    "max_stable_version": "0.0.6",
+    "description": "ratatui-code-editor is A code editor widget for ratatui, built with syntax highlighting powered by Tree-sitter.",
+    "homepage": "https://github.com/vipmax/ratatui-code-editor",
+    "documentation": null,
+    "repository": "https://github.com/vipmax/ratatui-code-editor.git",
+    "links": {
+      "version_downloads": "/api/v1/crates/ratatui-code-editor/downloads",
+      "versions": null,
+      "owners": "/api/v1/crates/ratatui-code-editor/owners",
+      "owner_team": "/api/v1/crates/ratatui-code-editor/owner_team",
+      "owner_user": "/api/v1/crates/ratatui-code-editor/owner_user",
+      "reverse_dependencies": "/api/v1/crates/ratatui-code-editor/reverse_dependencies"
+    },
+    "exact_match": false,
+    "trustpub_only": false
+  },
+  "versions": [
+    {
+      "id": 2733600,
+      "crate": "ratatui-code-editor",
+      "num": "0.0.6",
+      "dl_path": "/api/v1/crates/ratatui-code-editor/0.0.6/download",
+      "readme_path": "/api/v1/crates/ratatui-code-editor/0.0.6/readme",
+      "updated_at": "2026-07-07T12:49:43.197734Z",
+      "created_at": "2026-07-07T12:49:43.197734Z",
+      "downloads": 752,
+      "features": {
+        "bench-internals": [],
+        "crossterm": [
+          "dep:crossterm"
+        ],
+        "default": [
+          "crossterm"
+        ]
+      },
+      "yanked": false,
+      "yank_message": null,
+      "lib_links": null,
+      "license": "MIT",
+      "links": {
+        "dependencies": "/api/v1/crates/ratatui-code-editor/0.0.6/dependencies",
+        "version_downloads": "/api/v1/crates/ratatui-code-editor/0.0.6/downloads",
+        "authors": "/api/v1/crates/ratatui-code-editor/0.0.6/authors"
+      },
+      "crate_size": 133734,
+      "published_by": {
+        "id": 362418,
+        "login": "vipmax",
+        "name": null,
+        "avatar": "https://avatars.githubusercontent.com/u/4265482?v=4",
+        "url": "https://github.com/vipmax",
+        "github_username_matches": true,
+        "created_at": "2013-04-26T13:42:53Z"
+      },
+      "audit_actions": [
+        {
+          "action": "publish",
+          "user": {
+            "id": 362418,
+            "login": "vipmax",
+            "name": null,
+            "avatar": "https://avatars.githubusercontent.com/u/4265482?v=4",
+            "url": "https://github.com/vipmax",
+            "github_username_matches": true,
+            "created_at": "2013-04-26T13:42:53Z"
+          },
+          "time": "2026-07-07T12:49:43.197734Z"
+        }
+      ],
+      "checksum": "88235535f73e5c3c1c666bfb232e9f61f8c95b72cb1d77558fd655e48c752198",
+      "rust_version": null,
+      "has_lib": true,
+      "bin_names": [],
+      "edition": "2024",
+      "description": "ratatui-code-editor is A code editor widget for ratatui, built with syntax highlighting powered by Tree-sitter.",
+      "homepage": "https://github.com/vipmax/ratatui-code-editor",
+      "documentation": null,
+      "repository": "https://github.com/vipmax/ratatui-code-editor.git",
+      "trustpub_data": null,
+      "linecounts": {
+        "languages": {
+          "Rust": {
+            "code_lines": 3711,
+            "comment_lines": 106,
+            "files": 14
+          },
+          "Scheme": {
+            "code_lines": 2455,
+            "comment_lines": 229,
+            "files": 36
+          }
+        },
+        "total_code_lines": 6166,
+        "total_comment_lines": 335
+      }
+    },
+    {
+      "id": 2670243,
+      "crate": "ratatui-code-editor",
+      "num": "0.0.5",
+      "dl_path": "/api/v1/crates/ratatui-code-editor/0.0.5/download",
+      "readme_path": "/api/v1/crates/ratatui-code-editor/0.0.5/readme",
+      "updated_at": "2026-06-29T10:41:54.518062Z",
+      "created_at": "2026-06-29T10:41:54.518062Z",
+      "downloads": 345,
+      "features": {
+        "crossterm": [
+          "dep:crossterm"
+        ],
+        "default": [
+          "crossterm"
+        ]
+      },
+      "yanked": false,
+      "yank_message": null,
+      "lib_links": null,
+      "license": "MIT",
+      "links": {
+        "dependencies": "/api/v1/crates/ratatui-code-editor/0.0.5/dependencies",
+        "version_downloads": "/api/v1/crates/ratatui-code-editor/0.0.5/downloads",
+        "authors": "/api/v1/crates/ratatui-code-editor/0.0.5/authors"
+      },
+      "crate_size": 127242,
+      "published_by": {
+        "id": 362418,
+        "login": "vipmax",
+        "name": null,
+        "avatar": "https://avatars.githubusercontent.com/u/4265482?v=4",
+        "url": "https://github.com/vipmax",
+        "github_username_matches": true,
+        "created_at": "2013-04-26T13:42:53Z"
+      },
+      "audit_actions": [
+        {
+          "action": "publish",
+          "user": {
+            "id": 362418,
+            "login": "vipmax",
+            "name": null,
+            "avatar": "https://avatars.githubusercontent.com/u/4265482?v=4",
+            "url": "https://github.com/vipmax",
+            "github_username_matches": true,
+            "created_at": "2013-04-26T13:42:53Z"
+          },
+          "time": "2026-06-29T10:41:54.518062Z"
+        }
+      ],
+      "checksum": "f3f3c251c7fea82ba183128af5f3dc3c2f1febc1eee24a781385634b1f2472f1",
+      "rust_version": null,
+      "has_lib": true,
+      "bin_names": [],
+      "edition": "2024",
+      "description": "ratatui-code-editor is A code editor widget for ratatui, built with syntax highlighting powered by Tree-sitter.",
+      "homepage": "https://github.com/vipmax/ratatui-code-editor",
+      "documentation": null,
+      "repository": "https://github.com/vipmax/ratatui-code-editor.git",
+      "trustpub_data": null,
+      "linecounts": {
+        "languages": {
+          "Rust": {
+            "code_lines": 3352,
+            "comment_lines": 99,
+            "files": 13
+          },
+          "Scheme": {
+            "code_lines": 2455,
+            "comment_lines": 229,
+            "files": 36
+          }
+        },
+        "total_code_lines": 5807,
+        "total_comment_lines": 328
+      }
+    },
+    {
+      "id": 2391407,
+      "crate": "ratatui-code-editor",
+      "num": "0.0.4",
+      "dl_path": "/api/v1/crates/ratatui-code-editor/0.0.4/download",
+      "readme_path": "/api/v1/crates/ratatui-code-editor/0.0.4/readme",
+      "updated_at": "2026-05-13T09:03:35.074185Z",
+      "created_at": "2026-05-13T09:03:35.074185Z",
+      "downloads": 1350,
+      "features": {
+        "crossterm": [
+          "dep:crossterm"
+        ],
+        "default": [
+          "crossterm"
+        ]
+      },
+      "yanked": false,
+      "yank_message": null,
+      "lib_links": null,
+      "license": "MIT",
+      "links": {
+        "dependencies": "/api/v1/crates/ratatui-code-editor/0.0.4/dependencies",
+        "version_downloads": "/api/v1/crates/ratatui-code-editor/0.0.4/downloads",
+        "authors": "/api/v1/crates/ratatui-code-editor/0.0.4/authors"
+      },
+      "crate_size": 117284,
+      "published_by": {
+        "id": 362418,
+        "login": "vipmax",
+        "name": null,
+        "avatar": "https://avatars.githubusercontent.com/u/4265482?v=4",
+        "url": "https://github.com/vipmax",
+        "github_username_matches": true,
+        "created_at": "2013-04-26T13:42:53Z"
+      },
+      "audit_actions": [
+        {
+          "action": "publish",
+          "user": {
+            "id": 362418,
+            "login": "vipmax",
+            "name": null,
+            "avatar": "https://avatars.githubusercontent.com/u/4265482?v=4",
+            "url": "https://github.com/vipmax",
+            "github_username_matches": true,
+            "created_at": "2013-04-26T13:42:53Z"
+          },
+          "time": "2026-05-13T09:03:35.074185Z"
+        }
+      ],
+      "checksum": "b21a0bcd9cdca9aba7cbd8a4167858f9b34fef142164f2f83757f6a65bf9d1e7",
+      "rust_version": null,
+      "has_lib": true,
+      "bin_names": [],
+      "edition": "2024",
+      "description": "ratatui-code-editor is A code editor widget for ratatui, built with syntax highlighting powered by Tree-sitter.",
+      "homepage": "https://github.com/vipmax/ratatui-code-editor",
+      "documentation": null,
+      "repository": "https://github.com/vipmax/ratatui-code-editor.git",
+      "trustpub_data": null,
+      "linecounts": {
+        "languages": {
+          "Rust": {
+            "code_lines": 2163,
+            "comment_lines": 95,
+            "files": 11
+          },
+          "Scheme": {
+            "code_lines": 2294,
+            "comment_lines": 229,
+            "files": 23
+          }
+        },
+        "total_code_lines": 4457,
+        "total_comment_lines": 324
+      }
+    },
+    {
+      "id": 2073488,
+      "crate": "ratatui-code-editor",
+      "num": "0.0.3",
+      "dl_path": "/api/v1/crates/ratatui-code-editor/0.0.3/download",
+      "readme_path": "/api/v1/crates/ratatui-code-editor/0.0.3/readme",
+      "updated_at": "2026-02-28T17:20:40.608777Z",
+      "created_at": "2026-02-28T17:20:40.608777Z",
+      "downloads": 1327,
+      "features": {},
+      "yanked": false,
+      "yank_message": null,
+      "lib_links": null,
+      "license": "MIT",
+      "links": {
+        "dependencies": "/api/v1/crates/ratatui-code-editor/0.0.3/dependencies",
+        "version_downloads": "/api/v1/crates/ratatui-code-editor/0.0.3/downloads",
+        "authors": "/api/v1/crates/ratatui-code-editor/0.0.3/authors"
+      },
+      "crate_size": 117696,
+      "published_by": {
+        "id": 362418,
+        "login": "vipmax",
+        "name": null,
+        "avatar": "https://avatars.githubusercontent.com/u/4265482?v=4",
+        "url": "https://github.com/vipmax",
+        "github_username_matches": true,
+        "created_at": "2013-04-26T13:42:53Z"
+      },
+      "audit_actions": [
+        {
+          "action": "publish",
+          "user": {
+            "id": 362418,
+            "login": "vipmax",
+            "name": null,
+            "avatar": "https://avatars.githubusercontent.com/u/4265482?v=4",
+            "url": "https://github.com/vipmax",
+            "github_username_matches": true,
+            "created_at": "2013-04-26T13:42:53Z"
+          },
+          "time": "2026-02-28T17:20:40.608777Z"
+        }
+      ],
+      "checksum": "0850e3651b209bd5afb9852e8ea6897c7a21df94d3f82557975dfb8d17cfb214",
+      "rust_version": null,
+      "has_lib": true,
+      "bin_names": [],
+      "edition": "2024",
+      "description": "ratatui-code-editor is A code editor widget for ratatui, built with syntax highlighting powered by Tree-sitter.",
+      "homepage": "https://github.com/vipmax/ratatui-code-editor",
+      "documentation": null,
+      "repository": "https://github.com/vipmax/ratatui-code-editor.git",
+      "trustpub_data": null,
+      "linecounts": {
+        "languages": {
+          "Rust": {
+            "code_lines": 2188,
+            "comment_lines": 95,
+            "files": 10
+          },
+          "Scheme": {
+            "code_lines": 2294,
+            "comment_lines": 229,
+            "files": 23
+          }
+        },
+        "total_code_lines": 4482,
+        "total_comment_lines": 324
+      }
+    },
+    {
+      "id": 2071255,
+      "crate": "ratatui-code-editor",
+      "num": "0.0.2",
+      "dl_path": "/api/v1/crates/ratatui-code-editor/0.0.2/download",
+      "readme_path": "/api/v1/crates/ratatui-code-editor/0.0.2/readme",
+      "updated_at": "2026-02-27T23:05:14.768176Z",
+      "created_at": "2026-02-27T23:05:14.768176Z",
+      "downloads": 134,
+      "features": {},
+      "yanked": false,
+      "yank_message": null,
+      "lib_links": null,
+      "license": "MIT",
+      "links": {
+        "dependencies": "/api/v1/crates/ratatui-code-editor/0.0.2/dependencies",
+        "version_downloads": "/api/v1/crates/ratatui-code-editor/0.0.2/downloads",
+        "authors": "/api/v1/crates/ratatui-code-editor/0.0.2/authors"
+      },
+      "crate_size": 117767,
+      "published_by": {
+        "id": 362418,
+        "login": "vipmax",
+        "name": null,
+        "avatar": "https://avatars.githubusercontent.com/u/4265482?v=4",
+        "url": "https://github.com/vipmax",
+        "github_username_matches": true,
+        "created_at": "2013-04-26T13:42:53Z"
+      },
+      "audit_actions": [
+        {
+          "action": "publish",
+          "user": {
+            "id": 362418,
+            "login": "vipmax",
+            "name": null,
+            "avatar": "https://avatars.githubusercontent.com/u/4265482?v=4",
+            "url": "https://github.com/vipmax",
+            "github_username_matches": true,
+            "created_at": "2013-04-26T13:42:53Z"
+          },
+          "time": "2026-02-27T23:05:14.768176Z"
+        }
+      ],
+      "checksum": "208ce11236f7f324180424190b99456789d5e300d73940739ef0e65186fd50a1",
+      "rust_version": null,
+      "has_lib": true,
+      "bin_names": [],
+      "edition": "2024",
+      "description": "ratatui-code-editor is A code editor widget for ratatui, built with syntax highlighting powered by Tree-sitter.",
+      "homepage": "https://github.com/vipmax/ratatui-code-editor",
+      "documentation": null,
+      "repository": "https://github.com/vipmax/ratatui-code-editor.git",
+      "trustpub_data": null,
+      "linecounts": {
+        "languages": {
+          "Rust": {
+            "code_lines": 2139,
+            "comment_lines": 95,
+            "files": 10
+          },
+          "Scheme": {
+            "code_lines": 2294,
+            "comment_lines": 229,
+            "files": 23
+          }
+        },
+        "total_code_lines": 4433,
+        "total_comment_lines": 324
+      }
+    },
+    {
+      "id": 1777348,
+      "crate": "ratatui-code-editor",
+      "num": "0.0.1",
+      "dl_path": "/api/v1/crates/ratatui-code-editor/0.0.1/download",
+      "readme_path": "/api/v1/crates/ratatui-code-editor/0.0.1/readme",
+      "updated_at": "2025-10-16T12:14:17.685022Z",
+      "created_at": "2025-10-16T12:14:17.685022Z",
+      "downloads": 851,
+      "features": {},
+      "yanked": false,
+      "yank_message": null,
+      "lib_links": null,
+      "license": "MIT",
+      "links": {
+        "dependencies": "/api/v1/crates/ratatui-code-editor/0.0.1/dependencies",
+        "version_downloads": "/api/v1/crates/ratatui-code-editor/0.0.1/downloads",
+        "authors": "/api/v1/crates/ratatui-code-editor/0.0.1/authors"
+      },
+      "crate_size": 112433,
+      "published_by": {
+        "id": 362418,
+        "login": "vipmax",
+        "name": null,
+        "avatar": "https://avatars.githubusercontent.com/u/4265482?v=4",
+        "url": "https://github.com/vipmax",
+        "github_username_matches": true,
+        "created_at": "2013-04-26T13:42:53Z"
+      },
+      "audit_actions": [
+        {
+          "action": "publish",
+          "user": {
+            "id": 362418,
+            "login": "vipmax",
+            "name": null,
+            "avatar": "https://avatars.githubusercontent.com/u/4265482?v=4",
+            "url": "https://github.com/vipmax",
+            "github_username_matches": true,
+            "created_at": "2013-04-26T13:42:53Z"
+          },
+          "time": "2025-10-16T12:14:17.685022Z"
+        }
+      ],
+      "checksum": "adc817fa5bf6f440cfdc577686d3c5bf6ef32741a4afbda33f326f4e6eabadbb",
+      "rust_version": null,
+      "has_lib": true,
+      "bin_names": [],
+      "edition": "2024",
+      "description": "ratatui-code-editor is A code editor widget for ratatui, built with syntax highlighting powered by Tree-sitter.",
+      "homepage": "https://github.com/vipmax/ratatui-code-editor",
+      "documentation": null,
+      "repository": "https://github.com/vipmax/ratatui-code-editor.git",
+      "trustpub_data": null,
+      "linecounts": {
+        "languages": {
+          "Rust": {
+            "code_lines": 2113,
+            "comment_lines": 95,
+            "files": 10
+          },
+          "Scheme": {
+            "code_lines": 2294,
+            "comment_lines": 229,
+            "files": 23
+          }
+        },
+        "total_code_lines": 4407,
+        "total_comment_lines": 324
+      }
+    }
+  ],
+  "keywords": [
+    {
+      "id": "editor",
+      "keyword": "editor",
+      "created_at": "2015-04-01T03:48:32.721886Z",
+      "crates_cnt": 634
+    },
+    {
+      "id": "ratatui",
+      "keyword": "ratatui",
+      "created_at": "2023-04-30T19:06:08.806989Z",
+      "crates_cnt": 1048
+    },
+    {
+      "id": "terminal",
+      "keyword": "terminal",
+      "created_at": "2014-12-09T11:04:16.220994Z",
+      "crates_cnt": 4177
+    },
+    {
+      "id": "tree-sitter",
+      "keyword": "tree-sitter",
+      "created_at": "2021-05-18T09:02:47.701746Z",
+      "crates_cnt": 1101
+    }
+  ],
+  "categories": [
+    {
+      "id": "command-line-interface",
+      "category": "Command-line interface",
+      "slug": "command-line-interface",
+      "description": "Crates to help create command line interfaces, such as argument parsers, line-editing, or output coloring and formatting.",
+      "created_at": "2017-01-17T19:13:05.112025Z",
+      "crates_cnt": 3595
+    },
+    {
+      "id": "text-editors",
+      "category": "Text editors",
+      "slug": "text-editors",
+      "description": "Applications for editing text.",
+      "created_at": "2017-01-17T19:13:05.112025Z",
+      "crates_cnt": 1259
+    }
+  ]
+}

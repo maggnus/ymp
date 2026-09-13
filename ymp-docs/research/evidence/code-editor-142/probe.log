@@ -1,0 +1,241 @@
+    Updating crates.io index
+     Locking 253 packages to latest Rust 1.89 compatible versions
+      Adding generic-array v0.14.7 (available: v0.14.9)
+      Adding tree-sitter-language v0.1.7 (available: v0.1.8, requires Rust 1.90)
+ Downloading crates ...
+  Downloaded rust-embed-impl v8.12.0
+  Downloaded tree-sitter-language v0.1.7
+  Downloaded block-buffer v0.12.1
+  Downloaded crypto-common v0.2.2
+  Downloaded cpufeatures v0.3.1
+  Downloaded rust-embed-utils v8.12.0
+  Downloaded objc2-io-surface v0.3.2
+  Downloaded streaming-iterator v0.1.9
+  Downloaded tree-sitter-json v0.24.8
+  Downloaded str_indices v0.4.4
+  Downloaded objc2-encode v4.1.0
+  Downloaded globset v0.4.20
+  Downloaded mime_guess v2.0.5
+  Downloaded unicase v2.9.0
+  Downloaded tree-sitter-toml-ng v0.7.0
+  Downloaded digest v0.11.3
+  Downloaded sha2 v0.11.0
+  Downloaded tree-sitter-html v0.23.2
+  Downloaded hybrid-array v0.4.15
+  Downloaded dispatch2 v0.3.1
+  Downloaded const-oid v0.10.2
+  Downloaded similar v2.7.0
+  Downloaded arboard v3.6.1
+  Downloaded tree-sitter-css v0.25.0
+  Downloaded objc2-core-graphics v0.3.2
+  Downloaded cc v1.4.6
+  Downloaded tree-sitter-yaml v0.7.2
+  Downloaded ropey v1.6.1
+  Downloaded tree-sitter-go v0.25.0
+  Downloaded ratatui-code-editor v0.0.6
+  Downloaded tree-sitter-javascript v0.25.0
+  Downloaded tree-sitter-java v0.23.5
+  Downloaded objc2-core-foundation v0.3.2
+  Downloaded tree-sitter v0.26.13
+  Downloaded tree-sitter-python v0.25.0
+  Downloaded tree-sitter-c v0.24.2
+  Downloaded objc2 v0.6.4
+  Downloaded tree-sitter-md v0.5.3
+  Downloaded objc2-foundation v0.3.2
+  Downloaded bstr v1.13.1
+  Downloaded tree-sitter-rust v0.24.2
+  Downloaded tree-sitter-bash v0.25.1
+  Downloaded objc2-app-kit v0.3.2
+  Downloaded tree-sitter-typescript v0.23.2
+  Downloaded rust-embed v8.12.0
+  Downloaded tree-sitter-cpp v0.23.4
+  Downloaded tree-sitter-c-sharp v0.23.5
+   Compiling find-msvc-tools v0.1.12
+   Compiling shlex v2.0.1
+   Compiling cc v1.4.6
+   Compiling tree-sitter-language v0.1.7
+   Compiling proc-macro2 v1.0.107
+   Compiling unicode-ident v1.0.24
+   Compiling quote v1.0.47
+   Compiling libc v0.2.189
+   Compiling memchr v2.8.3
+   Compiling cfg-if v1.0.4
+   Compiling equivalent v1.0.2
+   Compiling bitflags v2.13.2
+   Compiling syn v2.0.119
+   Compiling syn v3.0.5
+   Compiling itoa v1.0.18
+   Compiling log v0.4.34
+   Compiling aho-corasick v1.1.5
+   Compiling typenum v1.20.1
+   Compiling unicode-segmentation v1.13.3
+   Compiling hybrid-array v0.4.15
+   Compiling rustversion v1.0.23
+   Compiling foldhash v0.2.0
+   Compiling allocator-api2 v0.2.21
+   Compiling thiserror v2.0.20
+   Compiling block-buffer v0.12.1
+   Compiling crypto-common v0.2.2
+   Compiling thiserror-impl v2.0.20
+   Compiling errno v0.3.14
+   Compiling const-oid v0.10.2
+   Compiling serde_core v1.0.229
+   Compiling ident_case v1.0.1
+   Compiling strsim v0.11.1
+   Compiling either v1.18.0
+   Compiling heck v0.5.0
+   Compiling zmij v1.0.23
+   Compiling objc2 v0.6.4
+   Compiling strum_macros v0.28.0
+   Compiling itertools v0.14.0
+   Compiling darling_core v0.24.1
+   Compiling digest v0.11.3
+   Compiling castaway v0.2.4
+   Compiling hashbrown v0.17.1
+   Compiling hashbrown v0.16.1
+   Compiling bstr v1.13.1
+   Compiling signal-hook v0.3.18
+   Compiling parking_lot_core v0.9.12
+   Compiling static_assertions v1.1.0
+   Compiling objc2-encode v4.1.0
+   Compiling unicode-width v0.2.2
+   Compiling smallvec v1.16.1
+   Compiling ryu v1.0.23
+   Compiling regex-syntax v0.8.11
+   Compiling compact_str v0.9.1
+   Compiling unicode-truncate v2.0.1
+   Compiling regex-automata v0.4.18
+   Compiling kasuari v0.4.12
+   Compiling lru v0.18.4
+   Compiling darling_macro v0.24.1
+   Compiling strum v0.28.0
+   Compiling signal-hook-registry v1.4.8
+   Compiling convert_case v0.10.0
+   Compiling critical-section v1.2.0
+   Compiling scopeguard v1.2.0
+   Compiling unicase v2.9.0
+   Compiling same-file v1.0.6
+   Compiling instability v0.3.13
+   Compiling rustix v1.1.4
+   Compiling serde_json v1.0.151
+   Compiling indexmap v2.14.2
+   Compiling walkdir v2.5.0
+   Compiling mime_guess v2.0.5
+   Compiling lock_api v0.4.14
+   Compiling ratatui-core v0.1.2
+   Compiling derive_more-impl v2.1.1
+   Compiling cpufeatures v0.3.1
+   Compiling darling v0.24.1
+   Compiling objc2-core-foundation v0.3.2
+   Compiling mio v1.2.3
+   Compiling litrs v1.0.0
+   Compiling indoc v2.0.7
+   Compiling document-features v0.2.12
+   Compiling signal-hook-mio v0.2.5
+   Compiling parking_lot v0.12.5
+   Compiling derive_more v2.1.1
+   Compiling sha2 v0.11.0
+   Compiling globset v0.4.20
+   Compiling num_threads v0.1.7
+   Compiling powerfmt v0.2.0
+   Compiling time-core v0.1.9
+   Compiling num-conv v0.2.2
+   Compiling mime v0.3.17
+   Compiling deranged v0.5.8
+   Compiling time v0.3.55
+   Compiling crossterm v0.29.0
+   Compiling tree-sitter v0.26.13
+   Compiling rust-embed-utils v8.12.0
+   Compiling objc2-foundation v0.3.2
+   Compiling objc2-core-graphics v0.3.2
+   Compiling line-clipping v0.3.8
+   Compiling tree-sitter-javascript v0.25.0
+   Compiling tree-sitter-java v0.23.5
+   Compiling tree-sitter-rust v0.24.2
+   Compiling tree-sitter-yaml v0.7.2
+   Compiling tree-sitter-go v0.25.0
+   Compiling tree-sitter-c v0.24.2
+   Compiling tree-sitter-typescript v0.23.2
+   Compiling tree-sitter-md v0.5.3
+   Compiling tree-sitter-cpp v0.23.4
+   Compiling tree-sitter-toml-ng v0.7.0
+   Compiling tree-sitter-html v0.23.2
+   Compiling tree-sitter-json v0.24.8
+   Compiling tree-sitter-python v0.25.0
+   Compiling tree-sitter-bash v0.25.1
+   Compiling tree-sitter-c-sharp v0.23.5
+   Compiling tree-sitter-css v0.25.0
+   Compiling anyhow v1.0.104
+   Compiling ratatui-widgets v0.3.2
+   Compiling objc2-app-kit v0.3.2
+   Compiling rust-embed-impl v8.12.0
+   Compiling regex v1.13.1
+   Compiling str_indices v0.4.4
+   Compiling streaming-iterator v0.1.9
+   Compiling ropey v1.6.1
+   Compiling rust-embed v8.12.0
+   Compiling ratatui-macros v0.7.2
+   Compiling arboard v3.6.1
+   Compiling ratatui-crossterm v0.1.2
+   Compiling similar v2.7.0
+   Compiling ratatui v0.30.2
+   Compiling ratatui-code-editor v0.0.6
+   Compiling ymp142-editor-probe v0.0.0 (/tmp/ymp142-editor-probe)
+    Finished `dev` profile [unoptimized] target(s) in 40.59s
+     Running `target/ymp142-editor-probe/debug/ymp142-editor-probe`
+[
+  {
+    "case": "unicode_lf",
+    "roundtrip_undo_redo": true
+  },
+  {
+    "case": "crlf",
+    "roundtrip_undo_redo": true
+  },
+  {
+    "case": "no_final_newline",
+    "roundtrip_undo_redo": true
+  },
+  {
+    "case": "controls",
+    "roundtrip_undo_redo": true
+  },
+  {
+    "case": "ascii",
+    "cursor": 50,
+    "offset_x": 39,
+    "visible_cursor": [
+      20,
+      0
+    ]
+  },
+  {
+    "case": "wide",
+    "cursor": 12,
+    "offset_x": 0,
+    "visible_cursor": null
+  },
+  {
+    "case": "emoji",
+    "cursor": 36,
+    "offset_x": 25,
+    "visible_cursor": [
+      15,
+      0
+    ]
+  },
+  {
+    "case": "press_and_release",
+    "content": "aa"
+  },
+  {
+    "case": "enter_crlf",
+    "content": "first\n\r\nsecond\r\n"
+  },
+  {
+    "bytes": 245760,
+    "case": "bounded_file",
+    "create_ms": 230,
+    "first_draw_ms": 102
+  }
+]

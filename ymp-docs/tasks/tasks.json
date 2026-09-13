@@ -3646,9 +3646,90 @@
           "note": "Independently accepted author 8d3da6a and integrated as 0829dc6. Release source f29bb7a passes fmt, strict Clippy and 554 tests (2 ignored), colour/monochrome inline+Inspect checks with immutable stored messages, 12+12 file cases, 19 table/theme cases and five exit cases. Installed 0.4.5 passes independent colour and monochrome checks in Ember/Latte. Cooperative timing, source-byte cache limits and plain streaming code are documented; no Linux/Windows or real-provider inference claim."
         }
       ]
+    },
+    {
+      "id": "YMP-141",
+      "title": "Keep popup geometry stable while scrolling content",
+      "type": "implementation",
+      "priority": "P1",
+      "status": "paused",
+      "owner": "Claude Code claude-opus-5 high; maintainer owns reproduction, integration and acceptance",
+      "authorization": "Owner reported that some or all popups shrink vertically when scrolling with arrow keys. Investigation and a focused fix are within the requested ongoing UI work.",
+      "depends_on": [
+        "YMP-140"
+      ],
+      "reason": "The shared modal renderer derives height from the remaining visible slice, allowing scrolling near the end to move and shrink a popup.",
+      "acceptance": [
+        "Reproduce the reported height change and identify affected popup paths; preserve a failing-before check.",
+        "Keep popup size and placement stable when only scrolling changes, clamp scroll to the actual viewport, preserve last-line reachability, and handle resize and small/empty bodies correctly.",
+        "Cover Inspect and file Preview, audit other modal callers and retain chooser/input/footer behavior. Delegate UI changes to Claude Code high; independently verify representative real-terminal Unicode/ASCII cases and run required Rust checks.",
+        "Record source and evidence, update task views and verify the installed maintenance release without provider inference."
+      ],
+      "evidence": [
+        "ymp-docs/research/evidence/popup-scroll-141/assignment.md",
+        "ymp-docs/research/evidence/popup-scroll-141/paused-test-draft.patch"
+      ],
+      "history": [
+        {
+          "at": "2026-09-13T11:23:52.452858+00:00",
+          "status": "in_progress",
+          "note": "Restored main17fb99b and installed0.4.5. Source points to render_modal computing height from the post-scroll visible slice. Parent is preparing a terminal reproduction while delegated UI correction is arranged."
+        },
+        {
+          "at": "2026-09-13T11:28:47.440748+00:00",
+          "status": "paused",
+          "note": "Owner explicitly changed the active scope to research only before integration. Native implementation run was cancelled; no popup correction is accepted or installed. Source diagnosis is retained for later. Do not resume implementation without a new owner instruction."
+        },
+        {
+          "at": "2026-09-13T11:37:01.822906+00:00",
+          "status": "paused",
+          "note": "Owner research-only scope remains in force. Shared modal geometry cause diagnosed. The isolated branch retains185 unrun test lines; no renderer fix, integration, package change or installed update was made. Parent retained the draft patch and recorded the independent editor research separately as142."
+        }
+      ]
+    },
+    {
+      "id": "YMP-142",
+      "title": "Assess ratatui-code-editor for opening files inside ymp",
+      "type": "research",
+      "priority": "P1",
+      "status": "done",
+      "owner": "Maintainer and the current Claude UI author compare source findings",
+      "authorization": "Owner explicitly requested considering https://github.com/vipmax/ratatui-code-editor for opening files now that /files navigation and syntax highlighting exist. Viewing versus editing scope is being clarified. Owner subsequently clarified viewing and editing with explicit save as the intended capability, then explicitly limited current work to research only and asked whether the component can replace already-installed navigation/highlighting.",
+      "depends_on": [
+        "YMP-139"
+      ],
+      "reason": "Determine whether the ready editor widget improves file interaction without duplicating navigation, losing text, or introducing unsound save behavior.",
+      "acceptance": [
+        "Inspect the published crate and upstream source; record exact versions/revisions, Ratatui/Crossterm/Rust compatibility, license, features, dependencies and maintenance facts.",
+        "Check native buffer/path/read-only/edit/save responsibilities, syntax/theme integration, large/Unicode/control-containing content and event routing. Reproduce material compatibility findings with a standalone probe where useful.",
+        "Compare parent and Claude findings and record a function-by-function replacement assessment for navigation, file viewer/editor, syntax backends and grammars, chat/streaming Markdown and diff presentation. Current scope is research only: do not implement, replace installed components, fix UI, or add saving."
+      ],
+      "evidence": [
+        "ymp-docs/research/ratatui-code-editor-assessment.md",
+        "ymp-docs/research/evidence/code-editor-142/verification.json",
+        "ymp-docs/research/evidence/code-editor-142/probe-observations.json",
+        "ymp-docs/research/evidence/code-editor-142/joint-decision.json"
+      ],
+      "history": [
+        {
+          "at": "2026-09-13T11:23:52.452858+00:00",
+          "status": "in_progress",
+          "note": "Opened the requested primary repository. README describes a Tree-sitter editor widget with Ratatui0.30 support; parent is verifying published source and exact dependencies rather than relying on performance claims. Existing /files already supports bounded read-only preview."
+        },
+        {
+          "at": "2026-09-13T11:28:47.440748+00:00",
+          "status": "in_progress",
+          "note": "Owner paused implementation and requested replacement analysis. Published0.0.6 compiles in a standalone probe on Rust1.89/Ratatui0.30.2. Parent reproduced wide-glyph cursor loss and mixed line endings on Enter; buffer roundtrip and undo/redo pass. Existing Claude author now performs independent read-only assessment; app source and installed0.4.5 remain unchanged."
+        },
+        {
+          "at": "2026-09-13T11:37:01.822906+00:00",
+          "status": "done",
+          "note": "Research only completed: parent compiled published0.0.6 on Rust1.89/Ratatui0.30.2 and reproduced light-theme, wide-cursor, CRLF, key-release, Markdown-source and raw-patch limitations. Claude independently reviewed source and agreed: editable file view can be replaced; syntax backend can migrate separately, while navigation/I/O/chat/patch contracts remain. No product integration or installation;0.4.5 unchanged. Compatible transitive version0.1.7 resolved automatically; preserve lockfile."
+        }
+      ]
     }
   ],
-  "updated_at": "2026-09-13T11:15:46.512245+00:00",
+  "updated_at": "2026-09-13T11:37:01.822906+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",
