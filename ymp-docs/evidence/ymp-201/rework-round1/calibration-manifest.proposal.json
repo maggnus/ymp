@@ -1,0 +1,377 @@
+{
+  "schema_version": 2,
+  "execution_kind": "native",
+  "phase": "preparation-calibration",
+  "source_revision": "75f60a6972d8d58cec654330af60a6041a2c5274",
+  "repository": "/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp201-weak-pilot",
+  "output": "/private/tmp/ymp201-r1-calibration-controller",
+  "workspace_root": "/private/tmp/ymp201-r1-calibration-work",
+  "runner_sha256": "4790774e92090df62a62083c471a05e96f855efd25862577ca4266cc918a92bc",
+  "python": "/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/bin/python3.14",
+  "python_sha256": "cbf84109626aa1013bbe408fbb9590bd0f1c1548f038b2221c6b8b87de26ca43",
+  "candidate_execution": {
+    "backend": "macos-sandbox-exec",
+    "python_executable": "/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/Resources/Python.app/Contents/MacOS/Python",
+    "python_sha256": "7ecc1ecbf9daa9303c4bf502ff62ffdd9010ed5c08729d470ae9380c10ce1211",
+    "python_launcher": "/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/bin/python3.14",
+    "python_launcher_sha256": "cbf84109626aa1013bbe408fbb9590bd0f1c1548f038b2221c6b8b87de26ca43",
+    "sandbox_executable": "/usr/bin/sandbox-exec",
+    "sandbox_sha256": "abc5bb136d6b5cce8fa85d789f78e3326c51ca60cae637b2064adfb67a1dcd9a",
+    "wrapper_sha256": "df2287f8549f241ed168bb9e62f8f1c56254c37a51f30ce65032c1139fa2c1c8"
+  },
+  "codex": "/Users/maggnus/.codex/packages/standalone/releases/0.154.0-aarch64-apple-darwin/bin/codex",
+  "codex_sha256": "4f85982624b3898c8991cb80c0981b2aa71070e3537046c9a95950318a95afcc",
+  "native_home": "/Users/maggnus/.codex",
+  "protected_roots": [
+    "/Users/maggnus",
+    "/private/tmp",
+    "/private/var/folders/cw/7pn8sb3x6bj69g7j2d8f_ss00000gn/T"
+  ],
+  "controls": {
+    "features.multi_agent": false,
+    "features.multi_agent_v2": false,
+    "agents.enabled": false,
+    "features.memories": false,
+    "memories.generate_memories": false,
+    "memories.use_memories": false,
+    "features.external_agent_memory_import": false,
+    "features.hooks": false,
+    "features.plugins": false,
+    "features.apps": false,
+    "features.browser_use": false,
+    "features.computer_use": false,
+    "features.image_generation": false,
+    "features.goals": false,
+    "features.skill_search": false,
+    "features.skip_host_skill_discovery": true,
+    "features.shell_snapshot": false,
+    "features.unbounded_connection_retries": false,
+    "approval_policy": "never",
+    "approvals_reviewer": "user",
+    "allow_login_shell": false,
+    "model_reasoning_effort": "low",
+    "project_doc_max_bytes": 0,
+    "project_root_markers": [],
+    "developer_instructions": "",
+    "web_search": "disabled"
+  },
+  "control_evidence": "/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp201-weak-pilot/ymp-docs/evidence/ymp-201/rework-round1/native-envelope-final.json",
+  "control_evidence_sha256": "1f75b9ffaee75c4f43f6d1b040af51fb9a2adae841c67f95cc97291164a4c32e",
+  "config": {
+    "version": 1,
+    "limits": {
+      "parallel": 2,
+      "turns": 12,
+      "turn_timeout_secs": 480,
+      "attempts": 1,
+      "resources": {
+        "unknown_usage": "stop",
+        "startup_invocations": 2,
+        "required_review_invocations": 1,
+        "max_context_chars": 128000,
+        "startup_context_chars": 32000,
+        "max_output_chars": 64000,
+        "native_max_turns": 16,
+        "observed_tokens": 80000,
+        "invocation_tokens": 6000,
+        "review_reserve_tokens": 6000
+      }
+    },
+    "providers": [
+      {
+        "id": "codex",
+        "kind": "codex",
+        "command": "/Users/maggnus/.codex/packages/standalone/releases/0.154.0-aarch64-apple-darwin/bin/codex",
+        "args": [],
+        "env_refs": {},
+        "enabled": true
+      }
+    ],
+    "agents": [
+      {
+        "id": "weak-1",
+        "name": "gpt-5.6-luna",
+        "provider": "codex",
+        "model": "gpt-5.6-luna",
+        "instructions": "",
+        "enabled": true
+      },
+      {
+        "id": "weak-2",
+        "name": "gpt-5.6-luna",
+        "provider": "codex",
+        "model": "gpt-5.6-luna",
+        "instructions": "",
+        "enabled": true
+      },
+      {
+        "id": "weak-3",
+        "name": "gpt-5.6-luna",
+        "provider": "codex",
+        "model": "gpt-5.6-luna",
+        "instructions": "",
+        "enabled": true
+      },
+      {
+        "id": "strong-1",
+        "name": "gpt-6-astra",
+        "provider": "codex",
+        "model": "gpt-6-astra",
+        "instructions": "",
+        "enabled": true
+      }
+    ],
+    "team": [
+      "weak-1",
+      "weak-2"
+    ],
+    "execution": {
+      "weak-1": {
+        "fixed": {
+          "model": "gpt-5.6-luna",
+          "effort": "low"
+        }
+      },
+      "weak-2": {
+        "fixed": {
+          "model": "gpt-5.6-luna",
+          "effort": "low"
+        }
+      },
+      "weak-3": {
+        "fixed": {
+          "model": "gpt-5.6-luna",
+          "effort": "low"
+        }
+      },
+      "strong-1": {
+        "fixed": {
+          "model": "gpt-6-astra",
+          "effort": "low"
+        }
+      }
+    },
+    "capabilities": {
+      "codex": {
+        "source": {
+          "kind": "native_metadata",
+          "method": "model/list (probe.json; timestamp is capture-file mtime)",
+          "observed_at": "2026-09-13T19:35:50.302679+00:00"
+        },
+        "models_complete": false,
+        "models": [
+          {
+            "id": "gpt-6-astra",
+            "picker_id": "gpt-6-astra",
+            "controls": [
+              {
+                "id": "effort",
+                "values": {
+                  "kind": "choices",
+                  "options": [
+                    "low",
+                    "medium",
+                    "high",
+                    "xhigh",
+                    "max",
+                    "ultra"
+                  ]
+                },
+                "default": "medium"
+              }
+            ]
+          },
+          {
+            "id": "gpt-5.6-luna",
+            "picker_id": "gpt-5.6-luna",
+            "controls": [
+              {
+                "id": "effort",
+                "values": {
+                  "kind": "choices",
+                  "options": [
+                    "low",
+                    "medium",
+                    "high",
+                    "xhigh",
+                    "max"
+                  ]
+                },
+                "default": "medium"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "catalog": {
+    "source": {
+      "kind": "native_metadata",
+      "method": "model/list (probe.json; timestamp is capture-file mtime)",
+      "observed_at": "2026-09-13T19:35:50.302679+00:00"
+    },
+    "models_complete": false,
+    "models": [
+      {
+        "id": "gpt-6-astra",
+        "picker_id": "gpt-6-astra",
+        "controls": [
+          {
+            "id": "effort",
+            "values": {
+              "kind": "choices",
+              "options": [
+                "low",
+                "medium",
+                "high",
+                "xhigh",
+                "max",
+                "ultra"
+              ]
+            },
+            "default": "medium"
+          }
+        ]
+      },
+      {
+        "id": "gpt-5.6-luna",
+        "picker_id": "gpt-5.6-luna",
+        "controls": [
+          {
+            "id": "effort",
+            "values": {
+              "kind": "choices",
+              "options": [
+                "low",
+                "medium",
+                "high",
+                "xhigh",
+                "max"
+              ]
+            },
+            "default": "medium"
+          }
+        ]
+      }
+    ]
+  },
+  "weak_model": "gpt-5.6-luna",
+  "strong_model": "gpt-6-astra",
+  "max_invocations": 12,
+  "group_seconds": 480,
+  "seed": 2010914,
+  "time_rule": "remaining_condition_deadline",
+  "independent_schedule": "ordinal_serial_shared_deadline",
+  "approval_scope": "one_phase_once",
+  "approval_ledger": "/Users/maggnus/.local/state/ymp201/phase-approvals",
+  "task_prompt": "Read REQUIREMENTS.md in the selected directory and deliver the requested files. Use only the permitted tools and visible files in this directory.",
+  "frozen_files": {
+    "ymp-evals/weak-pilot/README.md": "899a5d95738708ac0088909c6745afb086f2edf1effad31c86d268ba4f3a7886",
+    "ymp-evals/weak-pilot/codex_envelope.py": "1c737ad866f51e35728d53526376dc98ad56fb425be7149aaa314a20abf1480e",
+    "ymp-evals/weak-pilot/codex_protocol_v2.py": "e6ebdbec4cf5e06ddd886a9bfbb2bbb44c029d32c4c24b41bdd58e38e0aa41e2",
+    "ymp-evals/weak-pilot/consumer-v2.md": "44d920f47cbf87cdf2e5d5c656dbfb33259b60cc67d4271b962e78498f3e9c95",
+    "ymp-evals/weak-pilot/consumer_manifest.py": "5e31386bb3a771aa6c3d70ddb3397548e3e3f4774612fbb890eb330f3b7195ef",
+    "ymp-evals/weak-pilot/fixtures/measured/reconcile/private/controls/float-rounding/exceptions.csv": "2c1ddab2573e1b5da8763296245d17115734698cbf1393b3dfbcadba03f1a17c",
+    "ymp-evals/weak-pilot/fixtures/measured/reconcile/private/controls/float-rounding/totals.csv": "20aecb0af732a9616e7834cb33c5e5fe82ef325cd06d8abd49f818f5316a093a",
+    "ymp-evals/weak-pilot/fixtures/measured/reconcile/private/controls/ignore-cancellations/exceptions.csv": "2c1ddab2573e1b5da8763296245d17115734698cbf1393b3dfbcadba03f1a17c",
+    "ymp-evals/weak-pilot/fixtures/measured/reconcile/private/controls/ignore-cancellations/totals.csv": "552d8e62f78cb32964067f861f2ec1fc5d334e17c555d60e08158c6c3a6a3267",
+    "ymp-evals/weak-pilot/fixtures/measured/reconcile/private/controls/missing-exception/exceptions.csv": "57f80152e2d261d9df45fa00794e48292d3997d73d7137988b63078571e9c089",
+    "ymp-evals/weak-pilot/fixtures/measured/reconcile/private/controls/missing-exception/totals.csv": "d08434f1c43d6b45722f09997542b7e6e799188f3c58a94167a82511f9b104a3",
+    "ymp-evals/weak-pilot/fixtures/measured/reconcile/private/exceptions.csv": "2c1ddab2573e1b5da8763296245d17115734698cbf1393b3dfbcadba03f1a17c",
+    "ymp-evals/weak-pilot/fixtures/measured/reconcile/private/totals.csv": "d08434f1c43d6b45722f09997542b7e6e799188f3c58a94167a82511f9b104a3",
+    "ymp-evals/weak-pilot/fixtures/measured/reconcile/visible/REQUIREMENTS.md": "0cd4987b56759c9b1348a325c644710663c1f75bb748ab7c14d0e7bd3c1923de",
+    "ymp-evals/weak-pilot/fixtures/measured/reconcile/visible/ledger.csv": "d6c77339f9f7c52d77d239da4a402fa04011be192d896dde9595d1b571dbf8a0",
+    "ymp-evals/weak-pilot/fixtures/measured/reconcile/visible/public_test.py": "76d2c5675e8be007ba03883e9d2fd6c69be63062380ecfcc8b66e49d4c53a3a2",
+    "ymp-evals/weak-pilot/fixtures/measured/repair/private/cases.json": "6aeb869fc199ba074d7e965d3fc85311816d1bec6b0769ec3f37ef381763c615",
+    "ymp-evals/weak-pilot/fixtures/measured/repair/private/controls/helper-regression.py": "537f6a060510c1bd8e568af2d78b45c14807dabb63e1a6c56390ba1450e2e6e7",
+    "ymp-evals/weak-pilot/fixtures/measured/repair/private/controls/no-clipping.py": "d360a7a2c74a86eb50a28c0a2ddb6835dd3d7e9d35a501324b5dc5255382fb2e",
+    "ymp-evals/weak-pilot/fixtures/measured/repair/private/controls/strict-minimum.py": "92ced874e5def856a21e1cb538c6130e300211267473ad34eadd144fb4085b62",
+    "ymp-evals/weak-pilot/fixtures/measured/repair/private/windows.py": "25d0eceb0a7021615f0b1371576640fdd899021ed0e38f11257b15ecee1a49f0",
+    "ymp-evals/weak-pilot/fixtures/measured/repair/visible/REQUIREMENTS.md": "ca91d06eb8c9ea88f39663c2efbbd2ee4aa9987b1342b0441a393deb6de77394",
+    "ymp-evals/weak-pilot/fixtures/measured/repair/visible/public_test.py": "2fa45bec9ea309fa86deb508e34fd7ea318d6a4a154d90881b505e38002ba3e8",
+    "ymp-evals/weak-pilot/fixtures/measured/repair/visible/windows.py": "0f7df2147aa6a0fb8065fc57d622f0ddf2589885867bce6c0291b1512ba32252",
+    "ymp-evals/weak-pilot/fixtures/preparation/reconcile/private/controls/missing-exception/exceptions.csv": "6c562b9a38d9bdcc9c32145ff528523a0ee45eb3086f1e626015fd06fd8a3623",
+    "ymp-evals/weak-pilot/fixtures/preparation/reconcile/private/controls/missing-exception/totals.csv": "e350e2eb906b5f70f8952d3a2ce278f48fec21bbec818246cd6345b0621dc835",
+    "ymp-evals/weak-pilot/fixtures/preparation/reconcile/private/controls/zero-entry-dropped/exceptions.csv": "571a828dddf3fcd6899e10809d15d204162d5c4bcb41a33fff5ec5e54c2bf268",
+    "ymp-evals/weak-pilot/fixtures/preparation/reconcile/private/controls/zero-entry-dropped/totals.csv": "2fca15083bdefaed9bead0e24f051d27a0d86eb4e1296432c0bb9d0c036af46b",
+    "ymp-evals/weak-pilot/fixtures/preparation/reconcile/private/exceptions.csv": "571a828dddf3fcd6899e10809d15d204162d5c4bcb41a33fff5ec5e54c2bf268",
+    "ymp-evals/weak-pilot/fixtures/preparation/reconcile/private/totals.csv": "e350e2eb906b5f70f8952d3a2ce278f48fec21bbec818246cd6345b0621dc835",
+    "ymp-evals/weak-pilot/fixtures/preparation/reconcile/visible/REQUIREMENTS.md": "0cd4987b56759c9b1348a325c644710663c1f75bb748ab7c14d0e7bd3c1923de",
+    "ymp-evals/weak-pilot/fixtures/preparation/reconcile/visible/ledger.csv": "65f4a06e93b2bc792fa3beeeb251f234387501d08feedd8e7ce25eddd6e05fa3",
+    "ymp-evals/weak-pilot/fixtures/preparation/reconcile/visible/public_test.py": "76d2c5675e8be007ba03883e9d2fd6c69be63062380ecfcc8b66e49d4c53a3a2",
+    "ymp-evals/weak-pilot/fixtures/preparation/repair/private/cases.json": "d19bcef6267224e2e48d7210601a815903349d53e6414c4331f864dbc18c0297",
+    "ymp-evals/weak-pilot/fixtures/preparation/repair/private/controls/helper-regression.py": "785fcc0057c300c4322161717b17d0cc91af0e2c712ea142c0a035acd2fc1747",
+    "ymp-evals/weak-pilot/fixtures/preparation/repair/private/controls/touching-not-merged.py": "b9214a3828eaba82daaed7f007621ed94894d679f77e35e790eacfc2526ad63a",
+    "ymp-evals/weak-pilot/fixtures/preparation/repair/private/windows.py": "c16acff50ba7c4e4047b9bda01735a90b079872dfa663902a2b6ac4dfb3e1bad",
+    "ymp-evals/weak-pilot/fixtures/preparation/repair/visible/REQUIREMENTS.md": "21c299953101d39e5f34a6e2d74f2fceb4d3a0a8f1b80626880d9e6c980fe8b0",
+    "ymp-evals/weak-pilot/fixtures/preparation/repair/visible/public_test.py": "c6cb4f332e7272f9bcccc360689d1d23dc544996f6dbae2a68b4a28fbba7b3a5",
+    "ymp-evals/weak-pilot/fixtures/preparation/repair/visible/windows.py": "f18f2d7559059d96d91b0bab4c39a52c061c974b5b4096444b8dbd986e13ece0",
+    "ymp-evals/weak-pilot/invocation.template.json": "bfa082068f03c224b892a9d0d4557989937c848d8eaf6886c40b3d5bca6924db",
+    "ymp-evals/weak-pilot/manifest.template.json": "8311ef3134b89a60c72aa3c93207208483cfeaa42eef3437e37145c267039b3f",
+    "ymp-evals/weak-pilot/native_controls_probe.py": "dbce43c633ce716985c3a61c8b6026af24f84f85be07fd929ee7b5db1ceac208",
+    "ymp-evals/weak-pilot/observer.py": "a1415815fde8274ef6dcb8a3ed413047f0099ef98b1e666319973dd50d36ebc7",
+    "ymp-evals/weak-pilot/public_select.py": "9bd883abecf01cb6f3a60a67a83f9e1b3e7766e6f2edfb63b626491bf2ccf543",
+    "ymp-evals/weak-pilot/quota-and-boundary.md": "1465a19995cda5fd1be0ba06666cc9701fdb9f65be41bacddc0697027a4342af",
+    "ymp-evals/weak-pilot/repair_probe.py": "5e2a4471229127e96df07715beeb93effe3a4e86d9cf135562cae58dc9aa45cc",
+    "ymp-evals/weak-pilot/restricted_python.py": "df2287f8549f241ed168bb9e62f8f1c56254c37a51f30ce65032c1139fa2c1c8",
+    "ymp-evals/weak-pilot/result.template.json": "fb4e5ead7bbcf67c16d8a8db4c1cdb4faf3013b569794f1012da72eed162c8b5",
+    "ymp-evals/weak-pilot/test_codex_envelope.py": "8b7b5eb562c1ba9db9ff4b0798f2c200918968e43de6bbef442249c643306810",
+    "ymp-evals/weak-pilot/test_restricted_python.py": "e64f5ff90d699d1e3f79d9bb466b3a367a2ebd8c3c634e18c94487ae7b9e4984",
+    "ymp-evals/validators/universal.py": "cf050b78d847bbd7f5386c1336d2cef43f089f2b5082ebb54408e4b61e1e1bf1",
+    "ymp-rust/crates/ymp-eval-driver/src/bin/weak_pilot/codex_protocol.py": "3c73a5d60da5ac73dc78282ca8724bb15b13d32b79a34d9577437e4c7c712dd5",
+    "ymp-rust/crates/ymp-eval-driver/src/bin/weak_pilot/consumer.rs": "8f7e10098bed574263937fbc106f2283dfd6419d6984adb430d622895f4d00bf",
+    "ymp-rust/crates/ymp-eval-driver/src/bin/weak_pilot/consumer_engine.rs": "88d1df3a9285495b748feec75506e88c24e26d4d18d45b4492584705d8f57fd9",
+    "ymp-rust/crates/ymp-eval-driver/src/bin/weak_pilot/fixture.rs": "29662a9ecf659720840bc40357a27d96fe8787290ca66a48ba8936eb59728f79",
+    "ymp-rust/crates/ymp-eval-driver/src/bin/weak_pilot/measurement.rs": "861682d1f3bf61751dfc918df5e3150ab7f792c723729dfef08fab99053b140c",
+    "ymp-rust/crates/ymp-eval-driver/src/bin/weak_pilot/mod.rs": "64cffe6b5dae2d4687a102b8ca667879cead9ad7780cf4a595071b363bdab64e",
+    "ymp-rust/crates/ymp-eval-driver/src/bin/weak_pilot/proofs.rs": "0c48c42163f3c371cc960a9d22429d9afdfd47b8e43d8f27a96d1e6416bd8e56",
+    "ymp-rust/crates/ymp-eval-driver/src/bin/weak_pilot/raw.rs": "651fa630ab378cce067b4becb583cd976b4e75064208f8215a1e9f7105730696",
+    "ymp-rust/crates/ymp-eval-driver/src/bin/ymp-weak-pilot.rs": "46fe102da350892d3a93b0b792d22aa1c9e7ab4635d4dafa2ef6e24e8b8e4e3e"
+  },
+  "prerequisite_manifest_sha256": null,
+  "attempts": [
+    {
+      "id": "reconcile-weak-solo",
+      "condition": "weak-solo",
+      "task": "reconcile",
+      "variant": "preparation",
+      "blind_id": "544b1cacae8240a5967451af570a2cef"
+    },
+    {
+      "id": "reconcile-strong-solo",
+      "condition": "strong-solo",
+      "task": "reconcile",
+      "variant": "preparation",
+      "blind_id": "d317c52348264e8ca6cbf7f44db756f5"
+    },
+    {
+      "id": "repair-cooperation-2",
+      "condition": "cooperation-2",
+      "task": "repair",
+      "variant": "preparation",
+      "blind_id": "427e8873556846db8c510851fbb68c62"
+    },
+    {
+      "id": "repair-strong-solo",
+      "condition": "strong-solo",
+      "task": "repair",
+      "variant": "preparation",
+      "blind_id": "636faa140355418aab3d2fcbba354c5c"
+    },
+    {
+      "id": "repair-weak-solo",
+      "condition": "weak-solo",
+      "task": "repair",
+      "variant": "preparation",
+      "blind_id": "932e7317caec402994aad12b35487c03"
+    },
+    {
+      "id": "repair-cooperation-3",
+      "condition": "cooperation-3",
+      "task": "repair",
+      "variant": "preparation",
+      "blind_id": "1da43c2413ee42fc9b0b7e69ad754f41"
+    }
+  ]
+}

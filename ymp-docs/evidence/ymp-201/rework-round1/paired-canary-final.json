@@ -1,0 +1,137 @@
+{
+  "source": "75f60a6972d8d58cec654330af60a6041a2c5274",
+  "native_model_calls": 0,
+  "identity": {
+    "backend": "macos-sandbox-exec",
+    "python_executable": "/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/Resources/Python.app/Contents/MacOS/Python",
+    "python_sha256": "7ecc1ecbf9daa9303c4bf502ff62ffdd9010ed5c08729d470ae9380c10ce1211",
+    "python_launcher": "/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/bin/python3.14",
+    "python_launcher_sha256": "cbf84109626aa1013bbe408fbb9590bd0f1c1548f038b2221c6b8b87de26ca43",
+    "sandbox_executable": "/usr/bin/sandbox-exec",
+    "sandbox_sha256": "abc5bb136d6b5cce8fa85d789f78e3326c51ca60cae637b2064adfb67a1dcd9a",
+    "wrapper_sha256": "df2287f8549f241ed168bb9e62f8f1c56254c37a51f30ce65032c1139fa2c1c8"
+  },
+  "selection": {
+    "selection_rule": "first-public-pass-else-first-v1",
+    "selected_participant_ordinal": 1,
+    "public_check_sha256": "2fa45bec9ea309fa86deb508e34fd7ea318d6a4a154d90881b505e38002ba3e8",
+    "observations": [
+      {
+        "participant_ordinal": 1,
+        "public_passed": true,
+        "files_sha256": {
+          "windows.py": "fd28911133edfb0e1ac09ac3762a8abe83579142b35bdf423a8430bc1c0441ac"
+        },
+        "error": null,
+        "execution_status": "completed",
+        "measurement_valid": true,
+        "exit_code": 0,
+        "stdout": "public examples passed\n",
+        "stderr": "DENIED:private\nDENIED-PARENT:private\nDENIED-COMMON-PARENT:private\nDENIED-SYMLINK:private\nDENIED:peer\nDENIED-PARENT:peer\nDENIED-COMMON-PARENT:peer\nDENIED-SYMLINK:peer\nDENIED:native-state\nDENIED-PARENT:native-state\nDENIED-COMMON-PARENT:native-state\nDENIED-SYMLINK:native-state\nDENIED:credentials\nDENIED-PARENT:credentials\nDENIED-COMMON-PARENT:credentials\nDENIED-SYMLINK:credentials\n"
+      },
+      {
+        "participant_ordinal": 2,
+        "public_passed": true,
+        "files_sha256": {
+          "windows.py": "25d0eceb0a7021615f0b1371576640fdd899021ed0e38f11257b15ecee1a49f0"
+        },
+        "error": null,
+        "execution_status": "completed",
+        "measurement_valid": true,
+        "exit_code": 0,
+        "stdout": "public examples passed\n",
+        "stderr": ""
+      }
+    ],
+    "model_invocations": 0,
+    "measurement_valid": true
+  },
+  "score_checks": [
+    {
+      "criterion_id": "nested",
+      "passed": true
+    },
+    {
+      "criterion_id": "clipped-both-sides",
+      "passed": true
+    },
+    {
+      "criterion_id": "out-of-range",
+      "passed": true
+    },
+    {
+      "criterion_id": "empty-busy",
+      "passed": true
+    },
+    {
+      "criterion_id": "empty-range",
+      "passed": true
+    },
+    {
+      "criterion_id": "reversed-range",
+      "passed": true
+    },
+    {
+      "criterion_id": "touching-and-duplicates",
+      "passed": true
+    },
+    {
+      "criterion_id": "zero-width-inside-and-outside",
+      "passed": true
+    },
+    {
+      "criterion_id": "minimum-inclusive",
+      "passed": true
+    },
+    {
+      "criterion_id": "minimum-filtered",
+      "passed": true
+    },
+    {
+      "criterion_id": "negative-coordinates",
+      "passed": true
+    },
+    {
+      "criterion_id": "large-exact-integers",
+      "passed": true
+    },
+    {
+      "criterion_id": "unsorted-overlap-input-preserved",
+      "passed": true
+    },
+    {
+      "criterion_id": "fully-covered",
+      "passed": true
+    },
+    {
+      "criterion_id": "matching-start",
+      "passed": true
+    },
+    {
+      "criterion_id": "invalid-minimum",
+      "passed": true
+    },
+    {
+      "criterion_id": "invalid-minimum-before-empty",
+      "passed": true
+    },
+    {
+      "criterion_id": "duration-overlap-preserved",
+      "passed": true
+    },
+    {
+      "criterion_id": "duration-empty",
+      "passed": true
+    },
+    {
+      "criterion_id": "duration-unsorted-preserved",
+      "passed": true
+    },
+    {
+      "criterion_id": "duration-large-exact",
+      "passed": true
+    }
+  ],
+  "score_stderr": "DENIED:private\nDENIED-PARENT:private\nDENIED-COMMON-PARENT:private\nDENIED-SYMLINK:private\nDENIED:peer\nDENIED-PARENT:peer\nDENIED-COMMON-PARENT:peer\nDENIED-SYMLINK:peer\nDENIED:native-state\nDENIED-PARENT:native-state\nDENIED-COMMON-PARENT:native-state\nDENIED-SYMLINK:native-state\nDENIED:credentials\nDENIED-PARENT:credentials\nDENIED-COMMON-PARENT:credentials\nDENIED-SYMLINK:credentials\n",
+  "expected_values_excluded": true
+}

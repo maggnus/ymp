@@ -1,0 +1,15 @@
+test_candidate_cannot_fork_or_access_network (test_restricted_python.RestrictedPythonTests.test_candidate_cannot_fork_or_access_network) ... ok
+test_correct_public_and_private_checks_pass_for_both_variants (test_restricted_python.RestrictedPythonTests.test_correct_public_and_private_checks_pass_for_both_variants) ... ok
+test_direct_probe_cli_also_denies_canary_reads (test_restricted_python.RestrictedPythonTests.test_direct_probe_cli_also_denies_canary_reads) ... ok
+test_failed_public_assertion_is_a_valid_negative_check (test_restricted_python.RestrictedPythonTests.test_failed_public_assertion_is_a_valid_negative_check) ... ok
+test_public_selection_denies_private_peer_state_and_parent_reads (test_restricted_python.RestrictedPythonTests.test_public_selection_denies_private_peer_state_and_parent_reads) ... ok
+test_scoring_denies_the_same_reads_and_keeps_expected_outside_probe (test_restricted_python.RestrictedPythonTests.test_scoring_denies_the_same_reads_and_keeps_expected_outside_probe) ... ok
+test_selector_reports_boundary_failure_separately_from_public_failure (test_restricted_python.RestrictedPythonTests.test_selector_reports_boundary_failure_separately_from_public_failure) ... ok
+test_timeout_terminates_process_and_is_a_valid_negative_outcome (test_restricted_python.RestrictedPythonTests.test_timeout_terminates_process_and_is_a_valid_negative_outcome) ... ok
+test_unrestricted_before_control_demonstrates_the_canary_can_be_read (test_restricted_python.RestrictedPythonTests.test_unrestricted_before_control_demonstrates_the_canary_can_be_read) ... ok
+test_unsupported_platform_and_sandbox_refusal_do_not_execute_candidate (test_restricted_python.RestrictedPythonTests.test_unsupported_platform_and_sandbox_refusal_do_not_execute_candidate) ... ok
+
+----------------------------------------------------------------------
+Ran 10 tests in 1.444s
+
+OK

@@ -63,6 +63,14 @@ scientific estimates or a hard billed-token ceiling.
 
 ## Verification records
 
+Final results: **643 Rust tests passed**, two existing tests ignored; **62 Python
+tests passed** (36 fixture, 16 native-envelope and 10 candidate-boundary checks).
+Format and strict workspace Clippy passed. The full 12-cell protocol run and
+nine bounded outcome controls are retained in [after-controls.json](after-controls.json).
+The valid-negative cases continue and permit calibration completion; unknown
+usage, the explicitly partial provider error, and a broken envelope stop.
+The original negative `score` behavior required no correction.
+
 - `focused-rust.log`: measurement/approval units and actual consumer integration
   controls, including later execution after valid negative outcomes, shared time,
   missing acknowledgments across all conditions, and unknown-spend stops.
@@ -74,6 +82,37 @@ scientific estimates or a hard billed-token ceiling.
   check with zero native `turn/start` calls.
 - `final-binding.json`: exact source, executable/wrapper/interpreter and manifest
   hashes, with accepted product-object comparison.
+
+[paired-canary-final.json](paired-canary-final.json) reruns selection and scoring
+against the final restricted wrapper and records the refused direct, symlink and
+parent reads. [approval-refusals.json](approval-refusals.json) records that both
+new native proposals pass concrete validation and stop only at missing approval.
+Log copies omit trailing empty lines only; raw copies remain in the indexed
+external run directory. The original reviewer patch is retained byte-for-byte,
+including its original whitespace. An initial focused test compile omission in
+synthetic session setup was fixed before the successful focused/final checks.
+
+## Reviewable commands and proposals
+
+- [Calibration manifest](calibration-manifest.proposal.json): six preparation
+  outcomes, shared 480 seconds per condition, 80,000 observed tokens and 12 outer
+  calls. The native call may use all remaining condition time.
+- [Pilot manifest](pilot-manifest.proposal.json): twelve measured outcomes,
+  shared 900 seconds, 160,000 observed tokens and 16 outer calls, conditional only
+  on trustworthy native calibration measurements. Wrong calibration answers do
+  not close this gate. Neither proposal is approved.
+
+From this checkout, with the frozen debug binary:
+
+```sh
+/Users/maggnus/Code/ymp2/target/debug/ymp-weak-pilot native --manifest ymp-docs/evidence/ymp-201/rework-round1/calibration-manifest.proposal.json --approval /absolute/calibration-approval.json
+/Users/maggnus/Code/ymp2/target/debug/ymp-weak-pilot native --manifest ymp-docs/evidence/ymp-201/rework-round1/pilot-manifest.proposal.json --approval /absolute/pilot-approval.json --calibration-report /private/tmp/ymp201-r1-calibration-controller/run.json
+```
+
+Those commands are for a later authorized phase, not instructions to run now.
+The manifests bind source commit, interpreter, wrappers and executable; a rebuilt
+binary with a different digest requires a newly reviewed freeze. The approval
+format is documented in the [consumer contract](../../../../ymp-evals/weak-pilot/consumer-v2.md).
 
 No real model trial, calibration, quota use, live application/session access,
 credential copying, installation, task-register change or main-branch edit is
