@@ -1,0 +1,175 @@
+{
+  "verdict": "ACCEPT for bounded C1/C2/C3 consumer re-review; no spending authorization",
+  "candidate": "d12d40a997c3d3356991c389b022615e8042eb20",
+  "source": "75f60a6972d8d58cec654330af60a6041a2c5274",
+  "platform": "Darwin arm64",
+  "candidate_porcelain_before": "",
+  "candidate_porcelain_after": "",
+  "before_evidence_unchanged": {
+    "existing-protocol-tests.log": true,
+    "envelope-tests.log": true,
+    "outcomes.json": true,
+    "check-outcomes.py": true,
+    "outcome-controls-2.log": true,
+    "selection-canary/result.json": true,
+    "selection-canary/stdout.json": true,
+    "pycache-cleanup.json": true,
+    "temporary-fixture.patch": true
+  },
+  "product_objects_verified": {
+    "ymp-rust/crates/ymp-core": "bf95796b2292ea24853175079fb0d271a9c5263a",
+    "ymp-rust/crates/ymp-runtime": "144d49ee2b48d0d50d54fdde1024e2361d24d006",
+    "ymp-rust/crates/ymp-storage": "7c8ebd589fad42ba069004682b40377515a02d25",
+    "ymp-rust/crates/ymp-providers": "5bdb35ff6cb0e5bd84a6b703bb589aa50021d797",
+    "ymp-rust/crates/ymp-cli": "238e1e5b51a5f130f93bfaa75b1391ae8a14d2f6",
+    "ymp-rust/crates/ymp-tui": "6a882b41839d030a6bbc234e0de7ec526bd56747",
+    "ymp-rust/crates/ymp-workspace": "2f9d0b2a86842402bdaf7d6fda64c9a1b4a50c1e",
+    "ymp-bridges": "a3a91865daec02d49103d2f9264d47bdb1c9f49d",
+    "Cargo.toml": "61d450c0bf4885a97092ec4b0941f2466fbced47",
+    "Cargo.lock": "762d728d987aa8dd7536712b3489234a5b58e810"
+  },
+  "checks": [
+    {
+      "command": "PYTHONDONTWRITEBYTECODE=1 cargo test --locked --offline -p ymp-eval-driver --test weak_pilot_consumer --bin ymp-weak-pilot --target-dir /tmp/ymp146-recovery-review/target -- --nocapture",
+      "exit": 0,
+      "rust_unit_tests": 10,
+      "rust_consumer_tests": 6,
+      "log": "focused-rust.log"
+    },
+    {
+      "command": "PYTHONDONTWRITEBYTECODE=1 python3 -B -m unittest discover -s ymp-evals/weak-pilot -p test_restricted_python.py -v",
+      "exit": 0,
+      "passed": 10,
+      "log": "restricted-python.log"
+    },
+    {
+      "command": "PYTHONDONTWRITEBYTECODE=1 python3 -B /tmp/ymp201-consumer-rereview/check-outcomes.py",
+      "exit": 0,
+      "original_scenarios": 9,
+      "log": "outcome-controls.log"
+    },
+    {
+      "command": "PYTHONDONTWRITEBYTECODE=1 python3 -B /tmp/ymp201-consumer-rereview/check-c3.py",
+      "exit": 0,
+      "log": "c3-controls.log"
+    },
+    {
+      "commands": "native-approval-refusals.json",
+      "exits": [
+        1,
+        1
+      ],
+      "reason": "owner_approval_required reached on byte-identical frozen runner for both exact proposals"
+    }
+  ],
+  "accepted": [
+    "Valid negative task outcomes continue the next condition and do not gate calibration by correctness",
+    "Unknown/partial usage or broken measurement stops phase",
+    "Underuse exposes requested 3 versus actual 2 without filler calls",
+    "Raw timeout is rounded remaining absolute deadline; later independent calls do not reset it",
+    "Unified requested/sent checks and reported-null policy; contradiction/history cannot pass",
+    "Selection, final scoring and direct probe share actual restricted Python execution",
+    "Original private read and direct/symlink canaries refused; correct results pass",
+    "Scorer child receives functions/args only; expected values remain trusted-parent data",
+    "Measured child PIDs terminated on return; timeout helper collected its processes",
+    "One-use phase claim uses create_new/fsync outside output; actual shared-function deletion control passes"
+  ],
+  "binding": {
+    "source": "75f60a6972d8d58cec654330af60a6041a2c5274",
+    "base_candidate": "8a2acafe2aadb0e00b7524b3246f898659f38fd8",
+    "product_base": "1c17f4e447b839e20f8efbdee0900963a5d8fcad",
+    "product_bytes_equal": true,
+    "product_git_objects": {
+      "ymp-rust/crates/ymp-core": "bf95796b2292ea24853175079fb0d271a9c5263a",
+      "ymp-rust/crates/ymp-runtime": "144d49ee2b48d0d50d54fdde1024e2361d24d006",
+      "ymp-rust/crates/ymp-storage": "7c8ebd589fad42ba069004682b40377515a02d25",
+      "ymp-rust/crates/ymp-providers": "5bdb35ff6cb0e5bd84a6b703bb589aa50021d797",
+      "ymp-rust/crates/ymp-cli": "238e1e5b51a5f130f93bfaa75b1391ae8a14d2f6",
+      "ymp-rust/crates/ymp-tui": "6a882b41839d030a6bbc234e0de7ec526bd56747",
+      "ymp-rust/crates/ymp-workspace": "2f9d0b2a86842402bdaf7d6fda64c9a1b4a50c1e",
+      "ymp-bridges": "a3a91865daec02d49103d2f9264d47bdb1c9f49d",
+      "Cargo.toml": "61d450c0bf4885a97092ec4b0941f2466fbced47",
+      "Cargo.lock": "762d728d987aa8dd7536712b3489234a5b58e810"
+    },
+    "binary": "/Users/maggnus/Code/ymp2/target/debug/ymp-weak-pilot",
+    "binary_sha256": "4790774e92090df62a62083c471a05e96f855efd25862577ca4266cc918a92bc",
+    "native_codex_sha256": "4f85982624b3898c8991cb80c0981b2aa71070e3537046c9a95950318a95afcc",
+    "python_launcher_sha256": "cbf84109626aa1013bbe408fbb9590bd0f1c1548f038b2221c6b8b87de26ca43",
+    "candidate_execution": {
+      "backend": "macos-sandbox-exec",
+      "python_executable": "/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/Resources/Python.app/Contents/MacOS/Python",
+      "python_sha256": "7ecc1ecbf9daa9303c4bf502ff62ffdd9010ed5c08729d470ae9380c10ce1211",
+      "python_launcher": "/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/bin/python3.14",
+      "python_launcher_sha256": "cbf84109626aa1013bbe408fbb9590bd0f1c1548f038b2221c6b8b87de26ca43",
+      "sandbox_executable": "/usr/bin/sandbox-exec",
+      "sandbox_sha256": "abc5bb136d6b5cce8fa85d789f78e3326c51ca60cae637b2064adfb67a1dcd9a",
+      "wrapper_sha256": "df2287f8549f241ed168bb9e62f8f1c56254c37a51f30ce65032c1139fa2c1c8"
+    },
+    "wrappers_sha256": {
+      "ymp-evals/weak-pilot/codex_envelope.py": "1c737ad866f51e35728d53526376dc98ad56fb425be7149aaa314a20abf1480e",
+      "ymp-evals/weak-pilot/restricted_python.py": "df2287f8549f241ed168bb9e62f8f1c56254c37a51f30ce65032c1139fa2c1c8",
+      "ymp-evals/weak-pilot/public_select.py": "9bd883abecf01cb6f3a60a67a83f9e1b3e7766e6f2edfb63b626491bf2ccf543",
+      "ymp-evals/weak-pilot/observer.py": "a1415815fde8274ef6dcb8a3ed413047f0099ef98b1e666319973dd50d36ebc7",
+      "ymp-evals/weak-pilot/repair_probe.py": "5e2a4471229127e96df07715beeb93effe3a4e86d9cf135562cae58dc9aa45cc"
+    },
+    "native_probe_sha256": "1f75b9ffaee75c4f43f6d1b040af51fb9a2adae841c67f95cc97291164a4c32e",
+    "calibration_manifest_sha256": "b21ad8dc537fe9c11244b43293c6162cf5c774d328fc47c0be9762310386b179",
+    "pilot_manifest_sha256": "dffb4e86c30afe58da32564e474064793aab0c88208bd757f7cc4c41d295f98b",
+    "native_model_calls": 0,
+    "rust_tests_passed": 643,
+    "rust_tests_ignored": 2,
+    "python_tests_passed": 62
+  },
+  "native_no_inference_evidence_sha256": "1f75b9ffaee75c4f43f6d1b040af51fb9a2adae841c67f95cc97291164a4c32e",
+  "runtime_wrapper_hashes_verified": true,
+  "exact_proposal_refusals": [
+    {
+      "command": [
+        "/tmp/ymp201-consumer-rereview/frozen-ymp-weak-pilot",
+        "native",
+        "--manifest",
+        "/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp201-weak-pilot/ymp-docs/evidence/ymp-201/rework-round1/calibration-manifest.proposal.json"
+      ],
+      "exit": 1,
+      "refusal": "Error: owner_approval_required: no measured launch is authorized",
+      "binary_sha256": "4790774e92090df62a62083c471a05e96f855efd25862577ca4266cc918a92bc",
+      "manifest_sha256": "b21ad8dc537fe9c11244b43293c6162cf5c774d328fc47c0be9762310386b179"
+    },
+    {
+      "command": [
+        "/tmp/ymp201-consumer-rereview/frozen-ymp-weak-pilot",
+        "native",
+        "--manifest",
+        "/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp201-weak-pilot/ymp-docs/evidence/ymp-201/rework-round1/pilot-manifest.proposal.json"
+      ],
+      "exit": 1,
+      "refusal": "Error: owner_approval_required: no measured launch is authorized",
+      "binary_sha256": "4790774e92090df62a62083c471a05e96f855efd25862577ca4266cc918a92bc",
+      "manifest_sha256": "dffb4e86c30afe58da32564e474064793aab0c88208bd757f7cc4c41d295f98b"
+    }
+  ],
+  "limits": [
+    "Only scripted consumer paths and unapproved native command refusals executed; no installed native turn/start",
+    "No trial/calibration/real model quality measurement",
+    "Native permission evidence was hash-verified; installed app-server canaries were not rerun",
+    "macOS only; unsupported restricted execution platforms refuse",
+    "No true hard billing-token ceiling claimed; known scope remains proposed administrative envelope",
+    "No real approval record or native approval-ledger claim created",
+    "No full 643-Rust/62-Python workspace chain repeated",
+    "No candidate edits or pycache; original before artifacts unchanged",
+    "All owned checks finished"
+  ],
+  "artifact_sha256": {
+    "focused-rust.log": "355c081cf0f00bec83fb78c00e6b1dff8658e1cc0e9a978cac7c12f20dee395f",
+    "restricted-python.log": "4f39f423d9b00c5f047073e27a74258eff5a73aef2052e33c71d492057895240",
+    "outcomes.json": "15d0f17a00f48265dec11ed28e5732758219d8d2388020bd4e6c1bbc74a263bb",
+    "check-outcomes.py": "4b48df83df2803a6cc59295da664e0fd60b5a605488913514c87f02f74f758d1",
+    "outcome-controls.log": "9564b89557801eab521157491bb83fca479c64799b37c0d106668dea9cf5a45d",
+    "check-c3.py": "0689366be535485537fb9dc4dc8f0b34538ae79a92c2013e9e436c6d2156cf91",
+    "c3/result.json": "ca1300f17e5c450920829f97978d067f1dc05f0159b1e96a692a7f511875b53e",
+    "c3-controls.log": "4ee2141467ba9bd95bc2455cbfae8696cef83eeda1f42d5639efcb0a4e5668c7",
+    "native-approval-refusals.json": "2c25cecd5bec0a6d1aa441e43b6c33aab27d4ba6f3fc6085af42c6070db0c379",
+    "calibration-approval-refusal.log": "c9001460c5979e1df312178b7174e3ebcba0612a9a2f740ef5897e28cfe361a9",
+    "pilot-approval-refusal.log": "c9001460c5979e1df312178b7174e3ebcba0612a9a2f740ef5897e28cfe361a9"
+  }
+}

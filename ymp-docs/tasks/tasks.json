@@ -944,7 +944,7 @@
       "title": "Test whether two or three weaker agents can match a stronger solo agent",
       "type": "experiment",
       "priority": "P2",
-      "status": "in_progress",
+      "status": "owner_question",
       "owner": "Experiment lead",
       "authorization": "On 2026-09-14 the owner explicitly requested a simple weak-agent comparative run and scientific grounding. Preparation and bounded readiness research start now. The earlier requirement to approve concrete native settings and the resource envelope remains; no numeric quota has yet been selected. This does not authorize the broader YMP-202--204 studies.",
       "depends_on": [
@@ -967,9 +967,11 @@
         "ymp-docs/research/weak-agent-pilot.md",
         "ymp-docs/evidence/ymp-201/review-round1.md",
         "ymp-docs/evidence/ymp-201/independent-round1/review-result.json",
-        "ymp-docs/evidence/ymp-201/proposed-run/README.md"
+        "ymp-docs/evidence/ymp-201/proposed-run/README.md",
+        "ymp-docs/evidence/ymp-201/acceptance.md",
+        "ymp-docs/evidence/ymp-201/independent-final/review-result.json"
       ],
-      "budget": "No concrete quota allocated yet. Prepare a small two-task/six-condition diagnostic matrix (12 outcome attempts) using discovered native model IDs, minimal supported effort, complete aggregate accounting and enforceable admission/stop rules. Replace this proposal with the concrete reviewed execution sheet before requesting the remaining quota approval.",
+      "budget": "Pending owner approval of exact manifests b21ad8dc... and dffb4e86...: six calibration outcomes, 80,000 observed-token stop threshold/12 outer calls/480 seconds each; conditional twelve measured outcomes,160,000/16/900 each. Aggregate threshold sums480,000+1,920,000=2,400,000; outer calls72+192=264; group deadlines48+180=228minutes. In-flight overshoot and currency cost are not hard-bounded/known. No native allocation yet; one-use scope and unknown-usage stop remain mandatory.",
       "history": [
         {
           "at": "2026-09-12T05:53:25.655548+00:00",
@@ -1050,6 +1052,11 @@
           "at": "2026-09-13T22:31:10.842837+00:00",
           "status": "in_progress",
           "note": "Author delivered rework8a2acaf..d12d40a (source75f60a6), claiming643Rust/62Python passed and unchanged product source. Assigned one bounded independent re-review to52111c72 covering C1/C2/C3, metadata, shared deadlines, final control bindings and one-phase authorization. Parent retained exact6-calibration/12-pilot proposals and aggregate limits for the eventual owner question. No approval is requested before acceptance and no native inference, quota or integration is claimed."
+        },
+        {
+          "at": "2026-09-13T22:50:38.071688+00:00",
+          "status": "owner_question",
+          "note": "Independent C1/C2/C3 re-review accepted d12d40a; parent integrated the byte-identical full executable source as d48b081 and retained verified evidence. Owner question: approve both exact phases (6 calibration plus conditional12 measured outcomes) using gpt-5.6-luna low and gpt-6-astra low, with the recorded shared thresholds/time/call ceilings and possible in-flight overshoot? Calibration validity, not answer correctness, controls pilot entry. No owner answer or native spend is recorded; the experiment result remains outstanding."
         }
       ]
     },
@@ -4434,7 +4441,7 @@
       ]
     }
   ],
-  "updated_at": "2026-09-13T22:31:10.842837+00:00",
+  "updated_at": "2026-09-13T22:50:38.071688+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",

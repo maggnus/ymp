@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-13 22:31 UTC.
+Updated: 2026-09-13 22:50 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -40,7 +40,7 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-107](#ymp-107) | P1 | Expose recorded checks and factual recovery limits | 2026-09-12 12:55 |
 | `[=]` | [YMP-108](#ymp-108) | P2 | Evaluate an optional usage estimate with explicit price provenance | 2026-09-12 09:35 |
 | `[x]` | [YMP-111](#ymp-111) | P0 | Apply native models and reasoning settings per assignment | 2026-09-12 12:18 |
-| `[~]` | [YMP-201](#ymp-201) | P2 | Test whether two or three weaker agents can match a stronger solo agent | 2026-09-13 22:31 |
+| `[?]` | [YMP-201](#ymp-201) | P2 | Test whether two or three weaker agents can match a stronger solo agent | 2026-09-13 22:50 |
 | `[=]` | [YMP-202](#ymp-202) | P1 | Test memory and adaptive assignment on held-out tasks | 2026-09-13 16:17 |
 | `[=]` | [YMP-203](#ymp-203) | P1 | Test effort, reduced preparation and low-effort ensembles separately | 2026-09-13 16:17 |
 | `[=]` | [YMP-204](#ymp-204) | P1 | Evaluate a project-scoped prior-outcome router | 2026-09-13 16:17 |
@@ -634,11 +634,11 @@ Native reasoning controls support YMP selection under user constraints. Effort b
 
 Test whether two or three weaker agents can match a stronger solo agent
 
-**State:** `[~]` (in_progress) · **Type:** experiment · **Priority:** P2
+**State:** `[?]` (owner_question) · **Type:** experiment · **Priority:** P2
 
-**Last update (UTC):** 2026-09-13 22:31
+**Last update (UTC):** 2026-09-13 22:50
 
-**Current reason:** Author delivered rework8a2acaf..d12d40a (source75f60a6), claiming643Rust/62Python passed and unchanged product source. Assigned one bounded independent re-review to52111c72 covering C1/C2/C3, metadata, shared deadlines, final control bindings and one-phase authorization. Parent retained exact6-calibration/12-pilot proposals and aggregate limits for the eventual owner question. No approval is requested before acceptance and no native inference, quota or integration is claimed.
+**Current reason:** Independent C1/C2/C3 re-review accepted d12d40a; parent integrated the byte-identical full executable source as d48b081 and retained verified evidence. Owner question: approve both exact phases (6 calibration plus conditional12 measured outcomes) using gpt-5.6-luna low and gpt-6-astra low, with the recorded shared thresholds/time/call ceilings and possible in-flight overshoot? Calibration validity, not answer correctness, controls pilot entry. No owner answer or native spend is recorded; the experiment result remains outstanding.
 
 **Owner:** Experiment lead
 
@@ -666,8 +666,10 @@ The owner prioritizes a small direct test of capability compensation through two
 - ymp-docs/evidence/ymp-201/review-round1.md
 - ymp-docs/evidence/ymp-201/independent-round1/review-result.json
 - ymp-docs/evidence/ymp-201/proposed-run/README.md
+- ymp-docs/evidence/ymp-201/acceptance.md
+- ymp-docs/evidence/ymp-201/independent-final/review-result.json
 
-**Quota:** No concrete quota allocated yet. Prepare a small two-task/six-condition diagnostic matrix (12 outcome attempts) using discovered native model IDs, minimal supported effort, complete aggregate accounting and enforceable admission/stop rules. Replace this proposal with the concrete reviewed execution sheet before requesting the remaining quota approval.
+**Quota:** Pending owner approval of exact manifests b21ad8dc... and dffb4e86...: six calibration outcomes, 80,000 observed-token stop threshold/12 outer calls/480 seconds each; conditional twelve measured outcomes,160,000/16/900 each. Aggregate threshold sums480,000+1,920,000=2,400,000; outer calls72+192=264; group deadlines48+180=228minutes. In-flight overshoot and currency cost are not hard-bounded/known. No native allocation yet; one-use scope and unknown-usage stop remain mandatory.
 
 ## YMP-202
 

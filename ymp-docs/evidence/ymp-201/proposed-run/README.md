@@ -3,8 +3,9 @@
 Candidate d12d40a, executable consumer 75f60a6. The owner requested the small
 comparison; no concrete experimental allocation has been approved. These are
 byte-identical copies of the candidate's proposals, not authorization records.
-Independent re-review of C1/C2/C3 and final controls is in progress. Any required
-source or manifest correction will replace this proposal before approval.
+Independent re-review of C1/C2/C3 and final controls passed; parent acceptance
+is recorded in [acceptance.md](../acceptance.md). Exact proposal bytes are
+unchanged and are ready for the owner decision.
 
 ## Models and conditions
 
@@ -63,7 +64,7 @@ Run from the accepted frozen candidate with the pinned executable. A main-branch
 integration does not authorize replacing a frozen executable or model silently.
 
 The owner may approve calibration alone or both phases with the stated conditional
-transition. Prepare the final concrete question after independent acceptance;
-there is no pending approval question yet. A failed scientific hypothesis is an
+transition. The concrete question now asks whether to approve calibration and its conditional
+measured pilot with these exact models, thresholds, deadlines and one-use scope. A failed scientific hypothesis is an
 allowed result. This small pilot can supply examples and diagnose a protocol,
 but cannot establish universal equivalence or impossibility.

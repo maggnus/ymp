@@ -1,0 +1,605 @@
+{
+  "old_selection": {
+    "selection_rule": "first-public-pass-else-first-v1",
+    "selected_participant_ordinal": 2,
+    "public_check_sha256": "2fa45bec9ea309fa86deb508e34fd7ea318d6a4a154d90881b505e38002ba3e8",
+    "observations": [
+      {
+        "participant_ordinal": 1,
+        "public_passed": false,
+        "files_sha256": {
+          "windows.py": "f09052fdcf2b04e2e861bee64ecf49711b2e06da6404678a731271592531019e"
+        },
+        "error": null,
+        "execution_status": "completed",
+        "measurement_valid": true,
+        "exit_code": 1,
+        "stdout": "",
+        "stderr": "Traceback (most recent call last):\n  File \"<string>\", line 1, in <module>\n    import runpy,sys; sys.path.insert(0,sys.argv[1]); sys.argv=sys.argv[2:]; runpy.run_path(sys.argv[0],run_name='__main__')\n                                                                             ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"<frozen runpy>\", line 287, in run_path\n  File \"<frozen runpy>\", line 98, in _run_module_code\n  File \"<frozen runpy>\", line 88, in _run_code\n  File \"_probe.py\", line 3, in <module>\n    from windows import available_windows, total_duration\n  File \"/private/var/folders/cw/7pn8sb3x6bj69g7j2d8f_ss00000gn/T/ymp-pilot-restricted-bpz_5263/windows.py\", line 2, in <module>\n    raise RuntimeError(Path('/tmp/ymp201-consumer-review/selection-canary/private/synthetic-hidden.txt').read_text())\n                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^\n  File \"/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/pathlib/__init__.py\", line 787, in read_text\n    with self.open(mode='r', encoding=encoding, errors=errors, newline=newline) as f:\n         ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/pathlib/__init__.py\", line 771, in open\n    return io.open(self, mode, buffering, encoding, errors, newline)\n           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nPermissionError: [Errno 1] Operation not permitted: '/tmp/ymp201-consumer-review/selection-canary/private/synthetic-hidden.txt'\n"
+      },
+      {
+        "participant_ordinal": 2,
+        "public_passed": true,
+        "files_sha256": {
+          "windows.py": "25d0eceb0a7021615f0b1371576640fdd899021ed0e38f11257b15ecee1a49f0"
+        },
+        "error": null,
+        "execution_status": "completed",
+        "measurement_valid": true,
+        "exit_code": 0,
+        "stdout": "public examples passed\n",
+        "stderr": ""
+      }
+    ],
+    "model_invocations": 0,
+    "measurement_valid": true
+  },
+  "paired_selection": {
+    "selection_rule": "first-public-pass-else-first-v1",
+    "selected_participant_ordinal": 1,
+    "public_check_sha256": "2fa45bec9ea309fa86deb508e34fd7ea318d6a4a154d90881b505e38002ba3e8",
+    "observations": [
+      {
+        "participant_ordinal": 1,
+        "public_passed": true,
+        "files_sha256": {
+          "windows.py": "980e62e6ccb6cd447e9a3148c1bb9eae73e9fd006928b5f1883a443d57ae4efb"
+        },
+        "error": null,
+        "execution_status": "completed",
+        "measurement_valid": true,
+        "exit_code": 0,
+        "stdout": "public examples passed\n",
+        "stderr": "CHILD_PID=15588\nDENIED:direct\nDENIED:symlink\n"
+      },
+      {
+        "participant_ordinal": 2,
+        "public_passed": true,
+        "files_sha256": {
+          "windows.py": "25d0eceb0a7021615f0b1371576640fdd899021ed0e38f11257b15ecee1a49f0"
+        },
+        "error": null,
+        "execution_status": "completed",
+        "measurement_valid": true,
+        "exit_code": 0,
+        "stdout": "public examples passed\n",
+        "stderr": ""
+      }
+    ],
+    "model_invocations": 0,
+    "measurement_valid": true
+  },
+  "scores": {
+    "correct": {
+      "schema_version": 1,
+      "blind_id": "00000000000000000000000000000001",
+      "task": "repair",
+      "variant": "measured",
+      "objective_success": true,
+      "checks": [
+        {
+          "criterion_id": "nested",
+          "passed": true
+        },
+        {
+          "criterion_id": "clipped-both-sides",
+          "passed": true
+        },
+        {
+          "criterion_id": "out-of-range",
+          "passed": true
+        },
+        {
+          "criterion_id": "empty-busy",
+          "passed": true
+        },
+        {
+          "criterion_id": "empty-range",
+          "passed": true
+        },
+        {
+          "criterion_id": "reversed-range",
+          "passed": true
+        },
+        {
+          "criterion_id": "touching-and-duplicates",
+          "passed": true
+        },
+        {
+          "criterion_id": "zero-width-inside-and-outside",
+          "passed": true
+        },
+        {
+          "criterion_id": "minimum-inclusive",
+          "passed": true
+        },
+        {
+          "criterion_id": "minimum-filtered",
+          "passed": true
+        },
+        {
+          "criterion_id": "negative-coordinates",
+          "passed": true
+        },
+        {
+          "criterion_id": "large-exact-integers",
+          "passed": true
+        },
+        {
+          "criterion_id": "unsorted-overlap-input-preserved",
+          "passed": true
+        },
+        {
+          "criterion_id": "fully-covered",
+          "passed": true
+        },
+        {
+          "criterion_id": "matching-start",
+          "passed": true
+        },
+        {
+          "criterion_id": "invalid-minimum",
+          "passed": true
+        },
+        {
+          "criterion_id": "invalid-minimum-before-empty",
+          "passed": true
+        },
+        {
+          "criterion_id": "duration-overlap-preserved",
+          "passed": true
+        },
+        {
+          "criterion_id": "duration-empty",
+          "passed": true
+        },
+        {
+          "criterion_id": "duration-unsorted-preserved",
+          "passed": true
+        },
+        {
+          "criterion_id": "duration-large-exact",
+          "passed": true
+        }
+      ],
+      "files_sha256": {
+        "REQUIREMENTS.md": "ca91d06eb8c9ea88f39663c2efbbd2ee4aa9987b1342b0441a393deb6de77394",
+        "public_test.py": "2fa45bec9ea309fa86deb508e34fd7ea318d6a4a154d90881b505e38002ba3e8",
+        "windows.py": "25d0eceb0a7021615f0b1371576640fdd899021ed0e38f11257b15ecee1a49f0"
+      },
+      "scope": "artifact_only",
+      "runtime_acceptance": null,
+      "model_quality": null
+    },
+    "old-route": {
+      "schema_version": 1,
+      "blind_id": "00000000000000000000000000000002",
+      "task": "repair",
+      "variant": "measured",
+      "objective_success": false,
+      "checks": [
+        {
+          "criterion_id": "candidate_execution",
+          "passed": false,
+          "candidate_error": "nonzero_exit",
+          "exit_code": 1,
+          "stderr": "/windows.py\", line 2, in <module>\n    raise RuntimeError(Path('/tmp/ymp201-consumer-review/selection-canary/private/synthetic-hidden.txt').read_text())\n                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^\n  File \"/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/pathlib/__init__.py\", line 787, in read_text\n    with self.open(mode='r', encoding=encoding, errors=errors, newline=newline) as f:\n         ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/pathlib/__init__.py\", line 771, in open\n    return io.open(self, mode, buffering, encoding, errors, newline)\n           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nPermissionError: [Errno 1] Operation not permitted: '/tmp/ymp201-consumer-review/selection-canary/private/synthetic-hidden.txt'\n"
+        }
+      ],
+      "files_sha256": {
+        "REQUIREMENTS.md": "ca91d06eb8c9ea88f39663c2efbbd2ee4aa9987b1342b0441a393deb6de77394",
+        "public_test.py": "2fa45bec9ea309fa86deb508e34fd7ea318d6a4a154d90881b505e38002ba3e8",
+        "windows.py": "f09052fdcf2b04e2e861bee64ecf49711b2e06da6404678a731271592531019e"
+      },
+      "scope": "artifact_only",
+      "runtime_acceptance": null,
+      "model_quality": null
+    },
+    "canary": {
+      "schema_version": 1,
+      "blind_id": "00000000000000000000000000000003",
+      "task": "repair",
+      "variant": "measured",
+      "objective_success": true,
+      "checks": [
+        {
+          "criterion_id": "nested",
+          "passed": true
+        },
+        {
+          "criterion_id": "clipped-both-sides",
+          "passed": true
+        },
+        {
+          "criterion_id": "out-of-range",
+          "passed": true
+        },
+        {
+          "criterion_id": "empty-busy",
+          "passed": true
+        },
+        {
+          "criterion_id": "empty-range",
+          "passed": true
+        },
+        {
+          "criterion_id": "reversed-range",
+          "passed": true
+        },
+        {
+          "criterion_id": "touching-and-duplicates",
+          "passed": true
+        },
+        {
+          "criterion_id": "zero-width-inside-and-outside",
+          "passed": true
+        },
+        {
+          "criterion_id": "minimum-inclusive",
+          "passed": true
+        },
+        {
+          "criterion_id": "minimum-filtered",
+          "passed": true
+        },
+        {
+          "criterion_id": "negative-coordinates",
+          "passed": true
+        },
+        {
+          "criterion_id": "large-exact-integers",
+          "passed": true
+        },
+        {
+          "criterion_id": "unsorted-overlap-input-preserved",
+          "passed": true
+        },
+        {
+          "criterion_id": "fully-covered",
+          "passed": true
+        },
+        {
+          "criterion_id": "matching-start",
+          "passed": true
+        },
+        {
+          "criterion_id": "invalid-minimum",
+          "passed": true
+        },
+        {
+          "criterion_id": "invalid-minimum-before-empty",
+          "passed": true
+        },
+        {
+          "criterion_id": "duration-overlap-preserved",
+          "passed": true
+        },
+        {
+          "criterion_id": "duration-empty",
+          "passed": true
+        },
+        {
+          "criterion_id": "duration-unsorted-preserved",
+          "passed": true
+        },
+        {
+          "criterion_id": "duration-large-exact",
+          "passed": true
+        }
+      ],
+      "files_sha256": {
+        "REQUIREMENTS.md": "ca91d06eb8c9ea88f39663c2efbbd2ee4aa9987b1342b0441a393deb6de77394",
+        "public_test.py": "2fa45bec9ea309fa86deb508e34fd7ea318d6a4a154d90881b505e38002ba3e8",
+        "windows.py": "980e62e6ccb6cd447e9a3148c1bb9eae73e9fd006928b5f1883a443d57ae4efb"
+      },
+      "scope": "artifact_only",
+      "runtime_acceptance": null,
+      "model_quality": null
+    }
+  },
+  "scorer_child_inputs": [
+    {
+      "files": [
+        "windows.py"
+      ],
+      "stdin_keys": [
+        [
+          "args",
+          "function"
+        ],
+        [
+          "args",
+          "function"
+        ],
+        [
+          "args",
+          "function"
+        ],
+        [
+          "args",
+          "function"
+        ],
+        [
+          "args",
+          "function"
+        ],
+        [
+          "args",
+          "function"
+        ],
+        [
+          "args",
+          "function"
+        ],
+        [
+          "args",
+          "function"
+        ],
+        [
+          "args",
+          "function"
+        ],
+        [
+          "args",
+          "function"
+        ],
+        [
+          "args",
+          "function"
+        ],
+        [
+          "args",
+          "function"
+        ],
+        [
+          "args",
+          "function"
+        ],
+        [
+          "args",
+          "function"
+        ],
+        [
+          "args",
+          "function"
+        ],
+        [
+          "args",
+          "function"
+        ],
+        [
+          "args",
+          "function"
+        ],
+        [
+          "args",
+          "function"
+        ],
+        [
+          "args",
+          "function"
+        ],
+        [
+          "args",
+          "function"
+        ],
+        [
+          "args",
+          "function"
+        ]
+      ],
+      "stderr": "",
+      "exit": 0
+    },
+    {
+      "files": [
+        "windows.py"
+      ],
+      "stdin_keys": [
+        [
+          "args",
+          "function"
+        ],
+        [
+          "args",
+          "function"
+        ],
+        [
+          "args",
+          "function"
+        ],
+        [
+          "args",
+          "function"
+        ],
+        [
+          "args",
+          "function"
+        ],
+        [
+          "args",
+          "function"
+        ],
+        [
+          "args",
+          "function"
+        ],
+        [
+          "args",
+          "function"
+        ],
+        [
+          "args",
+          "function"
+        ],
+        [
+          "args",
+          "function"
+        ],
+        [
+          "args",
+          "function"
+        ],
+        [
+          "args",
+          "function"
+        ],
+        [
+          "args",
+          "function"
+        ],
+        [
+          "args",
+          "function"
+        ],
+        [
+          "args",
+          "function"
+        ],
+        [
+          "args",
+          "function"
+        ],
+        [
+          "args",
+          "function"
+        ],
+        [
+          "args",
+          "function"
+        ],
+        [
+          "args",
+          "function"
+        ],
+        [
+          "args",
+          "function"
+        ],
+        [
+          "args",
+          "function"
+        ]
+      ],
+      "stderr": "Traceback (most recent call last):\n  File \"<string>\", line 1, in <module>\n    import runpy,sys; sys.path.insert(0,sys.argv[1]); sys.argv=sys.argv[2:]; runpy.run_path(sys.argv[0],run_name='__main__')\n                                                                             ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"<frozen runpy>\", line 287, in run_path\n  File \"<frozen runpy>\", line 98, in _run_module_code\n  File \"<frozen runpy>\", line 88, in _run_code\n  File \"_probe.py\", line 34, in <module>\n    main()\n    ~~~~^^\n  File \"_probe.py\", line 11, in main\n    spec.loader.exec_module(module)\n    ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^\n  File \"<frozen importlib._bootstrap_external>\", line 759, in exec_module\n  File \"<frozen importlib._bootstrap>\", line 491, in _call_with_frames_removed\n  File \"/private/var/folders/cw/7pn8sb3x6bj69g7j2d8f_ss00000gn/T/ymp-pilot-restricted-915seez4/windows.py\", line 2, in <module>\n    raise RuntimeError(Path('/tmp/ymp201-consumer-review/selection-canary/private/synthetic-hidden.txt').read_text())\n                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^\n  File \"/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/pathlib/__init__.py\", line 787, in read_text\n    with self.open(mode='r', encoding=encoding, errors=errors, newline=newline) as f:\n         ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/pathlib/__init__.py\", line 771, in open\n    return io.open(self, mode, buffering, encoding, errors, newline)\n           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nPermissionError: [Errno 1] Operation not permitted: '/tmp/ymp201-consumer-review/selection-canary/private/synthetic-hidden.txt'\n",
+      "exit": 1
+    },
+    {
+      "files": [
+        "windows.py"
+      ],
+      "stdin_keys": [
+        [
+          "args",
+          "function"
+        ],
+        [
+          "args",
+          "function"
+        ],
+        [
+          "args",
+          "function"
+        ],
+        [
+          "args",
+          "function"
+        ],
+        [
+          "args",
+          "function"
+        ],
+        [
+          "args",
+          "function"
+        ],
+        [
+          "args",
+          "function"
+        ],
+        [
+          "args",
+          "function"
+        ],
+        [
+          "args",
+          "function"
+        ],
+        [
+          "args",
+          "function"
+        ],
+        [
+          "args",
+          "function"
+        ],
+        [
+          "args",
+          "function"
+        ],
+        [
+          "args",
+          "function"
+        ],
+        [
+          "args",
+          "function"
+        ],
+        [
+          "args",
+          "function"
+        ],
+        [
+          "args",
+          "function"
+        ],
+        [
+          "args",
+          "function"
+        ],
+        [
+          "args",
+          "function"
+        ],
+        [
+          "args",
+          "function"
+        ],
+        [
+          "args",
+          "function"
+        ],
+        [
+          "args",
+          "function"
+        ]
+      ],
+      "stderr": "CHILD_PID=15596\nDENIED:direct\nDENIED:symlink\n",
+      "exit": 0
+    }
+  ],
+  "direct_probe": {
+    "exit": 0,
+    "stdout": "[{\"value\": 2, \"error\": null, \"unchanged\": true, \"repeatable\": true, \"return_type\": \"int\"}]\n",
+    "stderr": "CHILD_PID=15599\nDENIED:direct\nDENIED:symlink\n"
+  },
+  "child_pids": [
+    {
+      "pid": 15588,
+      "alive_after_return": false
+    },
+    {
+      "pid": 15596,
+      "alive_after_return": false
+    },
+    {
+      "pid": 15599,
+      "alive_after_return": false
+    }
+  ],
+  "timeout_processes_collected": [
+    0,
+    -9
+  ],
+  "canary_hash": "2e8f1d930cfadd74e205b3497b717ecd215802172e0b809c065766264e130483"
+}

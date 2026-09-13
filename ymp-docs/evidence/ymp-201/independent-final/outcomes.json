@@ -1,0 +1,911 @@
+[
+  {
+    "case": "control",
+    "command": [
+      "/tmp/ymp146-recovery-review/target/debug/ymp-weak-pilot",
+      "scripted",
+      "--manifest",
+      "/private/tmp/ymp201-consumer-rereview/cases/control/manifest.json"
+    ],
+    "exit": 0,
+    "elapsed": 3.655,
+    "complete": true,
+    "calibration_allows_pilot": true,
+    "first_status": "completed",
+    "interpretable": true,
+    "objective_success": true,
+    "second_status": "completed",
+    "error": null,
+    "errors": null,
+    "runtime_status": null,
+    "accounting_closed": true,
+    "protocol_deviations": [],
+    "measurement_valid": true,
+    "task_outcome": "success",
+    "task_issues": [],
+    "invalid_reasons": [],
+    "usage": {
+      "agents": {
+        "weak-1": {
+          "calls": 1,
+          "counts": {
+            "cache_read": 30,
+            "cache_write": null,
+            "input": 80,
+            "output": 20,
+            "reasoning": 10
+          },
+          "open_calls": 0,
+          "partial_calls": 0,
+          "reported": 1
+        }
+      },
+      "total": {
+        "calls": 1,
+        "counts": {
+          "cache_read": 30,
+          "cache_write": null,
+          "input": 80,
+          "output": 20,
+          "reasoning": 10
+        },
+        "open_calls": 0,
+        "partial_calls": 0,
+        "reported": 1
+      }
+    },
+    "active_fixture_pids": [],
+    "pid_journal_available": false,
+    "manifest_sha256": "b96a89078e6e376b9195dd3b35e7d9e6e345fbd334d1c7e8a9b6447f47284825",
+    "invocations": [
+      {
+        "state": "completed",
+        "usage": {
+          "counts": {
+            "input": 80,
+            "output": 20,
+            "cache_read": 30,
+            "cache_write": null,
+            "reasoning": 10
+          },
+          "finalized": true,
+          "partial": false,
+          "note": null,
+          "native_total": {
+            "input": 80,
+            "output": 20,
+            "cache_read": 30,
+            "cache_write": null,
+            "reasoning": 10
+          }
+        },
+        "ended_at": "2026-09-13T22:35:14.940433+00:00"
+      }
+    ]
+  },
+  {
+    "case": "wrong-answer",
+    "command": [
+      "/tmp/ymp146-recovery-review/target/debug/ymp-weak-pilot",
+      "scripted",
+      "--manifest",
+      "/private/tmp/ymp201-consumer-rereview/cases/wrong-answer/manifest.json"
+    ],
+    "exit": 0,
+    "elapsed": 3.701,
+    "complete": true,
+    "calibration_allows_pilot": true,
+    "first_status": "failed",
+    "interpretable": true,
+    "objective_success": false,
+    "second_status": "completed",
+    "error": null,
+    "errors": null,
+    "runtime_status": null,
+    "accounting_closed": true,
+    "protocol_deviations": [],
+    "measurement_valid": true,
+    "task_outcome": "unsuccessful",
+    "task_issues": [
+      {
+        "kind": "incorrect_answer"
+      }
+    ],
+    "invalid_reasons": [],
+    "usage": {
+      "agents": {
+        "weak-1": {
+          "calls": 1,
+          "counts": {
+            "cache_read": 30,
+            "cache_write": null,
+            "input": 80,
+            "output": 20,
+            "reasoning": 10
+          },
+          "open_calls": 0,
+          "partial_calls": 0,
+          "reported": 1
+        }
+      },
+      "total": {
+        "calls": 1,
+        "counts": {
+          "cache_read": 30,
+          "cache_write": null,
+          "input": 80,
+          "output": 20,
+          "reasoning": 10
+        },
+        "open_calls": 0,
+        "partial_calls": 0,
+        "reported": 1
+      }
+    },
+    "active_fixture_pids": [],
+    "pid_journal_available": false,
+    "manifest_sha256": "fcad96abc816dba36e7513cbcac2dbc4f00ef6a31e93219968d10bee4b1baea4",
+    "invocations": [
+      {
+        "state": "completed",
+        "usage": {
+          "counts": {
+            "input": 80,
+            "output": 20,
+            "cache_read": 30,
+            "cache_write": null,
+            "reasoning": 10
+          },
+          "finalized": true,
+          "partial": false,
+          "note": null,
+          "native_total": {
+            "input": 80,
+            "output": 20,
+            "cache_read": 30,
+            "cache_write": null,
+            "reasoning": 10
+          }
+        },
+        "ended_at": "2026-09-13T22:35:18.709105+00:00"
+      }
+    ]
+  },
+  {
+    "case": "missing-deliverable",
+    "command": [
+      "/tmp/ymp146-recovery-review/target/debug/ymp-weak-pilot",
+      "scripted",
+      "--manifest",
+      "/private/tmp/ymp201-consumer-rereview/cases/missing-deliverable/manifest.json"
+    ],
+    "exit": 0,
+    "elapsed": 3.556,
+    "complete": true,
+    "calibration_allows_pilot": true,
+    "first_status": "failed",
+    "interpretable": true,
+    "objective_success": null,
+    "second_status": "completed",
+    "error": null,
+    "errors": null,
+    "runtime_status": null,
+    "accounting_closed": true,
+    "protocol_deviations": [],
+    "measurement_valid": true,
+    "task_outcome": "unsuccessful",
+    "task_issues": [
+      {
+        "detail": "invalid_or_missing_deliverable",
+        "kind": "invalid_or_missing_deliverable"
+      }
+    ],
+    "invalid_reasons": [],
+    "usage": {
+      "agents": {
+        "weak-1": {
+          "calls": 1,
+          "counts": {
+            "cache_read": 30,
+            "cache_write": null,
+            "input": 80,
+            "output": 20,
+            "reasoning": 10
+          },
+          "open_calls": 0,
+          "partial_calls": 0,
+          "reported": 1
+        }
+      },
+      "total": {
+        "calls": 1,
+        "counts": {
+          "cache_read": 30,
+          "cache_write": null,
+          "input": 80,
+          "output": 20,
+          "reasoning": 10
+        },
+        "open_calls": 0,
+        "partial_calls": 0,
+        "reported": 1
+      }
+    },
+    "active_fixture_pids": [],
+    "pid_journal_available": false,
+    "manifest_sha256": "855c4d865b4819486f1bb0f45f90d82624a4149ced55ef9a962132bb8c4940d9",
+    "invocations": [
+      {
+        "state": "completed",
+        "usage": {
+          "counts": {
+            "input": 80,
+            "output": 20,
+            "cache_read": 30,
+            "cache_write": null,
+            "reasoning": 10
+          },
+          "finalized": true,
+          "partial": false,
+          "note": null,
+          "native_total": {
+            "input": 80,
+            "output": 20,
+            "cache_read": 30,
+            "cache_write": null,
+            "reasoning": 10
+          }
+        },
+        "ended_at": "2026-09-13T22:35:22.493447+00:00"
+      }
+    ]
+  },
+  {
+    "case": "engine-negative",
+    "command": [
+      "/tmp/ymp146-recovery-review/target/debug/ymp-weak-pilot",
+      "scripted",
+      "--manifest",
+      "/private/tmp/ymp201-consumer-rereview/cases/engine-negative/manifest.json"
+    ],
+    "exit": 0,
+    "elapsed": 8.608,
+    "complete": true,
+    "calibration_allows_pilot": true,
+    "first_status": "failed",
+    "interpretable": true,
+    "objective_success": true,
+    "second_status": "completed",
+    "error": null,
+    "errors": null,
+    "runtime_status": "blocked",
+    "accounting_closed": null,
+    "protocol_deviations": [],
+    "measurement_valid": true,
+    "task_outcome": "unsuccessful",
+    "task_issues": [
+      {
+        "detail": "Run blocked: Final review rejected the result: Ordinary negative task verdict; complete accounting",
+        "kind": "final_review_rejected"
+      }
+    ],
+    "invalid_reasons": [],
+    "usage": {
+      "agents": {
+        "weak-1": {
+          "calls": 2,
+          "counts": {
+            "cache_read": 60,
+            "cache_write": null,
+            "input": 160,
+            "output": 40,
+            "reasoning": 20
+          },
+          "open_calls": 0,
+          "partial_calls": 0,
+          "reported": 2
+        },
+        "weak-2": {
+          "calls": 3,
+          "counts": {
+            "cache_read": 90,
+            "cache_write": null,
+            "input": 240,
+            "output": 60,
+            "reasoning": 30
+          },
+          "open_calls": 0,
+          "partial_calls": 0,
+          "reported": 3
+        }
+      },
+      "total": {
+        "calls": 5,
+        "counts": {
+          "cache_read": 150,
+          "cache_write": null,
+          "input": 400,
+          "output": 100,
+          "reasoning": 50
+        },
+        "open_calls": 0,
+        "partial_calls": 0,
+        "reported": 5
+      }
+    },
+    "active_fixture_pids": [],
+    "pid_journal_available": false,
+    "manifest_sha256": "0d5cb40c35a2dbea21fd0a5b59b8149187f29ed771f3505bc717efe81b8fb49c",
+    "invocations": [
+      {
+        "state": "completed",
+        "usage": {
+          "counts": {
+            "input": 80,
+            "output": 20,
+            "cache_read": 30,
+            "cache_write": null,
+            "reasoning": 10
+          },
+          "finalized": true,
+          "partial": false,
+          "note": null,
+          "native_total": {
+            "input": 80,
+            "output": 20,
+            "cache_read": 30,
+            "cache_write": null,
+            "reasoning": 10
+          }
+        },
+        "ended_at": "2026-09-13T22:35:26.163030+00:00"
+      },
+      {
+        "state": "completed",
+        "usage": {
+          "counts": {
+            "input": 80,
+            "output": 20,
+            "cache_read": 30,
+            "cache_write": null,
+            "reasoning": 10
+          },
+          "finalized": true,
+          "partial": false,
+          "note": null,
+          "native_total": {
+            "input": 80,
+            "output": 20,
+            "cache_read": 30,
+            "cache_write": null,
+            "reasoning": 10
+          }
+        },
+        "ended_at": "2026-09-13T22:35:27.365991+00:00"
+      },
+      {
+        "state": "completed",
+        "usage": {
+          "counts": {
+            "input": 80,
+            "output": 20,
+            "cache_read": 30,
+            "cache_write": null,
+            "reasoning": 10
+          },
+          "finalized": true,
+          "partial": false,
+          "note": null,
+          "native_total": {
+            "input": 80,
+            "output": 20,
+            "cache_read": 30,
+            "cache_write": null,
+            "reasoning": 10
+          }
+        },
+        "ended_at": "2026-09-13T22:35:28.583383+00:00"
+      },
+      {
+        "state": "completed",
+        "usage": {
+          "counts": {
+            "input": 80,
+            "output": 20,
+            "cache_read": 30,
+            "cache_write": null,
+            "reasoning": 10
+          },
+          "finalized": true,
+          "partial": false,
+          "note": null,
+          "native_total": {
+            "input": 80,
+            "output": 20,
+            "cache_read": 30,
+            "cache_write": null,
+            "reasoning": 10
+          }
+        },
+        "ended_at": "2026-09-13T22:35:29.804950+00:00"
+      },
+      {
+        "state": "completed",
+        "usage": {
+          "counts": {
+            "input": 80,
+            "output": 20,
+            "cache_read": 30,
+            "cache_write": null,
+            "reasoning": 10
+          },
+          "finalized": true,
+          "partial": false,
+          "note": null,
+          "native_total": {
+            "input": 80,
+            "output": 20,
+            "cache_read": 30,
+            "cache_write": null,
+            "reasoning": 10
+          }
+        },
+        "ended_at": "2026-09-13T22:35:31.048340+00:00"
+      }
+    ]
+  },
+  {
+    "case": "known-budget",
+    "command": [
+      "/tmp/ymp146-recovery-review/target/debug/ymp-weak-pilot",
+      "scripted",
+      "--manifest",
+      "/private/tmp/ymp201-consumer-rereview/cases/known-budget/manifest.json"
+    ],
+    "exit": 0,
+    "elapsed": 3.831,
+    "complete": true,
+    "calibration_allows_pilot": true,
+    "first_status": "failed",
+    "interpretable": true,
+    "objective_success": true,
+    "second_status": "completed",
+    "error": null,
+    "errors": null,
+    "runtime_status": null,
+    "accounting_closed": true,
+    "protocol_deviations": [
+      {
+        "agent_ids": [
+          "weak-2"
+        ],
+        "code": "underused_roster"
+      }
+    ],
+    "measurement_valid": true,
+    "task_outcome": "unsuccessful",
+    "task_issues": [
+      {
+        "detail": "token_limit: Observed usage and in-flight reservations exhaust the token allowance",
+        "kind": "known_budget_stop"
+      }
+    ],
+    "invalid_reasons": [],
+    "usage": {
+      "agents": {
+        "weak-1": {
+          "calls": 1,
+          "counts": {
+            "cache_read": 30,
+            "cache_write": null,
+            "input": 80,
+            "output": 20,
+            "reasoning": 10
+          },
+          "open_calls": 0,
+          "partial_calls": 0,
+          "reported": 1
+        }
+      },
+      "total": {
+        "calls": 1,
+        "counts": {
+          "cache_read": 30,
+          "cache_write": null,
+          "input": 80,
+          "output": 20,
+          "reasoning": 10
+        },
+        "open_calls": 0,
+        "partial_calls": 0,
+        "reported": 1
+      }
+    },
+    "active_fixture_pids": [],
+    "pid_journal_available": false,
+    "manifest_sha256": "6513cc8bc14687e05d56b88a1a810404aa1d3eb72a1fd2aba3d3b63313240fb7",
+    "invocations": [
+      {
+        "state": "completed",
+        "usage": {
+          "counts": {
+            "input": 80,
+            "output": 20,
+            "cache_read": 30,
+            "cache_write": null,
+            "reasoning": 10
+          },
+          "finalized": true,
+          "partial": false,
+          "note": null,
+          "native_total": {
+            "input": 80,
+            "output": 20,
+            "cache_read": 30,
+            "cache_write": null,
+            "reasoning": 10
+          }
+        },
+        "ended_at": "2026-09-13T22:35:34.869162+00:00"
+      }
+    ]
+  },
+  {
+    "case": "known-deadline",
+    "command": [
+      "/tmp/ymp146-recovery-review/target/debug/ymp-weak-pilot",
+      "scripted",
+      "--manifest",
+      "/private/tmp/ymp201-consumer-rereview/cases/known-deadline/manifest.json"
+    ],
+    "exit": 0,
+    "elapsed": 8.423,
+    "complete": true,
+    "calibration_allows_pilot": true,
+    "first_status": "failed",
+    "interpretable": true,
+    "objective_success": null,
+    "second_status": "completed",
+    "error": null,
+    "errors": null,
+    "runtime_status": null,
+    "accounting_closed": true,
+    "protocol_deviations": [],
+    "measurement_valid": true,
+    "task_outcome": "unsuccessful",
+    "task_issues": [
+      {
+        "detail": "condition_deadline: deterministic process group terminated",
+        "kind": "condition_deadline"
+      }
+    ],
+    "invalid_reasons": [],
+    "usage": {
+      "agents": {
+        "weak-1": {
+          "calls": 1,
+          "counts": {
+            "cache_read": 30,
+            "cache_write": null,
+            "input": 80,
+            "output": 20,
+            "reasoning": 10
+          },
+          "open_calls": 0,
+          "partial_calls": 0,
+          "reported": 1
+        }
+      },
+      "total": {
+        "calls": 1,
+        "counts": {
+          "cache_read": 30,
+          "cache_write": null,
+          "input": 80,
+          "output": 20,
+          "reasoning": 10
+        },
+        "open_calls": 0,
+        "partial_calls": 0,
+        "reported": 1
+      }
+    },
+    "active_fixture_pids": [],
+    "pid_journal_available": false,
+    "manifest_sha256": "7cd791b7e4c905f0c5dea5df8eb520b1bdadcd2dd4925016e875c796b031fde1",
+    "invocations": [
+      {
+        "state": "completed",
+        "usage": {
+          "counts": {
+            "input": 80,
+            "output": 20,
+            "cache_read": 30,
+            "cache_write": null,
+            "reasoning": 10
+          },
+          "finalized": true,
+          "partial": false,
+          "note": null,
+          "native_total": {
+            "input": 80,
+            "output": 20,
+            "cache_read": 30,
+            "cache_write": null,
+            "reasoning": 10
+          }
+        },
+        "ended_at": "2026-09-13T22:35:38.745960+00:00"
+      }
+    ]
+  },
+  {
+    "case": "unknown-usage",
+    "command": [
+      "/tmp/ymp146-recovery-review/target/debug/ymp-weak-pilot",
+      "scripted",
+      "--manifest",
+      "/private/tmp/ymp201-consumer-rereview/cases/unknown-usage/manifest.json"
+    ],
+    "exit": 1,
+    "elapsed": 2.154,
+    "complete": false,
+    "calibration_allows_pilot": false,
+    "first_status": "failed",
+    "interpretable": false,
+    "objective_success": null,
+    "second_status": "not_started",
+    "error": null,
+    "errors": null,
+    "runtime_status": null,
+    "accounting_closed": true,
+    "protocol_deviations": [],
+    "measurement_valid": false,
+    "task_outcome": "unsuccessful",
+    "task_issues": [],
+    "invalid_reasons": [
+      {
+        "code": "incomplete_invocation_usage",
+        "invocation_id": "6bd3445d-2348-4210-9249-799f97a55b68"
+      },
+      {
+        "code": "incomplete_native_usage"
+      }
+    ],
+    "usage": {
+      "agents": {
+        "weak-1": {
+          "calls": 1,
+          "counts": {
+            "cache_read": null,
+            "cache_write": null,
+            "input": null,
+            "output": null,
+            "reasoning": null
+          },
+          "open_calls": 0,
+          "partial_calls": 0,
+          "reported": 0
+        }
+      },
+      "total": {
+        "calls": 1,
+        "counts": {
+          "cache_read": null,
+          "cache_write": null,
+          "input": null,
+          "output": null,
+          "reasoning": null
+        },
+        "open_calls": 0,
+        "partial_calls": 0,
+        "reported": 0
+      }
+    },
+    "active_fixture_pids": [],
+    "pid_journal_available": false,
+    "manifest_sha256": "f2817d6371d29f13e8db768c74a29557f1b2d847be6f04f78848c6f44d0947f6",
+    "invocations": [
+      {
+        "state": "completed",
+        "usage": null,
+        "ended_at": "2026-09-13T22:35:47.207402+00:00"
+      }
+    ]
+  },
+  {
+    "case": "provider-error",
+    "command": [
+      "/tmp/ymp146-recovery-review/target/debug/ymp-weak-pilot",
+      "scripted",
+      "--manifest",
+      "/private/tmp/ymp201-consumer-rereview/cases/provider-error/manifest.json"
+    ],
+    "exit": 1,
+    "elapsed": 2.159,
+    "complete": false,
+    "calibration_allows_pilot": false,
+    "first_status": "failed",
+    "interpretable": false,
+    "objective_success": null,
+    "second_status": "not_started",
+    "error": null,
+    "errors": null,
+    "runtime_status": null,
+    "accounting_closed": true,
+    "protocol_deviations": [],
+    "measurement_valid": false,
+    "task_outcome": "unsuccessful",
+    "task_issues": [
+      {
+        "detail": "Codex turn did not complete: {\"error\":{\"message\":\"synthetic provider failure\"},\"id\":\"ebac8eba-380c-4f8d-81d3-fa927327d3b7\",\"status\":\"failed\"}: Native invocation failed: Unknown",
+        "kind": "provider_failure"
+      }
+    ],
+    "invalid_reasons": [
+      {
+        "code": "incomplete_invocation_usage",
+        "invocation_id": "360d0ee2-9b56-4767-8f3e-9454b97c4853"
+      },
+      {
+        "code": "incomplete_native_usage"
+      }
+    ],
+    "usage": {
+      "agents": {
+        "weak-1": {
+          "calls": 1,
+          "counts": {
+            "cache_read": 30,
+            "cache_write": null,
+            "input": 80,
+            "output": 20,
+            "reasoning": 10
+          },
+          "open_calls": 0,
+          "partial_calls": 1,
+          "reported": 1
+        }
+      },
+      "total": {
+        "calls": 1,
+        "counts": {
+          "cache_read": 30,
+          "cache_write": null,
+          "input": 80,
+          "output": 20,
+          "reasoning": 10
+        },
+        "open_calls": 0,
+        "partial_calls": 1,
+        "reported": 1
+      }
+    },
+    "active_fixture_pids": [],
+    "pid_journal_available": false,
+    "manifest_sha256": "c4e51eb6760476bf2831cdbe968c0c42a14ec1bd1eff231eb79f778b514a2cfe",
+    "invocations": [
+      {
+        "state": "failed",
+        "usage": {
+          "counts": {
+            "input": 80,
+            "output": 20,
+            "cache_read": 30,
+            "cache_write": null,
+            "reasoning": 10
+          },
+          "finalized": false,
+          "partial": true,
+          "note": null,
+          "native_total": {
+            "input": 80,
+            "output": 20,
+            "cache_read": 30,
+            "cache_write": null,
+            "reasoning": 10
+          }
+        },
+        "ended_at": "2026-09-13T22:35:49.457010+00:00"
+      }
+    ]
+  },
+  {
+    "case": "broken-envelope",
+    "command": [
+      "/tmp/ymp146-recovery-review/target/debug/ymp-weak-pilot",
+      "scripted",
+      "--manifest",
+      "/private/tmp/ymp201-consumer-rereview/cases/broken-envelope/manifest.json"
+    ],
+    "exit": 1,
+    "elapsed": 1.07,
+    "complete": false,
+    "calibration_allows_pilot": false,
+    "first_status": "failed",
+    "interpretable": false,
+    "objective_success": null,
+    "second_status": "not_started",
+    "error": null,
+    "errors": null,
+    "runtime_status": null,
+    "accounting_closed": true,
+    "protocol_deviations": [],
+    "measurement_valid": false,
+    "task_outcome": "unsuccessful",
+    "task_issues": [
+      {
+        "detail": "Agent process exited before completing the request",
+        "kind": "provider_failure"
+      }
+    ],
+    "invalid_reasons": [
+      {
+        "agent_id": "weak-1",
+        "code": "native_context_unobserved",
+        "invocation_id": "bca6f3ad-aa4d-4e32-8b1f-35e9f06c6208"
+      },
+      {
+        "code": "incomplete_invocation_usage",
+        "invocation_id": "bca6f3ad-aa4d-4e32-8b1f-35e9f06c6208"
+      },
+      {
+        "code": "settings_differ_from_manifest",
+        "expected": {
+          "effort": "low",
+          "model": "fixture-weak"
+        },
+        "invocation_id": "bca6f3ad-aa4d-4e32-8b1f-35e9f06c6208",
+        "observed": {
+          "effort": null,
+          "model": null,
+          "permission_mode": null
+        },
+        "source": "sent"
+      },
+      {
+        "code": "incomplete_native_usage"
+      }
+    ],
+    "usage": {
+      "agents": {
+        "weak-1": {
+          "calls": 1,
+          "counts": {
+            "cache_read": null,
+            "cache_write": null,
+            "input": null,
+            "output": null,
+            "reasoning": null
+          },
+          "open_calls": 0,
+          "partial_calls": 0,
+          "reported": 0
+        }
+      },
+      "total": {
+        "calls": 1,
+        "counts": {
+          "cache_read": null,
+          "cache_write": null,
+          "input": null,
+          "output": null,
+          "reasoning": null
+        },
+        "open_calls": 0,
+        "partial_calls": 0,
+        "reported": 0
+      }
+    },
+    "active_fixture_pids": [],
+    "pid_journal_available": false,
+    "manifest_sha256": "eb9a5f9c71c3f855bd1008a2a7b074864a3e9426679e611736c4a8869839c1c1",
+    "invocations": [
+      {
+        "state": "failed",
+        "usage": null,
+        "ended_at": "2026-09-13T22:35:50.669799+00:00"
+      }
+    ]
+  }
+]

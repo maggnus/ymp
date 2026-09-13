@@ -1,0 +1,1 @@
+{"old_route_read_refused": true, "selection_canary_and_control_pass": true, "scoring_canary_and_control_pass": true, "symlink_denied": true, "direct_probe_guarded": true, "children_ended": true, "child_stdin_contains_expected": false}
