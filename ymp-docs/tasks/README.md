@@ -14,7 +14,7 @@ A planned task is not implemented functionality. Completed research and planning
 | design | 1 | 1 |
 | documentation | 4 | 4 |
 | experiment | 0 | 4 |
-| implementation | 24 | 26 |
+| implementation | 24 | 27 |
 | research | 8 | 8 |
 | verification | 2 | 2 |
 
@@ -69,6 +69,7 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-127](#ymp-127) | P0 | Build and display the agent pool from provider-returned native names | 2026-09-12 20:43 |
 | `[x]` | [YMP-128](#ymp-128) | P1 | Support internal team transport with long metadata paths | 2026-09-12 21:24 |
 | `[x]` | [YMP-129](#ymp-129) | P1 | Recover bounded independent reviews after ACP output exhaustion | 2026-09-13 00:34 |
+| `[+]` | [YMP-130](#ymp-130) | P1 | Show active agent work during headless session runs | 2026-09-13 00:54 |
 
 ## YMP-001
 
@@ -1659,6 +1660,34 @@ The real GLM review ended max_tokens at 8192 output tokens, 8185 reasoning; the 
 - ymp-docs/research/evidence/native-review-recovery/independent-review.md
 - ymp-docs/research/evidence/native-review-recovery/provider-negative-control.log
 - ymp-docs/research/evidence/native-review-recovery/runtime-negative-control.log
+
+## YMP-130
+
+Show active agent work during headless session runs
+
+**State:** `[+]` (new) · **Type:** implementation · **Priority:** P1
+
+**Last update (UTC):** 2026-09-13 00:54
+
+**Current reason:** Read-only diagnosis: poker checks passed at 2026-09-13T00:52:09Z; the following claude-opus-5 review invocation was active. Earlier attempts were cancelled. No active run was stopped or restarted by this investigation.
+
+**Owner:** Maintainer
+
+**Authorization:** Owner reported a silent headless resume and interrupted/restarted it because it appeared hung. Diagnosis confirmed that local checks had passed and independent review was active while the terminal still showed the previous check command.
+
+**Depends on:** [YMP-129](#ymp-129), [YMP-118](#ymp-118)
+
+The headless event consumer prints Status and Message but discards AgentStatus, Delta and usage updates, making active native review indistinguishable from a stalled local check.
+
+**Acceptance criteria:**
+
+- Show the active assignment, native agent/model when known and transition out of completed checks without waiting for a complete provider response.
+- Provide bounded progress while a native response is pending, distinguish waiting from observed activity, and show completion, cancellation and failure without duplicate requests.
+- Verify the terminal behavior with scripted events/providers only; preserve execution settings, budget and cancellation behavior. Delegate user-interface implementation to Claude Code as required by AGENTS.md.
+
+**Evidence:**
+
+- Pending.
 
 ## Intent coverage
 

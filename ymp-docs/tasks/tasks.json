@@ -3030,6 +3030,33 @@
           "note": "Corrected source 3225c63 independently accepted with no open findings. Required checks pass: fmt, strict Clippy, 425 tests (2 existing ignores). Built from the permanent checkout, verified version/help and mock demo, installed ymp 0.4.1 SHA-256 84831d6ada7374916f1343bce6385d0303090e7cbe3e4e99b4159fb6787cb278 with the previous binary backed up. Poker session and its files remain unchanged; explicit GLM none resume settings and command are documented."
         }
       ]
+    },
+    {
+      "id": "YMP-130",
+      "title": "Show active agent work during headless session runs",
+      "type": "implementation",
+      "priority": "P1",
+      "status": "new",
+      "owner": "Maintainer",
+      "authorization": "Owner reported a silent headless resume and interrupted/restarted it because it appeared hung. Diagnosis confirmed that local checks had passed and independent review was active while the terminal still showed the previous check command.",
+      "depends_on": [
+        "YMP-129",
+        "YMP-118"
+      ],
+      "reason": "The headless event consumer prints Status and Message but discards AgentStatus, Delta and usage updates, making active native review indistinguishable from a stalled local check.",
+      "acceptance": [
+        "Show the active assignment, native agent/model when known and transition out of completed checks without waiting for a complete provider response.",
+        "Provide bounded progress while a native response is pending, distinguish waiting from observed activity, and show completion, cancellation and failure without duplicate requests.",
+        "Verify the terminal behavior with scripted events/providers only; preserve execution settings, budget and cancellation behavior. Delegate user-interface implementation to Claude Code as required by AGENTS.md."
+      ],
+      "evidence": [],
+      "history": [
+        {
+          "at": "2026-09-13T00:54:50.136793+00:00",
+          "status": "new",
+          "note": "Read-only diagnosis: poker checks passed at 2026-09-13T00:52:09Z; the following claude-opus-5 review invocation was active. Earlier attempts were cancelled. No active run was stopped or restarted by this investigation."
+        }
+      ]
     }
   ],
   "updated_at": "2026-09-13T00:12:07.131236+00:00",

@@ -28,7 +28,7 @@ A planned task automatically shows `[=]` while prerequisites remain unfinished a
 
 ## Current work and owner questions
 
-No active work, owner questions or unscheduled additions.
+- `[+]` [YMP-130](README.md#ymp-130) — Show active agent work during headless session runs (2026-09-13 00:54). Read-only diagnosis: poker checks passed at 2026-09-13T00:52:09Z; the following claude-opus-5 review invocation was active. Earlier attempts were cancelled. No active run was stopped or restarted by this investigation.
 
 ## Ready next
 
@@ -133,11 +133,11 @@ Deferred and post-MVP work:
 
 | Time (UTC) | Task | State | Update |
 | --- | --- | --- | --- |
+| 2026-09-13 00:54 | [YMP-130](README.md#ymp-130) | `[+]` | Read-only diagnosis: poker checks passed at 2026-09-13T00:52:09Z; the following claude-opus-5 review invocation was active. Earlier attempts were cancelled. No active run was stopped or restarted by this investigation. |
 | 2026-09-13 00:34 | [YMP-129](README.md#ymp-129) | `[x]` | Corrected source 3225c63 independently accepted with no open findings. Required checks pass: fmt, strict Clippy, 425 tests (2 existing ignores). Built from the permanent checkout, verified version/help and mock demo, installed ymp 0.4.1 SHA-256 84831d6ada7374916f1343bce6385d0303090e7cbe3e4e99b4159fb6787cb278 with the previous binary backed up. Poker session and its files remain unchanged; explicit GLM none resume settings and command are documented. |
 | 2026-09-12 23:45 | [YMP-121](README.md#ymp-121) | `[x]` | Installed local ymp0.4.0 independently accepted by max reviewer (9/10), covering164 criteria across all26 delivery tasks. Durable main sourcebaf8554 matches accepted candidate;419 Rust tests,14 bridge tests,10 native fixtures,17 scenarios, official MCP SDK and installation checks pass. Published executable SHA256cc8ed8a755b9778a2cfcad6460880730167e0dd39ce075543ddad25cb4278f14; PATH command, driver, durable bridge and original backup independently verified. Reports/evidence imported with valid relative links. Native compatibility is metadata-only;7 paused studies/post-MVP tasks remain outside release. |
 | 2026-09-12 23:29 | [YMP-114](README.md#ymp-114) | `[x]` | Final independent Opus follow-up confirms all correction UI criteria for0.4.0: predecessor/replacement states, actual contract input/source-replacement paths, consistent outcomes and preserved history are visible. Read-only walks leave store/config unchanged; prior findings are closed. Backend and UI are integrated in495502f with exact accepted source bytes. |
 | 2026-09-12 23:29 | [YMP-112](README.md#ymp-112) | `[x]` | Final independent Opus follow-up accepts b6eb516 for0.4.0 at9/10: all board UI criteria and reservation/policy visibility are complete. Decision rows and details share actual outcomes; captured contracts expose source paths.139 independent TUI tests,18 failing mutation controls and actual read-only terminal walks pass. Integrated versioned source495502f matches all158 candidate source hashes; no blocking UI finding remains. |
-| 2026-09-12 22:52 | [YMP-126](README.md#ymp-126) | `[x]` | Fresh independent max review accepts a04aef4 at9/10: own17/17 run,8 driver/restart controls,26 validator tests,232 archive hashes and raw SQLite/provenance audits pass. Compositionb49d159 preserves every application/driver source file, passes413 tests and a fresh all17 run; integrated main56c9f04 also passes formatting, Clippy,413 tests and build. No case skipped or fixture weakened. Failed-case JSON diagnostic can lag two follow-up messages; complete SQLite retains them and no invocation/acceptance is lost. Final versioned release review remains121. |
 
 ## Maintenance
 
