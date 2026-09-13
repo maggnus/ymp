@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-13 14:58 UTC.
+Updated: 2026-09-13 15:08 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -86,7 +86,7 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-143](#ymp-143) | P1 | Provide a separate /git changes view modeled on Paseo | 2026-09-13 14:04 |
 | `[x]` | [YMP-144](#ymp-144) | P1 | Research recovery of sessions after one or more agent failures | 2026-09-13 14:36 |
 | `[~]` | [YMP-145](#ymp-145) | P1 | Unify full-row popup selection and verify stable scrolling geometry | 2026-09-13 14:19 |
-| `[~]` | [YMP-146](#ymp-146) | P0 | Recover interrupted session stages and let the owner change the active team | 2026-09-13 14:58 |
+| `[~]` | [YMP-146](#ymp-146) | P0 | Recover interrupted session stages and let the owner change the active team | 2026-09-13 15:08 |
 
 ## YMP-001
 
@@ -2189,9 +2189,9 @@ Recover interrupted session stages and let the owner change the active team
 
 **State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P0
 
-**Last update (UTC):** 2026-09-13 14:58
+**Last update (UTC):** 2026-09-13 15:08
 
-**Current reason:** Owner prefers the term fork for delegated background work. Renamed existing executing agent 98b3d512-de44-4679-8a59-fdf3d0d20112 to [Fork] YMP-146 recovery backend and recorded terminology in AGENTS.md. Execution settings, scope, priority and parent accountability are unchanged.
+**Current reason:** Owner cautioned against parameterizing every Policy. Clarified interface substitution versus algorithm parameters versus public settings; universal policy configuration/UI is excluded. Backend fork instructed to retain P0 recovery first and record only actual strategy parameters, with no invented configuration for parameterless implementations.
 
 **Owner:** Background backend author and Claude Code claude-opus-5 high UI author; maintainer owns contracts and acceptance
 

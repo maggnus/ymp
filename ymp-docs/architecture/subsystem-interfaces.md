@@ -43,6 +43,16 @@ investigated by implementing shared interfaces and comparing strategies, without
 repeatedly rewriting the execution kernel. Whether the UI presents strategy
 selection as a team attribute remains an open product choice.
 
+The owner subsequently cautioned against parameterizing every policy. A
+replaceable implementation, its algorithm parameters and public user settings
+are separate concerns. Keep replacement points available for research without
+requiring configuration fields or UI controls for all of them. Introduce a
+parameter only for a demonstrated implementation or experiment need; record the
+parameters actually used, and do not invent them for parameterless strategies.
+Owner goals, resource limits and explicit team commands remain separate from
+internal strategy settings. YMP-146 does not include a universal configuration
+framework or an interface exposing all policies to the user.
+
 Reuse the existing `AllocationPolicy`, `ResourceAllocationPolicy` and other
 subsystem contracts. `BoardProposalPolicy` currently orders pending proposals;
 it is not a replaceable implementation of the complete session workflow.

@@ -3943,11 +3943,16 @@
           "at": "2026-09-13T14:58:01.310061+00:00",
           "status": "in_progress",
           "note": "Owner prefers the term fork for delegated background work. Renamed existing executing agent 98b3d512-de44-4679-8a59-fdf3d0d20112 to [Fork] YMP-146 recovery backend and recorded terminology in AGENTS.md. Execution settings, scope, priority and parent accountability are unchanged."
+        },
+        {
+          "at": "2026-09-13T15:08:36.617645+00:00",
+          "status": "in_progress",
+          "note": "Owner cautioned against parameterizing every Policy. Clarified interface substitution versus algorithm parameters versus public settings; universal policy configuration/UI is excluded. Backend fork instructed to retain P0 recovery first and record only actual strategy parameters, with no invented configuration for parameterless implementations."
         }
       ]
     }
   ],
-  "updated_at": "2026-09-13T14:58:01.310061+00:00",
+  "updated_at": "2026-09-13T15:08:36.617645+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",
