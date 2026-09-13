@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-13 05:08 UTC.
+Updated: 2026-09-13 05:16 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -73,7 +73,7 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-131](#ymp-131) | P1 | Support deliberate double Ctrl+C exit and print session reopening command | 2026-09-13 04:25 |
 | `[x]` | [YMP-132](#ymp-132) | P1 | Attribute chat output to the actual agent invocation instead of provider-shaped actor IDs | 2026-09-13 04:25 |
 | `[~]` | [YMP-133](#ymp-133) | P1 | Present non-popup data collections as consistent keyboard-navigable tables | 2026-09-13 05:04 |
-| `[~]` | [YMP-134](#ymp-134) | P1 | Finish sidebar, Detailed mode and floating-surface corrections requested directly in Paseo | 2026-09-13 05:08 |
+| `[~]` | [YMP-134](#ymp-134) | P1 | Finish sidebar, Detailed mode and floating-surface corrections requested directly in Paseo | 2026-09-13 05:16 |
 
 ## YMP-001
 
@@ -1794,9 +1794,9 @@ Finish sidebar, Detailed mode and floating-surface corrections requested directl
 
 **State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P1
 
-**Last update (UTC):** 2026-09-13 05:08
+**Last update (UTC):** 2026-09-13 05:16
 
-**Current reason:** Combined the four authored UI fixes with current main in b01ffe7 without conflicts. Independent Claude Code Opus 5 max review is active. The table author is working from that combined base; completion still requires final integrated checks and installation.
+**Current reason:** Independent source review continues on b01ffe7. Parent terminal checks on the existing author binary confirm full Detailed report expansion and visible theme, model-prompt and confirmation controls at 80 and 60 columns. Captures retained under evidence/ui-followups-134/parent-surfaces; final combined source and installed executable remain pending.
 
 **Owner:** Maintainer integrates and verifies; Claude Code Opus 5 max implements UI
 

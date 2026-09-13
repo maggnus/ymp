@@ -1,0 +1,38 @@
+{
+  "binary": "/tmp/ymp133-look/ymp-tables2",
+  "source_commit": "5e14f6e",
+  "native_inference": false,
+  "checks": [
+    {
+      "width": 80,
+      "surface": "theme",
+      "visible": true
+    },
+    {
+      "width": 80,
+      "surface": "model",
+      "visible": true
+    },
+    {
+      "width": 80,
+      "surface": "confirm",
+      "visible": true
+    },
+    {
+      "width": 60,
+      "surface": "theme",
+      "visible": true
+    },
+    {
+      "width": 60,
+      "surface": "model",
+      "visible": true
+    },
+    {
+      "width": 60,
+      "surface": "confirm",
+      "visible": true
+    }
+  ],
+  "scope": "Existing author binary; final integrated executable still requires verification."
+}

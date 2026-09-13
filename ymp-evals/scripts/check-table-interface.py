@@ -174,7 +174,7 @@ provider = "demo"
         assert "Commands" in text and "Type to search commands" in text, text
         keys("Escape", "C-t")
         text = capture("narrow-themes")
-        assert "ember" in text and "slate" in text, text
+        assert "Ember" in text and "Slate" in text, text
         keys("Escape", "Escape", "Escape")
         command("/agents")
         type_text("m")

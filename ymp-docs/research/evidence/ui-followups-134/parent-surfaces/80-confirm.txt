@@ -1,0 +1,24 @@
+ymp  project                                 3fb15ffc  ✓ completed  — tok  8/200
+────────────────────────────────────────────────────────────────────────────────
+ Memory  /memory 3 recorded · 0 current · 0 supporte…│ SESSION
+─────────────────────────────────────────────────────│ 3fb15ffc     ✓ completed
+   ◇ What current, superseded …  what this page is   │ turns this ses…  8 / 200
+   Ve                                                                      ject
+   Re ┌ Confirm ─────────────────────────────────────── cannot be undone ┐
+ › Cr │ Retire memory entry 04057497? It stops informing future runs.    │    —
+      │                                                                  │    —
+      │ y yes  n no  Esc cancel                                          │    —
+      └──────────────────────────────────────────────────────────────────┘
+                                                                           sion
+                                                     │ ○ Atlas             idle
+─────────────────────────────────────────────────────│ ○ Cygnus            idle
+  standing          no passing evidence is attached  │
+                    to the acceptance it names, so   │ TASKS
+                    it is context and not a          │ accepted           1 / 1
+                    confirmed finding.               │
+  version           250e741c · the stored lifecycle  │
+                    and content version of this      │
+                    entry                            │
+────────────────────────────────────────────────────────────────────────────────
+› Describe a task, or type / for commands.
+Ready                    main / search  f retire the entry  Enter read  Esc back

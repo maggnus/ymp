@@ -3279,11 +3279,16 @@
           "at": "2026-09-13T05:08:36.082568+00:00",
           "status": "in_progress",
           "note": "Combined the four authored UI fixes with current main in b01ffe7 without conflicts. Independent Claude Code Opus 5 max review is active. The table author is working from that combined base; completion still requires final integrated checks and installation."
+        },
+        {
+          "at": "2026-09-13T05:16:45.900314+00:00",
+          "status": "in_progress",
+          "note": "Independent source review continues on b01ffe7. Parent terminal checks on the existing author binary confirm full Detailed report expansion and visible theme, model-prompt and confirmation controls at 80 and 60 columns. Captures retained under evidence/ui-followups-134/parent-surfaces; final combined source and installed executable remain pending."
         }
       ]
     }
   ],
-  "updated_at": "2026-09-13T05:08:36.082568+00:00",
+  "updated_at": "2026-09-13T05:16:45.900314+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",

@@ -1,6 +1,6 @@
 # Delivery plan and progress
 
-Updated: 2026-09-13 05:08 UTC.
+Updated: 2026-09-13 05:16 UTC.
 
 [Approved intent](../../intent.md) · [Task details and evidence](README.md) · [Canonical register](tasks.json)
 
@@ -34,7 +34,7 @@ A planned task automatically shows `[=]` while prerequisites remain unfinished a
 
 - `[+]` [YMP-130](README.md#ymp-130) — Show active agent work during headless session runs (2026-09-13 00:54). Read-only diagnosis: poker checks passed at 2026-09-13T00:52:09Z; the following claude-opus-5 review invocation was active. Earlier attempts were cancelled. No active run was stopped or restarted by this investigation.
 - `[~]` [YMP-133](README.md#ymp-133) — Present non-popup data collections as consistent keyboard-navigable tables (2026-09-13 05:04). Owner explicitly requested implementing the tables and integrating all fixes. YMP-133 and YMP-134 will ship together; table implementation starts from the combined 0.4.2 plus authored UI corrections. Claude Code Opus 5 max owns implementation, with independent review and installed-binary verification before completion.
-- `[~]` [YMP-134](README.md#ymp-134) — Finish sidebar, Detailed mode and floating-surface corrections requested directly in Paseo (2026-09-13 05:08). Combined the four authored UI fixes with current main in b01ffe7 without conflicts. Independent Claude Code Opus 5 max review is active. The table author is working from that combined base; completion still requires final integrated checks and installation.
+- `[~]` [YMP-134](README.md#ymp-134) — Finish sidebar, Detailed mode and floating-surface corrections requested directly in Paseo (2026-09-13 05:16). Independent source review continues on b01ffe7. Parent terminal checks on the existing author binary confirm full Detailed report expansion and visible theme, model-prompt and confirmation controls at 80 and 60 columns. Captures retained under evidence/ui-followups-134/parent-surfaces; final combined source and installed executable remain pending.
 
 ## Ready next
 
@@ -141,7 +141,7 @@ Deferred and post-MVP work:
 
 | Time (UTC) | Task | State | Update |
 | --- | --- | --- | --- |
-| 2026-09-13 05:08 | [YMP-134](README.md#ymp-134) | `[~]` | Combined the four authored UI fixes with current main in b01ffe7 without conflicts. Independent Claude Code Opus 5 max review is active. The table author is working from that combined base; completion still requires final integrated checks and installation. |
+| 2026-09-13 05:16 | [YMP-134](README.md#ymp-134) | `[~]` | Independent source review continues on b01ffe7. Parent terminal checks on the existing author binary confirm full Detailed report expansion and visible theme, model-prompt and confirmation controls at 80 and 60 columns. Captures retained under evidence/ui-followups-134/parent-surfaces; final combined source and installed executable remain pending. |
 | 2026-09-13 05:04 | [YMP-133](README.md#ymp-133) | `[~]` | Owner explicitly requested implementing the tables and integrating all fixes. YMP-133 and YMP-134 will ship together; table implementation starts from the combined 0.4.2 plus authored UI corrections. Claude Code Opus 5 max owns implementation, with independent review and installed-binary verification before completion. |
 | 2026-09-13 04:25 | [YMP-131](README.md#ymp-131) | `[x]` | Installed ymp 0.4.2 after independent Opus UI acceptance and review corrections. First Ctrl+C only prompts; second exits gracefully. Printed resume commands always include the saved metadata home. Final integration passes 461 Rust tests, 18 bridge tests and idle/active release-binary PTY checks. |
 | 2026-09-13 04:25 | [YMP-132](README.md#ymp-132) | `[x]` | Installed ymp 0.4.2 with raw resolved model scan labels and invocation model/effort work labels; undefined effort displays none by explicit owner preference. Captions do not identify agents. Exact origins survive follow-up and cross-session display; late settings refresh unsettled cached links. Public Claude hooks capture applied main-turn effort and tool activity. Independent backend/UI reviews and final physical CLI/PTY checks pass. Non-message historical table-view observations remain explicitly tracked in YMP-133. |

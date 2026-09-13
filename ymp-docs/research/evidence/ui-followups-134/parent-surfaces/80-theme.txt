@@ -1,0 +1,24 @@
+ymp  project                                 3fb15ffc  ✓ completed  — tok  8/200
+────────────────────────────────────────────────────────────────────────────────
+    The requested artifact is complete and           │ SESSION
+    indepe                                                            completed
+           ┌ Colour theme ────────────────────────── saved on Enter ┐   8 / 200
+    Accept │ › Ember     dark                                       │ y/project
+    unconf │   Warm amber on black. The default ymp palette.        │
+           │   Slate     dark                                       │         —
+    Worksp │   Paper     light                                      │         —
+    /priva │   Contrast  high contrast                              │         —
+    00000g │   Terminal  terminal palette                           │
+           │                                                        │ s session
+  · unknow │ The whole interface previews as you move.              │      idle
+    Termin │                                                        │      idle
+           │ Up/Down preview  Enter keep  Esc cancel                │
+    Termin └────────────────────────────────────────────────────────┘
+                                                                          1 / 1
+    Terminal detail paragraph 3.                     │
+                                                     │
+    17 more lines · Enter to read the full report    │
+  ◇ Session loaded for reading. Send a mess…  05:15  │
+────────────────────────────────────────────────────────────────────────────────
+› Describe a task, or type / for commands.
+Ready                            composer Enter send  Ctrl+P commands  Tab focus

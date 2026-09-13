@@ -1,0 +1,24 @@
+ymp  project             3fb15ffc  ✓ completed  — tok  8/200
+────────────────────────────────────────────────────────────
+ Agent profiles  /agents                         3 profiles
+────────────────────────────────────────────────────────────
+
+  ┌ Model for atlas ───────────────────── saved on Enter ┐
+  │ ›                                                    │
+  │                                                      │
+  │ Leave empty, or type default, to inherit the         │
+  │ provider's model.                                    │
+  │                                                      │
+  │ Enter save  Esc cancel                               │
+  └──────────────────────────────────────────────────────┘
+─                                                          ─
+  profile           atlas
+  model             Atlas
+  asks for          no model; the installation would
+                    choose
+  metadata from     the configuration · a local provider
+                    has no native identity
+  provider          demo
+────────────────────────────────────────────────────────────
+› Describe a task, or type / for commands.
+Ready  main m model  i instructions  Space enable  t team  r
