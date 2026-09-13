@@ -1,0 +1,52 @@
+   Compiling ymp-tui v0.4.3 (/private/tmp/ymp132-agent-attribution/ymp-rust/crates/ymp-tui)
+    Finished `test` profile [unoptimized] target(s) in 2.54s
+     Running unittests src/lib.rs (/tmp/ymp132-test-target/debug/deps/ymp_tui-f17bc405a46a6861)
+
+running 6 tests
+test tests::selection_stays_in_its_own_table_when_a_key_repeats_on_the_page ... FAILED
+test tests::selection_stays_on_an_edited_profile_that_its_sort_moves ... FAILED
+test tests::selection_table_counts_records_sorts_values_as_figures_and_filter_typing_ends_with_focus ... FAILED
+test tests::the_theme_chooser_keeps_its_selection_in_view_on_a_short_terminal ... ok
+test tests::the_palette_keeps_its_selection_in_view_on_a_short_terminal ... ok
+test tests::selection_follows_a_live_update_that_moves_its_record_before_the_next_frame ... FAILED
+
+failures:
+
+---- tests::selection_stays_in_its_own_table_when_a_key_repeats_on_the_page stdout ----
+
+thread 'tests::selection_stays_in_its_own_table_when_a_key_repeats_on_the_page' panicked at ymp-rust/crates/ymp-tui/src/tests.rs:9191:5:
+assertion `left == right` failed
+  left: ("Members of the next run", "codex")
+ right: ("Available on this machine", "codex")
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- tests::selection_stays_on_an_edited_profile_that_its_sort_moves stdout ----
+
+thread 'tests::selection_stays_on_an_edited_profile_that_its_sort_moves' panicked at ymp-rust/crates/ymp-tui/src/tests.rs:9147:5:
+assertion `left == right` failed: the selection stayed on a position instead of the edited profile
+  left: "codex"
+ right: "glm"
+
+---- tests::selection_table_counts_records_sorts_values_as_figures_and_filter_typing_ends_with_focus stdout ----
+
+thread 'tests::selection_table_counts_records_sorts_values_as_figures_and_filter_typing_ends_with_focus' panicked at ymp-rust/crates/ymp-tui/src/tests.rs:9283:5:
+the record count includes an explanatory note:
+ymp  .tmpSIymDF  /var/folders/cw/7pn8sb3x6bj69g7j2d8f_ss00000gn/T/.tmpSIymDF no session  0 / 4 turns──────────────────────────────────────────────────────────────────────────────────────────────────── Limits[6]  /limits                     No captured limits were read │ SESSION                      ─────────────────────────────────────────────────────────────────────│ none · the next message open  › ◇ What a limit is, and which run it applies to  what this page…   │ turns next run         0 / 4                                                                      │ dir …_ss00000gn/T/.tmpSIymDF    THIS SESSION, AS CAPTURED                                         │                                 LIMIT  VALUE                                                      │ TOKENS                     —    ○ No session is loaded, so nothing was read  nothing captured     │ none · nothing spent yet                                                                          │                                 THE NEXT RUN                                                      │ TEAM                next run    LIMIT     VALUE                                                   │ AGENT            STATE          parallel  12                                                      │ ○ unknown model  idle           turns     4                                                       │ ○ unknown model  idle           timeout   300 s                                                   │                                 attempts  30                                                      │ TASKS                                                                                             │ no task graph yet                                                                                 │                                                                                                   │                                                                                                   │                                                                                                   │                                                                                                   │                                                                                                   │                                                                                                   │                                                                                                   │                                                                                                   │                                                                                                   │                              ────────────────────────────────────────────────────────────────────────────────────────────────────› Describe a task, or type / for commands.                                                          Ready main + / - adjust the next run  Enter type a value, or read the record  Esc back  / filter  S…
+
+---- tests::selection_follows_a_live_update_that_moves_its_record_before_the_next_frame stdout ----
+
+thread 'tests::selection_follows_a_live_update_that_moves_its_record_before_the_next_frame' panicked at ymp-rust/crates/ymp-tui/src/tests.rs:9257:5:
+assertion `left == right` failed: a live update left the selection on the position its record moved away from
+  left: "4aba8df7-d13e-41ac-9783-98c0ef2f3623"
+ right: "fb420c77-ba72-46f0-837a-7f0665add05a"
+
+
+failures:
+    tests::selection_follows_a_live_update_that_moves_its_record_before_the_next_frame
+    tests::selection_stays_in_its_own_table_when_a_key_repeats_on_the_page
+    tests::selection_stays_on_an_edited_profile_that_its_sort_moves
+    tests::selection_table_counts_records_sorts_values_as_figures_and_filter_typing_ends_with_focus
+
+test result: FAILED. 2 passed; 4 failed; 0 ignored; 0 measured; 196 filtered out; finished in 0.59s
+
+error: test failed, to rerun pass `-p ymp-tui --lib`

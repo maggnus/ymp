@@ -20,6 +20,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("binary", type=pathlib.Path)
     parser.add_argument("--output", type=pathlib.Path)
+    parser.add_argument("--ascii", action="store_true", help="Use ASCII semantic markers via LC_ALL=C")
     args = parser.parse_args()
     binary = args.binary.resolve()
     root = args.output or pathlib.Path(tempfile.mkdtemp(prefix="ymp133-terminal-"))
@@ -68,7 +69,10 @@ provider = "demo"
     before = {p.name: hashlib.sha256(p.read_bytes()).hexdigest()
               for p in project.iterdir() if p.is_file()}
     socket = "ymp133-" + uuid.uuid4().hex[:12]
-    report = {"binary": str(binary), "native_inference": False, "cases": []}
+    report = {"binary": str(binary), "ascii": args.ascii, "native_inference": False, "cases": []}
+    selection = ">" if args.ascii else "›"
+    descending = "v" if args.ascii else "↓"
+    vertical = "|" if args.ascii else "│"
 
     def tmux(*args, check=True):
         return subprocess.run(["tmux", "-L", socket, *args],
@@ -116,6 +120,7 @@ provider = "demo"
 
     try:
         tmux("new-session", "-d", "-s", "check", "-x", "140", "-y", "45",
+             *(["env", "LC_ALL=C"] if args.ascii else []),
              str(binary), "--home", str(home), "-C", str(project), "resume", session)
         wait_for(lambda s: "ymp" in s and "SESSION" in s, "startup")
         text = capture("wide-chat")
@@ -134,6 +139,17 @@ provider = "demo"
         text = capture("files-default")
         assert all(title in text for title in ("NAME", "SIZE")), "missing table headers"
         passed("files-table")
+
+        type_text("/m-")
+        tmux("set-buffer", "-b", "ymp-check", "small")
+        tmux("paste-buffer", "-p", "-b", "ymp-check", "-t", "check")
+        wait_for(lambda s: "m-small.txt" in s and "a-large.txt" not in s
+                 and "z-medium.txt" not in s, "pasted-filter")
+        text = capture("files-pasted-filter")
+        assert "Describe a task" in text.splitlines()[-2], "filter paste leaked into the composer"
+        keys("Enter", "Escape")
+        wait_for(lambda s: all(name in s for name in files), "pasted-filter-clear")
+        passed("paste-stays-in-filter")
 
         # A substring matches names but does not accidentally match the size or file kind.
         type_text("/m-small")
@@ -228,16 +244,16 @@ provider = "demo"
         text = capture("team-pool-sort-twice")
         lines = text.splitlines()
         pool_line = next(i for i, row in enumerate(lines) if "AVAILABLE ON THIS MACHINE" in row)
-        selected = next(i for i, row in enumerate(lines[2:-3], 2) if row.lstrip().startswith("›"))
+        selected = next(i for i, row in enumerate(lines[2:-3], 2) if row.lstrip().startswith(selection))
         assert selected > pool_line, "sorting a pool row jumped to a member row with the same ID"
-        assert "MODEL ↓" in "\n".join(lines[pool_line:]), "pool sort did not cycle to descending"
+        assert f"MODEL {descending}" in "\n".join(lines[pool_line:]), "pool sort did not cycle to descending"
         passed("team-selection-keeps-table-identity")
 
         tmux("resize-window", "-t", "check", "-x", "120", "-y", "36")
         time.sleep(0.2)
         keys("C-t")
         text = capture("theme-sidebar-divider")
-        assert all(len(row) > 89 and row[89] == "│"
+        assert all(len(row) > 89 and row[89] == vertical
                    for row in text.splitlines()[2:33]), "theme margin erased the sidebar divider"
         keys("Escape")
         passed("modal-margin-preserves-sidebar-divider")
@@ -246,13 +262,13 @@ provider = "demo"
         time.sleep(0.2)
         keys("C-p", "Down", "Down", "Down", "Down")
         text = capture("short-palette-selection")
-        assert re.search(r"›\s+/tasks\b", text), "selected command is outside the visible palette"
+        assert re.search(re.escape(selection) + r"\s+/tasks\b", text), "selected command is outside the visible palette"
         keys("Escape")
         tmux("resize-window", "-t", "check", "-x", "80", "-y", "10")
         time.sleep(0.2)
         keys("C-t", "Down", "Down", "Down", "Down")
         text = capture("short-theme-selection")
-        assert re.search(r"›\s+Terminal\b", text), "selected theme is outside the visible chooser"
+        assert re.search(re.escape(selection) + r"\s+Terminal\b", text), "selected theme is outside the visible chooser"
         keys("Escape")
         passed("short-surface-selection-stays-visible")
 

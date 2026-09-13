@@ -3276,6 +3276,11 @@
           "at": "2026-09-13T06:29:28.822752+00:00",
           "status": "in_progress",
           "note": "Parent physically reproduced selection defect R1: in Agents sorted by ENABLED, Space on Cygnus followed by Space changed Boreal instead of restoring Cygnus. Added this semantic action-target check and same-table Team sort coverage to the terminal runner. Evidence retained in selection-negative. Corrective high-effort UI work continues before release."
+        },
+        {
+          "at": "2026-09-13T06:49:06.365734+00:00",
+          "status": "in_progress",
+          "note": "Selection fix5dd98cc is integrated and exactly matches independently accepted snapshot5e2506f. Parent extended terminal check passes all17 scenarios, including the previously failing profile toggle and same-table Team sorting. The author and parent full workspace checks pass495 tests. Final small paste/filter-focus and pending-Home corrections are being completed before packaging; no new table features are being added."
         }
       ]
     },
@@ -3370,7 +3375,7 @@
       ]
     }
   ],
-  "updated_at": "2026-09-13T06:29:28.822752+00:00",
+  "updated_at": "2026-09-13T06:49:06.365734+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",
