@@ -1,0 +1,299 @@
+{
+  "calls": [
+    {
+      "agent": "author",
+      "purpose": "plan"
+    },
+    {
+      "agent": "fourth",
+      "purpose": "review_plan"
+    },
+    {
+      "agent": "author",
+      "purpose": "execute"
+    },
+    {
+      "agent": "fourth",
+      "purpose": "review"
+    },
+    {
+      "agent": "author",
+      "purpose": "execute"
+    },
+    {
+      "agent": "reviewer",
+      "purpose": "execute"
+    },
+    {
+      "agent": "reviewer",
+      "purpose": "review"
+    },
+    {
+      "agent": "reserve",
+      "purpose": "review"
+    },
+    {
+      "agent": "reserve",
+      "purpose": "review"
+    },
+    {
+      "agent": "author",
+      "purpose": "review"
+    },
+    {
+      "agent": "author",
+      "purpose": "execute"
+    },
+    {
+      "agent": "reviewer",
+      "purpose": "execute"
+    },
+    {
+      "agent": "reviewer",
+      "purpose": "review"
+    },
+    {
+      "agent": "fourth",
+      "purpose": "review"
+    },
+    {
+      "agent": "author",
+      "purpose": "execute"
+    },
+    {
+      "agent": "reviewer",
+      "purpose": "execute"
+    },
+    {
+      "agent": "reviewer",
+      "purpose": "review"
+    },
+    {
+      "agent": "fourth",
+      "purpose": "review"
+    },
+    {
+      "agent": "fourth",
+      "purpose": "final_review"
+    },
+    {
+      "agent": "fourth",
+      "purpose": "synthesis"
+    }
+  ],
+  "first_status": "blocked",
+  "first_tasks": [
+    {
+      "access": "read_only",
+      "assignee": "author",
+      "attempts": 1,
+      "base_commit": null,
+      "checks": [],
+      "competence": "analysis",
+      "dependencies": [],
+      "description": "Return finding 0",
+      "difficulty": "simple",
+      "id": "8a6027dc-cac8-4fb7-b061-58153cc7c972",
+      "interrupted": false,
+      "result": "Completed T0",
+      "reviewer": "fourth",
+      "session_id": "dd6581bc-9a1a-4cfc-aa98-1de213c1964e",
+      "state": "accepted",
+      "title": "T0",
+      "workspace": "/private/tmp/ymp146-recovery-review/execute-n-EPCEmz/work"
+    },
+    {
+      "access": "read_only",
+      "assignee": "author",
+      "attempts": 1,
+      "base_commit": null,
+      "checks": [],
+      "competence": "analysis",
+      "dependencies": [
+        "8a6027dc-cac8-4fb7-b061-58153cc7c972"
+      ],
+      "description": "Return finding 1",
+      "difficulty": "simple",
+      "id": "54235489-e00e-4e5d-9cf0-f376a4789dca",
+      "interrupted": false,
+      "result": null,
+      "reviewer": null,
+      "session_id": "dd6581bc-9a1a-4cfc-aa98-1de213c1964e",
+      "state": "running",
+      "title": "T1",
+      "workspace": "/private/tmp/ymp146-recovery-review/execute-n-EPCEmz/work"
+    },
+    {
+      "access": "read_only",
+      "assignee": "reviewer",
+      "attempts": 1,
+      "base_commit": null,
+      "checks": [],
+      "competence": "analysis",
+      "dependencies": [
+        "8a6027dc-cac8-4fb7-b061-58153cc7c972"
+      ],
+      "description": "Return finding 2",
+      "difficulty": "simple",
+      "id": "8e1c3e4c-df3b-414e-9f69-a077b403c170",
+      "interrupted": false,
+      "result": null,
+      "reviewer": null,
+      "session_id": "dd6581bc-9a1a-4cfc-aa98-1de213c1964e",
+      "state": "running",
+      "title": "T2",
+      "workspace": "/private/tmp/ymp146-recovery-review/execute-n-EPCEmz/work"
+    },
+    {
+      "access": "read_only",
+      "assignee": null,
+      "attempts": 0,
+      "base_commit": null,
+      "checks": [],
+      "competence": "analysis",
+      "dependencies": [
+        "8a6027dc-cac8-4fb7-b061-58153cc7c972"
+      ],
+      "description": "Return finding 3",
+      "difficulty": "simple",
+      "id": "ea4ef310-0be6-4eb0-93ed-80f450982c06",
+      "interrupted": false,
+      "result": null,
+      "reviewer": null,
+      "session_id": "dd6581bc-9a1a-4cfc-aa98-1de213c1964e",
+      "state": "ready",
+      "title": "T3",
+      "workspace": null
+    },
+    {
+      "access": "read_only",
+      "assignee": null,
+      "attempts": 0,
+      "base_commit": null,
+      "checks": [],
+      "competence": "analysis",
+      "dependencies": [
+        "54235489-e00e-4e5d-9cf0-f376a4789dca",
+        "8e1c3e4c-df3b-414e-9f69-a077b403c170"
+      ],
+      "description": "Return finding 4",
+      "difficulty": "simple",
+      "id": "01454acd-fbc6-4fc5-9419-a913b6c5d02f",
+      "interrupted": false,
+      "result": null,
+      "reviewer": null,
+      "session_id": "dd6581bc-9a1a-4cfc-aa98-1de213c1964e",
+      "state": "ready",
+      "title": "T4",
+      "workspace": null
+    }
+  ],
+  "second_status": "completed",
+  "second_tasks": [
+    {
+      "access": "read_only",
+      "assignee": "author",
+      "attempts": 1,
+      "base_commit": null,
+      "checks": [],
+      "competence": "analysis",
+      "dependencies": [],
+      "description": "Return finding 0",
+      "difficulty": "simple",
+      "id": "8a6027dc-cac8-4fb7-b061-58153cc7c972",
+      "interrupted": false,
+      "result": "Completed T0",
+      "reviewer": "fourth",
+      "session_id": "dd6581bc-9a1a-4cfc-aa98-1de213c1964e",
+      "state": "accepted",
+      "title": "T0",
+      "workspace": "/private/tmp/ymp146-recovery-review/execute-n-EPCEmz/work"
+    },
+    {
+      "access": "read_only",
+      "assignee": "author",
+      "attempts": 2,
+      "base_commit": null,
+      "checks": [],
+      "competence": "analysis",
+      "dependencies": [
+        "8a6027dc-cac8-4fb7-b061-58153cc7c972"
+      ],
+      "description": "Return finding 1",
+      "difficulty": "simple",
+      "id": "54235489-e00e-4e5d-9cf0-f376a4789dca",
+      "interrupted": false,
+      "result": "Completed T1",
+      "reviewer": "reviewer",
+      "session_id": "dd6581bc-9a1a-4cfc-aa98-1de213c1964e",
+      "state": "accepted",
+      "title": "T1",
+      "workspace": "/private/tmp/ymp146-recovery-review/execute-n-EPCEmz/work"
+    },
+    {
+      "access": "read_only",
+      "assignee": "reviewer",
+      "attempts": 2,
+      "base_commit": null,
+      "checks": [],
+      "competence": "analysis",
+      "dependencies": [
+        "8a6027dc-cac8-4fb7-b061-58153cc7c972"
+      ],
+      "description": "Return finding 2",
+      "difficulty": "simple",
+      "id": "8e1c3e4c-df3b-414e-9f69-a077b403c170",
+      "interrupted": false,
+      "result": "Completed T2",
+      "reviewer": "fourth",
+      "session_id": "dd6581bc-9a1a-4cfc-aa98-1de213c1964e",
+      "state": "accepted",
+      "title": "T2",
+      "workspace": "/private/tmp/ymp146-recovery-review/execute-n-EPCEmz/work"
+    },
+    {
+      "access": "read_only",
+      "assignee": "author",
+      "attempts": 1,
+      "base_commit": null,
+      "checks": [],
+      "competence": "analysis",
+      "dependencies": [
+        "8a6027dc-cac8-4fb7-b061-58153cc7c972"
+      ],
+      "description": "Return finding 3",
+      "difficulty": "simple",
+      "id": "ea4ef310-0be6-4eb0-93ed-80f450982c06",
+      "interrupted": false,
+      "result": "Completed T3",
+      "reviewer": "reviewer",
+      "session_id": "dd6581bc-9a1a-4cfc-aa98-1de213c1964e",
+      "state": "accepted",
+      "title": "T3",
+      "workspace": "/private/tmp/ymp146-recovery-review/execute-n-EPCEmz/work"
+    },
+    {
+      "access": "read_only",
+      "assignee": "reviewer",
+      "attempts": 1,
+      "base_commit": null,
+      "checks": [],
+      "competence": "analysis",
+      "dependencies": [
+        "54235489-e00e-4e5d-9cf0-f376a4789dca",
+        "8e1c3e4c-df3b-414e-9f69-a077b403c170"
+      ],
+      "description": "Return finding 4",
+      "difficulty": "simple",
+      "id": "01454acd-fbc6-4fc5-9419-a913b6c5d02f",
+      "interrupted": false,
+      "result": "Completed T4",
+      "reviewer": "fourth",
+      "session_id": "dd6581bc-9a1a-4cfc-aa98-1de213c1964e",
+      "state": "accepted",
+      "title": "T4",
+      "workspace": "/private/tmp/ymp146-recovery-review/execute-n-EPCEmz/work"
+    }
+  ],
+  "summary": "Completed\n\nAcceptance: accepted; confirmation: unconfirmed."
+}

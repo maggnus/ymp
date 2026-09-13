@@ -1,0 +1,48 @@
+{
+  "source_commit": "cfdceff06cc703352b1234892729fb72a85dbf09",
+  "reviewer": "52111c72-73e2-4ddc-b677-5573306ba1a9",
+  "native_inference": false,
+  "verdict": "RETURN",
+  "files": [
+    {
+      "path": "probe/tests/review.rs",
+      "sha256": "59c4e3c410c17dce98292b638c119a2bbd0f2525461137a8c73dc80438033012",
+      "bytes": 21977
+    },
+    {
+      "path": "probe/Cargo.toml",
+      "sha256": "8e556bb2dfc80132ed2e5a8a004a2dff8db2e366a7b0d3e3663230714bbc1fe3",
+      "bytes": 732
+    },
+    {
+      "path": "review-result.json",
+      "sha256": "b48c6042db71651ffcd4ff3093ef760a34181cc783a0f749bce28840230ad686",
+      "bytes": 3613
+    },
+    {
+      "path": "legacy-true.json",
+      "sha256": "cde252bdcc8c66c53e0fd85ce46948edd2721fed5e4f1a344fb82422e0470fb7",
+      "bytes": 2686
+    },
+    {
+      "path": "legacy-false.json",
+      "sha256": "9bef0a3527d2fa52610fcf20cf527ef67542d177933608739c1ea4ce94e37bda",
+      "bytes": 6740
+    },
+    {
+      "path": "execute-n-first.json",
+      "sha256": "47acd5fc6dffa823164d4dd5d38b09a2a22fd35ac1ee24940efb0601d375684b",
+      "bytes": 65724
+    },
+    {
+      "path": "execute-n.json",
+      "sha256": "945f64c68fb1820e24fd0e4293e4a904aae714c0f035d4696ea8a3090c0f0710",
+      "bytes": 7814
+    },
+    {
+      "path": "external-probes-final.log",
+      "sha256": "00df1e3a1f5f9ae07edb48462ad55690284bbd4c5be712e120fe99a5bffc8d83",
+      "bytes": 3939
+    }
+  ]
+}

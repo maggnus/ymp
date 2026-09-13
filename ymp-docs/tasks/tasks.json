@@ -3968,7 +3968,8 @@
       ],
       "evidence": [
         "ymp-docs/architecture/session-recovery-contract.md",
-        "ymp-docs/evidence/ymp-146/acceptance-round1.md"
+        "ymp-docs/evidence/ymp-146/acceptance-round1.md",
+        "ymp-docs/evidence/ymp-146/independent-recovery/manifest.json"
       ],
       "history": [
         {
@@ -4025,6 +4026,11 @@
           "at": "2026-09-13T16:40:12.495834+00:00",
           "status": "in_progress",
           "note": "Authority review RETURN: ready board commitments can strand departing participants and block continuation; membership changes can silently clear explicit stage Wait/OwnerAction and grant a manual attempt. Parent confirmed source paths and requires executable regressions plus bounded fixes in an isolated rework fork, preserving originalcfdcefffor the parallel recovery probe. Other observations are recorded with their actual evidence limits; backend remains unaccepted."
+        },
+        {
+          "at": "2026-09-13T16:50:08.161678+00:00",
+          "status": "in_progress",
+          "note": "Executable recovery review alsoRETURN: bounded known-ended legacywrite_allreview has no inspection-to-continuation consumer; twoexecute failures cause occupied-actor selection/claim_busy before independentreadywork. MatchedReadAlland explicitresume controls isolate both gaps. All17existingrecoverytests pass and33sourcehashesmatch; four external probes show2passes/2acceptancefailures. Exact probes/traces retained with hashes. Isolated correction fork05b8bc7c now owns all four required findings; no guard bypass, new fork or live-session action."
         }
       ]
     },
@@ -4240,7 +4246,7 @@
       ]
     }
   ],
-  "updated_at": "2026-09-13T16:40:12.495834+00:00",
+  "updated_at": "2026-09-13T16:50:08.161678+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",

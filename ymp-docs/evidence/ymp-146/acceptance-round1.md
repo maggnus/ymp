@@ -50,7 +50,64 @@ policy/admission. Preserve explicit waits and require the appropriate continuati
 command. Use a typed reason where needed, not fragile matching of display text.
 Tests must observe actual invocation counts and retained state/counters.
 
-## Additional observations
+## R3: legacy write-capable review has no usable inspection consumer
+
+The recovery reviewer `52111c72-73e2-4ddc-b677-5573306ba1a9` executed a public-API
+probe against the same immutable cfdceff. It reconstructs a pre-146 proposal,
+invocations, access and membership. The scripted backend has ended, its single
+local effect is known, and no remote execution exists. Nevertheless the stage
+remains OwnerAction with only Wait/Pause; Continue and Retry reject with
+uncertain_effects. Valid reviewer replacement and general continuation still
+produce zero new invocations and zero tasks.
+
+InspectEffects only records OwnerAction; the runtime has no consumer to perform
+inspection and bind its outcome to the saved stage. The matched ReadAll control
+continues and completes without duplicate planning, distinguishing this gap from
+an intrinsically unverifiable remote effect.
+
+Required outcome: an independently admitted, recorded inspection with applicable
+termination/effect evidence and stage/result-version binding, followed by a real
+safe continuation path. Retain historical uncertainty and its resolution evidence;
+do not clear old failures, trust an unverified safe flag, or waive the guard.
+Unknown external execution may still require waiting, but the reproducibly bounded
+local case must be recoverable. Reuse the ordinary access, budget, attribution,
+confirmation and independent-review boundaries. Preserve explicit owner pauses.
+
+Source: runtime/engine/recovery.rs367 and storage/recovery.rs146. Retained probe
+data: independent-recovery/legacy-true.json and legacy-false.json.
+
+## R4: failed executors remain occupied but are selected for independent work
+
+An executed five-task probe accepts T0, then T1/T2 fail with transport errors and
+retain Running responsibility. Independent T3 is ready; a free eligible executor
+on another provider and an independent reviewer fit the team ceiling. Selection
+nevertheless chooses a participant still responsible for a failed task. Storage
+correctly rejects it with claim_busy, stopping the session before T3 executes.
+
+Explicit resume inspects/reworks interrupted results and accepts all five tasks,
+retaining the original T0 acceptance. These results remain unconfirmed as the
+fixture's actual evidence requires. The control demonstrates retained work, but
+does not make the first run's scheduling failure acceptable.
+
+Required outcome: candidate selection accounts for retained responsibilities
+across waves and failed execution, allowing genuinely independent ready work when
+admission is feasible. Preserve claim_busy and write ownership; never permit one
+actor to take conflicting work merely to satisfy the test. Integrate appropriate
+interruption inspection/continuation boundaries without requiring an unrelated
+manual resume solely to repair scheduler bookkeeping.
+
+Source: runtime/engine.rs2471 and storage/board.rs319. Probe data:
+independent-recovery/execute-n-first.json and execute-n.json.
+
+The recovery reviewer ran all 17 public session_recovery tests and one failure
+classification test successfully. Its four external probes have two passes and
+the two expected acceptance failures above; additional revision/arbitration
+continuation controls retain objections and origin. All 33 declared source hashes
+matched. New access declarations in old fixtures match their executable behavior;
+the reviewer found no weakened assertions there. Only macOS arm64 with scripted
+providers was exercised. Linux/native provider behavior remains unverified.
+
+## Additional authority observations
 
 - Team and recovery command receipts use separate namespaces. Reusing an ID
   across the two APIs executes two commands; within one API, changed content is

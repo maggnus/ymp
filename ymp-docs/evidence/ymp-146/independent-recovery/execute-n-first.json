@@ -1,0 +1,2137 @@
+{
+  "allocations": [
+    {
+      "accepted": true,
+      "implementation": {
+        "id": "ymp.bounded-allocation",
+        "version": "2"
+      },
+      "input": {
+        "boundary": "startup",
+        "budget": {
+          "admitted_invocations": 0,
+          "in_flight_invocations": 0,
+          "last_denial": null,
+          "limits": {
+            "attempts": 3,
+            "parallel": 2,
+            "resources": {
+              "invocation_tokens": null,
+              "max_context_chars": 128000,
+              "max_output_chars": 64000,
+              "native_max_turns": 16,
+              "observed_tokens": null,
+              "required_review_invocations": 2,
+              "review_reserve_tokens": null,
+              "startup_context_chars": 32000,
+              "startup_invocations": 6,
+              "unknown_usage": "stop"
+            },
+            "turn_timeout_secs": 10,
+            "turns": 200
+          },
+          "observed_token_overshoot": null,
+          "observed_usage": {
+            "calls": 0,
+            "counts": {
+              "cache_read": null,
+              "cache_write": null,
+              "input": null,
+              "output": null,
+              "reasoning": null
+            },
+            "open_calls": 0,
+            "partial_calls": 0,
+            "reported": 0
+          },
+          "protected_review_invocations": 2,
+          "protected_review_tokens": null,
+          "reserved_tokens": null,
+          "startup_invocations": 0,
+          "strict_token_bound": false
+        },
+        "candidates": [
+          {
+            "agent_id": "author",
+            "configuration_version": "c08980ef211bc1f3443e3054",
+            "experience": {
+              "failures": 0,
+              "successes": 0
+            },
+            "settings": {}
+          },
+          {
+            "agent_id": "reviewer",
+            "configuration_version": "b90b9319527f8fdeb959346d",
+            "experience": {
+              "failures": 0,
+              "successes": 0
+            },
+            "settings": {}
+          },
+          {
+            "agent_id": "reserve",
+            "configuration_version": "7804fb16b8944bfd1239736b",
+            "experience": {
+              "failures": 0,
+              "successes": 0
+            },
+            "settings": {}
+          },
+          {
+            "agent_id": "fourth",
+            "configuration_version": "5185a38614f6a4b97d1ed35f",
+            "experience": {
+              "failures": 0,
+              "successes": 0
+            },
+            "settings": {}
+          }
+        ],
+        "constraints": {
+          "eligible_agents": null,
+          "fixed_roster": null,
+          "fixed_size": null,
+          "max_members": 4
+        },
+        "current": null,
+        "demand": {
+          "competence": "planning",
+          "difficulty": "standard",
+          "purpose": "plan",
+          "ready_work": 1,
+          "risk": "standard",
+          "task_id": null
+        },
+        "eligible": [
+          {
+            "enabled": true,
+            "id": "author",
+            "instructions": "Scripted fixture",
+            "model": null,
+            "name": "author",
+            "provider": "offline"
+          },
+          {
+            "enabled": true,
+            "id": "reviewer",
+            "instructions": "Scripted fixture",
+            "model": null,
+            "name": "reviewer",
+            "provider": "offline"
+          },
+          {
+            "enabled": true,
+            "id": "reserve",
+            "instructions": "Scripted fixture",
+            "model": null,
+            "name": "reserve",
+            "provider": "healthy"
+          },
+          {
+            "enabled": true,
+            "id": "fourth",
+            "instructions": "Scripted fixture",
+            "model": null,
+            "name": "fourth",
+            "provider": "healthy"
+          }
+        ],
+        "evidence": [],
+        "goal": "Return five findings",
+        "occupied_agent_ids": [],
+        "producer_ids": [],
+        "session_id": "dd6581bc-9a1a-4cfc-aa98-1de213c1964e",
+        "suggestions": []
+      },
+      "proposal": {
+        "executor": {
+          "agent_id": "author",
+          "configuration_version": "c08980ef211bc1f3443e3054",
+          "experience": {
+            "failures": 0,
+            "successes": 0
+          },
+          "settings": {}
+        },
+        "members": [
+          "author",
+          "fourth"
+        ],
+        "method": "direct_and_check",
+        "rationale": "Bounded plan work at Startup; complexity=standard, risk=Standard, ready=1; preserve an independent final reviewer; rank exact native configurations by qualified experience. Failure requires reconsidering evidence, not automatic escalation.",
+        "reserved_final_reviewer": "fourth"
+      },
+      "reason": "Bounded plan work at Startup; complexity=standard, risk=Standard, ready=1; preserve an independent final reviewer; rank exact native configurations by qualified experience. Failure requires reconsidering evidence, not automatic escalation."
+    },
+    {
+      "accepted": true,
+      "implementation": {
+        "id": "ymp.bounded-allocation",
+        "version": "2"
+      },
+      "input": {
+        "boundary": "work_ready",
+        "budget": {
+          "admitted_invocations": 0,
+          "in_flight_invocations": 0,
+          "last_denial": null,
+          "limits": {
+            "attempts": 3,
+            "parallel": 2,
+            "resources": {
+              "invocation_tokens": null,
+              "max_context_chars": 128000,
+              "max_output_chars": 64000,
+              "native_max_turns": 16,
+              "observed_tokens": null,
+              "required_review_invocations": 2,
+              "review_reserve_tokens": null,
+              "startup_context_chars": 32000,
+              "startup_invocations": 6,
+              "unknown_usage": "stop"
+            },
+            "turn_timeout_secs": 10,
+            "turns": 200
+          },
+          "observed_token_overshoot": null,
+          "observed_usage": {
+            "calls": 0,
+            "counts": {
+              "cache_read": null,
+              "cache_write": null,
+              "input": null,
+              "output": null,
+              "reasoning": null
+            },
+            "open_calls": 0,
+            "partial_calls": 0,
+            "reported": 0
+          },
+          "protected_review_invocations": 2,
+          "protected_review_tokens": null,
+          "reserved_tokens": null,
+          "startup_invocations": 0,
+          "strict_token_bound": false
+        },
+        "candidates": [
+          {
+            "agent_id": "author",
+            "configuration_version": "c08980ef211bc1f3443e3054",
+            "experience": {
+              "failures": 0,
+              "successes": 0
+            },
+            "settings": {}
+          },
+          {
+            "agent_id": "fourth",
+            "configuration_version": "5185a38614f6a4b97d1ed35f",
+            "experience": {
+              "failures": 0,
+              "successes": 0
+            },
+            "settings": {}
+          }
+        ],
+        "constraints": {
+          "eligible_agents": null,
+          "fixed_roster": null,
+          "fixed_size": null,
+          "max_members": 4
+        },
+        "current": {
+          "current_members": [
+            "author",
+            "fourth"
+          ],
+          "eligible_agents": [
+            "author",
+            "reviewer",
+            "reserve",
+            "fourth"
+          ],
+          "method": "direct_and_check",
+          "reserved_final_reviewer": "fourth",
+          "revision": 1,
+          "session_id": "dd6581bc-9a1a-4cfc-aa98-1de213c1964e",
+          "updated_at": "2026-09-13T16:43:16.843762+00:00"
+        },
+        "demand": {
+          "competence": "planning",
+          "difficulty": "standard",
+          "purpose": "plan",
+          "ready_work": 1,
+          "risk": "standard",
+          "task_id": null
+        },
+        "eligible": [
+          {
+            "enabled": true,
+            "id": "author",
+            "instructions": "Scripted fixture",
+            "model": null,
+            "name": "author",
+            "provider": "offline"
+          },
+          {
+            "enabled": true,
+            "id": "reviewer",
+            "instructions": "Scripted fixture",
+            "model": null,
+            "name": "reviewer",
+            "provider": "offline"
+          },
+          {
+            "enabled": true,
+            "id": "reserve",
+            "instructions": "Scripted fixture",
+            "model": null,
+            "name": "reserve",
+            "provider": "healthy"
+          },
+          {
+            "enabled": true,
+            "id": "fourth",
+            "instructions": "Scripted fixture",
+            "model": null,
+            "name": "fourth",
+            "provider": "healthy"
+          }
+        ],
+        "evidence": [],
+        "goal": "Return five findings",
+        "occupied_agent_ids": [],
+        "producer_ids": [],
+        "session_id": "dd6581bc-9a1a-4cfc-aa98-1de213c1964e",
+        "suggestions": []
+      },
+      "proposal": {
+        "executor": {
+          "agent_id": "author",
+          "configuration_version": "c08980ef211bc1f3443e3054",
+          "experience": {
+            "failures": 0,
+            "successes": 0
+          },
+          "settings": {}
+        },
+        "members": [
+          "author",
+          "fourth"
+        ],
+        "method": "direct_and_check",
+        "rationale": "Bounded plan work at WorkReady; complexity=standard, risk=Standard, ready=1; preserve an independent final reviewer; rank exact native configurations by qualified experience. Failure requires reconsidering evidence, not automatic escalation.",
+        "reserved_final_reviewer": "fourth"
+      },
+      "reason": "Bounded plan work at WorkReady; complexity=standard, risk=Standard, ready=1; preserve an independent final reviewer; rank exact native configurations by qualified experience. Failure requires reconsidering evidence, not automatic escalation."
+    },
+    {
+      "accepted": true,
+      "implementation": {
+        "id": "ymp.bounded-allocation",
+        "version": "2"
+      },
+      "input": {
+        "boundary": "work_ready",
+        "budget": {
+          "admitted_invocations": 1,
+          "in_flight_invocations": 0,
+          "last_denial": null,
+          "limits": {
+            "attempts": 3,
+            "parallel": 2,
+            "resources": {
+              "invocation_tokens": null,
+              "max_context_chars": 128000,
+              "max_output_chars": 64000,
+              "native_max_turns": 16,
+              "observed_tokens": null,
+              "required_review_invocations": 2,
+              "review_reserve_tokens": null,
+              "startup_context_chars": 32000,
+              "startup_invocations": 6,
+              "unknown_usage": "stop"
+            },
+            "turn_timeout_secs": 10,
+            "turns": 200
+          },
+          "observed_token_overshoot": null,
+          "observed_usage": {
+            "calls": 1,
+            "counts": {
+              "cache_read": null,
+              "cache_write": null,
+              "input": null,
+              "output": null,
+              "reasoning": null
+            },
+            "open_calls": 0,
+            "partial_calls": 0,
+            "reported": 0
+          },
+          "protected_review_invocations": 2,
+          "protected_review_tokens": null,
+          "reserved_tokens": null,
+          "startup_invocations": 1,
+          "strict_token_bound": false
+        },
+        "candidates": [
+          {
+            "agent_id": "author",
+            "configuration_version": "4756a4bf4b66ae36363d6609",
+            "experience": {
+              "failures": 0,
+              "successes": 0
+            },
+            "settings": {}
+          }
+        ],
+        "constraints": {
+          "eligible_agents": null,
+          "fixed_roster": null,
+          "fixed_size": null,
+          "max_members": 4
+        },
+        "current": {
+          "current_members": [
+            "author",
+            "fourth"
+          ],
+          "eligible_agents": [
+            "author",
+            "reviewer",
+            "reserve",
+            "fourth"
+          ],
+          "method": "direct_and_check",
+          "reserved_final_reviewer": "fourth",
+          "revision": 2,
+          "session_id": "dd6581bc-9a1a-4cfc-aa98-1de213c1964e",
+          "updated_at": "2026-09-13T16:43:16.853853+00:00"
+        },
+        "demand": {
+          "competence": "planning",
+          "difficulty": "standard",
+          "purpose": "plan",
+          "ready_work": 1,
+          "risk": "standard",
+          "task_id": null
+        },
+        "eligible": [
+          {
+            "enabled": true,
+            "id": "author",
+            "instructions": "Scripted fixture",
+            "model": null,
+            "name": "author",
+            "provider": "offline"
+          },
+          {
+            "enabled": true,
+            "id": "reviewer",
+            "instructions": "Scripted fixture",
+            "model": null,
+            "name": "reviewer",
+            "provider": "offline"
+          },
+          {
+            "enabled": true,
+            "id": "reserve",
+            "instructions": "Scripted fixture",
+            "model": null,
+            "name": "reserve",
+            "provider": "healthy"
+          },
+          {
+            "enabled": true,
+            "id": "fourth",
+            "instructions": "Scripted fixture",
+            "model": null,
+            "name": "fourth",
+            "provider": "healthy"
+          }
+        ],
+        "evidence": [],
+        "goal": "Return five findings",
+        "occupied_agent_ids": [],
+        "producer_ids": [],
+        "session_id": "dd6581bc-9a1a-4cfc-aa98-1de213c1964e",
+        "suggestions": []
+      },
+      "proposal": {
+        "executor": {
+          "agent_id": "author",
+          "configuration_version": "4756a4bf4b66ae36363d6609",
+          "experience": {
+            "failures": 0,
+            "successes": 0
+          },
+          "settings": {}
+        },
+        "members": [
+          "author",
+          "fourth"
+        ],
+        "method": "direct_and_check",
+        "rationale": "Bounded plan work at WorkReady; complexity=standard, risk=Standard, ready=1; preserve an independent final reviewer; rank exact native configurations by qualified experience. Failure requires reconsidering evidence, not automatic escalation.",
+        "reserved_final_reviewer": "fourth"
+      },
+      "reason": "Bounded plan work at WorkReady; complexity=standard, risk=Standard, ready=1; preserve an independent final reviewer; rank exact native configurations by qualified experience. Failure requires reconsidering evidence, not automatic escalation."
+    },
+    {
+      "accepted": true,
+      "implementation": {
+        "id": "ymp.bounded-allocation",
+        "version": "2"
+      },
+      "input": {
+        "boundary": "result_available",
+        "budget": {
+          "admitted_invocations": 1,
+          "in_flight_invocations": 0,
+          "last_denial": null,
+          "limits": {
+            "attempts": 3,
+            "parallel": 2,
+            "resources": {
+              "invocation_tokens": null,
+              "max_context_chars": 128000,
+              "max_output_chars": 64000,
+              "native_max_turns": 16,
+              "observed_tokens": null,
+              "required_review_invocations": 2,
+              "review_reserve_tokens": null,
+              "startup_context_chars": 32000,
+              "startup_invocations": 6,
+              "unknown_usage": "stop"
+            },
+            "turn_timeout_secs": 10,
+            "turns": 200
+          },
+          "observed_token_overshoot": null,
+          "observed_usage": {
+            "calls": 1,
+            "counts": {
+              "cache_read": null,
+              "cache_write": null,
+              "input": null,
+              "output": null,
+              "reasoning": null
+            },
+            "open_calls": 0,
+            "partial_calls": 0,
+            "reported": 0
+          },
+          "protected_review_invocations": 2,
+          "protected_review_tokens": null,
+          "reserved_tokens": null,
+          "startup_invocations": 1,
+          "strict_token_bound": false
+        },
+        "candidates": [
+          {
+            "agent_id": "reviewer",
+            "configuration_version": "b90b9319527f8fdeb959346d",
+            "experience": {
+              "failures": 0,
+              "successes": 0
+            },
+            "settings": {}
+          },
+          {
+            "agent_id": "reserve",
+            "configuration_version": "7804fb16b8944bfd1239736b",
+            "experience": {
+              "failures": 0,
+              "successes": 0
+            },
+            "settings": {}
+          },
+          {
+            "agent_id": "fourth",
+            "configuration_version": "5185a38614f6a4b97d1ed35f",
+            "experience": {
+              "failures": 0,
+              "successes": 0
+            },
+            "settings": {}
+          }
+        ],
+        "constraints": {
+          "eligible_agents": null,
+          "fixed_roster": null,
+          "fixed_size": null,
+          "max_members": 4
+        },
+        "current": {
+          "current_members": [
+            "author",
+            "fourth"
+          ],
+          "eligible_agents": [
+            "author",
+            "reviewer",
+            "reserve",
+            "fourth"
+          ],
+          "method": "direct_and_check",
+          "reserved_final_reviewer": "fourth",
+          "revision": 3,
+          "session_id": "dd6581bc-9a1a-4cfc-aa98-1de213c1964e",
+          "updated_at": "2026-09-13T16:43:16.880744+00:00"
+        },
+        "demand": {
+          "competence": "verification",
+          "difficulty": "standard",
+          "purpose": "review_plan",
+          "ready_work": 1,
+          "risk": "standard",
+          "task_id": null
+        },
+        "eligible": [
+          {
+            "enabled": true,
+            "id": "author",
+            "instructions": "Scripted fixture",
+            "model": null,
+            "name": "author",
+            "provider": "offline"
+          },
+          {
+            "enabled": true,
+            "id": "reviewer",
+            "instructions": "Scripted fixture",
+            "model": null,
+            "name": "reviewer",
+            "provider": "offline"
+          },
+          {
+            "enabled": true,
+            "id": "reserve",
+            "instructions": "Scripted fixture",
+            "model": null,
+            "name": "reserve",
+            "provider": "healthy"
+          },
+          {
+            "enabled": true,
+            "id": "fourth",
+            "instructions": "Scripted fixture",
+            "model": null,
+            "name": "fourth",
+            "provider": "healthy"
+          }
+        ],
+        "evidence": [],
+        "goal": "Return five findings",
+        "occupied_agent_ids": [],
+        "producer_ids": [],
+        "session_id": "dd6581bc-9a1a-4cfc-aa98-1de213c1964e",
+        "suggestions": []
+      },
+      "proposal": {
+        "executor": {
+          "agent_id": "fourth",
+          "configuration_version": "5185a38614f6a4b97d1ed35f",
+          "experience": {
+            "failures": 0,
+            "successes": 0
+          },
+          "settings": {}
+        },
+        "members": [
+          "fourth",
+          "author"
+        ],
+        "method": "direct_and_check",
+        "rationale": "Bounded review_plan work at ResultAvailable; complexity=standard, risk=Standard, ready=1; preserve an independent final reviewer; rank exact native configurations by qualified experience. Failure requires reconsidering evidence, not automatic escalation.",
+        "reserved_final_reviewer": "fourth"
+      },
+      "reason": "Bounded review_plan work at ResultAvailable; complexity=standard, risk=Standard, ready=1; preserve an independent final reviewer; rank exact native configurations by qualified experience. Failure requires reconsidering evidence, not automatic escalation."
+    },
+    {
+      "accepted": true,
+      "implementation": {
+        "id": "ymp.bounded-allocation",
+        "version": "2"
+      },
+      "input": {
+        "boundary": "work_ready",
+        "budget": {
+          "admitted_invocations": 2,
+          "in_flight_invocations": 0,
+          "last_denial": null,
+          "limits": {
+            "attempts": 3,
+            "parallel": 2,
+            "resources": {
+              "invocation_tokens": null,
+              "max_context_chars": 128000,
+              "max_output_chars": 64000,
+              "native_max_turns": 16,
+              "observed_tokens": null,
+              "required_review_invocations": 2,
+              "review_reserve_tokens": null,
+              "startup_context_chars": 32000,
+              "startup_invocations": 6,
+              "unknown_usage": "stop"
+            },
+            "turn_timeout_secs": 10,
+            "turns": 200
+          },
+          "observed_token_overshoot": null,
+          "observed_usage": {
+            "calls": 2,
+            "counts": {
+              "cache_read": null,
+              "cache_write": null,
+              "input": null,
+              "output": null,
+              "reasoning": null
+            },
+            "open_calls": 0,
+            "partial_calls": 0,
+            "reported": 0
+          },
+          "protected_review_invocations": 6,
+          "protected_review_tokens": null,
+          "reserved_tokens": null,
+          "startup_invocations": 2,
+          "strict_token_bound": false
+        },
+        "candidates": [
+          {
+            "agent_id": "author",
+            "configuration_version": "8d891cd0dc21bdcf47d19942",
+            "experience": {
+              "failures": 0,
+              "successes": 0
+            },
+            "settings": {}
+          },
+          {
+            "agent_id": "reviewer",
+            "configuration_version": "a2da0c67a7b62613522c5fc5",
+            "experience": {
+              "failures": 0,
+              "successes": 0
+            },
+            "settings": {}
+          },
+          {
+            "agent_id": "reserve",
+            "configuration_version": "0340e44f3c3b741bf6ef81d3",
+            "experience": {
+              "failures": 0,
+              "successes": 0
+            },
+            "settings": {}
+          }
+        ],
+        "constraints": {
+          "eligible_agents": null,
+          "fixed_roster": null,
+          "fixed_size": null,
+          "max_members": 4
+        },
+        "current": {
+          "current_members": [
+            "fourth",
+            "author"
+          ],
+          "eligible_agents": [
+            "author",
+            "reviewer",
+            "reserve",
+            "fourth"
+          ],
+          "method": "direct_and_check",
+          "reserved_final_reviewer": "fourth",
+          "revision": 4,
+          "session_id": "dd6581bc-9a1a-4cfc-aa98-1de213c1964e",
+          "updated_at": "2026-09-13T16:43:16.894170+00:00"
+        },
+        "demand": {
+          "competence": "analysis",
+          "difficulty": "simple",
+          "purpose": "execute",
+          "ready_work": 1,
+          "risk": "standard",
+          "task_id": "8a6027dc-cac8-4fb7-b061-58153cc7c972"
+        },
+        "eligible": [
+          {
+            "enabled": true,
+            "id": "author",
+            "instructions": "Scripted fixture",
+            "model": null,
+            "name": "author",
+            "provider": "offline"
+          },
+          {
+            "enabled": true,
+            "id": "reviewer",
+            "instructions": "Scripted fixture",
+            "model": null,
+            "name": "reviewer",
+            "provider": "offline"
+          },
+          {
+            "enabled": true,
+            "id": "reserve",
+            "instructions": "Scripted fixture",
+            "model": null,
+            "name": "reserve",
+            "provider": "healthy"
+          },
+          {
+            "enabled": true,
+            "id": "fourth",
+            "instructions": "Scripted fixture",
+            "model": null,
+            "name": "fourth",
+            "provider": "healthy"
+          }
+        ],
+        "evidence": [
+          {
+            "kind": "plan_review",
+            "reason": "Independent recorded result inspected",
+            "record_id": "981bb792-a37b-47a0-80a1-a3bfa64e4229"
+          }
+        ],
+        "goal": "Return five findings",
+        "occupied_agent_ids": [],
+        "producer_ids": [],
+        "session_id": "dd6581bc-9a1a-4cfc-aa98-1de213c1964e",
+        "suggestions": []
+      },
+      "proposal": {
+        "executor": {
+          "agent_id": "author",
+          "configuration_version": "8d891cd0dc21bdcf47d19942",
+          "experience": {
+            "failures": 0,
+            "successes": 0
+          },
+          "settings": {}
+        },
+        "members": [
+          "author",
+          "fourth"
+        ],
+        "method": "direct_and_check",
+        "rationale": "Bounded execute work at WorkReady; complexity=simple, risk=Standard, ready=1; preserve an independent final reviewer; rank exact native configurations by qualified experience. Failure requires reconsidering evidence, not automatic escalation.",
+        "reserved_final_reviewer": "fourth"
+      },
+      "reason": "Bounded execute work at WorkReady; complexity=simple, risk=Standard, ready=1; preserve an independent final reviewer; rank exact native configurations by qualified experience. Failure requires reconsidering evidence, not automatic escalation."
+    },
+    {
+      "accepted": true,
+      "implementation": {
+        "id": "ymp.bounded-allocation",
+        "version": "2"
+      },
+      "input": {
+        "boundary": "result_available",
+        "budget": {
+          "admitted_invocations": 3,
+          "in_flight_invocations": 0,
+          "last_denial": null,
+          "limits": {
+            "attempts": 3,
+            "parallel": 2,
+            "resources": {
+              "invocation_tokens": null,
+              "max_context_chars": 128000,
+              "max_output_chars": 64000,
+              "native_max_turns": 16,
+              "observed_tokens": null,
+              "required_review_invocations": 2,
+              "review_reserve_tokens": null,
+              "startup_context_chars": 32000,
+              "startup_invocations": 6,
+              "unknown_usage": "stop"
+            },
+            "turn_timeout_secs": 10,
+            "turns": 200
+          },
+          "observed_token_overshoot": null,
+          "observed_usage": {
+            "calls": 3,
+            "counts": {
+              "cache_read": null,
+              "cache_write": null,
+              "input": null,
+              "output": null,
+              "reasoning": null
+            },
+            "open_calls": 0,
+            "partial_calls": 0,
+            "reported": 0
+          },
+          "protected_review_invocations": 6,
+          "protected_review_tokens": null,
+          "reserved_tokens": null,
+          "startup_invocations": 2,
+          "strict_token_bound": false
+        },
+        "candidates": [
+          {
+            "agent_id": "reviewer",
+            "configuration_version": "b90b9319527f8fdeb959346d",
+            "experience": {
+              "failures": 0,
+              "successes": 0
+            },
+            "settings": {}
+          },
+          {
+            "agent_id": "reserve",
+            "configuration_version": "7804fb16b8944bfd1239736b",
+            "experience": {
+              "failures": 0,
+              "successes": 0
+            },
+            "settings": {}
+          },
+          {
+            "agent_id": "fourth",
+            "configuration_version": "9ec90729f60638b64245ecce",
+            "experience": {
+              "failures": 0,
+              "successes": 0
+            },
+            "settings": {}
+          }
+        ],
+        "constraints": {
+          "eligible_agents": null,
+          "fixed_roster": null,
+          "fixed_size": null,
+          "max_members": 4
+        },
+        "current": {
+          "current_members": [
+            "author",
+            "fourth"
+          ],
+          "eligible_agents": [
+            "author",
+            "reviewer",
+            "reserve",
+            "fourth"
+          ],
+          "method": "direct_and_check",
+          "reserved_final_reviewer": "fourth",
+          "revision": 5,
+          "session_id": "dd6581bc-9a1a-4cfc-aa98-1de213c1964e",
+          "updated_at": "2026-09-13T16:43:16.936589+00:00"
+        },
+        "demand": {
+          "competence": "verification",
+          "difficulty": "standard",
+          "purpose": "review",
+          "ready_work": 1,
+          "risk": "standard",
+          "task_id": "8a6027dc-cac8-4fb7-b061-58153cc7c972"
+        },
+        "eligible": [
+          {
+            "enabled": true,
+            "id": "author",
+            "instructions": "Scripted fixture",
+            "model": null,
+            "name": "author",
+            "provider": "offline"
+          },
+          {
+            "enabled": true,
+            "id": "reviewer",
+            "instructions": "Scripted fixture",
+            "model": null,
+            "name": "reviewer",
+            "provider": "offline"
+          },
+          {
+            "enabled": true,
+            "id": "reserve",
+            "instructions": "Scripted fixture",
+            "model": null,
+            "name": "reserve",
+            "provider": "healthy"
+          },
+          {
+            "enabled": true,
+            "id": "fourth",
+            "instructions": "Scripted fixture",
+            "model": null,
+            "name": "fourth",
+            "provider": "healthy"
+          }
+        ],
+        "evidence": [
+          {
+            "kind": "plan_review",
+            "reason": "Independent recorded result inspected",
+            "record_id": "981bb792-a37b-47a0-80a1-a3bfa64e4229"
+          }
+        ],
+        "goal": "Return five findings",
+        "occupied_agent_ids": [],
+        "producer_ids": [
+          "author"
+        ],
+        "session_id": "dd6581bc-9a1a-4cfc-aa98-1de213c1964e",
+        "suggestions": []
+      },
+      "proposal": {
+        "executor": {
+          "agent_id": "fourth",
+          "configuration_version": "9ec90729f60638b64245ecce",
+          "experience": {
+            "failures": 0,
+            "successes": 0
+          },
+          "settings": {}
+        },
+        "members": [
+          "fourth",
+          "author"
+        ],
+        "method": "direct_and_check",
+        "rationale": "Bounded review work at ResultAvailable; complexity=standard, risk=Standard, ready=1; preserve an independent final reviewer; rank exact native configurations by qualified experience. Failure requires reconsidering evidence, not automatic escalation.",
+        "reserved_final_reviewer": "fourth"
+      },
+      "reason": "Bounded review work at ResultAvailable; complexity=standard, risk=Standard, ready=1; preserve an independent final reviewer; rank exact native configurations by qualified experience. Failure requires reconsidering evidence, not automatic escalation."
+    },
+    {
+      "accepted": true,
+      "implementation": {
+        "id": "ymp.bounded-allocation",
+        "version": "2"
+      },
+      "input": {
+        "boundary": "work_ready",
+        "budget": {
+          "admitted_invocations": 4,
+          "in_flight_invocations": 0,
+          "last_denial": null,
+          "limits": {
+            "attempts": 3,
+            "parallel": 2,
+            "resources": {
+              "invocation_tokens": null,
+              "max_context_chars": 128000,
+              "max_output_chars": 64000,
+              "native_max_turns": 16,
+              "observed_tokens": null,
+              "required_review_invocations": 2,
+              "review_reserve_tokens": null,
+              "startup_context_chars": 32000,
+              "startup_invocations": 6,
+              "unknown_usage": "stop"
+            },
+            "turn_timeout_secs": 10,
+            "turns": 200
+          },
+          "observed_token_overshoot": null,
+          "observed_usage": {
+            "calls": 4,
+            "counts": {
+              "cache_read": null,
+              "cache_write": null,
+              "input": null,
+              "output": null,
+              "reasoning": null
+            },
+            "open_calls": 0,
+            "partial_calls": 0,
+            "reported": 0
+          },
+          "protected_review_invocations": 5,
+          "protected_review_tokens": null,
+          "reserved_tokens": null,
+          "startup_invocations": 2,
+          "strict_token_bound": false
+        },
+        "candidates": [
+          {
+            "agent_id": "author",
+            "configuration_version": "8d891cd0dc21bdcf47d19942",
+            "experience": {
+              "failures": 0,
+              "successes": 0
+            },
+            "settings": {}
+          },
+          {
+            "agent_id": "reviewer",
+            "configuration_version": "a2da0c67a7b62613522c5fc5",
+            "experience": {
+              "failures": 0,
+              "successes": 0
+            },
+            "settings": {}
+          },
+          {
+            "agent_id": "reserve",
+            "configuration_version": "0340e44f3c3b741bf6ef81d3",
+            "experience": {
+              "failures": 0,
+              "successes": 0
+            },
+            "settings": {}
+          }
+        ],
+        "constraints": {
+          "eligible_agents": null,
+          "fixed_roster": null,
+          "fixed_size": null,
+          "max_members": 4
+        },
+        "current": {
+          "current_members": [
+            "fourth",
+            "author"
+          ],
+          "eligible_agents": [
+            "author",
+            "reviewer",
+            "reserve",
+            "fourth"
+          ],
+          "method": "direct_and_check",
+          "reserved_final_reviewer": "fourth",
+          "revision": 6,
+          "session_id": "dd6581bc-9a1a-4cfc-aa98-1de213c1964e",
+          "updated_at": "2026-09-13T16:43:16.996100+00:00"
+        },
+        "demand": {
+          "competence": "analysis",
+          "difficulty": "simple",
+          "purpose": "execute",
+          "ready_work": 3,
+          "risk": "standard",
+          "task_id": "54235489-e00e-4e5d-9cf0-f376a4789dca"
+        },
+        "eligible": [
+          {
+            "enabled": true,
+            "id": "author",
+            "instructions": "Scripted fixture",
+            "model": null,
+            "name": "author",
+            "provider": "offline"
+          },
+          {
+            "enabled": true,
+            "id": "reviewer",
+            "instructions": "Scripted fixture",
+            "model": null,
+            "name": "reviewer",
+            "provider": "offline"
+          },
+          {
+            "enabled": true,
+            "id": "reserve",
+            "instructions": "Scripted fixture",
+            "model": null,
+            "name": "reserve",
+            "provider": "healthy"
+          },
+          {
+            "enabled": true,
+            "id": "fourth",
+            "instructions": "Scripted fixture",
+            "model": null,
+            "name": "fourth",
+            "provider": "healthy"
+          }
+        ],
+        "evidence": [
+          {
+            "kind": "task_accepted",
+            "reason": "Independent recorded result inspected",
+            "record_id": "c80ca07f-bc60-4d4d-97e6-af469c229faa"
+          },
+          {
+            "kind": "candidate_review",
+            "reason": "Independent recorded result inspected",
+            "record_id": "b2c0ead2-3fc4-4c32-b1b9-4b79a56049ab"
+          },
+          {
+            "kind": "plan_review",
+            "reason": "Independent recorded result inspected",
+            "record_id": "981bb792-a37b-47a0-80a1-a3bfa64e4229"
+          }
+        ],
+        "goal": "Return five findings",
+        "occupied_agent_ids": [],
+        "producer_ids": [
+          "author"
+        ],
+        "session_id": "dd6581bc-9a1a-4cfc-aa98-1de213c1964e",
+        "suggestions": []
+      },
+      "proposal": {
+        "executor": {
+          "agent_id": "author",
+          "configuration_version": "8d891cd0dc21bdcf47d19942",
+          "experience": {
+            "failures": 0,
+            "successes": 0
+          },
+          "settings": {}
+        },
+        "members": [
+          "author",
+          "fourth",
+          "reviewer"
+        ],
+        "method": "direct_and_check",
+        "rationale": "Bounded execute work at WorkReady; complexity=simple, risk=Standard, ready=3; preserve an independent final reviewer; rank exact native configurations by qualified experience. Failure requires reconsidering evidence, not automatic escalation.",
+        "reserved_final_reviewer": "fourth"
+      },
+      "reason": "Bounded execute work at WorkReady; complexity=simple, risk=Standard, ready=3; preserve an independent final reviewer; rank exact native configurations by qualified experience. Failure requires reconsidering evidence, not automatic escalation."
+    },
+    {
+      "accepted": true,
+      "implementation": {
+        "id": "ymp.bounded-allocation",
+        "version": "2"
+      },
+      "input": {
+        "boundary": "work_ready",
+        "budget": {
+          "admitted_invocations": 4,
+          "in_flight_invocations": 0,
+          "last_denial": null,
+          "limits": {
+            "attempts": 3,
+            "parallel": 2,
+            "resources": {
+              "invocation_tokens": null,
+              "max_context_chars": 128000,
+              "max_output_chars": 64000,
+              "native_max_turns": 16,
+              "observed_tokens": null,
+              "required_review_invocations": 2,
+              "review_reserve_tokens": null,
+              "startup_context_chars": 32000,
+              "startup_invocations": 6,
+              "unknown_usage": "stop"
+            },
+            "turn_timeout_secs": 10,
+            "turns": 200
+          },
+          "observed_token_overshoot": null,
+          "observed_usage": {
+            "calls": 4,
+            "counts": {
+              "cache_read": null,
+              "cache_write": null,
+              "input": null,
+              "output": null,
+              "reasoning": null
+            },
+            "open_calls": 0,
+            "partial_calls": 0,
+            "reported": 0
+          },
+          "protected_review_invocations": 5,
+          "protected_review_tokens": null,
+          "reserved_tokens": null,
+          "startup_invocations": 2,
+          "strict_token_bound": false
+        },
+        "candidates": [
+          {
+            "agent_id": "reviewer",
+            "configuration_version": "a2da0c67a7b62613522c5fc5",
+            "experience": {
+              "failures": 0,
+              "successes": 0
+            },
+            "settings": {}
+          }
+        ],
+        "constraints": {
+          "eligible_agents": null,
+          "fixed_roster": null,
+          "fixed_size": null,
+          "max_members": 4
+        },
+        "current": {
+          "current_members": [
+            "author",
+            "fourth",
+            "reviewer"
+          ],
+          "eligible_agents": [
+            "author",
+            "reviewer",
+            "reserve",
+            "fourth"
+          ],
+          "method": "direct_and_check",
+          "reserved_final_reviewer": "fourth",
+          "revision": 7,
+          "session_id": "dd6581bc-9a1a-4cfc-aa98-1de213c1964e",
+          "updated_at": "2026-09-13T16:43:17.053946+00:00"
+        },
+        "demand": {
+          "competence": "analysis",
+          "difficulty": "simple",
+          "purpose": "execute",
+          "ready_work": 2,
+          "risk": "standard",
+          "task_id": "8e1c3e4c-df3b-414e-9f69-a077b403c170"
+        },
+        "eligible": [
+          {
+            "enabled": true,
+            "id": "author",
+            "instructions": "Scripted fixture",
+            "model": null,
+            "name": "author",
+            "provider": "offline"
+          },
+          {
+            "enabled": true,
+            "id": "reviewer",
+            "instructions": "Scripted fixture",
+            "model": null,
+            "name": "reviewer",
+            "provider": "offline"
+          },
+          {
+            "enabled": true,
+            "id": "reserve",
+            "instructions": "Scripted fixture",
+            "model": null,
+            "name": "reserve",
+            "provider": "healthy"
+          },
+          {
+            "enabled": true,
+            "id": "fourth",
+            "instructions": "Scripted fixture",
+            "model": null,
+            "name": "fourth",
+            "provider": "healthy"
+          }
+        ],
+        "evidence": [
+          {
+            "kind": "task_accepted",
+            "reason": "Independent recorded result inspected",
+            "record_id": "c80ca07f-bc60-4d4d-97e6-af469c229faa"
+          },
+          {
+            "kind": "candidate_review",
+            "reason": "Independent recorded result inspected",
+            "record_id": "b2c0ead2-3fc4-4c32-b1b9-4b79a56049ab"
+          },
+          {
+            "kind": "plan_review",
+            "reason": "Independent recorded result inspected",
+            "record_id": "981bb792-a37b-47a0-80a1-a3bfa64e4229"
+          }
+        ],
+        "goal": "Return five findings",
+        "occupied_agent_ids": [
+          "author"
+        ],
+        "producer_ids": [
+          "author"
+        ],
+        "session_id": "dd6581bc-9a1a-4cfc-aa98-1de213c1964e",
+        "suggestions": []
+      },
+      "proposal": {
+        "executor": {
+          "agent_id": "reviewer",
+          "configuration_version": "a2da0c67a7b62613522c5fc5",
+          "experience": {
+            "failures": 0,
+            "successes": 0
+          },
+          "settings": {}
+        },
+        "members": [
+          "author",
+          "reviewer",
+          "fourth"
+        ],
+        "method": "direct_and_check",
+        "rationale": "Bounded execute work at WorkReady; complexity=simple, risk=Standard, ready=2; preserve an independent final reviewer; rank exact native configurations by qualified experience. Failure requires reconsidering evidence, not automatic escalation.",
+        "reserved_final_reviewer": "fourth"
+      },
+      "reason": "Bounded execute work at WorkReady; complexity=simple, risk=Standard, ready=2; preserve an independent final reviewer; rank exact native configurations by qualified experience. Failure requires reconsidering evidence, not automatic escalation."
+    },
+    {
+      "accepted": true,
+      "implementation": {
+        "id": "ymp.bounded-allocation",
+        "version": "2"
+      },
+      "input": {
+        "boundary": "check_failed",
+        "budget": {
+          "admitted_invocations": 5,
+          "in_flight_invocations": 0,
+          "last_denial": null,
+          "limits": {
+            "attempts": 3,
+            "parallel": 2,
+            "resources": {
+              "invocation_tokens": null,
+              "max_context_chars": 128000,
+              "max_output_chars": 64000,
+              "native_max_turns": 16,
+              "observed_tokens": null,
+              "required_review_invocations": 2,
+              "review_reserve_tokens": null,
+              "startup_context_chars": 32000,
+              "startup_invocations": 6,
+              "unknown_usage": "stop"
+            },
+            "turn_timeout_secs": 10,
+            "turns": 200
+          },
+          "observed_token_overshoot": null,
+          "observed_usage": {
+            "calls": 5,
+            "counts": {
+              "cache_read": null,
+              "cache_write": null,
+              "input": null,
+              "output": null,
+              "reasoning": null
+            },
+            "open_calls": 0,
+            "partial_calls": 0,
+            "reported": 0
+          },
+          "protected_review_invocations": 5,
+          "protected_review_tokens": null,
+          "reserved_tokens": null,
+          "startup_invocations": 2,
+          "strict_token_bound": false
+        },
+        "candidates": [
+          {
+            "agent_id": "author",
+            "configuration_version": "8d891cd0dc21bdcf47d19942",
+            "experience": {
+              "failures": 0,
+              "successes": 0
+            },
+            "settings": {}
+          },
+          {
+            "agent_id": "reviewer",
+            "configuration_version": "a2da0c67a7b62613522c5fc5",
+            "experience": {
+              "failures": 0,
+              "successes": 0
+            },
+            "settings": {}
+          },
+          {
+            "agent_id": "reserve",
+            "configuration_version": "0340e44f3c3b741bf6ef81d3",
+            "experience": {
+              "failures": 0,
+              "successes": 0
+            },
+            "settings": {}
+          },
+          {
+            "agent_id": "fourth",
+            "configuration_version": "b65edd8edce5e5ff6b76cc3d",
+            "experience": {
+              "failures": 0,
+              "successes": 0
+            },
+            "settings": {}
+          }
+        ],
+        "constraints": {
+          "eligible_agents": null,
+          "fixed_roster": null,
+          "fixed_size": null,
+          "max_members": 4
+        },
+        "current": {
+          "current_members": [
+            "author",
+            "reviewer",
+            "fourth"
+          ],
+          "eligible_agents": [
+            "author",
+            "reviewer",
+            "reserve",
+            "fourth"
+          ],
+          "method": "direct_and_check",
+          "reserved_final_reviewer": "fourth",
+          "revision": 8,
+          "session_id": "dd6581bc-9a1a-4cfc-aa98-1de213c1964e",
+          "updated_at": "2026-09-13T16:43:17.072785+00:00"
+        },
+        "demand": {
+          "competence": "execute",
+          "difficulty": "standard",
+          "purpose": "execute",
+          "ready_work": 0,
+          "risk": "standard",
+          "task_id": "54235489-e00e-4e5d-9cf0-f376a4789dca"
+        },
+        "eligible": [
+          {
+            "enabled": true,
+            "id": "author",
+            "instructions": "Scripted fixture",
+            "model": null,
+            "name": "author",
+            "provider": "offline"
+          },
+          {
+            "enabled": true,
+            "id": "reviewer",
+            "instructions": "Scripted fixture",
+            "model": null,
+            "name": "reviewer",
+            "provider": "offline"
+          },
+          {
+            "enabled": true,
+            "id": "reserve",
+            "instructions": "Scripted fixture",
+            "model": null,
+            "name": "reserve",
+            "provider": "healthy"
+          },
+          {
+            "enabled": true,
+            "id": "fourth",
+            "instructions": "Scripted fixture",
+            "model": null,
+            "name": "fourth",
+            "provider": "healthy"
+          }
+        ],
+        "evidence": [
+          {
+            "kind": "task_accepted",
+            "reason": "Independent recorded result inspected",
+            "record_id": "c80ca07f-bc60-4d4d-97e6-af469c229faa"
+          },
+          {
+            "kind": "candidate_review",
+            "reason": "Independent recorded result inspected",
+            "record_id": "b2c0ead2-3fc4-4c32-b1b9-4b79a56049ab"
+          },
+          {
+            "kind": "plan_review",
+            "reason": "Independent recorded result inspected",
+            "record_id": "981bb792-a37b-47a0-80a1-a3bfa64e4229"
+          },
+          {
+            "kind": "invocation_failure",
+            "reason": "failed",
+            "record_id": "b3d4c7e0-5cf3-4adb-8760-7b33fbd656f8"
+          }
+        ],
+        "goal": "Return five findings",
+        "occupied_agent_ids": [
+          "author",
+          "reviewer"
+        ],
+        "producer_ids": [
+          "author"
+        ],
+        "session_id": "dd6581bc-9a1a-4cfc-aa98-1de213c1964e",
+        "suggestions": []
+      },
+      "proposal": {
+        "executor": null,
+        "members": [
+          "author",
+          "reviewer",
+          "fourth"
+        ],
+        "method": "direct_and_check",
+        "rationale": "Bounded execute work at CheckFailed; complexity=standard, risk=Standard, ready=0; preserve an independent final reviewer; rank exact native configurations by qualified experience. Failure requires reconsidering evidence, not automatic escalation.",
+        "reserved_final_reviewer": "fourth"
+      },
+      "reason": "Bounded execute work at CheckFailed; complexity=standard, risk=Standard, ready=0; preserve an independent final reviewer; rank exact native configurations by qualified experience. Failure requires reconsidering evidence, not automatic escalation."
+    },
+    {
+      "accepted": true,
+      "implementation": {
+        "id": "ymp.bounded-allocation",
+        "version": "2"
+      },
+      "input": {
+        "boundary": "check_failed",
+        "budget": {
+          "admitted_invocations": 6,
+          "in_flight_invocations": 0,
+          "last_denial": null,
+          "limits": {
+            "attempts": 3,
+            "parallel": 2,
+            "resources": {
+              "invocation_tokens": null,
+              "max_context_chars": 128000,
+              "max_output_chars": 64000,
+              "native_max_turns": 16,
+              "observed_tokens": null,
+              "required_review_invocations": 2,
+              "review_reserve_tokens": null,
+              "startup_context_chars": 32000,
+              "startup_invocations": 6,
+              "unknown_usage": "stop"
+            },
+            "turn_timeout_secs": 10,
+            "turns": 200
+          },
+          "observed_token_overshoot": null,
+          "observed_usage": {
+            "calls": 6,
+            "counts": {
+              "cache_read": null,
+              "cache_write": null,
+              "input": null,
+              "output": null,
+              "reasoning": null
+            },
+            "open_calls": 0,
+            "partial_calls": 0,
+            "reported": 0
+          },
+          "protected_review_invocations": 5,
+          "protected_review_tokens": null,
+          "reserved_tokens": null,
+          "startup_invocations": 2,
+          "strict_token_bound": false
+        },
+        "candidates": [
+          {
+            "agent_id": "author",
+            "configuration_version": "8d891cd0dc21bdcf47d19942",
+            "experience": {
+              "failures": 0,
+              "successes": 0
+            },
+            "settings": {}
+          },
+          {
+            "agent_id": "reviewer",
+            "configuration_version": "a2da0c67a7b62613522c5fc5",
+            "experience": {
+              "failures": 0,
+              "successes": 0
+            },
+            "settings": {}
+          },
+          {
+            "agent_id": "reserve",
+            "configuration_version": "0340e44f3c3b741bf6ef81d3",
+            "experience": {
+              "failures": 0,
+              "successes": 0
+            },
+            "settings": {}
+          },
+          {
+            "agent_id": "fourth",
+            "configuration_version": "b65edd8edce5e5ff6b76cc3d",
+            "experience": {
+              "failures": 0,
+              "successes": 0
+            },
+            "settings": {}
+          }
+        ],
+        "constraints": {
+          "eligible_agents": null,
+          "fixed_roster": null,
+          "fixed_size": null,
+          "max_members": 4
+        },
+        "current": {
+          "current_members": [
+            "author",
+            "reviewer",
+            "fourth"
+          ],
+          "eligible_agents": [
+            "author",
+            "reviewer",
+            "reserve",
+            "fourth"
+          ],
+          "method": "direct_and_check",
+          "reserved_final_reviewer": "fourth",
+          "revision": 9,
+          "session_id": "dd6581bc-9a1a-4cfc-aa98-1de213c1964e",
+          "updated_at": "2026-09-13T16:43:17.108367+00:00"
+        },
+        "demand": {
+          "competence": "execute",
+          "difficulty": "standard",
+          "purpose": "execute",
+          "ready_work": 0,
+          "risk": "standard",
+          "task_id": "8e1c3e4c-df3b-414e-9f69-a077b403c170"
+        },
+        "eligible": [
+          {
+            "enabled": true,
+            "id": "author",
+            "instructions": "Scripted fixture",
+            "model": null,
+            "name": "author",
+            "provider": "offline"
+          },
+          {
+            "enabled": true,
+            "id": "reviewer",
+            "instructions": "Scripted fixture",
+            "model": null,
+            "name": "reviewer",
+            "provider": "offline"
+          },
+          {
+            "enabled": true,
+            "id": "reserve",
+            "instructions": "Scripted fixture",
+            "model": null,
+            "name": "reserve",
+            "provider": "healthy"
+          },
+          {
+            "enabled": true,
+            "id": "fourth",
+            "instructions": "Scripted fixture",
+            "model": null,
+            "name": "fourth",
+            "provider": "healthy"
+          }
+        ],
+        "evidence": [
+          {
+            "kind": "task_accepted",
+            "reason": "Independent recorded result inspected",
+            "record_id": "c80ca07f-bc60-4d4d-97e6-af469c229faa"
+          },
+          {
+            "kind": "candidate_review",
+            "reason": "Independent recorded result inspected",
+            "record_id": "b2c0ead2-3fc4-4c32-b1b9-4b79a56049ab"
+          },
+          {
+            "kind": "plan_review",
+            "reason": "Independent recorded result inspected",
+            "record_id": "981bb792-a37b-47a0-80a1-a3bfa64e4229"
+          },
+          {
+            "kind": "invocation_failure",
+            "reason": "failed",
+            "record_id": "8fcdc08a-e144-44a2-8379-59d40819e1c4"
+          },
+          {
+            "kind": "invocation_failure",
+            "reason": "failed",
+            "record_id": "b3d4c7e0-5cf3-4adb-8760-7b33fbd656f8"
+          }
+        ],
+        "goal": "Return five findings",
+        "occupied_agent_ids": [
+          "author",
+          "reviewer"
+        ],
+        "producer_ids": [
+          "author",
+          "reviewer"
+        ],
+        "session_id": "dd6581bc-9a1a-4cfc-aa98-1de213c1964e",
+        "suggestions": []
+      },
+      "proposal": {
+        "executor": null,
+        "members": [
+          "author",
+          "reviewer",
+          "fourth"
+        ],
+        "method": "direct_and_check",
+        "rationale": "Bounded execute work at CheckFailed; complexity=standard, risk=Standard, ready=0; preserve an independent final reviewer; rank exact native configurations by qualified experience. Failure requires reconsidering evidence, not automatic escalation.",
+        "reserved_final_reviewer": "fourth"
+      },
+      "reason": "Bounded execute work at CheckFailed; complexity=standard, risk=Standard, ready=0; preserve an independent final reviewer; rank exact native configurations by qualified experience. Failure requires reconsidering evidence, not automatic escalation."
+    },
+    {
+      "accepted": true,
+      "implementation": {
+        "id": "ymp.bounded-allocation",
+        "version": "2"
+      },
+      "input": {
+        "boundary": "work_ready",
+        "budget": {
+          "admitted_invocations": 6,
+          "in_flight_invocations": 0,
+          "last_denial": null,
+          "limits": {
+            "attempts": 3,
+            "parallel": 2,
+            "resources": {
+              "invocation_tokens": null,
+              "max_context_chars": 128000,
+              "max_output_chars": 64000,
+              "native_max_turns": 16,
+              "observed_tokens": null,
+              "required_review_invocations": 2,
+              "review_reserve_tokens": null,
+              "startup_context_chars": 32000,
+              "startup_invocations": 6,
+              "unknown_usage": "stop"
+            },
+            "turn_timeout_secs": 10,
+            "turns": 200
+          },
+          "observed_token_overshoot": null,
+          "observed_usage": {
+            "calls": 6,
+            "counts": {
+              "cache_read": null,
+              "cache_write": null,
+              "input": null,
+              "output": null,
+              "reasoning": null
+            },
+            "open_calls": 0,
+            "partial_calls": 0,
+            "reported": 0
+          },
+          "protected_review_invocations": 5,
+          "protected_review_tokens": null,
+          "reserved_tokens": null,
+          "startup_invocations": 2,
+          "strict_token_bound": false
+        },
+        "candidates": [
+          {
+            "agent_id": "author",
+            "configuration_version": "8d891cd0dc21bdcf47d19942",
+            "experience": {
+              "failures": 0,
+              "successes": 0
+            },
+            "settings": {}
+          },
+          {
+            "agent_id": "reviewer",
+            "configuration_version": "a2da0c67a7b62613522c5fc5",
+            "experience": {
+              "failures": 0,
+              "successes": 0
+            },
+            "settings": {}
+          },
+          {
+            "agent_id": "reserve",
+            "configuration_version": "0340e44f3c3b741bf6ef81d3",
+            "experience": {
+              "failures": 0,
+              "successes": 0
+            },
+            "settings": {}
+          }
+        ],
+        "constraints": {
+          "eligible_agents": null,
+          "fixed_roster": null,
+          "fixed_size": null,
+          "max_members": 4
+        },
+        "current": {
+          "current_members": [
+            "author",
+            "reviewer",
+            "fourth"
+          ],
+          "eligible_agents": [
+            "author",
+            "reviewer",
+            "reserve",
+            "fourth"
+          ],
+          "method": "direct_and_check",
+          "reserved_final_reviewer": "fourth",
+          "revision": 10,
+          "session_id": "dd6581bc-9a1a-4cfc-aa98-1de213c1964e",
+          "updated_at": "2026-09-13T16:43:17.145429+00:00"
+        },
+        "demand": {
+          "competence": "analysis",
+          "difficulty": "simple",
+          "purpose": "execute",
+          "ready_work": 1,
+          "risk": "standard",
+          "task_id": "ea4ef310-0be6-4eb0-93ed-80f450982c06"
+        },
+        "eligible": [
+          {
+            "enabled": true,
+            "id": "author",
+            "instructions": "Scripted fixture",
+            "model": null,
+            "name": "author",
+            "provider": "offline"
+          },
+          {
+            "enabled": true,
+            "id": "reviewer",
+            "instructions": "Scripted fixture",
+            "model": null,
+            "name": "reviewer",
+            "provider": "offline"
+          },
+          {
+            "enabled": true,
+            "id": "reserve",
+            "instructions": "Scripted fixture",
+            "model": null,
+            "name": "reserve",
+            "provider": "healthy"
+          },
+          {
+            "enabled": true,
+            "id": "fourth",
+            "instructions": "Scripted fixture",
+            "model": null,
+            "name": "fourth",
+            "provider": "healthy"
+          }
+        ],
+        "evidence": [
+          {
+            "kind": "task_accepted",
+            "reason": "Independent recorded result inspected",
+            "record_id": "c80ca07f-bc60-4d4d-97e6-af469c229faa"
+          },
+          {
+            "kind": "candidate_review",
+            "reason": "Independent recorded result inspected",
+            "record_id": "b2c0ead2-3fc4-4c32-b1b9-4b79a56049ab"
+          },
+          {
+            "kind": "plan_review",
+            "reason": "Independent recorded result inspected",
+            "record_id": "981bb792-a37b-47a0-80a1-a3bfa64e4229"
+          },
+          {
+            "kind": "invocation_failure",
+            "reason": "failed",
+            "record_id": "8fcdc08a-e144-44a2-8379-59d40819e1c4"
+          },
+          {
+            "kind": "invocation_failure",
+            "reason": "failed",
+            "record_id": "b3d4c7e0-5cf3-4adb-8760-7b33fbd656f8"
+          }
+        ],
+        "goal": "Return five findings",
+        "occupied_agent_ids": [
+          "author",
+          "reviewer"
+        ],
+        "producer_ids": [
+          "author",
+          "reviewer"
+        ],
+        "session_id": "dd6581bc-9a1a-4cfc-aa98-1de213c1964e",
+        "suggestions": []
+      },
+      "proposal": {
+        "executor": {
+          "agent_id": "author",
+          "configuration_version": "8d891cd0dc21bdcf47d19942",
+          "experience": {
+            "failures": 0,
+            "successes": 0
+          },
+          "settings": {}
+        },
+        "members": [
+          "author",
+          "reviewer",
+          "fourth"
+        ],
+        "method": "direct_and_check",
+        "rationale": "Bounded execute work at WorkReady; complexity=simple, risk=Standard, ready=1; preserve an independent final reviewer; rank exact native configurations by qualified experience. Failure requires reconsidering evidence, not automatic escalation.",
+        "reserved_final_reviewer": "fourth"
+      },
+      "reason": "Bounded execute work at WorkReady; complexity=simple, risk=Standard, ready=1; preserve an independent final reviewer; rank exact native configurations by qualified experience. Failure requires reconsidering evidence, not automatic escalation."
+    }
+  ],
+  "calls": [
+    {
+      "agent": "author",
+      "purpose": "plan"
+    },
+    {
+      "agent": "fourth",
+      "purpose": "review_plan"
+    },
+    {
+      "agent": "author",
+      "purpose": "execute"
+    },
+    {
+      "agent": "fourth",
+      "purpose": "review"
+    },
+    {
+      "agent": "author",
+      "purpose": "execute"
+    },
+    {
+      "agent": "reviewer",
+      "purpose": "execute"
+    }
+  ],
+  "summary": "Run blocked: claim_busy: another task already owns this executor",
+  "tasks": [
+    {
+      "access": "read_only",
+      "assignee": "author",
+      "attempts": 1,
+      "base_commit": null,
+      "checks": [],
+      "competence": "analysis",
+      "dependencies": [],
+      "description": "Return finding 0",
+      "difficulty": "simple",
+      "id": "8a6027dc-cac8-4fb7-b061-58153cc7c972",
+      "interrupted": false,
+      "result": "Completed T0",
+      "reviewer": "fourth",
+      "session_id": "dd6581bc-9a1a-4cfc-aa98-1de213c1964e",
+      "state": "accepted",
+      "title": "T0",
+      "workspace": "/private/tmp/ymp146-recovery-review/execute-n-EPCEmz/work"
+    },
+    {
+      "access": "read_only",
+      "assignee": "author",
+      "attempts": 1,
+      "base_commit": null,
+      "checks": [],
+      "competence": "analysis",
+      "dependencies": [
+        "8a6027dc-cac8-4fb7-b061-58153cc7c972"
+      ],
+      "description": "Return finding 1",
+      "difficulty": "simple",
+      "id": "54235489-e00e-4e5d-9cf0-f376a4789dca",
+      "interrupted": false,
+      "result": null,
+      "reviewer": null,
+      "session_id": "dd6581bc-9a1a-4cfc-aa98-1de213c1964e",
+      "state": "running",
+      "title": "T1",
+      "workspace": "/private/tmp/ymp146-recovery-review/execute-n-EPCEmz/work"
+    },
+    {
+      "access": "read_only",
+      "assignee": "reviewer",
+      "attempts": 1,
+      "base_commit": null,
+      "checks": [],
+      "competence": "analysis",
+      "dependencies": [
+        "8a6027dc-cac8-4fb7-b061-58153cc7c972"
+      ],
+      "description": "Return finding 2",
+      "difficulty": "simple",
+      "id": "8e1c3e4c-df3b-414e-9f69-a077b403c170",
+      "interrupted": false,
+      "result": null,
+      "reviewer": null,
+      "session_id": "dd6581bc-9a1a-4cfc-aa98-1de213c1964e",
+      "state": "running",
+      "title": "T2",
+      "workspace": "/private/tmp/ymp146-recovery-review/execute-n-EPCEmz/work"
+    },
+    {
+      "access": "read_only",
+      "assignee": null,
+      "attempts": 0,
+      "base_commit": null,
+      "checks": [],
+      "competence": "analysis",
+      "dependencies": [
+        "8a6027dc-cac8-4fb7-b061-58153cc7c972"
+      ],
+      "description": "Return finding 3",
+      "difficulty": "simple",
+      "id": "ea4ef310-0be6-4eb0-93ed-80f450982c06",
+      "interrupted": false,
+      "result": null,
+      "reviewer": null,
+      "session_id": "dd6581bc-9a1a-4cfc-aa98-1de213c1964e",
+      "state": "ready",
+      "title": "T3",
+      "workspace": null
+    },
+    {
+      "access": "read_only",
+      "assignee": null,
+      "attempts": 0,
+      "base_commit": null,
+      "checks": [],
+      "competence": "analysis",
+      "dependencies": [
+        "54235489-e00e-4e5d-9cf0-f376a4789dca",
+        "8e1c3e4c-df3b-414e-9f69-a077b403c170"
+      ],
+      "description": "Return finding 4",
+      "difficulty": "simple",
+      "id": "01454acd-fbc6-4fc5-9419-a913b6c5d02f",
+      "interrupted": false,
+      "result": null,
+      "reviewer": null,
+      "session_id": "dd6581bc-9a1a-4cfc-aa98-1de213c1964e",
+      "state": "ready",
+      "title": "T4",
+      "workspace": null
+    }
+  ],
+  "team": {
+    "current_members": [
+      "author",
+      "reviewer",
+      "fourth"
+    ],
+    "eligible_agents": [
+      "author",
+      "reviewer",
+      "reserve",
+      "fourth"
+    ],
+    "method": "direct_and_check",
+    "reserved_final_reviewer": "fourth",
+    "revision": 11,
+    "session_id": "dd6581bc-9a1a-4cfc-aa98-1de213c1964e",
+    "updated_at": "2026-09-13T16:43:17.188092+00:00"
+  }
+}
