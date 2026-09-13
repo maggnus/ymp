@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-13 14:12 UTC.
+Updated: 2026-09-13 14:19 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -14,9 +14,9 @@ A planned task is not implemented functionality. Completed research and planning
 | design | 1 | 1 |
 | documentation | 4 | 4 |
 | experiment | 0 | 4 |
-| implementation | 35 | 38 |
+| implementation | 35 | 39 |
 | maintenance | 1 | 1 |
-| research | 9 | 9 |
+| research | 9 | 10 |
 | verification | 2 | 2 |
 
 ## Index
@@ -84,6 +84,8 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-141](#ymp-141) | P1 | Keep popup geometry stable while scrolling content | 2026-09-13 14:04 |
 | `[x]` | [YMP-142](#ymp-142) | P1 | Assess ratatui-code-editor for opening files inside ymp | 2026-09-13 11:52 |
 | `[x]` | [YMP-143](#ymp-143) | P1 | Provide a separate /git changes view modeled on Paseo | 2026-09-13 14:04 |
+| `[~]` | [YMP-144](#ymp-144) | P1 | Research recovery of sessions after one or more agent failures | 2026-09-13 14:19 |
+| `[~]` | [YMP-145](#ymp-145) | P1 | Unify full-row popup selection and verify stable scrolling geometry | 2026-09-13 14:19 |
 
 ## YMP-001
 
@@ -2120,6 +2122,65 @@ The current Git-marker discovery and session changes page do not expose actual s
 - ymp-docs/research/evidence/git-paseo-143/source-review.json
 - ymp-docs/releases/0.4.6.md
 - ymp-docs/research/evidence/release-046/verification.json
+
+## YMP-144
+
+Research recovery of sessions after one or more agent failures
+
+**State:** `[~]` (in_progress) · **Type:** research · **Priority:** P1
+
+**Last update (UTC):** 2026-09-13 14:19
+
+**Current reason:** Started read-only committee agents 332e0b99-79a7-4255-82ae-be642ff7707e (claude-opus-5 high) and 52111c72-73e2-4ddc-b677-5573306ba1a9 (gpt-6-astra xhigh). Adapting existing assignments to the requested researcher skill; no extra researchers, provider probes, application edits or session resumes.
+
+**Owner:** Two background Paseo researchers; maintainer owns product discussion and synthesis
+
+**Authorization:** Owner reported session 3223c6a9 blocking after an agent connection failure and explicitly requested brainstorming before solving it. Owner pointed to paseo-cto:paseo-researcher. Research only; do not resume the real session or implement recovery.
+
+**Depends on:** None
+
+A failed plan-review invocation leaves an existing session blocked even though planning returned a result. Recovery must preserve prior work, resources, agent provenance and independent acceptance.
+
+**Acceptance criteria:**
+
+- Trace the concrete incident and durable planning/resumption state using read-only source and session evidence; distinguish confirmed facts, inference and unknowns.
+- Compare bounded retry, reassignment and waiting/manual recovery for single and multiple failures, including shared-provider outages, fixed team constraints, unknown usage and uncertain writes.
+- Present a compact product recommendation, alternatives, acceptance scenarios and unresolved owner decisions. Keep implementation and real-session recovery outside authorization.
+- Use the requested researcher role for bounded evidence review and preserve the primary conversation for product discussion.
+
+**Evidence:**
+
+- Pending.
+
+## YMP-145
+
+Unify full-row popup selection and verify stable scrolling geometry
+
+**State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P1
+
+**Last update (UTC):** 2026-09-13 14:19
+
+**Current reason:** Confirmed installed command is 0.4.6 at main 4e68c55. Shared frame::render_modal already derives height from full body; GitChoice text::row inserts unstyled inter-column padding. Requested the specific shrinking popup while preparing an isolated background UI assignment. No product fix is accepted yet.
+
+**Owner:** Background Claude Code claude-opus-5 high; maintainer owns scope, integration and independent acceptance
+
+**Authorization:** Owner supplied a branch-chooser screenshot showing broken selection background and again reported popup height collapsing at the end of scrolling. Owner explicitly requested correcting the shared popup component.
+
+**Depends on:** [YMP-141](#ymp-141), [YMP-143](#ymp-143)
+
+Selected popup text is styled while inter-column spacing remains unstyled. The renewed shrinking report must be reconciled with the already accepted shared geometry fixes in 0.4.6.
+
+**Acceptance criteria:**
+
+- Reproduce the screenshot selection gap on current source. Apply selection across the full content row, including marker, column gaps and trailing cells, through shared rendering behavior.
+- Audit every modal caller, identify the exact popup path or version behind the renewed shrinking report, and preserve stable dimensions/position while only scrolling or selection changes. Do not claim a new height defect without reproduction.
+- Cover branch/worktree choices, command palette, themes, file preview and Inspect; preserve footer, cursor, last-line reachability, resize behavior, semantic themes and Unicode/ASCII presentation.
+- Demonstrate meaningful failing-before and passing-after checks; verify full-row cell backgrounds and stable geometry through the first, middle and final visible positions. Record unresolved reproduction details explicitly.
+- Delegate implementation and checks to an isolated Claude Code high worktree. Run fmt, strict Clippy, workspace tests and relevant terminal checks once on final code; independently review before integration. Reuse existing Ratatui and popup helpers without new dependencies.
+
+**Evidence:**
+
+- Pending.
 
 ## Intent coverage
 

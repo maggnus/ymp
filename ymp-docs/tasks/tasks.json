@@ -3825,9 +3825,63 @@
           "note": "Installed 0.4.6 accepted after independent source/terminal verification. macOS ARM64 and Linux ARM64 each pass fmt, strict Clippy and 576 tests (2 ignored). Both platforms pass Git9+9, popup9+9, files12 and output2 terminal cases; macOS also tables19 and exit5. Installed command repeats Git9 and popups9 successfully. Embedded Git works with empty app PATH; Linux artifact is static, macOS uses only OS libraries. Previous executable backed up; ARM64 artifacts retained. Providers/runtimes remain the explicit exception; no x86_64 runtime claim."
         }
       ]
+    },
+    {
+      "id": "YMP-144",
+      "title": "Research recovery of sessions after one or more agent failures",
+      "type": "research",
+      "priority": "P1",
+      "status": "in_progress",
+      "owner": "Two background Paseo researchers; maintainer owns product discussion and synthesis",
+      "authorization": "Owner reported session 3223c6a9 blocking after an agent connection failure and explicitly requested brainstorming before solving it. Owner pointed to paseo-cto:paseo-researcher. Research only; do not resume the real session or implement recovery.",
+      "depends_on": [],
+      "reason": "A failed plan-review invocation leaves an existing session blocked even though planning returned a result. Recovery must preserve prior work, resources, agent provenance and independent acceptance.",
+      "acceptance": [
+        "Trace the concrete incident and durable planning/resumption state using read-only source and session evidence; distinguish confirmed facts, inference and unknowns.",
+        "Compare bounded retry, reassignment and waiting/manual recovery for single and multiple failures, including shared-provider outages, fixed team constraints, unknown usage and uncertain writes.",
+        "Present a compact product recommendation, alternatives, acceptance scenarios and unresolved owner decisions. Keep implementation and real-session recovery outside authorization.",
+        "Use the requested researcher role for bounded evidence review and preserve the primary conversation for product discussion."
+      ],
+      "evidence": [],
+      "history": [
+        {
+          "at": "2026-09-13T14:19:41.539430+00:00",
+          "status": "in_progress",
+          "note": "Started read-only committee agents 332e0b99-79a7-4255-82ae-be642ff7707e (claude-opus-5 high) and 52111c72-73e2-4ddc-b677-5573306ba1a9 (gpt-6-astra xhigh). Adapting existing assignments to the requested researcher skill; no extra researchers, provider probes, application edits or session resumes."
+        }
+      ]
+    },
+    {
+      "id": "YMP-145",
+      "title": "Unify full-row popup selection and verify stable scrolling geometry",
+      "type": "implementation",
+      "priority": "P1",
+      "status": "in_progress",
+      "owner": "Background Claude Code claude-opus-5 high; maintainer owns scope, integration and independent acceptance",
+      "authorization": "Owner supplied a branch-chooser screenshot showing broken selection background and again reported popup height collapsing at the end of scrolling. Owner explicitly requested correcting the shared popup component.",
+      "depends_on": [
+        "YMP-141",
+        "YMP-143"
+      ],
+      "reason": "Selected popup text is styled while inter-column spacing remains unstyled. The renewed shrinking report must be reconciled with the already accepted shared geometry fixes in 0.4.6.",
+      "acceptance": [
+        "Reproduce the screenshot selection gap on current source. Apply selection across the full content row, including marker, column gaps and trailing cells, through shared rendering behavior.",
+        "Audit every modal caller, identify the exact popup path or version behind the renewed shrinking report, and preserve stable dimensions/position while only scrolling or selection changes. Do not claim a new height defect without reproduction.",
+        "Cover branch/worktree choices, command palette, themes, file preview and Inspect; preserve footer, cursor, last-line reachability, resize behavior, semantic themes and Unicode/ASCII presentation.",
+        "Demonstrate meaningful failing-before and passing-after checks; verify full-row cell backgrounds and stable geometry through the first, middle and final visible positions. Record unresolved reproduction details explicitly.",
+        "Delegate implementation and checks to an isolated Claude Code high worktree. Run fmt, strict Clippy, workspace tests and relevant terminal checks once on final code; independently review before integration. Reuse existing Ratatui and popup helpers without new dependencies."
+      ],
+      "evidence": [],
+      "history": [
+        {
+          "at": "2026-09-13T14:19:41.539430+00:00",
+          "status": "in_progress",
+          "note": "Confirmed installed command is 0.4.6 at main 4e68c55. Shared frame::render_modal already derives height from full body; GitChoice text::row inserts unstyled inter-column padding. Requested the specific shrinking popup while preparing an isolated background UI assignment. No product fix is accepted yet."
+        }
+      ]
     }
   ],
-  "updated_at": "2026-09-13T14:12:07.668165+00:00",
+  "updated_at": "2026-09-13T14:19:41.539430+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",
