@@ -845,13 +845,7 @@ impl Engine {
         read_only: bool,
         task: Option<TaskAttemptRef>,
     ) -> Result<RecordedResponse> {
-        let requested = self.requested_settings(
-            ctx,
-            agent,
-            purpose,
-            task.as_ref().map(|t| t.task_id.as_str()),
-            read_only,
-        )?;
+        let mut requested = None;
         let review = read_only
             && matches!(
                 purpose,
@@ -873,7 +867,7 @@ impl Engine {
                     &next_prompt,
                     read_only,
                     task.clone(),
-                    &requested,
+                    &mut requested,
                 )
                 .await;
             match result {
@@ -914,7 +908,7 @@ impl Engine {
         prompt: &str,
         read_only: bool,
         task: Option<TaskAttemptRef>,
-        requested: &ExecutionSettings,
+        requested: &mut Option<ExecutionSettings>,
     ) -> Result<RecordedResponse> {
         if !self
             .refresh_team_eligibility(&ctx.session.id)?
@@ -943,7 +937,22 @@ impl Engine {
             )?;
         }
 
-        let requested = requested.clone();
+        // Resolve the first request after any membership allocation, as before.
+        // Recovery freezes that choice even if a later allocation proposes changes.
+        let requested = match requested {
+            Some(settings) => settings.clone(),
+            slot @ None => {
+                let settings = self.requested_settings(
+                    ctx,
+                    agent,
+                    purpose,
+                    task.as_ref().map(|t| t.task_id.as_str()),
+                    read_only,
+                )?;
+                *slot = Some(settings.clone());
+                settings
+            }
+        };
         let identity = self.config.agent_identity(agent, &requested);
         let mut effective_agent = agent.clone();
         effective_agent.name = identity.name.clone();
