@@ -1,0 +1,15 @@
+[package]
+name = "ymp146-recovery-rereview-probe"
+version = "0.0.0"
+edition = "2021"
+[workspace]
+[dependencies]
+anyhow = "1"
+serde_json = "1"
+tokio = { version = "1", features = ["full"] }
+tokio-util = { version = "0.7", features = ["rt"] }
+tempfile = "3"
+ymp-core = { path = "/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-review-findings/ymp-rust/crates/ymp-core" }
+ymp-runtime = { path = "/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-review-findings/ymp-rust/crates/ymp-runtime" }
+ymp-storage = { path = "/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-review-findings/ymp-rust/crates/ymp-storage" }
+ymp-providers = { path = "/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-review-findings/ymp-rust/crates/ymp-providers" }

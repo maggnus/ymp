@@ -49,6 +49,14 @@ impl Engine {
     }
 
     pub(super) fn team_constraints(&self, session: &str) -> Result<TeamConstraints> {
+        if let Some(owner) = self.store.owner_team_state(session)? {
+            let mut constraints = owner.constraints;
+            if !owner.pending_departures.is_empty() && constraints.fixed_roster.is_some() {
+                constraints.fixed_roster =
+                    self.store.team_state(session)?.map(|s| s.current_members);
+            }
+            return Ok(constraints);
+        }
         Ok(self
             .store
             .session_policy(session)?
@@ -59,7 +67,7 @@ impl Engine {
     /// Metadata inspection only. Captured user restrictions survive config changes.
     pub fn eligible_agents(&self, session: &str) -> Result<Vec<AgentProfile>> {
         let constraints = self.team_constraints(session)?;
-        let mut config = self.config.clone();
+        let mut config = self.session_config(session)?;
         config.team_constraints = constraints.clone();
         if let Some(policy) = self.store.session_policy(session)? {
             config.execution = policy.execution;
@@ -73,10 +81,18 @@ impl Engine {
                 }
             }
         }
-        self.eligible_from(&config, &constraints)
+        let mut eligible = self.eligible_from(&config, &constraints)?;
+        if let Some(owner) = self.store.owner_team_state(session)? {
+            eligible.retain(|a| {
+                !owner.excluded_members.contains(&a.id)
+                    || owner.pending_departures.iter().any(|p| p.agent_id == a.id)
+            });
+        }
+        Ok(eligible)
     }
 
     pub fn refresh_team_eligibility(&self, session: &str) -> Result<Vec<AgentProfile>> {
+        self.store.settle_owner_team(session)?;
         let eligible = self.eligible_agents(session)?;
         self.store.refresh_team_eligibility(
             session,
@@ -419,7 +435,17 @@ impl Engine {
         let policy = self.store.session_policy(session)?;
         let constraints = self.team_constraints(session)?;
         let eligible = self.refresh_team_eligibility(session)?;
-        let mut candidates = self.execution_options(session, &eligible, &demand)?;
+        let mut engine = self.clone();
+        engine.config = self.session_config(session)?;
+        let mut candidates = engine.execution_options(session, &eligible, &demand)?;
+        if let Some(owner) = self.store.owner_team_state(session)? {
+            candidates.retain(|c| {
+                !owner.excluded_members.contains(&c.agent_id)
+                    && !owner.pending_departures.iter().any(|p| {
+                        p.agent_id == c.agent_id || p.replacement_id.as_ref() == Some(&c.agent_id)
+                    })
+            });
+        }
         if let Some(permitted) = permitted {
             candidates.retain(|c| permitted.contains(&c.agent_id));
         }
@@ -462,6 +488,9 @@ impl Engine {
                 .filter(|t| demand.task_id.as_ref() != Some(&t.task.id))
                 .filter_map(|t| t.commitment.map(|c| c.agent_id)),
         );
+        if let Some(owner) = self.store.owner_team_state(session)? {
+            occupied_agent_ids.extend(owner.pending_departures.iter().map(|p| p.agent_id.clone()));
+        }
         occupied_agent_ids.sort();
         occupied_agent_ids.dedup();
         Ok(AllocationInput {
@@ -530,7 +559,11 @@ impl Engine {
         proposal: &AllocationProposal,
     ) -> Result<()> {
         input.constraints.validate()?;
-        ensure!(input.eligible.len() >= 2, "no_independent_eligible_reviewer: at least two eligible identities are required for independent review");
+        let reviewing = matches!(
+            input.demand.purpose.as_str(),
+            "review_plan" | "review" | "final_review"
+        );
+        ensure!(input.eligible.len() >= if reviewing {1} else {2}, "no_independent_eligible_reviewer: production requires independent review eligibility; pending review requires an eligible nonproducer");
         let ids = &proposal.members;
         ensure!(
             input.occupied_agent_ids.iter().all(|id| ids.contains(id)),
@@ -620,6 +653,16 @@ impl Engine {
             reason: reason.clone(),
             outcome: None,
             links: RecordLinks {
+                policy_chain: self
+                    .allocation_origin
+                    .iter()
+                    .cloned()
+                    .chain(std::iter::once(PolicyProvenance {
+                        implementation: self.allocation_identity.clone(),
+                        configuration: Value::Null,
+                        originating_record_ids: vec![],
+                    }))
+                    .collect(),
                 allocation: Some(Box::new(AllocationDecision {
                     implementation: self.allocation_identity.clone(),
                     input,
@@ -666,6 +709,7 @@ impl Engine {
         demand: AllocationDemand,
         permitted: Option<&[String]>,
     ) -> Result<AllocationProposal> {
+        self.owner_boundary(session)?;
         let input = self.allocation_input(session, boundary, demand, permitted)?;
         let proposal = match self.allocation_policy.propose(&input) {
             Ok(proposal) => proposal,
@@ -678,6 +722,16 @@ impl Engine {
                     reason: error.to_string(),
                     outcome: None,
                     links: RecordLinks {
+                        policy_chain: self
+                            .allocation_origin
+                            .iter()
+                            .cloned()
+                            .chain(std::iter::once(PolicyProvenance {
+                                implementation: self.allocation_identity.clone(),
+                                configuration: Value::Null,
+                                originating_record_ids: vec![],
+                            }))
+                            .collect(),
                         allocation: Some(Box::new(AllocationDecision {
                             implementation: self.allocation_identity.clone(),
                             input,

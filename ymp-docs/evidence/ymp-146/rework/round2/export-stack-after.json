@@ -1,0 +1,21 @@
+{
+  "command": [
+    "cargo",
+    "test",
+    "-p",
+    "ymp-eval-driver",
+    "--bin",
+    "ymp-eval-driver",
+    "location_projection_preserves_extra_answers_outcomes_and_query_results",
+    "--",
+    "--nocapture"
+  ],
+  "exit_code": 0,
+  "change": "Share the immutable fresh-review command via Arc instead of inlining its full proposal in each Engine clone and async frame",
+  "stack_limit_changed": false,
+  "test_source_changed": false,
+  "sources": {
+    "ymp-rust/crates/ymp-runtime/src/engine.rs": "6b0e1c62a53040a75fa31fa4e6dcdf311a023b81d8218e73a8d061ad244fc37e",
+    "ymp-rust/crates/ymp-runtime/src/engine/fresh_plan_review.rs": "52098c0cd1b74a41e8451cd37e5845657d5ba6c02efb369fe6aafb6c3207b09b"
+  }
+}

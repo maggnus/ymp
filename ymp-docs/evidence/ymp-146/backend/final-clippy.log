@@ -1,0 +1,5 @@
+    Checking ymp-runtime v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-recovery-backend/ymp-rust/crates/ymp-runtime)
+   Compiling ymp-eval-driver v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-recovery-backend/ymp-rust/crates/ymp-eval-driver)
+    Checking ymp-tui v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-recovery-backend/ymp-rust/crates/ymp-tui)
+    Checking ymp-cli v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-recovery-backend/ymp-rust/crates/ymp-cli)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 2.87s

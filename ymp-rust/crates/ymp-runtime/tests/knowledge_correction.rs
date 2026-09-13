@@ -33,6 +33,14 @@ impl ExecutionBackend for Scripted {
             version: "1".into(),
         }
     }
+    fn workspace_access(&self, request: &TurnRequest) -> WorkspaceAccess {
+        // Only execute writes an observation; all other phases use native mock access.
+        if request.purpose == "execute" {
+            WorkspaceAccess::WriteAll
+        } else {
+            NativeExecutionBackend.workspace_access(request)
+        }
+    }
     fn execute(
         &self,
         request: TurnRequest,
@@ -240,6 +248,22 @@ async fn cross_file_correction_reopens_retrieves_and_replays_without_duplicate_c
     );
     assert_eq!(f.store.observations().unwrap().len(), 1);
     f.backend.fail_plan.store(false, Ordering::SeqCst);
+    let stage = f
+        .store
+        .recovery_stages(&paused.session.id)
+        .unwrap()
+        .into_iter()
+        .find(|s| s.purpose == "plan" && s.status != RecoveryStatus::Complete)
+        .unwrap();
+    f.engine
+        .control_recovery(&RecoveryControlCommand {
+            session_id: paused.session.id.clone(),
+            stage_id: stage.id,
+            expected_revision: stage.revision,
+            command_id: new_id(),
+            action: RecoveryControl::Continue,
+        })
+        .unwrap();
     f.engine.config.acceptance_contracts = None;
     let outcome = f
         .engine

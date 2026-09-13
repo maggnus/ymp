@@ -1012,6 +1012,21 @@
           "at": "2026-09-13T18:49:42.166240+00:00",
           "status": "in_progress",
           "note": "Owner requested a simple real trial of two/three weak agents versus a strong solo and scientific grounding. Narrowed the first study instead of waiting for the full YMP-148/151 framework. Existing native runner/identity/accounting readiness is under bounded read-only review; parent prepared the mechanism, countercontrols and primary literature. Concrete models/settings and quota still require the earlier specified approval. No native trial or measured result yet."
+        },
+        {
+          "at": "2026-09-13T18:51:24.768225+00:00",
+          "status": "in_progress",
+          "note": "Dispatched bounded read-only native-runner/identity/accounting research to 52111c72 and isolated fixture/evaluator preparation to bfa857e3-0a54-48e3-bbd8-7e2f717a4843 in eval/ymp201-weak-pilot from 399ecc2. Preparation writes only evaluation files/evidence; native inference remains prohibited until the concrete reviewed settings and allowance are approved. The P0 recovery author remains independent."
+        },
+        {
+          "at": "2026-09-13T18:54:08.795878+00:00",
+          "status": "in_progress",
+          "note": "Read-only readiness review confirms current Engine supports two/three genuine weak-model participants, including the reserved final reviewer; Engine cannot supply true solo without violating independent acceptance. Extended the existing preparation fork only with a thin native adapter in ymp-eval-driver for solo/isolated attempts and complete shared accounting. Bare ask loses usage; scripted driver successes are not model results. Require protocol fixtures for limits, errors, settings and native delegation; no real inference until concrete quota approval."
+        },
+        {
+          "at": "2026-09-13T19:31:33.486117+00:00",
+          "status": "in_progress",
+          "note": "Preparation candidate 15529e6 delivered fixtures, external scoring and 12 offline protocol controls; author reports 36 Python and 580 Rust tests passed, two ignored. Native command is still an unconditional refusal, so no measured trial or completed runner is accepted. Same fork continues installed native-control verification and full manifest-to-result consumer; transport retries are distinguished from extra participants and observed stop thresholds from hard billed ceilings. Concrete calibration/pilot allowance remains unapproved."
         }
       ]
     },
@@ -3979,7 +3994,11 @@
         "ymp-docs/evidence/ymp-146/acceptance-round1.md",
         "ymp-docs/evidence/ymp-146/independent-recovery/manifest.json",
         "ymp-docs/evidence/ymp-146/acceptance-round2.md",
-        "ymp-docs/product/recovery-owner-decision.md"
+        "ymp-docs/product/recovery-owner-decision.md",
+        "ymp-docs/evidence/ymp-146/authority-round2.md",
+        "ymp-docs/architecture/session-recovery-ui.md",
+        "ymp-docs/evidence/ymp-146/backend-acceptance.md",
+        "ymp-docs/evidence/ymp-146/independent-round2/review-result.json"
       ],
       "history": [
         {
@@ -4066,6 +4085,21 @@
           "at": "2026-09-13T18:42:36.879969+00:00",
           "status": "in_progress",
           "note": "Owner approved YMP-153. Extend the current correction fork with the bounded explicit owner authorization and same-session completion tests; preserve the existing inspection and fresh-review work. Plan-only progress is no longer the completion boundary. Real providers, the live failed session and comparative trials remain outside authorization."
+        },
+        {
+          "at": "2026-09-13T19:31:33.486117+00:00",
+          "status": "in_progress",
+          "note": "Author delivered second-round candidate 743543f with executable source edc779a, clean tree and 624 passing tests, two ignored. Claimed end-to-end current-files continuation preserves legacy uncertainty through restart and actual task completion. Dispatched bounded executable re-review to 52111c72 and authority/CAS/hold review to 332e0b99 against the owner-approved YMP-153 contract. Candidate is not integrated or accepted; UI and installed delivery remain pending."
+        },
+        {
+          "at": "2026-09-13T19:38:13.331438+00:00",
+          "status": "in_progress",
+          "note": "Second-round static authority review accepted 743543f with no required findings; recorded actual limits including context size and separate conversation admission. Executable reviewer 52111c72 remains responsible for scenario acceptance. Prepared the bounded /team recovery/live-membership UI contract and assigned read-only integration mapping to Claude 8d8b7748; no UI implementation or integration before backend acceptance."
+        },
+        {
+          "at": "2026-09-13T19:40:32.913275+00:00",
+          "status": "in_progress",
+          "note": "Both independent reviews accepted 743543f. Executable review passed 49 checks, including actual same-session completion and nonzero/unknown historical usage; parent retained hash-verified controls and integrated all 13 backend commits through c28f501 without conflicts. Backend files match accepted source and UI/CLI/evals remain accepted149. A single combined-source fmt/Clippy/workspace sequence is delegated to 52111c72; minimal Claude UI integration remains required. Installed executable is still 0.4.6, and no real session or model trial ran."
         }
       ]
     },
@@ -4366,7 +4400,7 @@
       ]
     }
   ],
-  "updated_at": "2026-09-13T18:49:42.166240+00:00",
+  "updated_at": "2026-09-13T19:40:32.913275+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",

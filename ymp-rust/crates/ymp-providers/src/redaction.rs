@@ -19,6 +19,8 @@ pub(crate) fn team_capability(error: Error, capability: Option<&str>) -> Error {
     if sanitized == diagnostic {
         // Preserve typed classifications when the error contains no capability.
         error
+    } else if let Some(classification) = error.downcast_ref::<crate::NativeFailure>() {
+        Error::new(classification.clone()).context(sanitized)
     } else {
         Error::msg(sanitized)
     }

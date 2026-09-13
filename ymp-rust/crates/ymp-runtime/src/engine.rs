@@ -5,8 +5,14 @@ mod confirmation;
 mod confirmation_tests;
 #[cfg(test)]
 mod contract_ingress_tests;
+mod current_files;
+mod fresh_plan_review;
 #[cfg(test)]
 mod knowledge_tests;
+mod planning_recovery;
+mod recovery;
+mod recovery_inspection;
+mod team_control;
 mod workspace_access;
 use crate::mcp::TeamServer;
 use crate::{
@@ -65,6 +71,7 @@ pub struct Engine {
     backend_identity: ExecutionBackendIdentity,
     allocation_policy: Arc<dyn crate::AllocationPolicy>,
     allocation_identity: ExecutionBackendIdentity,
+    allocation_origin: Option<PolicyProvenance>,
     resource_policy: Arc<dyn crate::ResourceAllocationPolicy>,
     resource_identity: ExecutionBackendIdentity,
     workspace_policy: Arc<dyn crate::WorkspaceAccessPolicy>,
@@ -72,6 +79,14 @@ pub struct Engine {
     workspace_parent: Option<String>,
     board_policy: Arc<dyn crate::BoardProposalPolicy>,
     board_identity: ExecutionBackendIdentity,
+    recovery_policy: Arc<dyn crate::RecoveryPolicy>,
+    recovery_identity: ExecutionBackendIdentity,
+    recovery_configuration: Value,
+    recovery_binding: Option<(String, u64)>,
+    recovery_inspection_binding: Option<RecoveryInspectionCommand>,
+    require_recovery_read_only: bool,
+    // Keep the full immutable proposal out of every cloned Engine/async frame.
+    fresh_plan_review_binding: Option<Arc<FreshPlanReviewCommand>>,
 }
 #[derive(Clone)]
 struct RunContext {
@@ -157,6 +172,17 @@ impl Engine {
             bridge,
             executable: std::env::current_exe()?,
             use_memory: true,
+            recovery_policy: Arc::new(crate::BoundedRecoveryPolicy::default()),
+            recovery_identity: crate::RecoveryPolicy::identity(
+                &crate::BoundedRecoveryPolicy::default(),
+            ),
+            recovery_configuration: crate::RecoveryPolicy::configuration(
+                &crate::BoundedRecoveryPolicy::default(),
+            ),
+            recovery_binding: None,
+            recovery_inspection_binding: None,
+            require_recovery_read_only: false,
+            fresh_plan_review_binding: None,
             adaptive: true,
             workspace_policy: Arc::new(crate::DirectWorkspaceAccessPolicy),
             workspace_policy_identity: crate::WorkspaceAccessPolicy::identity(
@@ -178,6 +204,7 @@ impl Engine {
             backend_identity: NativeExecutionBackend.identity(),
             allocation_policy: Arc::new(crate::BoundedAllocationPolicy),
             allocation_identity: crate::AllocationPolicy::identity(&crate::BoundedAllocationPolicy),
+            allocation_origin: None,
             resource_policy: Arc::new(crate::BoundedResourcePolicy),
             resource_identity: crate::ResourceAllocationPolicy::identity(
                 &crate::BoundedResourcePolicy,
@@ -769,6 +796,15 @@ impl Engine {
             Err(error) => {
                 let state = if self.cancel.is_cancelled()
                     || error.downcast_ref::<BudgetDenial>().is_some()
+                    || self
+                        .store
+                        .recovery_stages(&session.id)?
+                        .iter()
+                        .any(|s| s.status == RecoveryStatus::Paused)
+                    || self
+                        .store
+                        .owner_team_state(&session.id)?
+                        .is_some_and(|s| s.control != OwnerRunControl::Continue)
                     || ctx.turns.load(Ordering::SeqCst) >= ctx.limits.turns
                 {
                     "paused"
@@ -853,6 +889,9 @@ impl Engine {
         read_only: bool,
         task: Option<TaskAttemptRef>,
     ) -> Result<RecordedResponse> {
+        if purpose == "plan" {
+            return self.ask_plan_recovering(ctx, agent, cwd, prompt).await;
+        }
         let mut requested = None;
         let review = read_only
             && matches!(
@@ -882,6 +921,11 @@ impl Engine {
                 Err(error)
                     if error.is::<ymp_providers::NativeOutputLimit>()
                         && review
+                        && self.last_failure_is_read_only(
+                            &ctx.session.id,
+                            &agent.id,
+                            purpose,
+                        )?
                         && !self.cancel.is_cancelled() =>
                 {
                     if attempt == attempts {
@@ -908,6 +952,26 @@ impl Engine {
 
     #[allow(clippy::too_many_arguments)]
     async fn ask_scoped_once(
+        &self,
+        ctx: &RunContext,
+        agent: &AgentProfile,
+        cwd: &Path,
+        purpose: &str,
+        prompt: &str,
+        read_only: bool,
+        task: Option<TaskAttemptRef>,
+        requested: &mut Option<ExecutionSettings>,
+    ) -> Result<RecordedResponse> {
+        self.owner_boundary(&ctx.session.id)?;
+        let mut effective_engine = self.clone();
+        effective_engine.config = self.session_config(&ctx.session.id)?;
+        effective_engine
+            .ask_scoped_effective(ctx, agent, cwd, purpose, prompt, read_only, task, requested)
+            .await
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    async fn ask_scoped_effective(
         &self,
         ctx: &RunContext,
         agent: &AgentProfile,
@@ -1143,10 +1207,22 @@ impl Engine {
         };
         // Existing per-run permits remain a secondary bound for legacy callers.
         let _permit = tokio::select! {_=self.cancel.cancelled()=>bail!("Cancelled"),p=ctx.permits.acquire()=>p?};
+        let acknowledged_actor = self
+            .store
+            .current_files_authorizations(&ctx.session.id)?
+            .iter()
+            .any(|a| {
+                a.command
+                    .context
+                    .failures
+                    .iter()
+                    .any(|f| f.agent_id == agent.id)
+            });
         let continuation = self
             .store
             .value(&key)?
             .and_then(|v| serde_json::from_value::<NativeContinuation>(v).ok())
+            .filter(|_| self.fresh_plan_review_binding.is_none() && !acknowledged_actor)
             .filter(|saved| saved.config_version == config_version && saved.requested == requested);
         let resume = continuation.as_ref().map(|saved| saved.session_id.clone());
         request.resume = resume.clone();
@@ -1270,6 +1346,26 @@ impl Engine {
             usage: None,
             terminal_reason: None,
         };
+        if let Some((stage_id, revision)) = &self.recovery_binding {
+            self.store.bind_recovery_assignment(
+                &ctx.session.id,
+                &assignment.id,
+                &RecoveryAdmission {
+                    stage_id: stage_id.clone(),
+                    revision: *revision,
+                },
+            )?;
+        }
+        if let Some(command) = &self.recovery_inspection_binding {
+            self.store
+                .bind_recovery_inspection_assignment(&assignment.id, command)?;
+        }
+        anyhow::ensure!(self.execution_backend.local_effect_scope(&request) == access.access().local_effect_scope,
+            "effect_scope_changed: actual continuation changed the backend's declared effect boundary before admission");
+        if let Some(command) = &self.fresh_plan_review_binding {
+            self.store
+                .bind_fresh_plan_review_assignment(&assignment.id, command)?;
+        }
         let token = access.admit_reserved(
             ctx.server.clone(),
             &mut assignment,
@@ -1534,6 +1630,31 @@ impl Engine {
                 })
             }
             Err(e) => {
+                let (class, native_code) = ymp_providers::classify_failure(&e);
+                self.store.record_decision(&DecisionRecord {
+                    id: new_id(),
+                    session_id: ctx.session.id.clone(),
+                    kind: "invocation_failure".into(),
+                    actor: Some(agent.id.clone()),
+                    reason: format!("Invocation ended with {class:?}; no verdict was produced"),
+                    outcome: None,
+                    links: RecordLinks {
+                        assignment_id: Some(assignment.id.clone()),
+                        invocation_id: Some(invocation.id.clone()),
+                        failure: Some(InvocationFailure {
+                            class,
+                            native_code,
+                            assignment_id: assignment.id.clone(),
+                            invocation_id: invocation.id.clone(),
+                            agent_id: agent.id.clone(),
+                            provider_id: provider.id.clone(),
+                            effective_access: access.access().effective_access.clone(),
+                            termination: TerminationEvidence::BackendEnded,
+                        }),
+                        ..Default::default()
+                    },
+                    created_at: now(),
+                })?;
                 self.store.event(
                     &ctx.session.id,
                     "turn_failed",
@@ -1604,10 +1725,18 @@ impl Engine {
     fn record_plan_proposal(
         &self,
         ctx: &RunContext,
-        author: &AgentProfile,
+        _author: &AgentProfile,
         response: RecordedResponse,
         previous: Option<(&PlanVersion, &str)>,
     ) -> Result<PlanVersion> {
+        let author = self
+            .store
+            .trace(&ctx.session.id)?
+            .assignments
+            .into_iter()
+            .find(|a| a.id == response.assignment_id)
+            .context("Planning producer assignment missing")?
+            .agent_id;
         let plan: Plan = parse_response(&response.text)?;
         plan.validate()?;
         self.validate_contract_bindings(
@@ -1627,7 +1756,7 @@ impl Engine {
             id: new_id(),
             session_id: ctx.session.id.clone(),
             kind: "plan_proposed".into(),
-            actor: Some(author.id.clone()),
+            actor: Some(author),
             reason: format!(
                 "Plan proposal revision {}: {}",
                 version.revision, version.plan.summary
@@ -1701,6 +1830,7 @@ impl Engine {
         if tasks.is_empty() {
             tasks = self.plan(ctx, prompt).await?;
         }
+        self.check_fresh_plan_dependencies(&ctx.session.id)?;
         self.validate_contract_bindings(&ctx.session.id, tasks.iter().map(|t| t.title.as_str()))?;
         // An interrupted turn is inspected before any continuation. No side-effecting
         // request is automatically replayed just because its final event is missing.
@@ -1726,9 +1856,11 @@ impl Engine {
             }
         }
         loop {
+            self.owner_boundary(&ctx.session.id)?;
             if self.cancel.is_cancelled() {
                 bail!("Cancelled");
             }
+            self.check_fresh_plan_dependencies(&ctx.session.id)?;
             self.commit_board_proposals(&ctx.session.id)?;
             tasks = self.store.tasks(&ctx.session.id)?;
             self.validate_contract_bindings(
@@ -1750,10 +1882,25 @@ impl Engine {
                 .filter(|t| t.state == TaskState::Accepted)
                 .map(|t| t.id.clone())
                 .collect();
+            let waiting_reviews = self
+                .store
+                .recovery_stages(&ctx.session.id)?
+                .into_iter()
+                .filter(|s| {
+                    matches!(
+                        s.status,
+                        RecoveryStatus::Waiting
+                            | RecoveryStatus::OwnerAction
+                            | RecoveryStatus::Paused
+                    )
+                })
+                .filter_map(|s| s.task)
+                .collect::<Vec<_>>();
             let ready = tasks
                 .iter()
                 .filter(|t| {
-                    t.state == TaskState::Review
+                    (t.state == TaskState::Review
+                        && !waiting_reviews.contains(&TaskAttemptRef::from(*t)))
                         || (t.state == TaskState::Ready
                             && t.dependencies.iter().all(|d| accepted.contains(d)))
                 })
@@ -1772,6 +1919,9 @@ impl Engine {
                 self.record_workspace_wait(ctx, waiting, code, detail)?;
             }
             if ready.is_empty() {
+                if self.prepare_ended_execution_reviews(ctx)? {
+                    continue;
+                }
                 bail!("No runnable tasks remain");
             }
             // Select a bounded wave. Access admission below coordinates actual
@@ -1823,6 +1973,28 @@ impl Engine {
                 }
             }
             if let Some(error) = error {
+                let current = self.store.tasks(&ctx.session.id)?;
+                let unrelated_ready = current.iter().any(|t| {
+                    t.state == TaskState::Ready
+                        && t.dependencies.iter().all(|id| {
+                            current
+                                .iter()
+                                .any(|d| &d.id == id && d.state == TaskState::Accepted)
+                        })
+                });
+                if unrelated_ready
+                    && !self.cancel.is_cancelled()
+                    && self.owner_boundary(&ctx.session.id).is_ok()
+                {
+                    self.store.event(&ctx.session.id,"recovery_deferred",&json!({"reason":error.to_string(),"action":"retain unresolved obligation and consider unrelated ready work through normal admission"}))?;
+                    continue;
+                }
+                if !self.cancel.is_cancelled()
+                    && self.owner_boundary(&ctx.session.id).is_ok()
+                    && self.prepare_ended_execution_reviews(ctx)?
+                {
+                    continue;
+                }
                 return Err(error);
             }
         }
@@ -1852,59 +2024,70 @@ impl Engine {
             .collect::<Vec<_>>();
         if peers.is_empty() {
             self.store.record_decision(&DecisionRecord { id: new_id(), session_id: ctx.session.id.clone(), kind: "final_review_pending".into(), actor: None, reason: "Every available agent produced part of the result; an independent final reviewer is required".into(), outcome: None, links: RecordLinks { result: Some(aggregate.clone()), ..Default::default() }, created_at: now() })?;
-            bail!("Independent final review is pending: every available agent produced part of the result");
+            // The durable review consumer below records the concrete waiting stage.
         }
-        let verifier = self.choose(
-            ctx,
-            &peers,
-            "verification",
-            "standard",
-            "final review",
-            "final_review",
-            None,
-        )?;
-        let response=self.ask_scoped(ctx,&verifier,&ctx.workspace.directory,"final_review",&format!("Independently inspect the final result against the ORIGINAL REQUEST:\n{prompt}\nAll listed checks were run by ymp. Return only JSON {{\"approved\":true|false,\"reason\":\"specific evidence and any gaps\"}}. Do not approve based solely on peer claims."),true,None).await?;
-        let review: Review = parse_response(&response.text)?;
-        let review_id = self.record_review(
-            ctx,
-            &verifier.id,
-            &response,
-            &review,
-            RecordLinks {
-                result: Some(aggregate.clone()),
-                ..Default::default()
-            },
-            "final_review",
-        )?;
+        let review_prompt = format!("Independently inspect the final result against the ORIGINAL REQUEST:\n{prompt}\nAll listed checks were run by ymp. Return only JSON {{\"approved\":true|false,\"reason\":\"specific evidence and any gaps\"}}. Do not approve based solely on peer claims.");
+        let (verifier_id, response, review, review_id) = self
+            .review_recovering(
+                ctx,
+                &review_prompt,
+                RecordLinks {
+                    result: Some(aggregate.clone()),
+                    ..Default::default()
+                },
+                "final_review",
+                "final_review",
+                &peers,
+            )
+            .await?;
+        let verifier = self
+            .store
+            .session(&ctx.session.id)?
+            .team
+            .into_iter()
+            .find(|a| a.id == verifier_id)
+            .context("Final reviewer identity missing")?;
         let (confirmation, confirmation_ids, failed) =
             self.store.confirmation_grade(&ctx.session.id, &aggregate)?;
         let approved = review.approved && !failed;
-        self.store.record_decision(&DecisionRecord {
-            id: new_id(),
-            session_id: ctx.session.id.clone(),
-            kind: if approved {
-                "final_accepted"
-            } else {
-                "final_rejected"
-            }
-            .into(),
-            actor: Some(verifier.id.clone()),
-            reason: review.reason.clone(),
-            outcome: Some(if approved {
-                DecisionOutcome::Accepted { confirmation }
-            } else {
-                DecisionOutcome::Rejected
-            }),
-            links: RecordLinks {
-                result: Some(aggregate.clone()),
-                assignment_id: Some(response.assignment_id.clone()),
-                invocation_id: Some(response.invocation_id.clone()),
-                review_ids: vec![review_id],
-                confirmation_ids,
-                ..Default::default()
-            },
-            created_at: now(),
-        })?;
+        let acceptance_kind = if approved {
+            "final_accepted"
+        } else {
+            "final_rejected"
+        };
+        if !self
+            .store
+            .decisions(&ctx.session.id)?
+            .iter()
+            .any(|d| d.kind == acceptance_kind && d.links.result.as_ref() == Some(&aggregate))
+        {
+            self.store.record_decision(&DecisionRecord {
+                id: new_id(),
+                session_id: ctx.session.id.clone(),
+                kind: if approved {
+                    "final_accepted"
+                } else {
+                    "final_rejected"
+                }
+                .into(),
+                actor: Some(verifier.id.clone()),
+                reason: review.reason.clone(),
+                outcome: Some(if approved {
+                    DecisionOutcome::Accepted { confirmation }
+                } else {
+                    DecisionOutcome::Rejected
+                }),
+                links: RecordLinks {
+                    result: Some(aggregate.clone()),
+                    assignment_id: Some(response.assignment_id.clone()),
+                    invocation_id: Some(response.invocation_id.clone()),
+                    review_ids: vec![review_id],
+                    confirmation_ids,
+                    ..Default::default()
+                },
+                created_at: now(),
+            })?;
+        }
         if !approved {
             bail!("Final review rejected the result: {}", review.reason);
         }
@@ -2034,93 +2217,147 @@ impl Engine {
     }
 
     async fn plan(&self, ctx: &RunContext, prompt: &str) -> Result<Vec<Task>> {
-        self.status("Collecting independent proposals");
-        let instruction=format!("Analyze this request and inspect the workspace without changing files:\n{prompt}\nPropose a concise plan with at most 8 independently checkable tasks. Include explicit shell acceptance checks where possible; do not weaken existing tests. Return ONLY JSON: {{\"summary\":\"...\",\"tasks\":[{{\"title\":\"...\",\"description\":\"...\",\"competence\":\"implementation\",\"access\":\"write\",\"difficulty\":\"standard\",\"dependencies\":[],\"checks\":[\"command\"]}}]}}. Dependencies are zero-based task indexes. Competences: analysis, planning, implementation, verification, synthesis. Each task declares access as read_only or write independently of competence. Use read_only for returning findings in the response; use write for producing or changing files, including analysis and synthesis artifacts. Omitted access conservatively means write. Difficulties: simple, standard, complex. Keep simple requests to one task.");
-        let mut work = JoinSet::new();
-        // A bounded initial sample leaves startup room for independent review
-        // and revision. Membership is not a mandate to solicit every member.
-        let difficulty = if prompt.len() > 1000 || prompt.to_lowercase().contains("complex") {
-            "complex"
-        } else {
-            "standard"
-        };
-        let initial = if difficulty == "complex" { 2 } else { 1 };
-        let initial = initial.min(ctx.limits.parallel).min(
-            ctx.limits
-                .resources
-                .as_ref()
-                .map_or(1, |r| r.startup_invocations.saturating_sub(1) as usize),
-        );
-        let mut planners = Vec::new();
-        for _ in 0..initial {
-            let candidates = self
-                .current_team(&ctx.session.id)?
-                .into_iter()
-                .filter(|a| !planners.iter().any(|p: &AgentProfile| p.id == a.id))
-                .collect::<Vec<_>>();
-            if candidates.is_empty() {
-                break;
-            }
-            planners.push(self.choose(
-                ctx,
-                &candidates,
-                "planning",
-                difficulty,
-                "bounded initial planning",
-                "plan",
-                None,
-            )?);
-        }
-        for agent in &planners {
-            let e = self.clone();
-            let c = ctx.clone();
-            let a = agent.clone();
-            let p = instruction.clone();
-            work.spawn(async move {
-                let r = e
-                    .ask_scoped(&c, &a, &c.workspace.directory, "plan", &p, true, None)
-                    .await;
-                (a, r)
-            });
-        }
+        let trace = self.store.trace(&ctx.session.id)?;
         let mut proposals = Vec::new();
-        while let Some(result) = work.join_next().await {
-            let (agent, result) = result?;
-            match result.and_then(|response| self.record_plan_proposal(ctx, &agent, response, None))
+        for decision in trace.decisions.iter().filter(|d| d.kind == "plan_proposed") {
+            let proposal = decision
+                .links
+                .plan_proposal
+                .as_ref()
+                .context("Missing recorded proposal")?;
+            if trace
+                .decisions
+                .iter()
+                .filter_map(|d| d.links.plan_proposal.as_ref())
+                .any(|p| p.proposal_id == proposal.proposal_id && p.revision > proposal.revision)
             {
-                Ok(proposal) => proposals.push((agent, proposal)),
-                Err(e) => {
-                    self.post(
-                        &ctx.session.id,
-                        "ymp",
-                        "notice",
-                        &format!("Plan proposal unavailable: {e}"),
-                    )?;
+                continue;
+            }
+            let author = trace
+                .session
+                .team
+                .iter()
+                .find(|a| Some(&a.id) == decision.actor.as_ref())
+                .context("Saved plan author missing from history")?;
+            proposals.push((author.clone(), proposal.clone()));
+        }
+        let restored = !proposals.is_empty();
+        if !restored {
+            self.status("Collecting independent proposals");
+            let instruction=format!("Analyze this request and inspect the workspace without changing files:\n{prompt}\nPropose a concise plan with at most 8 independently checkable tasks. Include explicit shell acceptance checks where possible; do not weaken existing tests. Return ONLY JSON: {{\"summary\":\"...\",\"tasks\":[{{\"title\":\"...\",\"description\":\"...\",\"competence\":\"implementation\",\"access\":\"write\",\"difficulty\":\"standard\",\"dependencies\":[],\"checks\":[\"command\"]}}]}}. Dependencies are zero-based task indexes. Competences: analysis, planning, implementation, verification, synthesis. Each task declares access as read_only or write independently of competence. Use read_only for returning findings in the response; use write for producing or changing files, including analysis and synthesis artifacts. Omitted access conservatively means write. Difficulties: simple, standard, complex. Keep simple requests to one task.");
+            let mut work = JoinSet::new();
+            // A bounded initial sample leaves startup room for independent review
+            // and revision. Membership is not a mandate to solicit every member.
+            let difficulty = if prompt.len() > 1000 || prompt.to_lowercase().contains("complex") {
+                "complex"
+            } else {
+                "standard"
+            };
+            let initial = if difficulty == "complex" { 2 } else { 1 };
+            let initial = initial.min(ctx.limits.parallel).min(
+                ctx.limits
+                    .resources
+                    .as_ref()
+                    .map_or(1, |r| r.startup_invocations.saturating_sub(1) as usize),
+            );
+            let mut planners = self
+                .store
+                .recovery_stages(&ctx.session.id)?
+                .into_iter()
+                .filter(|s| s.purpose == "plan" && s.status != RecoveryStatus::Complete)
+                .filter_map(|s| s.selected_agent)
+                .filter_map(|id| trace.session.team.iter().find(|a| a.id == id).cloned())
+                .collect::<Vec<_>>();
+            let needed = if planners.is_empty() { initial } else { 0 };
+            for _ in 0..needed {
+                let candidates = self
+                    .current_team(&ctx.session.id)?
+                    .into_iter()
+                    .filter(|a| !planners.iter().any(|p: &AgentProfile| p.id == a.id))
+                    .collect::<Vec<_>>();
+                if candidates.is_empty() {
+                    break;
+                }
+                planners.push(self.choose(
+                    ctx,
+                    &candidates,
+                    "planning",
+                    difficulty,
+                    "bounded initial planning",
+                    "plan",
+                    None,
+                )?);
+            }
+            for agent in &planners {
+                let e = self.clone();
+                let c = ctx.clone();
+                let a = agent.clone();
+                let p = instruction.clone();
+                work.spawn(async move {
+                    let r = e
+                        .ask_scoped(&c, &a, &c.workspace.directory, "plan", &p, true, None)
+                        .await;
+                    (a, r)
+                });
+            }
+            while let Some(result) = work.join_next().await {
+                let (agent, result) = result?;
+                match result
+                    .and_then(|response| self.record_plan_proposal(ctx, &agent, response, None))
+                {
+                    Ok(proposal) => {
+                        let current = self.store.trace(&ctx.session.id)?;
+                        let actor = current
+                            .assignments
+                            .iter()
+                            .find(|a| a.id == proposal.producer_assignment_id)
+                            .context("Planning producer missing")?;
+                        let actual = current
+                            .session
+                            .team
+                            .iter()
+                            .find(|a| a.id == actor.agent_id)
+                            .context("Planning identity missing")?
+                            .clone();
+                        proposals.push((actual, proposal));
+                    }
+                    Err(e) => {
+                        self.post(
+                            &ctx.session.id,
+                            "ymp",
+                            "notice",
+                            &format!("Plan proposal unavailable: {e}"),
+                        )?;
+                    }
                 }
             }
-        }
-        if proposals.is_empty() {
-            if let Some(denial) = self
-                .store
-                .session_budget(&ctx.session.id)?
-                .and_then(|b| b.last_denial)
-            {
-                return Err(denial.into());
+            if proposals.is_empty() {
+                if let Some(denial) = self
+                    .store
+                    .session_budget(&ctx.session.id)?
+                    .and_then(|b| b.last_denial)
+                {
+                    return Err(denial.into());
+                }
+                bail!("No valid plan was produced");
             }
-            bail!("No valid plan was produced");
         }
         let mut selected = None;
         while !proposals.is_empty() {
             let candidates = proposals.iter().map(|(a, _)| a.clone()).collect::<Vec<_>>();
-            let author = self.choose(
-                ctx,
-                &candidates,
-                "planning",
-                "standard",
-                "plan selection",
-                "plan",
-                None,
-            )?;
+            let author = if restored {
+                candidates[0].clone()
+            } else {
+                self.choose(
+                    ctx,
+                    &candidates,
+                    "planning",
+                    "standard",
+                    "plan selection",
+                    "plan",
+                    None,
+                )?
+            };
             let index = proposals
                 .iter()
                 .position(|(a, _)| a.id == author.id)
@@ -2132,46 +2369,17 @@ impl Engine {
                 .filter(|a| a.id != author.id)
                 .cloned()
                 .collect::<Vec<_>>();
-            let reviewer = self.choose(
-                ctx,
-                &peers,
-                "verification",
-                "standard",
-                "plan review",
-                "review_plan",
-                None,
-            )?;
             let mut accepted_review = None;
-            for attempt in 0..ctx.limits.attempts {
-                let review_prompt = format!("Review this proposed plan against the user's request. Check completeness, meaningful acceptance checks, dependencies, and unnecessary work.\nRequest: {prompt}\nPlan: {}\nReturn ONLY JSON {{\"approved\":true|false,\"reason\":\"specific justification\"}}.", serde_json::to_string(&proposal.plan)?);
-                let response = self
-                    .ask_scoped(
-                        ctx,
-                        &reviewer,
-                        &ctx.workspace.directory,
-                        "review_plan",
-                        &review_prompt,
-                        true,
-                        None,
-                    )
+            for _ in proposal.revision..=ctx.limits.attempts {
+                let (response, review, review_id) = self
+                    .review_saved_plan(ctx, prompt, &proposal, &peers)
                     .await?;
-                let review: Review = parse_response(&response.text)?;
-                let review_id = self.record_review(
-                    ctx,
-                    &reviewer.id,
-                    &response,
-                    &review,
-                    RecordLinks {
-                        plan_proposal: Some(proposal.clone()),
-                        ..Default::default()
-                    },
-                    "plan_review",
-                )?;
                 if review.approved {
                     accepted_review = Some((response, review_id, review.reason));
                     break;
                 }
-                if attempt + 1 < ctx.limits.attempts {
+                if proposal.revision < ctx.limits.attempts {
+                    self.check_fresh_plan_dependencies(&ctx.session.id)?;
                     let response = self.ask_scoped(ctx, &author, &ctx.workspace.directory, "plan", &format!("Revise your plan to address this independent review: {}. Return the same JSON plan schema. Original request: {prompt}", review.reason), true, None).await?;
                     proposal = self.record_plan_proposal(
                         ctx,
@@ -2191,6 +2399,21 @@ impl Engine {
             selected.context("No proposed plan passed independent review")?;
         // Preserve the selected author as provenance; checked execution does not
         // establish an objective planning competence outcome.
+        let author = self
+            .store
+            .trace(&ctx.session.id)?
+            .assignments
+            .into_iter()
+            .find(|a| a.id == proposal.producer_assignment_id)
+            .and_then(|a| {
+                self.store
+                    .session(&ctx.session.id)
+                    .ok()?
+                    .team
+                    .into_iter()
+                    .find(|p| p.id == a.agent_id)
+            })
+            .unwrap_or(author);
         self.store
             .put_value(&format!("plan_author:{}", ctx.session.id), &json!(author))?;
         let ids = proposal
@@ -2277,12 +2500,17 @@ impl Engine {
             task_id: task.id.clone(),
             version: board_task.version,
         };
-        if board_task
-            .commitment
-            .as_ref()
-            .is_some_and(|commitment| busy.contains(&commitment.agent_id))
-        {
-            self.record_workspace_wait(ctx, &task, "commitment_busy", "The responsible agent is already selected in this wave; retain the commitment for the next work boundary")?;
+        let occupied = self
+            .store
+            .active_responsibilities(&ctx.session.id)?
+            .into_iter()
+            .filter(|r| r.kind != "board_commitment")
+            .map(|r| r.agent_id)
+            .collect::<HashSet<_>>();
+        if board_task.commitment.as_ref().is_some_and(|commitment| {
+            busy.contains(&commitment.agent_id) || occupied.contains(&commitment.agent_id)
+        }) {
+            self.record_workspace_wait(ctx, &task, "commitment_busy", "The responsible agent has an outstanding invocation, task or access responsibility; retain the commitment for the next work boundary")?;
             return Ok(None);
         }
         let reserved = self
@@ -2296,7 +2524,11 @@ impl Engine {
         };
         let candidates = eligible
             .iter()
-            .filter(|a| !busy.contains(&a.id) && Some(&a.id) != reserved.as_ref())
+            .filter(|a| {
+                !busy.contains(&a.id)
+                    && !occupied.contains(&a.id)
+                    && Some(&a.id) != reserved.as_ref()
+            })
             .cloned()
             .collect::<Vec<_>>();
         if candidates.is_empty() {
@@ -2316,6 +2548,25 @@ impl Engine {
         busy.insert(agent.id.clone());
         let _ = self.events.send(UiEvent::Task(task.clone()));
         Ok(Some(task))
+    }
+
+    /// Unrelated ready work goes first. Known-ended, read-only transport failures
+    /// then use the existing independent interruption review without a run restart.
+    fn prepare_ended_execution_reviews(&self, ctx: &RunContext) -> Result<bool> {
+        self.owner_boundary(&ctx.session.id)?;
+        let mut changed = false;
+        for task in self.store.tasks(&ctx.session.id)? {
+            if task.state == TaskState::Running {
+                if let Some(task) = self
+                    .store
+                    .prepare_ended_execution_review(&ctx.session.id, &TaskAttemptRef::from(&task))?
+                {
+                    changed = true;
+                    let _ = self.events.send(UiEvent::Task(task));
+                }
+            }
+        }
+        Ok(changed)
     }
 
     fn choose_executor(
@@ -2425,35 +2676,42 @@ impl Engine {
             .filter(|a| a.id != assignee.id)
             .cloned()
             .collect::<Vec<_>>();
-        let reviewer = self.choose(
-            ctx,
-            &peers,
-            "verification",
-            &task.difficulty,
-            "candidate review",
-            "review",
-            Some(&task.id),
-        )?;
         let mut evidence = match &check_result {
             Ok(log) => log.clone(),
             Err(e) => format!("Acceptance checks failed: {e:#}"),
         };
         evidence.push_str(&trusted_log);
-        let response=self.ask_scoped(ctx,&reviewer,&path,"review",&format!("Independently inspect this candidate. You did not implement it. Task: {}\n{}\nOriginal request: {prompt}\nExecutor report: {}\nActual check output:\n{evidence}\nReturn ONLY JSON {{\"approved\":true|false,\"reason\":\"concrete evidence\",\"lesson\":\"optional concise reusable lesson without project-specific data\"}}. A passing command is not enough if the task is incomplete. Do not modify files.",task.title,task.description,task.result.as_deref().unwrap_or("missing")),true,Some(TaskAttemptRef::from(&*task))).await?;
-        let mut review: Review = parse_response(&response.text)?;
-        let mut review_ids = vec![self.record_review(
-            ctx,
-            &reviewer.id,
-            &response,
-            &review,
-            RecordLinks {
-                task: Some(TaskAttemptRef::from(&*task)),
-                result: Some(result.clone()),
-                evidence_ids: evidence_ids.clone(),
-                ..Default::default()
-            },
-            "candidate_review",
-        )?];
+        let review_prompt = format!("Independently inspect this candidate. You did not implement it. Task: {}\n{}\nOriginal request: {prompt}\nExecutor report: {}\nActual check output:\n{evidence}\nReturn ONLY JSON {{\"approved\":true|false,\"reason\":\"concrete evidence\",\"lesson\":\"optional concise reusable lesson without project-specific data\"}}. A passing command is not enough if the task is incomplete. Do not modify files.",task.title,task.description,task.result.as_deref().unwrap_or("missing"));
+        let (reviewer_id, response, mut review, review_id) = self
+            .review_recovering(
+                ctx,
+                &review_prompt,
+                RecordLinks {
+                    task: Some(TaskAttemptRef::from(&*task)),
+                    result: Some(result.clone()),
+                    evidence_ids: evidence_ids.clone(),
+                    ..Default::default()
+                },
+                "candidate_review",
+                "review",
+                &peers,
+            )
+            .await?;
+        let reviewer = captured
+            .team
+            .iter()
+            .find(|a| a.id == reviewer_id)
+            .cloned()
+            .or_else(|| {
+                self.store
+                    .session(&ctx.session.id)
+                    .ok()?
+                    .team
+                    .into_iter()
+                    .find(|a| a.id == reviewer_id)
+            })
+            .context("Candidate reviewer identity missing")?;
+        let mut review_ids = vec![review_id];
         let mut review_response = response;
         let mut decision_actor = reviewer.id.clone();
         // Deterministic checks cannot be overruled by an approving language model.
@@ -2475,23 +2733,26 @@ impl Engine {
                 .iter()
                 .find(|a| a.id != reviewer.id)
                 .context("Missing arbiter")?;
-            let response=self.ask_scoped(ctx,arbiter,&path,"review",&format!("Resolve a disputed result by inspecting the actual candidate. Task: {}\n{}\nReviewer objection: {}\nChecks: {evidence}\nReturn ONLY JSON {{\"approved\":true|false,\"reason\":\"evidence addressing the objection\"}}.",task.title,task.description,review.reason),true,Some(TaskAttemptRef::from(&*task))).await?;
-            let arbitration: Review = parse_response(&response.text)?;
-            review_ids.push(self.record_review(
-                ctx,
-                &arbiter.id,
-                &response,
-                &arbitration,
-                RecordLinks {
-                    task: Some(TaskAttemptRef::from(&*task)),
-                    result: Some(result.clone()),
-                    evidence_ids: evidence_ids.clone(),
-                    ..Default::default()
-                },
-                "candidate_arbitration",
-            )?);
+            let arbitration_prompt = format!("Resolve a disputed result by inspecting the actual candidate. Task: {}\n{}\nReviewer objection: {}\nChecks: {evidence}\nReturn ONLY JSON {{\"approved\":true|false,\"reason\":\"evidence addressing the objection\"}}.",task.title,task.description,review.reason);
+            let (arbiter_id, response, arbitration, review_id) = self
+                .review_recovering(
+                    ctx,
+                    &arbitration_prompt,
+                    RecordLinks {
+                        task: Some(TaskAttemptRef::from(&*task)),
+                        result: Some(result.clone()),
+                        evidence_ids: evidence_ids.clone(),
+                        review_ids: review_ids.clone(),
+                        ..Default::default()
+                    },
+                    "candidate_arbitration",
+                    "review",
+                    std::slice::from_ref(arbiter),
+                )
+                .await?;
+            review_ids.push(review_id);
             review_response = response;
-            decision_actor = arbiter.id.clone();
+            decision_actor = arbiter_id;
             review = arbitration;
         }
         if !result
@@ -2689,6 +2950,7 @@ impl Engine {
         }
         let mut log = String::new();
         for command in commands {
+            self.owner_boundary(&ctx.session.id)?;
             self.status(format!("Check: {command}"));
             let mut cmd = tokio::process::Command::new("/bin/sh");
             cmd.arg("-c")
@@ -3584,13 +3846,13 @@ mod tests {
             (
                 "[mock:fail:review]",
                 TaskState::Review,
-                "Mock provider failure during review",
+                "Failure requires diagnosis or a changed condition",
             ),
             ("[mock:reject:review]", TaskState::Blocked, "Task blocked:"),
             (
                 "[mock:fail:final_review]",
                 TaskState::Accepted,
-                "Mock provider failure during final_review",
+                "Failure requires diagnosis or a changed condition",
             ),
             (
                 "[mock:reject:final_review]",

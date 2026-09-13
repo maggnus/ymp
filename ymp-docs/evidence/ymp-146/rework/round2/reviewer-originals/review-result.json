@@ -1,0 +1,56 @@
+{
+  "reviewed_head": "1dff2cbcb558639a74f46fe009372a71652cc4e7",
+  "product_source": "58c795703b4ea8f281f1cdc05cd13572c5f7b5a3",
+  "baseline": "cfdceff06cc703352b1234892729fb72a85dbf09",
+  "platform": "Darwin arm64",
+  "git_porcelain_before": "",
+  "git_porcelain_after": "",
+  "source_hashes_verified": 19,
+  "original_review_artifact_hashes_verified": 9,
+  "results": {
+    "R4": "ACCEPT for occupied-selection and same-run safe read-only transport inspection/rework; unsafe writers remain held",
+    "R3_strict_contract": "RETURN: Completed malformed response is rejected as nonterminal even with captured enforced local scope",
+    "R3_existing_native_session_applicability": "RETURN: native adapters have no local_effect_scope; true pre146 records cannot acquire historical scope; no distinct fresh immutable-proposal review handoff consumer exists"
+  },
+  "checks": [
+    {
+      "command": "cargo test --locked --offline -p ymp-runtime --test session_recovery --target-dir /tmp/ymp146-recovery-review/target -- --nocapture",
+      "exit": 0,
+      "passed": 31,
+      "log": "session-recovery.log"
+    },
+    {
+      "command": "cargo test --locked --offline --manifest-path /tmp/ymp146-recovery-rereview/probe/Cargo.toml --target-dir /tmp/ymp146-recovery-review/target --test inspection -- --nocapture",
+      "exit": 101,
+      "passed": 1,
+      "failed": 1,
+      "log": "scoped-inspection.log"
+    }
+  ],
+  "dependency_versions_additional_to_frozen_workspace": [
+    [
+      "ymp146-recovery-rereview-probe",
+      "0.0.0"
+    ]
+  ],
+  "unverified": [
+    "Linux",
+    "Actual native adapter process termination and external effects",
+    "Availability of an eligible native independent reviewer",
+    "Existing live session; never accessed"
+  ],
+  "preserved": [
+    "Source and frozen worktrees",
+    "Original insufficient-input probes and their artifacts",
+    "Owner waits, budgets, unresolved historical effects"
+  ],
+  "artifact_sha256": {
+    "session-recovery.log": "e6fe541c3fb06592bd6eb4613f76143aba772acb344e2cc318b1aa5e1408847f",
+    "scoped-inspection.log": "5b22c1572b4562c4d97573107a7d2f7ce26cc62188818756e8870d686c7aa66d",
+    "scoped-true.json": "b1ff9c5a4c1b7094709aa55d11c9adee5aaf12db3845780acb0f2e14cbd5e748",
+    "scoped-false.json": "c9c86510440f389276315f4602e58d75a2c104d7219c5360a1afcd9eb9695b84",
+    "probe/tests/inspection.rs": "61739b24079ad19441105d6c09bb631d702712a932aeaf413a8ca7e76ce6d891",
+    "probe/Cargo.toml": "218314cda72129bc2438d801029e17f75bcf33e76810b7030ca4eee93b6c6089",
+    "probe/Cargo.lock": "edcec7a7e7d6c11bfaf68ba1d729b120b0b440b6233506ebc07b239386eab31d"
+  }
+}

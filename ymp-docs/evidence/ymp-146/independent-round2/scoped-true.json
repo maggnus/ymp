@@ -1,0 +1,78 @@
+{
+  "failure": {
+    "agent_id": "reserve",
+    "assignment_id": "08142cfb-75e0-47f8-bd0c-967cda26c783",
+    "class": "malformed_response",
+    "effective_access": {
+      "mode": "write_all"
+    },
+    "invocation_id": "ac4fc28a-a496-480b-8f80-8404e0896ea4",
+    "native_code": null,
+    "provider_id": "offline",
+    "termination": "backend_ended"
+  },
+  "inspection_calls": 1,
+  "inspection_error": null,
+  "invocation_state": "completed",
+  "malformed": true,
+  "scope": {
+    "files": [
+      "effect.txt"
+    ]
+  },
+  "stage": {
+    "active_invocation_id": "ac4fc28a-a496-480b-8f80-8404e0896ea4",
+    "admission_denial": null,
+    "condition": "Uncertain execution effects: establish termination and inspect actual effects before replay; no rollback is available",
+    "failures": [
+      {
+        "agent_id": "reserve",
+        "assignment_id": "08142cfb-75e0-47f8-bd0c-967cda26c783",
+        "class": "malformed_response",
+        "effective_access": {
+          "mode": "write_all"
+        },
+        "invocation_id": "ac4fc28a-a496-480b-8f80-8404e0896ea4",
+        "native_code": null,
+        "provider_id": "offline",
+        "termination": "backend_ended"
+      }
+    ],
+    "id": "plan-review-f46ef6ba-0f3a-4a68-9974-1ad79a499d57-1",
+    "manual_permit": false,
+    "plan": {
+      "plan": {
+        "summary": "Saved proposal",
+        "tasks": [
+          {
+            "access": "read_only",
+            "checks": [],
+            "competence": "analysis",
+            "dependencies": [],
+            "description": "Return findings",
+            "difficulty": "simple",
+            "title": "Read"
+          }
+        ]
+      },
+      "producer_assignment_id": "835b212b-d703-41e3-b9e6-47d040f98a91",
+      "producer_invocation_id": "dad0a1c0-a255-4c67-8026-ad8fe07070d4",
+      "proposal_id": "f46ef6ba-0f3a-4a68-9974-1ad79a499d57",
+      "revision": 1
+    },
+    "purpose": "review_plan",
+    "recovery_attempts": 0,
+    "request_digest": null,
+    "response": null,
+    "result": null,
+    "review_ids": [],
+    "revision": 7,
+    "schema_version": 1,
+    "selected_agent": "reserve",
+    "session_id": "e9469c32-1b3c-46ca-b30d-42477d776a4e",
+    "status": "owner_action",
+    "task": null,
+    "updated_at": "2026-09-13T19:33:52.275794+00:00",
+    "wait_reason": "uncertain_effects"
+  }
+}

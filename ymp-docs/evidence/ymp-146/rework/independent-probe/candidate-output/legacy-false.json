@@ -1,0 +1,211 @@
+{
+  "invocation_count": 7,
+  "new_calls": [
+    "review_plan",
+    "execute",
+    "review",
+    "final_review",
+    "synthesis"
+  ],
+  "proposal": {
+    "plan": {
+      "summary": "Saved proposal",
+      "tasks": [
+        {
+          "access": "read_only",
+          "checks": [],
+          "competence": "analysis",
+          "dependencies": [],
+          "description": "Return findings",
+          "difficulty": "simple",
+          "title": "Read"
+        }
+      ]
+    },
+    "producer_assignment_id": "c2762a36-14e2-4fc1-b049-7661719c0e2f",
+    "producer_invocation_id": "1cc520cc-ee6c-4905-881b-42b8dfc50338",
+    "proposal_id": "3d864b73-19d1-4746-9d82-46a11b6c816e",
+    "revision": 1
+  },
+  "stages": [
+    {
+      "active_invocation_id": "5e67d553-2a44-4ea8-9357-a5fb9c4eafec",
+      "admission_denial": null,
+      "condition": null,
+      "failures": [],
+      "id": "candidate_review-0d84a9e1469f5df0ba59c10ff55d2227cac30b6a346baf3c75b50262eed4600c",
+      "manual_permit": false,
+      "plan": null,
+      "purpose": "review",
+      "recovery_attempts": 0,
+      "request_digest": null,
+      "response": {
+        "agent_id": "reserve",
+        "assignment_id": "88ea64ff-74bb-499a-8e6d-607633fbc307",
+        "invocation_id": "5e67d553-2a44-4ea8-9357-a5fb9c4eafec",
+        "text": "{\"approved\":true,\"reason\":\"Independent evidence inspected\"}"
+      },
+      "result": {
+        "artifacts": [],
+        "component_ids": [],
+        "contract_id": null,
+        "criteria": [
+          {
+            "description": "Return findings",
+            "id": "task-quality"
+          }
+        ],
+        "criteria_version": "19b62470b2c22920a7347563d1a2c20a0aeb1ae1301fc1c1e7d117bab5a15479",
+        "id": "4cbf84ad-d7f8-4cd5-92ca-ebafbd75fb4f",
+        "producer_assignment_ids": [
+          "3a4ffdb3-0a9b-477c-aa9a-4a67b082dcad"
+        ],
+        "summary": "Findings from this invocation",
+        "task": {
+          "attempt": 1,
+          "task_id": "4cbf84ad-d7f8-4cd5-92ca-ebafbd75fb4f"
+        },
+        "task_definition": {
+          "access": "read_only",
+          "base_commit": null,
+          "checks": [],
+          "competence": "analysis",
+          "dependencies": [],
+          "description": "Return findings",
+          "difficulty": "simple",
+          "title": "Read",
+          "workspace": "/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-review-findings/ymp-docs/evidence/ymp-146/rework/independent-probe/candidate-output/legacy-read-ST115p/work"
+        },
+        "version": 1
+      },
+      "review_ids": [
+        "d74ecc48-f7cb-466c-ab25-75317b499ba3"
+      ],
+      "revision": 5,
+      "schema_version": 1,
+      "selected_agent": "reserve",
+      "session_id": "263848aa-53d8-4911-8ab8-ae0e18a0260b",
+      "status": "complete",
+      "task": {
+        "attempt": 1,
+        "task_id": "4cbf84ad-d7f8-4cd5-92ca-ebafbd75fb4f"
+      },
+      "updated_at": "2026-09-13T16:54:16.047729+00:00"
+    },
+    {
+      "active_invocation_id": "0d36c68b-802e-44f5-9973-1050f8121d1b",
+      "admission_denial": null,
+      "condition": null,
+      "failures": [],
+      "id": "final_review-04817bb9989106e570b06e38f272c78e5a17acfcc260f96874a0d246e9f2d28e",
+      "manual_permit": false,
+      "plan": null,
+      "purpose": "final_review",
+      "recovery_attempts": 0,
+      "request_digest": null,
+      "response": {
+        "agent_id": "reserve",
+        "assignment_id": "9f5872b7-57a0-4cb3-9786-f881765c9e16",
+        "invocation_id": "0d36c68b-802e-44f5-9973-1050f8121d1b",
+        "text": "{\"approved\":true,\"reason\":\"Independent evidence inspected\"}"
+      },
+      "result": {
+        "artifacts": [],
+        "component_ids": [
+          "14494af5-9c48-4b14-ab1b-fd6e75fe062e"
+        ],
+        "contract_id": null,
+        "criteria": [
+          {
+            "description": "Return findings",
+            "id": "4cbf84ad-d7f8-4cd5-92ca-ebafbd75fb4f:task-quality"
+          }
+        ],
+        "criteria_version": "b87b3e0c309fe24549c8b1f7aa658afaf667ffe477d7b71a36996171314d4de1",
+        "id": "263848aa-53d8-4911-8ab8-ae0e18a0260b",
+        "producer_assignment_ids": [
+          "3a4ffdb3-0a9b-477c-aa9a-4a67b082dcad"
+        ],
+        "summary": "Findings from this invocation",
+        "task": null,
+        "task_definition": null,
+        "version": 1
+      },
+      "review_ids": [
+        "e1d4831b-19b2-4d1f-8530-62a2798ce44c"
+      ],
+      "revision": 5,
+      "schema_version": 1,
+      "selected_agent": "reserve",
+      "session_id": "263848aa-53d8-4911-8ab8-ae0e18a0260b",
+      "status": "complete",
+      "task": null,
+      "updated_at": "2026-09-13T16:54:16.127634+00:00"
+    },
+    {
+      "active_invocation_id": "26a1a614-95b2-488f-b383-b73ba8ee7136",
+      "admission_denial": null,
+      "condition": null,
+      "failures": [
+        {
+          "agent_id": "reserve",
+          "assignment_id": "85df1aa5-ad13-4aae-8589-49c9814afcc0",
+          "class": "unknown",
+          "effective_access": {
+            "mode": "read_all"
+          },
+          "invocation_id": "fd3c8845-bcba-42fc-8883-2f3e4e850e96",
+          "native_code": null,
+          "provider_id": "offline",
+          "termination": "backend_ended"
+        }
+      ],
+      "id": "plan-review-3d864b73-19d1-4746-9d82-46a11b6c816e-1",
+      "manual_permit": false,
+      "plan": {
+        "plan": {
+          "summary": "Saved proposal",
+          "tasks": [
+            {
+              "access": "read_only",
+              "checks": [],
+              "competence": "analysis",
+              "dependencies": [],
+              "description": "Return findings",
+              "difficulty": "simple",
+              "title": "Read"
+            }
+          ]
+        },
+        "producer_assignment_id": "c2762a36-14e2-4fc1-b049-7661719c0e2f",
+        "producer_invocation_id": "1cc520cc-ee6c-4905-881b-42b8dfc50338",
+        "proposal_id": "3d864b73-19d1-4746-9d82-46a11b6c816e",
+        "revision": 1
+      },
+      "purpose": "review_plan",
+      "recovery_attempts": 0,
+      "request_digest": null,
+      "response": {
+        "agent_id": "reserve",
+        "assignment_id": "1cf07915-8121-4dce-baa0-eacf13a003c3",
+        "invocation_id": "26a1a614-95b2-488f-b383-b73ba8ee7136",
+        "text": "{\"approved\":true,\"reason\":\"Independent evidence inspected\"}"
+      },
+      "result": null,
+      "review_ids": [
+        "ab37405c-df27-44a6-b607-34b42487a42b"
+      ],
+      "revision": 6,
+      "schema_version": 1,
+      "selected_agent": "reserve",
+      "session_id": "263848aa-53d8-4911-8ab8-ae0e18a0260b",
+      "status": "complete",
+      "task": null,
+      "updated_at": "2026-09-13T16:54:15.948907+00:00"
+    }
+  ],
+  "status": "completed",
+  "summary": "Accepted findings\n\nAcceptance: accepted; confirmation: unconfirmed.",
+  "task_count": 1,
+  "writes": false
+}

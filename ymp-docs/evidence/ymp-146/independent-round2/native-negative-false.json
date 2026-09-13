@@ -1,0 +1,467 @@
+{
+  "after_usage": {
+    "agents": {
+      "author": {
+        "calls": 2,
+        "counts": {
+          "cache_read": 14,
+          "cache_write": null,
+          "input": 42,
+          "output": 6,
+          "reasoning": 2
+        },
+        "open_calls": 0,
+        "partial_calls": 0,
+        "reported": 2
+      },
+      "failed": {
+        "calls": 1,
+        "counts": {
+          "cache_read": null,
+          "cache_write": null,
+          "input": null,
+          "output": null,
+          "reasoning": null
+        },
+        "open_calls": 0,
+        "partial_calls": 0,
+        "reported": 0
+      },
+      "fresh": {
+        "calls": 5,
+        "counts": {
+          "cache_read": 35,
+          "cache_write": null,
+          "input": 105,
+          "output": 15,
+          "reasoning": 5
+        },
+        "open_calls": 0,
+        "partial_calls": 0,
+        "reported": 5
+      }
+    },
+    "total": {
+      "calls": 8,
+      "counts": {
+        "cache_read": 49,
+        "cache_write": null,
+        "input": 147,
+        "output": 21,
+        "reasoning": 7
+      },
+      "open_calls": 0,
+      "partial_calls": 0,
+      "reported": 7
+    }
+  },
+  "authorization": {
+    "authorization_id": "b8638ed4-d0f0-48ca-8944-2bd99a037ce5",
+    "command": {
+      "command_id": "3717f3b7-abc6-4abc-818b-3368fa6cca48",
+      "context": {
+        "board_version": "347e89ebf76944f179ef4b2a4644e6ef4752dab908d1713f609a0c9ae3c743bc",
+        "budget": {
+          "admitted_invocations": 4,
+          "in_flight_invocations": 0,
+          "last_denial": null,
+          "limits": {
+            "attempts": 3,
+            "parallel": 1,
+            "resources": {
+              "invocation_tokens": null,
+              "max_context_chars": 128000,
+              "max_output_chars": 64000,
+              "native_max_turns": 16,
+              "observed_tokens": null,
+              "required_review_invocations": 2,
+              "review_reserve_tokens": null,
+              "startup_context_chars": 32000,
+              "startup_invocations": 10,
+              "unknown_usage": "stop"
+            },
+            "turn_timeout_secs": 5,
+            "turns": 40
+          },
+          "observed_token_overshoot": null,
+          "observed_usage": {
+            "calls": 4,
+            "counts": {
+              "cache_read": 21,
+              "cache_write": null,
+              "input": 63,
+              "output": 9,
+              "reasoning": 3
+            },
+            "open_calls": 0,
+            "partial_calls": 0,
+            "reported": 3
+          },
+          "protected_review_invocations": 2,
+          "protected_review_tokens": null,
+          "reserved_tokens": null,
+          "startup_invocations": 3,
+          "strict_token_bound": false
+        },
+        "directory": "/private/tmp/ymp146-recovery-round2-review/native-independent-sAVsoS/work",
+        "failures": [
+          {
+            "agent_id": "failed",
+            "assignment_id": "a7611a3b-7d93-4b15-8ba2-b0f457a243d6",
+            "class": "unknown",
+            "effective_access": {
+              "mode": "write_all"
+            },
+            "invocation_id": "8ba202c3-a3c5-44eb-b598-4e2acef7d881",
+            "native_code": null,
+            "provider_id": "failed-native",
+            "termination": "backend_ended"
+          }
+        ],
+        "files": [],
+        "plan": {
+          "plan": {
+            "summary": "Exact native proposal",
+            "tasks": [
+              {
+                "checks": [],
+                "competence": "analysis",
+                "dependencies": [],
+                "description": "Produce a finding from the current workspace",
+                "difficulty": "simple",
+                "title": "Inspect independently"
+              }
+            ]
+          },
+          "producer_assignment_id": "85bf243c-6bbf-4071-8760-97e81b9476d4",
+          "producer_invocation_id": "b013d2a4-28ce-419d-a90f-095009564259",
+          "proposal_id": "e5d6cb93-c13b-4d6e-9daa-ba2abaea173e",
+          "revision": 1
+        },
+        "result": null,
+        "session_id": "ecaad6f7-c3d0-4b37-b9a9-77881fd9a9ae",
+        "stage_id": "plan-review-e5d6cb93-c13b-4d6e-9daa-ba2abaea173e-1",
+        "stage_revision": 4,
+        "task": null,
+        "team_revision": 10
+      }
+    },
+    "resulting_revision": 5
+  },
+  "negative": false,
+  "original_usage": {
+    "counts": {
+      "cache_read": 7,
+      "cache_write": null,
+      "input": 21,
+      "output": 3,
+      "reasoning": 1
+    },
+    "finalized": true,
+    "native_total": {
+      "cache_read": 7,
+      "cache_write": null,
+      "input": 21,
+      "output": 3,
+      "reasoning": 1
+    },
+    "note": null,
+    "partial": false
+  },
+  "plan_count": 1,
+  "protocol": [
+    {
+      "actor": "author",
+      "method": "initialize",
+      "version": "native-v1"
+    },
+    {
+      "actor": "author",
+      "method": "initialized",
+      "version": "native-v1"
+    },
+    {
+      "actor": "author",
+      "method": "model/list",
+      "version": "native-v1"
+    },
+    {
+      "actor": "author",
+      "approvalPolicy": "never",
+      "method": "thread/start",
+      "sandbox": "read-only",
+      "version": "native-v1"
+    },
+    {
+      "actor": "author",
+      "method": "turn/start",
+      "purpose": "plan",
+      "threadId": "author-83691",
+      "version": "native-v1"
+    },
+    {
+      "actor": "failed",
+      "method": "initialize",
+      "version": "native-v1"
+    },
+    {
+      "actor": "failed",
+      "method": "session/new",
+      "version": "native-v1"
+    },
+    {
+      "actor": "fresh",
+      "method": "initialize",
+      "version": "native-v1"
+    },
+    {
+      "actor": "fresh",
+      "method": "initialized",
+      "version": "native-v1"
+    },
+    {
+      "actor": "fresh",
+      "method": "model/list",
+      "version": "native-v1"
+    },
+    {
+      "actor": "fresh",
+      "method": "initialize",
+      "version": "native-v1"
+    },
+    {
+      "actor": "fresh",
+      "method": "initialized",
+      "version": "native-v1"
+    },
+    {
+      "actor": "fresh",
+      "method": "model/list",
+      "version": "native-v1"
+    },
+    {
+      "actor": "fresh",
+      "approvalPolicy": "never",
+      "method": "thread/start",
+      "sandbox": "read-only",
+      "version": "native-v1"
+    },
+    {
+      "actor": "fresh",
+      "method": "turn/start",
+      "purpose": "conversation",
+      "threadId": "fresh-83713",
+      "version": "native-v1"
+    },
+    {
+      "actor": "fresh",
+      "method": "initialize",
+      "version": "native-v1"
+    },
+    {
+      "actor": "fresh",
+      "method": "initialized",
+      "version": "native-v1"
+    },
+    {
+      "actor": "fresh",
+      "method": "model/list",
+      "version": "native-v1"
+    },
+    {
+      "actor": "fresh",
+      "approvalPolicy": "never",
+      "method": "thread/start",
+      "sandbox": "read-only",
+      "version": "native-v1"
+    },
+    {
+      "actor": "fresh",
+      "method": "turn/start",
+      "purpose": "review_plan",
+      "threadId": "fresh-83718",
+      "version": "native-v1"
+    },
+    {
+      "actor": "author",
+      "method": "initialize",
+      "version": "native-v1"
+    },
+    {
+      "actor": "author",
+      "method": "initialized",
+      "version": "native-v1"
+    },
+    {
+      "actor": "author",
+      "method": "model/list",
+      "version": "native-v1"
+    },
+    {
+      "actor": "author",
+      "approvalPolicy": "never",
+      "method": "thread/start",
+      "sandbox": "danger-full-access",
+      "version": "native-v1"
+    },
+    {
+      "actor": "author",
+      "method": "turn/start",
+      "purpose": "execute",
+      "threadId": "author-83728",
+      "version": "native-v1"
+    },
+    {
+      "actor": "fresh",
+      "method": "initialize",
+      "version": "native-v1"
+    },
+    {
+      "actor": "fresh",
+      "method": "initialized",
+      "version": "native-v1"
+    },
+    {
+      "actor": "fresh",
+      "method": "model/list",
+      "version": "native-v1"
+    },
+    {
+      "actor": "fresh",
+      "approvalPolicy": "never",
+      "method": "thread/resume",
+      "sandbox": "read-only",
+      "threadId": "fresh-83718",
+      "version": "native-v1"
+    },
+    {
+      "actor": "fresh",
+      "method": "turn/start",
+      "purpose": "review",
+      "threadId": "fresh-83737",
+      "version": "native-v1"
+    },
+    {
+      "actor": "fresh",
+      "method": "initialize",
+      "version": "native-v1"
+    },
+    {
+      "actor": "fresh",
+      "method": "initialized",
+      "version": "native-v1"
+    },
+    {
+      "actor": "fresh",
+      "method": "model/list",
+      "version": "native-v1"
+    },
+    {
+      "actor": "fresh",
+      "approvalPolicy": "never",
+      "method": "thread/resume",
+      "sandbox": "read-only",
+      "threadId": "fresh-83737",
+      "version": "native-v1"
+    },
+    {
+      "actor": "fresh",
+      "method": "turn/start",
+      "purpose": "final_review",
+      "threadId": "fresh-83746",
+      "version": "native-v1"
+    },
+    {
+      "actor": "fresh",
+      "method": "initialize",
+      "version": "native-v1"
+    },
+    {
+      "actor": "fresh",
+      "method": "initialized",
+      "version": "native-v1"
+    },
+    {
+      "actor": "fresh",
+      "method": "model/list",
+      "version": "native-v1"
+    },
+    {
+      "actor": "fresh",
+      "approvalPolicy": "never",
+      "method": "thread/resume",
+      "sandbox": "read-only",
+      "threadId": "fresh-83746",
+      "version": "native-v1"
+    },
+    {
+      "actor": "fresh",
+      "method": "turn/start",
+      "purpose": "synthesis",
+      "threadId": "fresh-83971",
+      "version": "native-v1"
+    }
+  ],
+  "review_count": 1,
+  "stage": {
+    "active_invocation_id": null,
+    "admission_denial": null,
+    "condition": null,
+    "failures": [
+      {
+        "agent_id": "failed",
+        "assignment_id": "a7611a3b-7d93-4b15-8ba2-b0f457a243d6",
+        "class": "unknown",
+        "effective_access": {
+          "mode": "write_all"
+        },
+        "invocation_id": "8ba202c3-a3c5-44eb-b598-4e2acef7d881",
+        "native_code": null,
+        "provider_id": "failed-native",
+        "termination": "backend_ended"
+      }
+    ],
+    "fresh_plan_review": {
+      "next_action": "verdict_consumed",
+      "review_record_id": "222ce5ee-dfd3-493b-a50b-2c38f2102ca4"
+    },
+    "id": "plan-review-e5d6cb93-c13b-4d6e-9daa-ba2abaea173e-1",
+    "manual_permit": false,
+    "plan": {
+      "plan": {
+        "summary": "Exact native proposal",
+        "tasks": [
+          {
+            "checks": [],
+            "competence": "analysis",
+            "dependencies": [],
+            "description": "Produce a finding from the current workspace",
+            "difficulty": "simple",
+            "title": "Inspect independently"
+          }
+        ]
+      },
+      "producer_assignment_id": "85bf243c-6bbf-4071-8760-97e81b9476d4",
+      "producer_invocation_id": "b013d2a4-28ce-419d-a90f-095009564259",
+      "proposal_id": "e5d6cb93-c13b-4d6e-9daa-ba2abaea173e",
+      "revision": 1
+    },
+    "purpose": "review_plan",
+    "recovery_attempts": 0,
+    "request_digest": null,
+    "response": null,
+    "result": null,
+    "review_ids": [
+      "222ce5ee-dfd3-493b-a50b-2c38f2102ca4"
+    ],
+    "revision": 6,
+    "schema_version": 1,
+    "selected_agent": null,
+    "session_id": "ecaad6f7-c3d0-4b37-b9a9-77881fd9a9ae",
+    "status": "complete",
+    "task": null,
+    "updated_at": "2026-09-13T19:34:03.953250+00:00"
+  },
+  "status": "completed",
+  "summary": "New work completed; historical effects remain unknown.\n\nAcceptance: accepted; confirmation: unconfirmed."
+}

@@ -1,0 +1,20 @@
+   Compiling ymp-storage v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-review-findings/ymp-rust/crates/ymp-storage)
+   Compiling ymp-runtime v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-review-findings/ymp-rust/crates/ymp-runtime)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.10s
+     Running tests/session_recovery.rs (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-recovery-backend/target/debug/deps/session_recovery-87b52712360ee241)
+
+running 1 test
+
+thread 'inspection_rework::r3_changed_inspected_files_reject_continue_and_atomic_replay_admission' panicked at ymp-rust/crates/ymp-runtime/tests/session_recovery/inspection_rework.rs:502:10:
+called `Result::unwrap_err()` on an `Ok` value: RecoveryControlReceipt { command: RecoveryControlCommand { session_id: "10824f8b-07c2-41ab-992e-9343a3a49273", stage_id: "plan-review-ae0084c4-9db2-4958-9558-4305b7b00c03-1", expected_revision: 2, command_id: "da8f9960-4e8d-425d-8faf-f898458f49f0", action: Continue }, resulting_revision: 3 }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test inspection_rework::r3_changed_inspected_files_reject_continue_and_atomic_replay_admission ... FAILED
+
+failures:
+
+failures:
+    inspection_rework::r3_changed_inspected_files_reject_continue_and_atomic_replay_admission
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 30 filtered out; finished in 0.10s
+
+error: test failed, to rerun pass `-p ymp-runtime --test session_recovery`

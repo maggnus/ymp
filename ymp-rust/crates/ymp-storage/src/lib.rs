@@ -12,12 +12,17 @@ mod authority;
 mod board;
 mod budget;
 mod confirmation;
+mod current_files;
+mod fresh_plan_review;
 mod knowledge;
 mod knowledge_correction;
 pub mod projection;
 mod provenance;
 #[cfg(test)]
 mod provenance_tests;
+mod recovery;
+mod recovery_inspection;
+mod team_control;
 mod usage;
 
 /// The exact FTS expression used by memory lookup and recorded by the runtime.

@@ -1,0 +1,97 @@
+   Compiling ymp-core v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-review-findings/ymp-rust/crates/ymp-core)
+   Compiling ymp-eval-driver v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-review-findings/ymp-rust/crates/ymp-eval-driver)
+   Compiling ymp-providers v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-review-findings/ymp-rust/crates/ymp-providers)
+   Compiling ymp-workspace v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-review-findings/ymp-rust/crates/ymp-workspace)
+   Compiling ymp-storage v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-review-findings/ymp-rust/crates/ymp-storage)
+   Compiling ymp-runtime v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-review-findings/ymp-rust/crates/ymp-runtime)
+   Compiling ymp-tui v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-review-findings/ymp-rust/crates/ymp-tui)
+   Compiling ymp-cli v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-review-findings/ymp-rust/crates/ymp-cli)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 18.75s
+     Running unittests src/main.rs (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-recovery-backend/target/debug/deps/ymp-fa0c2461bc966a5f)
+
+running 1 test
+test tests::team_probe_charges_its_first_explicit_invocation_at_admission ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+     Running tests/acceptance_contracts.rs (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-recovery-backend/target/debug/deps/acceptance_contracts-653105e363e228e6)
+
+running 6 tests
+test executable_missing_and_duplicate_targets_stop_before_production ... ok
+test demo_keeps_explicit_contract_configuration ... ok
+test executable_contract_confirms_and_supplies_supported_knowledge_to_a_later_session ... ok
+test executable_correction_contract_scope_and_public_mcp_history_are_reachable ... ok
+test executable_absent_partial_and_failed_contracts_do_not_create_supported_credit ... ok
+test executable_resume_rejects_changed_or_added_authority_and_allows_capture_only_resume ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.54s
+
+     Running tests/long_metadata_home.rs (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-recovery-backend/target/debug/deps/long_metadata_home-2645e79c9d424f0c)
+
+running 1 test
+test demo_preserves_long_metadata_home_and_selected_output_directory ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.70s
+
+     Running tests/message_labels.rs (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-recovery-backend/target/debug/deps/message_labels-508f92847990437b)
+
+running 1 test
+test headless_headings_name_each_invocation_by_its_model_and_effort ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 13.39s
+
+     Running tests/native_catalog.rs (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-recovery-backend/target/debug/deps/native_catalog-dad14f729f9974fa)
+
+running 10 tests
+test executable_claude_sdk_scan_preserves_native_alias_names_and_selects_offerings ... ignored, requires npm ci and npm run build in ymp-bridges/claude; still fixture-only
+test simultaneous_scans_are_serialized_and_edits_during_discovery_are_preserved ... ok
+test failed_initial_and_bounded_scans_leave_explicit_unresolved_state ... ok
+test init_upgrades_existing_generated_placeholders_and_keeps_disabled_custom_actors ... ok
+test first_scan_preserves_fixed_model_policy_qualified_experience ... ok
+test first_scan_preserves_defaulted_model_policy_qualified_experience ... ok
+test effective_overrides_use_native_aliases_and_unknown_claims_never_become_native ... ok
+test executable_scan_populates_native_names_and_selection_without_enrolling_the_catalog ... ok
+test executable_runtime_captures_the_effective_native_assignment_identity ... ok
+test repeat_change_and_partial_failure_preserve_actor_pins_custom_profiles_and_history ... ok
+
+test result: ok. 9 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 12.39s
+
+     Running unittests src/lib.rs (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-recovery-backend/target/debug/deps/ymp_core-ec5ec782cbefcffa)
+
+running 11 tests
+test usage::tests::cache_and_reasoning_are_not_counted_twice ... ok
+test usage::tests::missing_usage_is_distinct_from_zero ... ok
+test model::tests::rejects_self_acceptance_and_double_assignment ... ok
+test model::tests::parses_review_after_streamed_commentary ... ok
+test model::tests::rejects_ambiguous_malformed_or_wrong_schema_responses ... ok
+test model::tests::rejects_cycles ... ok
+test provenance::execution_version_tests::historical_observation_identity_survives_absent_backend_metadata ... ok
+test config::execution::tests::pins_are_singletons_and_defaults_only_fill_missing_choices ... ok
+test config::execution::tests::versions_separate_effective_configuration_and_unknown_reports ... ok
+test config::lock_tests::completed_configuration_owner_releases_before_inherited_descriptor_closes ... ok
+test reputation::tests::experienced_success_wins_more_but_newcomers_get_opportunities ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/pool_metadata.rs (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-recovery-backend/target/debug/deps/pool_metadata-95b0e9efc0129595)
+
+running 5 tests
+test live_activity_requires_bound_distinct_invocations_for_current_members ... ok
+test captured_names_survive_profile_edits_and_do_not_imply_membership_or_activity ... ok
+test invalid_capability_claims_fail_before_pool_inspection_or_invocation ... ok
+test legacy_profiles_round_trip_without_renaming_or_inventing_capabilities ... ok
+test configured_native_controls_round_trip_with_exact_types_and_unknowns ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running unittests src/main.rs (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-recovery-backend/target/debug/deps/ymp_eval_driver-66ed767841f028a7)
+
+running 7 tests
+test driver_controls::qualitative_rubric_rejects_well_formatted_unrelated_content ... ok
+
+thread 'export::tests::location_projection_preserves_extra_answers_outcomes_and_query_results' has overflowed its stack
+fatal runtime error: stack overflow, aborting
+error: test failed, to rerun pass `-p ymp-eval-driver --bin ymp-eval-driver`
+
+Caused by:
+  process didn't exit successfully: `/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-recovery-backend/target/debug/deps/ymp_eval_driver-66ed767841f028a7` (signal: 6, SIGABRT: process abort signal)

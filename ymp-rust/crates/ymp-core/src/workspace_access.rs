@@ -73,7 +73,18 @@ pub struct WorkspaceAccessDecision {
     pub directory: PathBuf,
     pub backend_access: WorkspaceAccess,
     pub effective_access: WorkspaceAccess,
+    /// A trusted backend's enforced complete effect boundary, absent for legacy
+    /// or native execution that cannot exclude external or detached effects.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub local_effect_scope: Option<LocalEffectScope>,
     pub rationale: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct LocalEffectScope {
+    /// Complete set of relative regular-file paths this invocation can change.
+    /// No network effects, detached execution, or writes outside this list.
+    pub files: Vec<PathBuf>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

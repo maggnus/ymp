@@ -1,0 +1,38 @@
+   Compiling ymp-storage v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-review-findings/ymp-rust/crates/ymp-storage)
+   Compiling ymp-runtime v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-review-findings/ymp-rust/crates/ymp-runtime)
+   Compiling ymp146-recovery-rereview-probe v0.0.0 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-review-findings/ymp-docs/evidence/ymp-146/rework/round2/probe)
+warning: variants `Transient`, `Auth`, and `Negative` are never constructed
+  --> tests/inspection.rs:18:5
+   |
+16 | enum Mode {
+   |      ---- variants in this enum
+17 |     Unknown,
+18 |     Transient,
+   |     ^^^^^^^^^
+19 |     Auth,
+   |     ^^^^
+20 |     Negative,
+   |     ^^^^^^^^
+   |
+   = note: `Mode` has a derived impl for the trait `Clone`, but this is intentionally ignored during dead code analysis
+   = note: `#[warn(dead_code)]` on by default
+
+warning: `ymp146-recovery-rereview-probe` (test "inspection") generated 1 warning
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 3.37s
+     Running tests/inspection.rs (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-recovery-backend/target/debug/deps/inspection-0201caf94ce95609)
+
+running 2 tests
+SCOPED malformed=true invocation=Completed class=MalformedResponse termination=BackendEnded inspection=Err(uncertain_effects: foreign or nonterminal execution evidence)
+Error: uncertain_effects: foreign or nonterminal execution evidence
+test scoped_completed_malformed_review_can_be_inspected ... FAILED
+SCOPED malformed=false invocation=Failed class=Unknown termination=BackendEnded inspection=Ok(RecoveryInspectionReceipt { command: RecoveryInspectionCommand { session_id: "1b671e2a-ba6b-4a37-83db-a66c1e3d8a3e", stage_id: "plan-review-502e1d30-4b47-40a9-aa06-3d450a569b44-1", expected_revision: 6, command_id: "ce0a5e38-b5b4-42c7-96ea-7a73e88a96f0" }, inspection_id: "e285714b-dbea-4a3a-a026-38dfb8f2c52b", resulting_revision: 7 })
+test scoped_failed_invocation_positive_control ... ok
+
+failures:
+
+failures:
+    scoped_completed_malformed_review_can_be_inspected
+
+test result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.44s
+
+error: test failed, to rerun pass `--test inspection`

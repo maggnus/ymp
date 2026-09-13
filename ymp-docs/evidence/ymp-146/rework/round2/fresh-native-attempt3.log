@@ -1,0 +1,21 @@
+   Compiling ymp-core v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-review-findings/ymp-rust/crates/ymp-core)
+   Compiling ymp-workspace v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-review-findings/ymp-rust/crates/ymp-workspace)
+   Compiling ymp-storage v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-review-findings/ymp-rust/crates/ymp-storage)
+   Compiling ymp-providers v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-review-findings/ymp-rust/crates/ymp-providers)
+   Compiling ymp-runtime v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-review-findings/ymp-rust/crates/ymp-runtime)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 4.15s
+     Running tests/fresh_plan_review.rs (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-recovery-backend/target/debug/deps/fresh_plan_review-05f410536c030854)
+
+running 2 tests
+Error: owner_command: candidate needs verified native metadata and current eligibility
+test fresh_native_review_is_plan_only_and_continuation_preserves_unknown_dependencies ... FAILED
+test native_legacy_failure_has_no_scope_or_automatic_replay ... ok
+
+failures:
+
+failures:
+    fresh_native_review_is_plan_only_and_continuation_preserves_unknown_dependencies
+
+test result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.30s
+
+error: test failed, to rerun pass `-p ymp-runtime --test fresh_plan_review`

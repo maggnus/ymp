@@ -1,0 +1,9 @@
+   Compiling ymp-eval-driver v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-review-findings/ymp-rust/crates/ymp-eval-driver)
+   Compiling ymp-runtime v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-review-findings/ymp-rust/crates/ymp-runtime)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 3.79s
+     Running unittests src/main.rs (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-recovery-backend/target/debug/deps/ymp_eval_driver-49181d4065533dfa)
+
+running 1 test
+test export::tests::location_projection_preserves_extra_answers_outcomes_and_query_results ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 4.08s

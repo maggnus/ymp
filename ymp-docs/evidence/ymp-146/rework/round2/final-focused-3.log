@@ -1,0 +1,27 @@
+   Compiling ymp146-recovery-review-probe v0.0.0 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-review-findings/ymp-docs/evidence/ymp-146/rework/independent-probe/candidate)
+warning: variants `Transient`, `Auth`, `Negative`, and `Malformed` are never constructed
+  --> tests/review.rs:18:5
+   |
+16 | enum Mode {
+   |      ---- variants in this enum
+17 |     Unknown,
+18 |     Transient,
+   |     ^^^^^^^^^
+19 |     Auth,
+   |     ^^^^
+20 |     Negative,
+   |     ^^^^^^^^
+21 |     Malformed,
+   |     ^^^^^^^^^
+   |
+   = note: `Mode` has a derived impl for the trait `Clone`, but this is intentionally ignored during dead code analysis
+   = note: `#[warn(dead_code)]` on by default
+
+warning: `ymp146-recovery-review-probe` (test "review") generated 1 warning
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.65s
+     Running tests/review.rs (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-recovery-backend/target/debug/deps/review-e8c00677939bdda0)
+
+running 1 test
+test probe_revision_retry_and_arbitration_resume_preserve_objections ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 1.35s

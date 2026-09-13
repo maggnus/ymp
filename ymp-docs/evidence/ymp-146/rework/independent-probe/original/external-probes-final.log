@@ -1,0 +1,66 @@
+   Compiling ymp-workspace v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-recovery-backend/ymp-rust/crates/ymp-workspace)
+   Compiling ymp-storage v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-recovery-backend/ymp-rust/crates/ymp-storage)
+   Compiling ymp-runtime v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-recovery-backend/ymp-rust/crates/ymp-runtime)
+   Compiling ymp146-recovery-review-probe v0.0.0 (/tmp/ymp146-recovery-review/probe)
+warning: variants `Transient`, `Auth`, `Negative`, and `Malformed` are never constructed
+  --> tests/review.rs:18:5
+   |
+16 | enum Mode {
+   |      ---- variants in this enum
+17 |     Unknown,
+18 |     Transient,
+   |     ^^^^^^^^^
+19 |     Auth,
+   |     ^^^^
+20 |     Negative,
+   |     ^^^^^^^^
+21 |     Malformed,
+   |     ^^^^^^^^^
+   |
+   = note: `Mode` has a derived impl for the trait `Clone`, but this is intentionally ignored during dead code analysis
+   = note: `#[warn(dead_code)]` on by default
+
+warning: `ymp146-recovery-review-probe` (test "review") generated 1 warning
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 6.26s
+     Running tests/review.rs (/tmp/ymp146-recovery-review/target/debug/deps/review-b997c7afcabcfafd)
+
+running 4 tests
+LEGACY writes=true initial=OwnerAction termination=BackendEnded access=WriteAll actions=[Wait, Pause]
+LEGACY writes=false initial=OwnerAction termination=BackendEnded access=ReadAll actions=[Wait, Pause, Continue, Retry]
+LEGACY writes=true control=Continue result=Err(uncertain_effects: inspect effects and establish termination before replay)
+LEGACY writes=true control=Retry result=Err(uncertain_effects: inspect effects and establish termination before replay)
+LEGACY writes=false control=Continue result=Ok(RecoveryControlReceipt { command: RecoveryControlCommand { session_id: "1988849e-5f6d-43e9-9576-f9144858d82d", stage_id: "plan-review-32138b7f-7378-45e1-b779-01d4f5285e88-1", expected_revision: 1, command_id: "bbe3010f-40f4-4d44-bc18-c7bd8347e4e8", action: Continue }, resulting_revision: 2 })
+LEGACY writes=true final=blocked new_calls=0 tasks=0
+
+thread 'probe_legacy_write_saved_plan_can_finish_after_replacement' panicked at tests/review.rs:229:5:
+assertion `left == right` failed: Missing public inspection-to-continuation transition: Run blocked: Unbound legacy plan review: inspect prior invocation effects and evidence before issuing a new review; no completion or acceptance was inferred
+  left: "blocked"
+ right: "completed"
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test probe_legacy_write_saved_plan_can_finish_after_replacement ... FAILED
+LEGACY writes=false final=completed new_calls=5 tasks=1
+test probe_legacy_read_only_positive_control ... ok
+EXECUTE first=blocked summary=Run blocked: claim_busy: another task already owns this executor tasks=[("T0", Accepted, 1), ("T1", Running, 1), ("T2", Running, 1), ("T3", Ready, 0), ("T4", Ready, 0)] failed={"T1", "T2"}
+REVIEW_STAGES revision=true status=completed plan_calls=3 review_calls=0 summary=Complete
+
+Acceptance: accepted; confirmation: unconfirmed.
+REVIEW_STAGES revision=false status=completed plan_calls=1 review_calls=3 summary=Complete
+
+Acceptance: accepted; confirmation: unconfirmed.
+test probe_revision_retry_and_arbitration_resume_preserve_objections ... ok
+
+thread 'probe_two_execute_failures_drain_unrelated_work_then_need_resume' panicked at tests/review.rs:301:5:
+assertion `left == right` failed: Independent T0 and T3 must be accepted before explicit resume
+  left: 1
+ right: 2
+test probe_two_execute_failures_drain_unrelated_work_then_need_resume ... FAILED
+
+failures:
+
+failures:
+    probe_legacy_write_saved_plan_can_finish_after_replacement
+    probe_two_execute_failures_drain_unrelated_work_then_need_resume
+
+test result: FAILED. 2 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.17s
+
+error: test failed, to rerun pass `--test review`

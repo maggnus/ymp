@@ -451,3 +451,17 @@ async fn codex_native_retry_does_not_disable_cancellation() {
     assert_pending_retry_evidence(&events);
     fixture.assert_single_invocation();
 }
+
+#[tokio::test]
+async fn terminal_native_failure_retains_allowlisted_classification() {
+    let fixture = Fixture::new(vec![error(json!(false))]);
+    let (result, _) = fixture.run().await;
+    let error = result.unwrap_err();
+    assert_eq!(
+        ymp_providers::classify_failure(&error),
+        (
+            ymp_core::FailureClass::TransientTransport,
+            Some("serverOverloaded".into())
+        )
+    );
+}

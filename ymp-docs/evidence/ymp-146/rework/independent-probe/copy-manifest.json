@@ -1,0 +1,18 @@
+{
+  "original_sha256": {
+    "probe/tests/review.rs": "59c4e3c410c17dce98292b638c119a2bbd0f2525461137a8c73dc80438033012",
+    "probe/Cargo.toml": "8e556bb2dfc80132ed2e5a8a004a2dff8db2e366a7b0d3e3663230714bbc1fe3",
+    "probe/Cargo.lock": "eba55bb7cb648ca0d2571b191b5721b6badfd5ebb4d121430760ccdc48da0df0",
+    "review-result.json": "b48c6042db71651ffcd4ff3093ef760a34181cc783a0f749bce28840230ad686",
+    "legacy-true.json": "cde252bdcc8c66c53e0fd85ce46948edd2721fed5e4f1a344fb82422e0470fb7",
+    "legacy-false.json": "9bef0a3527d2fa52610fcf20cf527ef67542d177933608739c1ea4ce94e37bda",
+    "execute-n-first.json": "47acd5fc6dffa823164d4dd5d38b09a2a22fd35ac1ee24940efb0601d375684b",
+    "execute-n.json": "945f64c68fb1820e24fd0e4293e4a904aae714c0f035d4696ea8a3090c0f0710",
+    "external-probes-final.log": "00df1e3a1f5f9ae07edb48462ad55690284bbd4c5be712e120fe99a5bffc8d83"
+  },
+  "candidate_changes": [
+    "Cargo.toml: only dependency paths point at the isolated candidate",
+    "tests/review.rs: only artifact/temp-root path literals redirected to avoid modifying reviewer originals"
+  ],
+  "candidate_test_sha256": "c3d46867643a72ffdbef4928dfe36b37cd184c36db77a34f7e09dbbf306e350e"
+}

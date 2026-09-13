@@ -1,0 +1,63 @@
+   Compiling ymp-core v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-review-findings/ymp-rust/crates/ymp-core)
+   Compiling ymp-providers v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-review-findings/ymp-rust/crates/ymp-providers)
+   Compiling ymp-workspace v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-review-findings/ymp-rust/crates/ymp-workspace)
+   Compiling ymp-storage v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-review-findings/ymp-rust/crates/ymp-storage)
+   Compiling ymp-runtime v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-review-findings/ymp-rust/crates/ymp-runtime)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 8.77s
+     Running tests/fresh_plan_review.rs (/tmp/ymp146-recovery-review/target/debug/deps/fresh_plan_review-05f410536c030854)
+
+running 12 tests
+test native_fresh_review_owner_holds_have_a_reachable_nonretry_release ... ok
+test fresh_acp_reviewer_is_refused_before_native_call_despite_requested_read_only ... ok
+test current_files_decision_refuses_active_native_execution_and_unreleased_ownership ... ok
+test current_files_authorization_cannot_enlarge_the_original_budget ... ok
+test native_backend_version_change_preserves_old_origin_and_starts_fresh ... ok
+test fresh_native_review_is_plan_only_and_continuation_preserves_unknown_dependencies ... ok
+test current_files_authorization_rejects_changed_context_holds_and_unknown_termination ... ok
+test a_later_uncertain_failure_is_not_covered_by_the_previous_current_files_decision ... ok
+test native_legacy_failure_has_no_scope_or_automatic_replay ... ok
+test native_fresh_negative_verdict_and_malformed_attempt_cannot_be_shopped_or_duplicated ... ok
+test current_files_owner_decision_survives_restart_and_finishes_native_legacy_work ... ok
+test native_fresh_review_rejects_foreign_stale_self_unknown_and_exhausted_inputs ... ok
+
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 21.07s
+
+     Running tests/session_recovery.rs (/tmp/ymp146-recovery-review/target/debug/deps/session_recovery-87b52712360ee241)
+
+running 33 tests
+test injected_policy_cannot_replay_an_uncertain_writer ... ok
+test inspection_rework::r3_changed_inspected_files_reject_continue_and_atomic_replay_admission ... ok
+test inspection_rework::r3_inspection_commit_rejects_changed_data_and_racing_owner_pause ... ok
+test inspection_rework::r3_inspection_consumes_the_captured_budget_and_cannot_create_another_attempt ... ok
+test correlated_provider_failure_has_finite_wait_without_acceptance ... ok
+test inspection_rework::r3_missing_scope_and_unverified_termination_do_not_authorize_inspection_or_replay ... ok
+test interrupted_review_has_no_invented_termination_evidence_after_restart ... ok
+test legacy_failed_review_without_stage_binding_cannot_replay_a_writer ... ok
+test inspection_rework::r3_model_safe_flag_rejection_and_write_capable_inspector_cannot_resolve_effects ... ok
+test inspection_rework::r3_completed_malformed_response_with_exact_failure_can_be_inspected ... ok
+test initial_planner_failure_uses_bounded_recovery_and_keeps_its_attribution ... ok
+test owner_add_idle_remove_and_no_reviewer_choice_are_atomic ... ok
+test execution_rework::r4_unknown_write_effects_retain_responsibility_and_claim_busy ... ok
+test finite_transient_and_manual_wait_use_the_same_consumer ... ok
+test inspection_rework::r3_bound_local_inspection_preserves_uncertainty_and_enables_explicit_continuation ... ok
+test live_replace_drains_writer_and_running_engine_observes_new_native_member ... ok
+test candidate_and_final_review_restart_preserve_production_and_result_version ... ok
+test inspection_rework::r3_valid_positive_and_negative_completed_reviews_are_not_malformed ... ok
+test owner_pause_idempotence_and_stale_stage_survive_reopen ... ok
+test restart_retains_plan_without_duplicate_planning ... ok
+test permanent_failure_replaces_independent_reviewer_through_allocation ... ok
+test owner_pause_drains_current_work_and_survives_resume_without_new_admission ... ok
+test owner_replacement_racing_completion_is_atomic_or_explicitly_stale ... ok
+test uncertainty_and_unknown_accounting_block_replay ... ok
+test negative_verdict_requires_revision_but_malformed_response_is_not_a_verdict ... ok
+test rework::r2_membership_preserves_explicit_owner_pause ... ok
+test sole_remaining_independent_reviewer_can_finish_saved_final_review ... ok
+test rework::r1_remove_releases_ready_commitment_and_continues ... ok
+test rework::r1_replace_releases_ready_commitment_and_continues ... ok
+test rework::r2_availability_change_reconsiders_policy_without_resetting_counters ... ok
+test rework::r2_membership_preserves_explicit_owner_wait ... ok
+test rework::r2_membership_preserves_exhausted_policy ... ok
+test execution_rework::r4_free_executor_progresses_before_failed_work_is_inspected_without_restart ... ok
+
+test result: ok. 33 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.02s
+

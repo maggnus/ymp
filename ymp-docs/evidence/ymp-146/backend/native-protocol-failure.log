@@ -1,0 +1,18 @@
+   Compiling ymp-providers v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-recovery-backend/ymp-rust/crates/ymp-providers)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.57s
+     Running tests/codex_retry.rs (target/debug/deps/codex_retry-f1c16c87939c8563)
+
+running 11 tests
+test codex_native_retry_before_start_response_preserves_unknown_usage ... ok
+test codex_native_retry_does_not_disable_cancellation ... ok
+test terminal_native_failure_retains_allowlisted_classification ... ok
+test codex_native_retry_completes_the_same_invocation ... ok
+test codex_native_retry_filters_other_threads_and_turns ... ok
+test codex_native_retry_keeps_only_known_error_codes ... ok
+test native_provenance_distinguishes_sent_reported_and_unknown_settings ... ok
+test codex_native_retry_requires_completion_and_final_text ... ok
+test codex_native_retry_can_still_end_in_terminal_failure ... ok
+test codex_native_retry_requires_an_explicit_boolean_true ... ok
+test codex_native_retry_does_not_disable_timeout ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.01s

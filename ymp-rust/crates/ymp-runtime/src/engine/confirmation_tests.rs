@@ -563,7 +563,7 @@ async fn confirmation_final_phase_and_review_outcome_are_bound_to_the_invocation
         )
         .unwrap();
     }
-    // A fresh final review is valid, but its new aggregate supersedes the old one.
+    // Resume preserves the exact aggregate/review; it cannot consume final acceptance twice.
     let resumed = fixture
         .engine
         .run(&fixture.project, "", Some(&outcome.session.id))

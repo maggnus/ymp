@@ -1,0 +1,299 @@
+{
+  "calls": [
+    {
+      "agent": "author",
+      "purpose": "plan"
+    },
+    {
+      "agent": "fourth",
+      "purpose": "review_plan"
+    },
+    {
+      "agent": "author",
+      "purpose": "execute"
+    },
+    {
+      "agent": "fourth",
+      "purpose": "review"
+    },
+    {
+      "agent": "author",
+      "purpose": "execute"
+    },
+    {
+      "agent": "reviewer",
+      "purpose": "execute"
+    },
+    {
+      "agent": "reviewer",
+      "purpose": "review"
+    },
+    {
+      "agent": "reserve",
+      "purpose": "review"
+    },
+    {
+      "agent": "reserve",
+      "purpose": "review"
+    },
+    {
+      "agent": "author",
+      "purpose": "review"
+    },
+    {
+      "agent": "author",
+      "purpose": "execute"
+    },
+    {
+      "agent": "reviewer",
+      "purpose": "execute"
+    },
+    {
+      "agent": "reviewer",
+      "purpose": "review"
+    },
+    {
+      "agent": "fourth",
+      "purpose": "review"
+    },
+    {
+      "agent": "author",
+      "purpose": "execute"
+    },
+    {
+      "agent": "reviewer",
+      "purpose": "execute"
+    },
+    {
+      "agent": "reviewer",
+      "purpose": "review"
+    },
+    {
+      "agent": "fourth",
+      "purpose": "review"
+    },
+    {
+      "agent": "fourth",
+      "purpose": "final_review"
+    },
+    {
+      "agent": "fourth",
+      "purpose": "synthesis"
+    }
+  ],
+  "first_status": "blocked",
+  "first_tasks": [
+    {
+      "access": "read_only",
+      "assignee": "author",
+      "attempts": 1,
+      "base_commit": null,
+      "checks": [],
+      "competence": "analysis",
+      "dependencies": [],
+      "description": "Return finding 0",
+      "difficulty": "simple",
+      "id": "306af8a6-7a50-4a96-ae95-30e629cf4081",
+      "interrupted": false,
+      "result": "Completed T0",
+      "reviewer": "fourth",
+      "session_id": "c05f9faa-8030-40d9-9b6f-20c7e0b0233c",
+      "state": "accepted",
+      "title": "T0",
+      "workspace": "/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-review-findings/ymp-docs/evidence/ymp-146/rework/independent-probe/candidate-output/execute-n-NWD2dD/work"
+    },
+    {
+      "access": "read_only",
+      "assignee": "author",
+      "attempts": 1,
+      "base_commit": null,
+      "checks": [],
+      "competence": "analysis",
+      "dependencies": [
+        "306af8a6-7a50-4a96-ae95-30e629cf4081"
+      ],
+      "description": "Return finding 1",
+      "difficulty": "simple",
+      "id": "663f34ec-d683-44be-ae89-e501db8c624a",
+      "interrupted": false,
+      "result": null,
+      "reviewer": null,
+      "session_id": "c05f9faa-8030-40d9-9b6f-20c7e0b0233c",
+      "state": "running",
+      "title": "T1",
+      "workspace": "/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-review-findings/ymp-docs/evidence/ymp-146/rework/independent-probe/candidate-output/execute-n-NWD2dD/work"
+    },
+    {
+      "access": "read_only",
+      "assignee": "reviewer",
+      "attempts": 1,
+      "base_commit": null,
+      "checks": [],
+      "competence": "analysis",
+      "dependencies": [
+        "306af8a6-7a50-4a96-ae95-30e629cf4081"
+      ],
+      "description": "Return finding 2",
+      "difficulty": "simple",
+      "id": "91d1aeef-d11d-4a91-935d-d28f8b74be35",
+      "interrupted": false,
+      "result": null,
+      "reviewer": null,
+      "session_id": "c05f9faa-8030-40d9-9b6f-20c7e0b0233c",
+      "state": "running",
+      "title": "T2",
+      "workspace": "/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-review-findings/ymp-docs/evidence/ymp-146/rework/independent-probe/candidate-output/execute-n-NWD2dD/work"
+    },
+    {
+      "access": "read_only",
+      "assignee": null,
+      "attempts": 0,
+      "base_commit": null,
+      "checks": [],
+      "competence": "analysis",
+      "dependencies": [
+        "306af8a6-7a50-4a96-ae95-30e629cf4081"
+      ],
+      "description": "Return finding 3",
+      "difficulty": "simple",
+      "id": "e79fe8cb-60c3-4c43-8acf-5650959aae89",
+      "interrupted": false,
+      "result": null,
+      "reviewer": null,
+      "session_id": "c05f9faa-8030-40d9-9b6f-20c7e0b0233c",
+      "state": "ready",
+      "title": "T3",
+      "workspace": null
+    },
+    {
+      "access": "read_only",
+      "assignee": null,
+      "attempts": 0,
+      "base_commit": null,
+      "checks": [],
+      "competence": "analysis",
+      "dependencies": [
+        "663f34ec-d683-44be-ae89-e501db8c624a",
+        "91d1aeef-d11d-4a91-935d-d28f8b74be35"
+      ],
+      "description": "Return finding 4",
+      "difficulty": "simple",
+      "id": "abbb3331-b257-4f23-adf0-4d1e05c6680d",
+      "interrupted": false,
+      "result": null,
+      "reviewer": null,
+      "session_id": "c05f9faa-8030-40d9-9b6f-20c7e0b0233c",
+      "state": "ready",
+      "title": "T4",
+      "workspace": null
+    }
+  ],
+  "second_status": "completed",
+  "second_tasks": [
+    {
+      "access": "read_only",
+      "assignee": "author",
+      "attempts": 1,
+      "base_commit": null,
+      "checks": [],
+      "competence": "analysis",
+      "dependencies": [],
+      "description": "Return finding 0",
+      "difficulty": "simple",
+      "id": "306af8a6-7a50-4a96-ae95-30e629cf4081",
+      "interrupted": false,
+      "result": "Completed T0",
+      "reviewer": "fourth",
+      "session_id": "c05f9faa-8030-40d9-9b6f-20c7e0b0233c",
+      "state": "accepted",
+      "title": "T0",
+      "workspace": "/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-review-findings/ymp-docs/evidence/ymp-146/rework/independent-probe/candidate-output/execute-n-NWD2dD/work"
+    },
+    {
+      "access": "read_only",
+      "assignee": "author",
+      "attempts": 2,
+      "base_commit": null,
+      "checks": [],
+      "competence": "analysis",
+      "dependencies": [
+        "306af8a6-7a50-4a96-ae95-30e629cf4081"
+      ],
+      "description": "Return finding 1",
+      "difficulty": "simple",
+      "id": "663f34ec-d683-44be-ae89-e501db8c624a",
+      "interrupted": false,
+      "result": "Completed T1",
+      "reviewer": "reviewer",
+      "session_id": "c05f9faa-8030-40d9-9b6f-20c7e0b0233c",
+      "state": "accepted",
+      "title": "T1",
+      "workspace": "/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-review-findings/ymp-docs/evidence/ymp-146/rework/independent-probe/candidate-output/execute-n-NWD2dD/work"
+    },
+    {
+      "access": "read_only",
+      "assignee": "reviewer",
+      "attempts": 2,
+      "base_commit": null,
+      "checks": [],
+      "competence": "analysis",
+      "dependencies": [
+        "306af8a6-7a50-4a96-ae95-30e629cf4081"
+      ],
+      "description": "Return finding 2",
+      "difficulty": "simple",
+      "id": "91d1aeef-d11d-4a91-935d-d28f8b74be35",
+      "interrupted": false,
+      "result": "Completed T2",
+      "reviewer": "fourth",
+      "session_id": "c05f9faa-8030-40d9-9b6f-20c7e0b0233c",
+      "state": "accepted",
+      "title": "T2",
+      "workspace": "/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-review-findings/ymp-docs/evidence/ymp-146/rework/independent-probe/candidate-output/execute-n-NWD2dD/work"
+    },
+    {
+      "access": "read_only",
+      "assignee": "author",
+      "attempts": 1,
+      "base_commit": null,
+      "checks": [],
+      "competence": "analysis",
+      "dependencies": [
+        "306af8a6-7a50-4a96-ae95-30e629cf4081"
+      ],
+      "description": "Return finding 3",
+      "difficulty": "simple",
+      "id": "e79fe8cb-60c3-4c43-8acf-5650959aae89",
+      "interrupted": false,
+      "result": "Completed T3",
+      "reviewer": "reviewer",
+      "session_id": "c05f9faa-8030-40d9-9b6f-20c7e0b0233c",
+      "state": "accepted",
+      "title": "T3",
+      "workspace": "/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-review-findings/ymp-docs/evidence/ymp-146/rework/independent-probe/candidate-output/execute-n-NWD2dD/work"
+    },
+    {
+      "access": "read_only",
+      "assignee": "reviewer",
+      "attempts": 1,
+      "base_commit": null,
+      "checks": [],
+      "competence": "analysis",
+      "dependencies": [
+        "663f34ec-d683-44be-ae89-e501db8c624a",
+        "91d1aeef-d11d-4a91-935d-d28f8b74be35"
+      ],
+      "description": "Return finding 4",
+      "difficulty": "simple",
+      "id": "abbb3331-b257-4f23-adf0-4d1e05c6680d",
+      "interrupted": false,
+      "result": "Completed T4",
+      "reviewer": "fourth",
+      "session_id": "c05f9faa-8030-40d9-9b6f-20c7e0b0233c",
+      "state": "accepted",
+      "title": "T4",
+      "workspace": "/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-review-findings/ymp-docs/evidence/ymp-146/rework/independent-probe/candidate-output/execute-n-NWD2dD/work"
+    }
+  ],
+  "summary": "Completed\n\nAcceptance: accepted; confirmation: unconfirmed."
+}

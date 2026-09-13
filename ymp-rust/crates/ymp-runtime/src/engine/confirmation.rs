@@ -203,6 +203,7 @@ impl Engine {
         let directory = &ctx.workspace.directory;
         let mut log = String::new();
         for check in &contract.contract.checks {
+            self.owner_boundary(&ctx.session.id)?;
             let inputs = contract
                 .contract
                 .inputs
@@ -362,6 +363,19 @@ impl Engine {
             artifacts,
             component_ids: components,
         };
+        if let Some(saved) = trace
+            .decisions
+            .iter()
+            .rev()
+            .find(|d| d.kind == "result_aggregated")
+            .and_then(|d| d.links.result.as_ref())
+        {
+            let mut candidate = result.clone();
+            candidate.version = saved.version;
+            if &candidate == saved {
+                return Ok(saved.clone());
+            }
+        }
         self.store.record_decision(&DecisionRecord {
             id: new_id(),
             session_id: ctx.session.id.clone(),

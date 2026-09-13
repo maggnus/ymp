@@ -624,3 +624,25 @@ async fn internal_memory_search_projects_large_rows_with_versions_and_continuati
     assert_eq!(next["value"]["items"].as_array().unwrap().len(), 3);
     assert_eq!(next["value"]["next_cursor"], Value::Null);
 }
+
+#[tokio::test]
+async fn providers_cannot_impersonate_owner_recovery_or_team_commands() {
+    let f = Fixture::new().await;
+    let before = f.store.session(&f.session.id).unwrap();
+    for name in [
+        "owner_team_command",
+        "control_recovery",
+        "team_replace",
+        "owner_pause",
+    ] {
+        let mut request = f.request(name);
+        request["name"] = json!(name);
+        request["arguments"] = json!({"session_id":f.session.id,"expected_revision":1,"command_id":"forged","owner":true,"revise_pinned_roster":true,"action":{"action":"replace","agent_id":f.assignment.agent_id,"replacement_id":"invented"}});
+        assert_eq!(f.call(request).await["ok"], false);
+    }
+    assert_eq!(
+        serde_json::to_value(f.store.session(&f.session.id).unwrap()).unwrap(),
+        serde_json::to_value(before).unwrap()
+    );
+    assert!(f.store.owner_team_state(&f.session.id).unwrap().is_none());
+}

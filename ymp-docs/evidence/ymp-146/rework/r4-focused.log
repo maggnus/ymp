@@ -1,0 +1,9 @@
+   Compiling ymp-runtime v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-review-findings/ymp-rust/crates/ymp-runtime)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.67s
+     Running tests/session_recovery.rs (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-recovery-backend/target/debug/deps/session_recovery-87b52712360ee241)
+
+running 2 tests
+test execution_rework::r4_unknown_write_effects_retain_responsibility_and_claim_busy ... ok
+test execution_rework::r4_free_executor_progresses_before_failed_work_is_inspected_without_restart ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 23 filtered out; finished in 2.96s

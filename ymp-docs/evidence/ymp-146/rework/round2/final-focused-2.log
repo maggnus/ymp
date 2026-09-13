@@ -1,0 +1,31 @@
+   Compiling ymp-core v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-review-findings/ymp-rust/crates/ymp-core)
+   Compiling ymp-providers v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-review-findings/ymp-rust/crates/ymp-providers)
+   Compiling ymp-storage v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-review-findings/ymp-rust/crates/ymp-storage)
+   Compiling ymp-workspace v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-review-findings/ymp-rust/crates/ymp-workspace)
+   Compiling ymp-runtime v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-review-findings/ymp-rust/crates/ymp-runtime)
+   Compiling ymp146-recovery-rereview-probe v0.0.0 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-review-findings/ymp-docs/evidence/ymp-146/rework/round2/probe)
+warning: variants `Transient`, `Auth`, and `Negative` are never constructed
+  --> tests/inspection.rs:18:5
+   |
+16 | enum Mode {
+   |      ---- variants in this enum
+17 |     Unknown,
+18 |     Transient,
+   |     ^^^^^^^^^
+19 |     Auth,
+   |     ^^^^
+20 |     Negative,
+   |     ^^^^^^^^
+   |
+   = note: `Mode` has a derived impl for the trait `Clone`, but this is intentionally ignored during dead code analysis
+   = note: `#[warn(dead_code)]` on by default
+
+warning: `ymp146-recovery-rereview-probe` (test "inspection") generated 1 warning
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 7.10s
+     Running tests/inspection.rs (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-recovery-backend/target/debug/deps/inspection-0201caf94ce95609)
+
+running 2 tests
+test scoped_completed_malformed_review_can_be_inspected ... ok
+test scoped_failed_invocation_positive_control ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.50s

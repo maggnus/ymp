@@ -1,0 +1,41 @@
+   Compiling ymp-core v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-review-findings/ymp-rust/crates/ymp-core)
+   Compiling ymp-storage v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-review-findings/ymp-rust/crates/ymp-storage)
+   Compiling ymp-workspace v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-review-findings/ymp-rust/crates/ymp-workspace)
+   Compiling ymp-providers v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-review-findings/ymp-rust/crates/ymp-providers)
+   Compiling ymp-runtime v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-review-findings/ymp-rust/crates/ymp-runtime)
+   Compiling ymp146-recovery-rereview-probe v0.0.0 (/tmp/ymp146-recovery-rereview/probe)
+warning: variants `Transient`, `Auth`, and `Negative` are never constructed
+  --> tests/inspection.rs:18:5
+   |
+16 | enum Mode {
+   |      ---- variants in this enum
+17 |     Unknown,
+18 |     Transient,
+   |     ^^^^^^^^^
+19 |     Auth,
+   |     ^^^^
+20 |     Negative,
+   |     ^^^^^^^^
+   |
+   = note: `Mode` has a derived impl for the trait `Clone`, but this is intentionally ignored during dead code analysis
+   = note: `#[warn(dead_code)]` on by default
+
+warning: `ymp146-recovery-rereview-probe` (test "inspection") generated 1 warning
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 6.79s
+     Running tests/inspection.rs (/tmp/ymp146-recovery-review/target/debug/deps/inspection-0201caf94ce95609)
+
+running 2 tests
+SCOPED malformed=true invocation=Completed class=MalformedResponse termination=BackendEnded inspection=Err(uncertain_effects: foreign or nonterminal execution evidence)
+Error: uncertain_effects: foreign or nonterminal execution evidence
+test scoped_completed_malformed_review_can_be_inspected ... FAILED
+SCOPED malformed=false invocation=Failed class=Unknown termination=BackendEnded inspection=Ok(RecoveryInspectionReceipt { command: RecoveryInspectionCommand { session_id: "e959471a-411b-4fdc-adbd-787a170d43e0", stage_id: "plan-review-8c0540df-0f7a-43c5-b482-a04e408b62ad-1", expected_revision: 6, command_id: "6e6646db-aa03-4c10-9c8c-f0f43f3b44d1" }, inspection_id: "56ed9760-8a19-4c18-8348-46c79e9f87ec", resulting_revision: 7 })
+test scoped_failed_invocation_positive_control ... ok
+
+failures:
+
+failures:
+    scoped_completed_malformed_review_can_be_inspected
+
+test result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.46s
+
+error: test failed, to rerun pass `--test inspection`

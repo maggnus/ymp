@@ -1,0 +1,19 @@
+   Compiling ymp-runtime v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-review-findings/ymp-rust/crates/ymp-runtime)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.23s
+     Running tests/session_recovery.rs (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-recovery-backend/target/debug/deps/session_recovery-87b52712360ee241)
+
+running 1 test
+
+thread 'execution_rework::r4_free_executor_progresses_before_failed_work_is_inspected_without_restart' panicked at ymp-rust/crates/ymp-runtime/tests/session_recovery/execution_rework.rs:61:5:
+Independent T3 must execute despite retained failed ownership: Run blocked: claim_busy: another task already owns this executor
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test execution_rework::r4_free_executor_progresses_before_failed_work_is_inspected_without_restart ... FAILED
+
+failures:
+
+failures:
+    execution_rework::r4_free_executor_progresses_before_failed_work_is_inspected_without_restart
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 23 filtered out; finished in 0.35s
+
+error: test failed, to rerun pass `-p ymp-runtime --test session_recovery`

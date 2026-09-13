@@ -20,3 +20,6 @@ mod reservation;
 pub use reservation::{WorkspaceAdmission, WorkspaceOwner, WorkspaceReservation};
 mod board;
 pub use board::*;
+
+mod recovery;
+pub use recovery::*;

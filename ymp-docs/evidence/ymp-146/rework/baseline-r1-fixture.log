@@ -1,0 +1,24 @@
+   Compiling ymp-runtime v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-review-findings/ymp-rust/crates/ymp-runtime)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.64s
+     Running tests/session_recovery.rs (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-recovery-backend/target/debug/deps/session_recovery-87b52712360ee241)
+
+running 2 tests
+
+thread 'rework::r1_replace_releases_ready_commitment_and_continues' panicked at ymp-rust/crates/ymp-runtime/tests/session_recovery/rework.rs:82:67:
+Real accepted board commitment required; outcome: Run blocked: Team call failed: {"error":"unknown field `permission_mode`, expected `model` or `effort`","ok":false}; board: BoardSnapshot { session_id: "21005cbc-8658-4e87-88f6-fb1eff6cb613", plan_version: "e7bbae4ff8d7c78b2369f8f0e3b18f7dfdc1238bbcc7d12472b9d1fb0633aa97", tasks: [BoardTask { task: Task { access: ReadOnly, id: "14cc98f5-8505-466c-9db7-142e1f226875", session_id: "21005cbc-8658-4e87-88f6-fb1eff6cb613", title: "Read", description: "Return findings", competence: "analysis", difficulty: "simple", dependencies: [], checks: [], state: Running, assignee: Some("author"), reviewer: None, attempts: 1, result: None, workspace: Some("/private/var/folders/cw/7pn8sb3x6bj69g7j2d8f_ss00000gn/T/.tmpJRg8AH/work"), base_commit: None, interrupted: false }, version: "e4fbb4c0c7e12ac8803a6973837bff4afe3e02f9d2cb2e46aca60455995e3408", commitment: None }, BoardTask { task: Task { access: ReadOnly, id: "23fe745d-3016-4792-8a32-ac979797b55d", session_id: "21005cbc-8658-4e87-88f6-fb1eff6cb613", title: "Second read", description: "Use the first finding", competence: "analysis", difficulty: "simple", dependencies: ["14cc98f5-8505-466c-9db7-142e1f226875"], checks: [], state: Ready, assignee: None, reviewer: None, attempts: 0, result: None, workspace: None, base_commit: None, interrupted: false }, version: "c93c8f93b4babf0ceab601c7b74e77a6cfa86b2d2d4eb90c236b6a830ba47f26", commitment: None }], proposals: [], team: Some(TeamState { session_id: "21005cbc-8658-4e87-88f6-fb1eff6cb613", revision: 6, current_members: ["author", "reviewer", "reserve"], eligible_agents: ["author", "reviewer", "reserve"], reserved_final_reviewer: Some("reserve"), method: "direct_and_check", updated_at: "2026-09-13T16:45:10.676618+00:00" }) }; decisions: []
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+thread 'rework::r1_remove_releases_ready_commitment_and_continues' panicked at ymp-rust/crates/ymp-runtime/tests/session_recovery/rework.rs:82:67:
+Real accepted board commitment required; outcome: Run blocked: Team call failed: {"error":"unknown field `permission_mode`, expected `model` or `effort`","ok":false}; board: BoardSnapshot { session_id: "b33a6e56-d4a8-4751-b9da-b94247d65fef", plan_version: "6a04338794a3ab2880755a25d6b49a44e9f34fbc2fe9fa48b6c2ebda785b87ab", tasks: [BoardTask { task: Task { access: ReadOnly, id: "4fc781c8-4977-4970-9d47-c01a11ed9719", session_id: "b33a6e56-d4a8-4751-b9da-b94247d65fef", title: "Read", description: "Return findings", competence: "analysis", difficulty: "simple", dependencies: [], checks: [], state: Running, assignee: Some("author"), reviewer: None, attempts: 1, result: None, workspace: Some("/private/var/folders/cw/7pn8sb3x6bj69g7j2d8f_ss00000gn/T/.tmpBrU7ld/work"), base_commit: None, interrupted: false }, version: "8b24c1d790bbc2d92f517e9a1d5abb6d70ab2a00c5d08432041fbd9e0d78081b", commitment: None }, BoardTask { task: Task { access: ReadOnly, id: "f48eaed1-6f84-4feb-9806-78a54577263f", session_id: "b33a6e56-d4a8-4751-b9da-b94247d65fef", title: "Second read", description: "Use the first finding", competence: "analysis", difficulty: "simple", dependencies: ["4fc781c8-4977-4970-9d47-c01a11ed9719"], checks: [], state: Ready, assignee: None, reviewer: None, attempts: 0, result: None, workspace: None, base_commit: None, interrupted: false }, version: "c0fd96167e5643c482f04501d7b2c7a5e32808aeaf620f7ea07d0f23fc67cdb5", commitment: None }], proposals: [], team: Some(TeamState { session_id: "b33a6e56-d4a8-4751-b9da-b94247d65fef", revision: 6, current_members: ["author", "reviewer", "reserve"], eligible_agents: ["author", "reviewer", "reserve"], reserved_final_reviewer: Some("reserve"), method: "direct_and_check", updated_at: "2026-09-13T16:45:10.676691+00:00" }) }; decisions: []
+test rework::r1_replace_releases_ready_commitment_and_continues ... FAILED
+test rework::r1_remove_releases_ready_commitment_and_continues ... FAILED
+
+failures:
+
+failures:
+    rework::r1_remove_releases_ready_commitment_and_continues
+    rework::r1_replace_releases_ready_commitment_and_continues
+
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 19 filtered out; finished in 0.14s
+
+error: test failed, to rerun pass `-p ymp-runtime --test session_recovery`

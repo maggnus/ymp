@@ -1,0 +1,80 @@
+[
+  {
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "ymp-runtime",
+      "--lib",
+      "configured_"
+    ],
+    "exit": 0,
+    "log": "contracts-regression-final.log",
+    "at": "2026-09-13T15:37:13.455356+00:00"
+  },
+  {
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "ymp-runtime",
+      "--lib",
+      "confirmation_final_phase_and_review_outcome_are_bound_to_the_invocation"
+    ],
+    "exit": 0,
+    "log": "final-acceptance-regression.log",
+    "at": "2026-09-13T15:37:14.340686+00:00"
+  },
+  {
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "ymp-runtime",
+      "--lib",
+      "failures_before_final_acceptance_never_use_narration_fallback"
+    ],
+    "exit": 0,
+    "log": "failure-status-regression.log",
+    "at": "2026-09-13T15:37:16.252441+00:00"
+  },
+  {
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "ymp-runtime",
+      "--lib",
+      "native_review_limit"
+    ],
+    "exit": 0,
+    "log": "native-review-regression.log",
+    "at": "2026-09-13T15:37:17.681314+00:00"
+  },
+  {
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "ymp-runtime",
+      "--test",
+      "session_recovery"
+    ],
+    "exit": 0,
+    "log": "recovery-and-team-final-targeted.log",
+    "at": "2026-09-13T15:37:20.698012+00:00"
+  },
+  {
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "ymp-providers",
+      "--test",
+      "codex_retry"
+    ],
+    "exit": 0,
+    "log": "native-protocol-failure.log",
+    "at": "2026-09-13T15:37:22.930022+00:00"
+  }
+]

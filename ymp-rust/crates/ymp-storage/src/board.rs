@@ -42,12 +42,26 @@ pub(super) fn snapshot(db: &Connection, session: &str) -> Result<BoardSnapshot> 
                         .as_ref()
                         .filter(|c| c.task_id == task.id && d.accepted)
                 });
-            let version = content_digest(&serde_json::to_string(&(
+            let release = latest.and_then(|commitment| {
+                decisions.iter().rev().find(|d| {
+                    d.links
+                        .board_release
+                        .as_ref()
+                        .is_some_and(|r| r.commitment == *commitment)
+                })
+            });
+            // Preserve pre-release versions exactly, including legacy snapshots.
+            let mut version = content_digest(&serde_json::to_string(&(
                 &raw,
                 latest.map(|c| &c.proposal_id),
             ))?);
+            if let Some(release) = release {
+                version = content_digest(&serde_json::to_string(&(&version, &release.id))?);
+            }
             let commitment = latest
-                .filter(|c| c.task_version == raw && task.state == TaskState::Ready)
+                .filter(|c| {
+                    release.is_none() && c.task_version == raw && task.state == TaskState::Ready
+                })
                 .cloned();
             Ok(BoardTask {
                 task,
@@ -63,6 +77,48 @@ pub(super) fn snapshot(db: &Connection, session: &str) -> Result<BoardSnapshot> 
         proposals: read_proposals(db, session)?,
         team: super::allocation::state(db, session)?,
     })
+}
+
+/// Called inside the accepted owner command transaction, before responsibility settlement.
+pub(super) fn release_unadmitted(
+    tx: &Transaction<'_>,
+    command: &OwnerTeamCommand,
+    departing: &str,
+) -> Result<()> {
+    let assignments = records::<AssignmentRecord>(tx, "assignments", &command.session_id)?;
+    for task in snapshot(tx, &command.session_id)?.tasks {
+        let Some(commitment) = task.commitment.filter(|c| c.agent_id == departing) else {
+            continue;
+        };
+        // Ready commitments are not invocation authority. A recorded admission for
+        // this exact attempt is nevertheless a conservative exclusion at storage.
+        if task.task.state != TaskState::Ready
+            || assignments.iter().any(|a| {
+                a.purpose == "execute" && a.task.as_ref() == Some(&TaskAttemptRef::from(&task.task))
+            })
+        {
+            continue;
+        }
+        decision(tx, &DecisionRecord {
+            id: new_id(),
+            session_id: command.session_id.clone(),
+            kind: "owner_board_commitment_released".into(),
+            actor: None,
+            reason: "Owner departure released ready responsibility before execution admission; task obligations and admitted ownership are preserved".into(),
+            outcome: None,
+            links: RecordLinks {
+                task: Some(TaskAttemptRef::from(&task.task)),
+                board_release: Some(BoardCommitmentRelease {
+                    command_id: command.command_id.clone(),
+                    previous: BoardTaskRef { task_id: task.task.id, version: task.version },
+                    commitment,
+                }),
+                ..Default::default()
+            },
+            created_at: now(),
+        })?;
+    }
+    Ok(())
 }
 pub(super) fn propose(
     tx: &Transaction<'_>,
@@ -155,6 +211,82 @@ pub(super) fn propose(
 }
 
 impl Store {
+    /// This is preparation for independent review, never acceptance or replay.
+    pub fn prepare_ended_execution_review(
+        &self,
+        session: &str,
+        expected: &TaskAttemptRef,
+    ) -> Result<Option<Task>> {
+        let mut db = self.db()?;
+        let tx = db.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
+        let mut task: Task = record(&tx, "tasks", &expected.task_id)?;
+        ensure!(
+            task.session_id == session,
+            "Execution review belongs to another session"
+        );
+        if task.state != TaskState::Running || TaskAttemptRef::from(&task) != *expected {
+            return Ok(None);
+        }
+        if super::team_control::state(&tx, session)?
+            .is_some_and(|s| s.control != OwnerRunControl::Continue)
+        {
+            return Ok(None);
+        }
+        let assignments = records::<AssignmentRecord>(&tx, "assignments", session)?;
+        let decisions = records::<DecisionRecord>(&tx, "decisions", session)?;
+        let Some(failure) = decisions
+            .iter()
+            .rev()
+            .filter_map(|d| d.links.failure.as_ref())
+            .find(|f| {
+                f.class == FailureClass::TransientTransport
+                    && f.termination == TerminationEvidence::BackendEnded
+                    && f.effective_access.is_read_only()
+                    && task.assignee.as_ref() == Some(&f.agent_id)
+                    && assignments.iter().any(|a| {
+                        a.id == f.assignment_id
+                            && a.purpose == "execute"
+                            && a.task.as_ref() == Some(expected)
+                            && a.state == InvocationState::Failed
+                            && a.ended_at.is_some()
+                    })
+            })
+        else {
+            return Ok(None);
+        };
+        if super::team_control::responsibilities(&tx, session)?
+            .iter()
+            .any(|r| {
+                r.agent_id == failure.agent_id
+                    && matches!(r.kind.as_str(), "invocation" | "workspace_access")
+            })
+        {
+            return Ok(None);
+        }
+        let invocation: InvocationRecord = record(&tx, "invocations", &failure.invocation_id)?;
+        ensure!(
+            invocation.assignment_id == failure.assignment_id
+                && invocation.state == InvocationState::Failed
+                && invocation.ended_at.is_some(),
+            "Execution inspection requires recorded backend termination"
+        );
+        task.state = TaskState::Review;
+        task.interrupted = true;
+        task.result = Some("Execution was interrupted. Inspect actual files and check results; do not assume completion or repeat external actions.".into());
+        super::write_task(&tx, &task)?;
+        decision(&tx, &DecisionRecord {
+            id: new_id(), session_id: session.into(), kind: "execution_interruption_review_ready".into(),
+            actor: None, reason: "Known-ended read-only transport failure retains its attempt and origin for independent inspection before rework".into(),
+            outcome: None, links: RecordLinks {
+                task: Some(expected.clone()), failure: Some(failure.clone()),
+                assignment_id: Some(failure.assignment_id.clone()), invocation_id: Some(failure.invocation_id.clone()),
+                ..Default::default()
+            }, created_at: now(),
+        })?;
+        tx.commit()?;
+        Ok(Some(task))
+    }
+
     pub fn board(&self, session: &str) -> Result<BoardSnapshot> {
         let mut db = self.db()?;
         let tx = db.transaction()?;
@@ -307,6 +439,7 @@ impl Store {
             );
         }
         let agent = task.assignee.as_deref().context("Missing claim executor")?;
+        super::team_control::check_admission(&tx, &task.session_id, agent)?;
         if let Some(team) = &board.team {
             ensure!(
                 team.current_members.iter().any(|id| id == agent)

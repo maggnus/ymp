@@ -1,0 +1,24 @@
+   Compiling ymp-core v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-recovery-backend/ymp-rust/crates/ymp-core)
+   Compiling ymp-storage v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-recovery-backend/ymp-rust/crates/ymp-storage)
+   Compiling ymp-providers v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-recovery-backend/ymp-rust/crates/ymp-providers)
+   Compiling ymp-workspace v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-recovery-backend/ymp-rust/crates/ymp-workspace)
+   Compiling ymp-runtime v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-recovery-backend/ymp-rust/crates/ymp-runtime)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 6.88s
+     Running tests/session_recovery.rs (target/debug/deps/session_recovery-87b52712360ee241)
+
+running 13 tests
+test injected_policy_cannot_replay_an_uncertain_writer ... ok
+test interrupted_review_has_no_invented_termination_evidence_after_restart ... ok
+test owner_add_idle_remove_and_no_reviewer_choice_are_atomic ... ok
+test uncertainty_and_unknown_accounting_block_replay ... ok
+test correlated_provider_failure_has_finite_wait_without_acceptance ... ok
+test permanent_failure_replaces_independent_reviewer_through_allocation ... ok
+test owner_pause_idempotence_and_stale_stage_survive_reopen ... ok
+test restart_retains_plan_without_duplicate_planning ... ok
+test live_replace_drains_writer_and_running_engine_observes_new_native_member ... ok
+test initial_planner_failure_uses_bounded_recovery_and_keeps_its_attribution ... ok
+test finite_transient_and_manual_wait_use_the_same_consumer ... ok
+test candidate_and_final_review_restart_preserve_production_and_result_version ... ok
+test negative_verdict_requires_revision_but_malformed_response_is_not_a_verdict ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.23s

@@ -1,0 +1,11 @@
+   Compiling ymp-runtime v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-review-findings/ymp-rust/crates/ymp-runtime)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.64s
+     Running tests/session_recovery.rs (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-recovery-backend/target/debug/deps/session_recovery-87b52712360ee241)
+
+running 4 tests
+test rework::r2_membership_preserves_explicit_owner_pause ... ok
+test rework::r2_membership_preserves_explicit_owner_wait ... ok
+test rework::r2_availability_change_reconsiders_policy_without_resetting_counters ... ok
+test rework::r2_membership_preserves_exhausted_policy ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 19 filtered out; finished in 0.99s

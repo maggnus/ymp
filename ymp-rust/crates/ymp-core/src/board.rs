@@ -84,6 +84,14 @@ pub struct BoardCommitment {
     pub agent_id: String,
     pub settings: ModelEffort,
 }
+/// An explicit owner departure withdraws only responsibility not yet admitted.
+/// The original board decision remains immutable and attributable to its proposal.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct BoardCommitmentRelease {
+    pub command_id: String,
+    pub previous: BoardTaskRef,
+    pub commitment: BoardCommitment,
+}
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BoardTask {
     pub task: Task,

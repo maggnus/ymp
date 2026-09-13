@@ -1,0 +1,42 @@
+   Compiling ymp-core v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-review-findings/ymp-rust/crates/ymp-core)
+   Compiling ymp-storage v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-review-findings/ymp-rust/crates/ymp-storage)
+   Compiling ymp-workspace v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-review-findings/ymp-rust/crates/ymp-workspace)
+   Compiling ymp-providers v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-review-findings/ymp-rust/crates/ymp-providers)
+   Compiling ymp-runtime v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-review-findings/ymp-rust/crates/ymp-runtime)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 10.24s
+     Running tests/session_recovery.rs (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-recovery-backend/target/debug/deps/session_recovery-87b52712360ee241)
+
+running 4 tests
+
+thread 'rework::r1_remove_releases_ready_commitment_and_continues' panicked at ymp-rust/crates/ymp-runtime/tests/session_recovery/rework.rs:82:49:
+Real accepted board commitment
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test rework::r1_remove_releases_ready_commitment_and_continues ... FAILED
+
+thread 'rework::r1_replace_releases_ready_commitment_and_continues' panicked at ymp-rust/crates/ymp-runtime/tests/session_recovery/rework.rs:82:49:
+Real accepted board commitment
+test rework::r1_replace_releases_ready_commitment_and_continues ... FAILED
+
+thread 'rework::r2_membership_preserves_explicit_owner_wait' panicked at ymp-rust/crates/ymp-runtime/tests/session_recovery/rework.rs:165:5:
+assertion `left == right` failed: Membership must not authorize a retry
+  left: 7
+ right: 2
+test rework::r2_membership_preserves_explicit_owner_wait ... FAILED
+
+thread 'rework::r2_membership_preserves_exhausted_policy' panicked at ymp-rust/crates/ymp-runtime/tests/session_recovery/rework.rs:165:5:
+assertion `left == right` failed: Membership must not authorize a retry
+  left: 8
+ right: 3
+test rework::r2_membership_preserves_exhausted_policy ... FAILED
+
+failures:
+
+failures:
+    rework::r1_remove_releases_ready_commitment_and_continues
+    rework::r1_replace_releases_ready_commitment_and_continues
+    rework::r2_membership_preserves_exhausted_policy
+    rework::r2_membership_preserves_explicit_owner_wait
+
+test result: FAILED. 0 passed; 4 failed; 0 ignored; 0 measured; 17 filtered out; finished in 0.98s
+
+error: test failed, to rerun pass `-p ymp-runtime --test session_recovery`

@@ -1,0 +1,47 @@
+{
+  "checked_head": "58c795703b4ea8f281f1cdc05cd13572c5f7b5a3",
+  "baseline": "cfdceff06cc703352b1234892729fb72a85dbf09",
+  "branch": "fix/ymp146-review-findings",
+  "changed_source_sha256": {
+    "ymp-rust/crates/ymp-core/src/board.rs": "4733471190fe0310fbda40b285769169f7996d57b9cdbce2407cf679439c130a",
+    "ymp-rust/crates/ymp-core/src/provenance.rs": "082f6a6ebc1fd28aabcc508420c6ca30a11ee1f0ed4f7e53af95dff58ce882d4",
+    "ymp-rust/crates/ymp-core/src/recovery.rs": "f455925b39e1a6cbfca9dd799e717e03789ad6d1be5425b064b8493960ee8e28",
+    "ymp-rust/crates/ymp-core/src/workspace_access.rs": "3389b5ad5e310a70cd7f47f93154f21e3db873e5914a39f1ba0eda11a1adb297",
+    "ymp-rust/crates/ymp-providers/src/backend.rs": "1ce3b9722a1d66806890738340ea5e5cca4c0f78902e9e87b689b49a12ecb8c3",
+    "ymp-rust/crates/ymp-runtime/src/engine.rs": "51ae700ccf90aa137909f0f4bd646c0c53f425d405f781118475aa60ccbcdba5",
+    "ymp-rust/crates/ymp-runtime/src/engine/planning_recovery.rs": "1cf52d8601d8053e25e575b4f6639cc2f7227777ba453b03a02286e6c10008a5",
+    "ymp-rust/crates/ymp-runtime/src/engine/recovery.rs": "f5d6cdf6af1d2695e3a3579c1cdd0d31ec27fb2f32ee0b8f0aceab200142c375",
+    "ymp-rust/crates/ymp-runtime/src/engine/recovery_inspection.rs": "33bfe938ebe034669d02458b733a95070f870e740e5efc91603fe9dbbee6d828",
+    "ymp-rust/crates/ymp-runtime/src/engine/workspace_access.rs": "24749e2a5018089c62bcacf3bba08f5239d8b86e16a254937801b9cb34af7f5d",
+    "ymp-rust/crates/ymp-runtime/tests/session_recovery.rs": "2be7ee8b22f317e1da3d3bb4bdafec31046169d50c7483d16f370671f29f4d7c",
+    "ymp-rust/crates/ymp-runtime/tests/session_recovery/execution_rework.rs": "e3ad5873b1390aaf154d06183eb419bd20019407146fd30e55185aa8961e1af8",
+    "ymp-rust/crates/ymp-runtime/tests/session_recovery/inspection_rework.rs": "cf78156269d4eed4266c9e60328cbb3213b47eb8f882c4d5f9a62e655ba03a23",
+    "ymp-rust/crates/ymp-runtime/tests/session_recovery/rework.rs": "bac58dad85fa377f75269df891d1976a314beffe695db6a78edba544acadf14d",
+    "ymp-rust/crates/ymp-storage/src/board.rs": "4f2b85b5f3d7edeebaeb3d09ae86a4d49949c7c754bf7deaf4f79aad540050b7",
+    "ymp-rust/crates/ymp-storage/src/lib.rs": "350f0b27b1715b4c456cb8a7e7d3620d5383494e79bbc6ff4fca1d4e95f797fa",
+    "ymp-rust/crates/ymp-storage/src/recovery.rs": "39bf0ba0504c69278a71d2196e540d75dec3ef7f75cbafe183c1dcb9ff70be6f",
+    "ymp-rust/crates/ymp-storage/src/recovery_inspection.rs": "092c784fbcacb68904e36a3dd82e18f93b42b12bad3210ddd9285996a52db4f0",
+    "ymp-rust/crates/ymp-storage/src/team_control.rs": "8ef417c96cf73514d1e6750a861b866b10e7fa4c8afaa6f7f196f7b30395c1de"
+  },
+  "outside_write_zone": [],
+  "preserved_project_docs": [
+    "AGENTS.md",
+    "ymp-docs/architecture/session-recovery-contract.md",
+    "ymp-docs/evidence/ymp-146/backend/API.md",
+    "ymp-docs/evidence/ymp-146/backend/README.md"
+  ],
+  "reviewer_originals_sha256": {
+    "probe/tests/review.rs": "59c4e3c410c17dce98292b638c119a2bbd0f2525461137a8c73dc80438033012",
+    "probe/Cargo.toml": "8e556bb2dfc80132ed2e5a8a004a2dff8db2e366a7b0d3e3663230714bbc1fe3",
+    "probe/Cargo.lock": "eba55bb7cb648ca0d2571b191b5721b6badfd5ebb4d121430760ccdc48da0df0",
+    "review-result.json": "b48c6042db71651ffcd4ff3093ef760a34181cc783a0f749bce28840230ad686",
+    "legacy-true.json": "cde252bdcc8c66c53e0fd85ce46948edd2721fed5e4f1a344fb82422e0470fb7",
+    "legacy-false.json": "9bef0a3527d2fa52610fcf20cf527ef67542d177933608739c1ea4ce94e37bda",
+    "execute-n-first.json": "47acd5fc6dffa823164d4dd5d38b09a2a22fd35ac1ee24940efb0601d375684b",
+    "execute-n.json": "945f64c68fb1820e24fd0e4293e4a904aae714c0f035d4696ea8a3090c0f0710",
+    "external-probes-final.log": "00df1e3a1f5f9ae07edb48462ad55690284bbd4c5be712e120fe99a5bffc8d83"
+  },
+  "native_calls": "none; scripted/mock providers only",
+  "application_homes": "temporary test homes only",
+  "build_cache": "frozen worktree target only; no original source/Git or main target use"
+}

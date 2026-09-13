@@ -64,6 +64,8 @@ impl Engine {
             })
             .transpose()?;
         let backend_access = self.execution_backend.workspace_access(request);
+        anyhow::ensure!(!self.require_recovery_read_only || backend_access.is_read_only(),
+            "inspection_access: recovery inspection and resolved review continuation require actual read-only execution");
         let effective_access = self
             .workspace_policy
             .resolve(&crate::WorkspaceAccessInput {
@@ -78,7 +80,24 @@ impl Engine {
         );
         crate::workspace_access::validate_access(&request.cwd, &backend_access)?;
         crate::workspace_access::validate_access(&request.cwd, &effective_access)?;
-        Ok(WorkspaceAccessDecision { reservation_id:id.into(),policy:self.workspace_policy_identity.clone(),backend:self.backend_identity.clone(),directory:request.cwd.canonicalize()?,backend_access,effective_access,rationale:"Direct MVP execution; access comes from the trusted backend. Unbounded writers own the whole directory. No rollback or source isolation is provided.".into() })
+        let local_effect_scope = self.execution_backend.local_effect_scope(request);
+        if let Some(scope) = &local_effect_scope {
+            anyhow::ensure!(
+                scope.files.len() <= 64,
+                "Local effect scope exceeds 64 paths"
+            );
+            crate::workspace_access::validate_access(
+                &request.cwd,
+                &WorkspaceAccess::Scoped {
+                    reads: vec![],
+                    writes: scope.files.clone(),
+                },
+            )?;
+            for path in &scope.files {
+                FileSnapshot::capture(&request.cwd, path)?;
+            }
+        }
+        Ok(WorkspaceAccessDecision { reservation_id:id.into(),policy:self.workspace_policy_identity.clone(),backend:self.backend_identity.clone(),directory:request.cwd.canonicalize()?,backend_access,effective_access,local_effect_scope,rationale:"Direct MVP execution; access comes from the trusted backend. Unbounded writers own the whole directory. No rollback or source isolation is provided.".into() })
     }
 
     pub fn acquire_workspace_owner(&self, session: &str) -> Result<Arc<crate::WorkspaceOwner>> {
@@ -107,6 +126,7 @@ impl Engine {
         request: &TurnRequest,
         task: Option<TaskAttemptRef>,
     ) -> Result<crate::WorkspaceAdmission> {
+        self.owner_boundary(session)?;
         let policy = self
             .store
             .session_policy(session)?
@@ -292,6 +312,7 @@ impl Engine {
             if self.cancel.is_cancelled() {
                 bail!("Cancelled");
             }
+            self.owner_boundary(&ctx.session.id)?;
             match self.try_acquire_access(
                 &ctx.session.id,
                 id,
@@ -357,6 +378,7 @@ impl Engine {
         task: &mut Task,
         prompt: &str,
     ) -> Result<()> {
+        self.owner_boundary(&ctx.session.id)?;
         // Arbitrary shell checks can write anywhere. Hold the whole directory
         // through snapshotting, checks, native inspection and final acceptance.
         let id = new_id();
@@ -364,6 +386,7 @@ impl Engine {
             reservation_id: id.clone(),
             policy: self.workspace_policy_identity.clone(), backend: self.backend_identity.clone(), directory: ctx.workspace.directory.canonicalize()?,
             backend_access: WorkspaceAccess::WriteAll, effective_access: WorkspaceAccess::WriteAll,
+            local_effect_scope: None,
             rationale: "Runtime verification protects the candidate and inputs through acceptance; arbitrary check commands require exclusive access".into(),
         };
         let lease = self

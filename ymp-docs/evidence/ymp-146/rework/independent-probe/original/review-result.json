@@ -1,0 +1,69 @@
+{
+  "verdict": "RETURN",
+  "reviewed_commit": "cfdceff06cc703352b1234892729fb72a85dbf09",
+  "baseline": "15f7c2225cb74fa2dc9056bd55f9cf836288d44a",
+  "platform": "Darwin arm64",
+  "git_porcelain_before": "",
+  "git_porcelain_after": "",
+  "author_source_hashes_verified": 33,
+  "independent_checks": [
+    {
+      "command": "cargo test --locked --offline -p ymp-runtime --test session_recovery --target-dir /tmp/ymp146-recovery-review/target -- --nocapture",
+      "exit": 0,
+      "passed": 17,
+      "log": "session-recovery-unsandboxed.log"
+    },
+    {
+      "command": "cargo test --locked --offline -p ymp-providers --lib failure:: --target-dir /tmp/ymp146-recovery-review/target -- --nocapture",
+      "exit": 0,
+      "passed": 1,
+      "log": "failure-classification.log"
+    },
+    {
+      "command": "cargo test --locked --offline --manifest-path /tmp/ymp146-recovery-review/probe/Cargo.toml --target-dir /tmp/ymp146-recovery-review/target --test review probe_ -- --nocapture",
+      "exit": 101,
+      "passed": 2,
+      "failed": 2,
+      "log": "external-probes-final.log"
+    }
+  ],
+  "findings": [
+    {
+      "id": "R1",
+      "severity": "P1",
+      "title": "No public inspection completion transition for legacy write-capable plan review",
+      "trace": "legacy-true.json",
+      "positive_control": "legacy-false.json",
+      "required": "Preserve historical uncertainty and add an admitted independent inspection consumer with version-bound resolution before saved review continuation."
+    },
+    {
+      "id": "R2",
+      "severity": "P1",
+      "title": "Two failed execute tasks retain ownership; unrelated ready work selects an occupied executor despite a healthy spare",
+      "trace_before": "execute-n-first.json",
+      "trace_after_explicit_resume": "execute-n.json",
+      "required": "Respect unresolved execution responsibility during candidate selection; do not relax claim_busy. Distinguish review recovery from automatic execute recovery."
+    }
+  ],
+  "limits": [
+    "No real application home or real session access.",
+    "No real provider inference, installation, main integration or tracked source edits.",
+    "Linux and native process/remote-effect termination remain unverified.",
+    "Initial sandbox test failed at Unix socket bind; repeated only after explicit authorization.",
+    "Preliminary external fixture omitted historical team state and was corrected before final evidence.",
+    "External dependency versions were aligned with the frozen workspace lock; only the external probe package is additional.",
+    "Authority review findings were not duplicated."
+  ],
+  "artifact_sha256": {
+    "probe/tests/review.rs": "59c4e3c410c17dce98292b638c119a2bbd0f2525461137a8c73dc80438033012",
+    "probe/Cargo.toml": "8e556bb2dfc80132ed2e5a8a004a2dff8db2e366a7b0d3e3663230714bbc1fe3",
+    "probe/Cargo.lock": "eba55bb7cb648ca0d2571b191b5721b6badfd5ebb4d121430760ccdc48da0df0",
+    "external-probes-final.log": "00df1e3a1f5f9ae07edb48462ad55690284bbd4c5be712e120fe99a5bffc8d83",
+    "session-recovery-unsandboxed.log": "11fa3ef174d217154aff38e6a49e6fe103e062ece24a70472892a12ee263c4a7",
+    "failure-classification.log": "29630a89f9527656471176dbc35a0e5f41b5f4385f2e0a5f5953a5d227171ad5",
+    "legacy-true.json": "cde252bdcc8c66c53e0fd85ce46948edd2721fed5e4f1a344fb82422e0470fb7",
+    "legacy-false.json": "9bef0a3527d2fa52610fcf20cf527ef67542d177933608739c1ea4ce94e37bda",
+    "execute-n-first.json": "47acd5fc6dffa823164d4dd5d38b09a2a22fd35ac1ee24940efb0601d375684b",
+    "execute-n.json": "945f64c68fb1820e24fd0e4293e4a904aae714c0f035d4696ea8a3090c0f0710"
+  }
+}

@@ -170,7 +170,8 @@ impl RpcProcess {
             }
             if v.get("id").and_then(Value::as_u64) == Some(id) {
                 if let Some(err) = v.get("error") {
-                    bail!("{method}: {err}");
+                    return Err(anyhow::Error::new(crate::failure::protocol_failure(err))
+                        .context(format!("{method}: {err}")));
                 }
                 return Ok(v.get("result").cloned().unwrap_or(Value::Null));
             }

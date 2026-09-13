@@ -1,0 +1,75 @@
+{
+  "verdict": "ACCEPT within assigned recovery/inspection scope; final integration acceptance remains with parent",
+  "reviewed_tip": "743543fe1c3f6c11e9bb7663e89c5b79605d1ee8",
+  "executable_source": "edc779a2da5b101ad50a5803427b4fe4354d46f3",
+  "baseline": "1dff2cbcb558639a74f46fe009372a71652cc4e7",
+  "platform": "Darwin arm64",
+  "git_porcelain_before": "",
+  "git_porcelain_after": "",
+  "source_hashes_verified": 15,
+  "original_artifacts_verified": 16,
+  "parent_contract_hashes_verified": 2,
+  "byte_preserved_files": [
+    "ymp-rust/crates/ymp-storage/src/board.rs",
+    "ymp-rust/crates/ymp-runtime/tests/session_recovery/execution_rework.rs",
+    "AGENTS.md",
+    "ymp-docs/architecture/session-recovery-contract.md"
+  ],
+  "additional_dependency_versions": [
+    [
+      "ymp146-recovery-round2-probe",
+      "0.0.0"
+    ]
+  ],
+  "checks": [
+    {
+      "command": "cargo test --locked --offline -p ymp-runtime --test fresh_plan_review --test session_recovery --target-dir /tmp/ymp146-recovery-review/target -- --nocapture",
+      "exit": 0,
+      "passed": 45,
+      "detail": "12 default-native protocol fixture scenarios and 33 recovery regressions",
+      "log": "public-scenarios.log"
+    },
+    {
+      "command": "cargo test --locked --offline --manifest-path /tmp/ymp146-recovery-round2-review/probe/Cargo.toml --target-dir /tmp/ymp146-recovery-review/target --test inspection --test native -- --nocapture",
+      "exit": 0,
+      "passed": 4,
+      "detail": "Unchanged two-case strict inspection assertions; extra native-protocol cases retain known+unknown historical usage and require revision after a negative verdict despite authorization",
+      "log": "independent-controls.log"
+    }
+  ],
+  "owner_mutation_evidence": {
+    "exit": 101,
+    "source_restored_byte_identical": true,
+    "independently_rerun_mutation": false
+  },
+  "accepted_behaviors": [
+    "Completed malformed response is inspectable only with exact failure binding and no true verdict",
+    "Fresh read-only saved-plan review has no native resume and cannot alone authorize production",
+    "Explicit ReleaseHold is reachable and gives no retry permit",
+    "Separate owner current-files decision survives restart and enables real task output without plan repetition on positive review",
+    "Unknown historical effects, absent local scope, old invocation usage and limits remain retained; no reputation fabricated",
+    "Absent owner decision, active/unknown work, changed context, holds, depleted budget and new uncovered failure refuse relevant actions",
+    "Negative verdict causes versioned rework, not reviewer-shopping"
+  ],
+  "limits": [
+    "Only local native-protocol/scripted fixtures; no model inference, real application home or original live session access",
+    "macOS arm64 only; Linux and real native/external termination guarantees unverified",
+    "No full workspace sequence independently repeated; author 624-pass evidence reused through verified source hashes",
+    "No UI, integration, installation, R1/R2 full authority re-review or comparable model trials",
+    "Authorization binds reviewed context at decision time, not an ongoing filesystem freeze",
+    "All local checks finished; no outstanding test process"
+  ],
+  "artifact_sha256": {
+    "public-scenarios.log": "c130f494651006e699b7729e1464bf39ce0ea6a9495ae82f41a44f1b7f88dbc2",
+    "independent-controls.log": "86710796d4f9c112ee6efa2c7606d9d0a37a3938c5b6f37ca629f60ebb4b4bb4",
+    "native-negative-false.json": "f5224527a835e4e830c606b34e20e1e90c8b412bf83fde41f0b56df8f1d443cc",
+    "native-negative-true.json": "487efb002c40dfb70ff03fd96e55ac386e9af418cf067469770da7128c8b9541",
+    "scoped-true.json": "94b3a58a80412d11b91b4809e1e0b82e285fc29240a416990d0e5cf4351a68fc",
+    "scoped-false.json": "692c1eaf0213db432833dee60d2b203010a8351018424e74a1326df1f8811a95",
+    "probe/tests/native.rs": "bdef1c09d926f2249001199bf938c45ac810e1fb8818eaa8abbb98303dcbd732",
+    "probe/tests/inspection.rs": "a49789e20bf12ba17ed51b4e3a1435c50e95f32f4292e297c87840e28a2a8458",
+    "probe/tests/fixtures/fresh_plan_review.py": "49673defa16b32f09327288ed44cf83def98986da89a06dd74cc1d52e9175e8b",
+    "probe/Cargo.toml": "5f838240b0d689b73b89531a249ff8e96300b3a2a585abdd69d7fef546b8d7a6",
+    "probe/Cargo.lock": "618ec9b1fee6df1c72ea691e4e7ba51f939948c1e5654165b012c534d5000a59"
+  }
+}

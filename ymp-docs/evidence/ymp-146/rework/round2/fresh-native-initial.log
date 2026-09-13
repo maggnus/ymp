@@ -1,0 +1,29 @@
+   Compiling ymp-core v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-review-findings/ymp-rust/crates/ymp-core)
+   Compiling ymp-workspace v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-review-findings/ymp-rust/crates/ymp-workspace)
+   Compiling ymp-storage v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-review-findings/ymp-rust/crates/ymp-storage)
+   Compiling ymp-providers v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-review-findings/ymp-rust/crates/ymp-providers)
+   Compiling ymp-runtime v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-review-findings/ymp-rust/crates/ymp-runtime)
+error[E0624]: method `check_fresh_plan_dependencies` is private
+    --> ymp-rust/crates/ymp-runtime/src/engine.rs:1820:14
+     |
+1820 |         self.check_fresh_plan_dependencies(&ctx.session.id)?;
+     |              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ private method
+     |
+    ::: ymp-rust/crates/ymp-runtime/src/engine/fresh_plan_review.rs:130:5
+     |
+130  |     fn check_fresh_plan_dependencies(&self, session: &str) -> Result<()> {
+     |     -------------------------------------------------------------------- private method defined here
+
+error[E0624]: method `check_fresh_plan_dependencies` is private
+    --> ymp-rust/crates/ymp-runtime/src/engine.rs:2368:26
+     |
+2368 |                     self.check_fresh_plan_dependencies(&ctx.session.id)?;
+     |                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ private method
+     |
+    ::: ymp-rust/crates/ymp-runtime/src/engine/fresh_plan_review.rs:130:5
+     |
+130  |     fn check_fresh_plan_dependencies(&self, session: &str) -> Result<()> {
+     |     -------------------------------------------------------------------- private method defined here
+
+For more information about this error, try `rustc --explain E0624`.
+error: could not compile `ymp-runtime` (lib) due to 2 previous errors

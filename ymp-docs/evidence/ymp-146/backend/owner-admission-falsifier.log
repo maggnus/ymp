@@ -1,0 +1,23 @@
+   Compiling ymp-storage v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-recovery-backend/ymp-rust/crates/ymp-storage)
+   Compiling ymp-runtime v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-recovery-backend/ymp-rust/crates/ymp-runtime)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.17s
+     Running tests/session_recovery.rs (target/debug/deps/session_recovery-87b52712360ee241)
+
+running 1 test
+test live_replace_drains_writer_and_running_engine_observes_new_native_member ... FAILED
+
+failures:
+
+---- live_replace_drains_writer_and_running_engine_observes_new_native_member stdout ----
+
+thread 'live_replace_drains_writer_and_running_engine_observes_new_native_member' panicked at ymp-rust/crates/ymp-runtime/tests/session_recovery.rs:580:65:
+called `Result::unwrap_err()` on an `Ok` value: InvocationRecord { id: "1bc917cd-e143-4000-8ef1-cd54840330c2", session_id: "ff1902fe-e7a0-4035-b69b-e09737a24116", assignment_id: "0ddb43f3-e10b-453e-9ea3-22736ca1be37", execution_backend: Some(ExecutionBackendIdentity { id: "fixture.recovery", version: "1" }), turn: 4, requested: ExecutionSettings { model: None, effort: None, permission_mode: Some("read_only") }, sent: ExecutionSettings { model: None, effort: None, permission_mode: None }, reported: ExecutionSettings { model: None, effort: None, permission_mode: None }, resumed_from: Some("c808380e-97fe-4aa9-8bd1-edfc450b6334"), native_session_id: None, native_turn_id: None, native_version: None, state: Running, started_at: "2026-09-13T15:36:38.187967+00:00", ended_at: None, usage: None, terminal_reason: None }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    live_replace_drains_writer_and_running_engine_observes_new_native_member
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.14s
+
+error: test failed, to rerun pass `-p ymp-runtime --test session_recovery`

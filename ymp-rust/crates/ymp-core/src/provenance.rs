@@ -241,10 +241,26 @@ pub struct PlanVersion {
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RecordLinks {
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub policy_chain: Vec<crate::PolicyProvenance>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub recovery: Option<Box<crate::RecoveryDecision>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub recovery_inspection: Option<Box<crate::RecoveryInspection>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fresh_plan_review: Option<Box<crate::FreshPlanReviewRecord>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub unresolved_effect_dependencies: Option<Box<crate::UnresolvedEffectDependencies>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub current_files_authorization: Option<Box<crate::CurrentFilesAuthorization>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub failure: Option<crate::InvocationFailure>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub knowledge_correction: Option<crate::KnowledgeCorrectionCommit>,
     #[serde(default)]
     pub board: Option<Box<crate::BoardDecision>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub board_release: Option<crate::BoardCommitmentRelease>,
     #[serde(default)]
     pub workspace_access: Option<crate::WorkspaceAccessDecision>,
     #[serde(default)]

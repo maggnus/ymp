@@ -228,8 +228,20 @@ impl Engine {
             reason: proposal.rationale.clone(),
             outcome: None,
             links: RecordLinks {
+                policy_chain: vec![
+                    PolicyProvenance {
+                        implementation: self.allocation_identity.clone(),
+                        configuration: Value::Null,
+                        originating_record_ids: vec![],
+                    },
+                    PolicyProvenance {
+                        implementation: self.board_identity.clone(),
+                        configuration: Value::Null,
+                        originating_record_ids: vec![],
+                    },
+                ],
                 allocation: Some(Box::new(AllocationDecision {
-                    implementation: self.board_identity.clone(),
+                    implementation: self.allocation_identity.clone(),
                     input,
                     proposal,
                     accepted: true,

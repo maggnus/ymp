@@ -1,0 +1,16 @@
+{
+  "head": "1dff2cbcb558639a74f46fe009372a71652cc4e7",
+  "command": [
+    "cargo",
+    "test",
+    "--locked",
+    "--offline",
+    "--manifest-path",
+    "ymp-docs/evidence/ymp-146/rework/round2/probe/Cargo.toml",
+    "--test",
+    "inspection",
+    "--",
+    "--nocapture"
+  ],
+  "exit_code": 101
+}

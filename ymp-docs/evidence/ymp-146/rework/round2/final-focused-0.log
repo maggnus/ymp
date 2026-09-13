@@ -1,0 +1,20 @@
+   Compiling ymp-storage v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-review-findings/ymp-rust/crates/ymp-storage)
+   Compiling ymp-runtime v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-review-findings/ymp-rust/crates/ymp-runtime)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.90s
+     Running tests/fresh_plan_review.rs (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-recovery-backend/target/debug/deps/fresh_plan_review-05f410536c030854)
+
+running 12 tests
+test native_fresh_review_owner_holds_have_a_reachable_nonretry_release ... ok
+test fresh_acp_reviewer_is_refused_before_native_call_despite_requested_read_only ... ok
+test current_files_decision_refuses_active_native_execution_and_unreleased_ownership ... ok
+test current_files_authorization_cannot_enlarge_the_original_budget ... ok
+test native_backend_version_change_preserves_old_origin_and_starts_fresh ... ok
+test fresh_native_review_is_plan_only_and_continuation_preserves_unknown_dependencies ... ok
+test current_files_authorization_rejects_changed_context_holds_and_unknown_termination ... ok
+test a_later_uncertain_failure_is_not_covered_by_the_previous_current_files_decision ... ok
+test native_legacy_failure_has_no_scope_or_automatic_replay ... ok
+test native_fresh_negative_verdict_and_malformed_attempt_cannot_be_shopped_or_duplicated ... ok
+test current_files_owner_decision_survives_restart_and_finishes_native_legacy_work ... ok
+test native_fresh_review_rejects_foreign_stale_self_unknown_and_exhausted_inputs ... ok
+
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 21.08s

@@ -1,0 +1,17 @@
+{
+  "command": [
+    "cargo",
+    "test",
+    "-p",
+    "ymp-runtime",
+    "--test",
+    "fresh_plan_review",
+    "current_files_owner_decision_survives_restart_and_finishes_native_legacy_work",
+    "--",
+    "--nocapture"
+  ],
+  "mutation": "Ignore the explicit owner authorization when checking uncovered historical failures",
+  "original_sha256": "c3a2553bb52d99d36133f0c1ff3e43f5cd7c0723a2c1f99a9d114103dab3e00a",
+  "exit_code": 101,
+  "restored_sha256": "c3a2553bb52d99d36133f0c1ff3e43f5cd7c0723a2c1f99a9d114103dab3e00a"
+}

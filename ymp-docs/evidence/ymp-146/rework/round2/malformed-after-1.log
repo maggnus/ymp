@@ -1,0 +1,16 @@
+   Compiling ymp-storage v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-review-findings/ymp-rust/crates/ymp-storage)
+   Compiling ymp-runtime v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-review-findings/ymp-rust/crates/ymp-runtime)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.87s
+     Running tests/session_recovery.rs (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-recovery-backend/target/debug/deps/session_recovery-87b52712360ee241)
+
+running 8 tests
+test inspection_rework::r3_changed_inspected_files_reject_continue_and_atomic_replay_admission ... ok
+test inspection_rework::r3_missing_scope_and_unverified_termination_do_not_authorize_inspection_or_replay ... ok
+test inspection_rework::r3_inspection_consumes_the_captured_budget_and_cannot_create_another_attempt ... ok
+test inspection_rework::r3_inspection_commit_rejects_changed_data_and_racing_owner_pause ... ok
+test inspection_rework::r3_model_safe_flag_rejection_and_write_capable_inspector_cannot_resolve_effects ... ok
+test inspection_rework::r3_completed_malformed_response_with_exact_failure_can_be_inspected ... ok
+test inspection_rework::r3_valid_positive_and_negative_completed_reviews_are_not_malformed ... ok
+test inspection_rework::r3_bound_local_inspection_preserves_uncertainty_and_enables_explicit_continuation ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 25 filtered out; finished in 0.90s

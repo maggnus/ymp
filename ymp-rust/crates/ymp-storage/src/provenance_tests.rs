@@ -183,9 +183,15 @@ fn session_contract_capture_rolls_back_the_whole_set_on_second_contract_failure(
 }
 impl Fixture {
     fn new() -> Self {
-        Self::with_limits(Limits::default())
+        Self::with_task(true)
+    }
+    fn with_task(persist_task: bool) -> Self {
+        Self::build(Limits::default(), persist_task)
     }
     fn with_limits(limits: Limits) -> Self {
+        Self::build(limits, true)
+    }
+    fn build(limits: Limits, persist_task: bool) -> Self {
         let temp = tempfile::tempdir().unwrap();
         let store = Store::open(&temp.path().join("state")).unwrap();
         let project = store.project(temp.path()).unwrap();
@@ -243,7 +249,9 @@ impl Fixture {
             base_commit: None,
             interrupted: false,
         };
-        store.save_task(&task).unwrap();
+        if persist_task {
+            store.save_task(&task).unwrap();
+        }
         Self {
             _temp: temp,
             store,
@@ -484,7 +492,7 @@ fn plan_commit_rejects_altered_task_bodies_without_state_or_event_changes() {
         "missing_version",
         "access",
     ] {
-        let f = Fixture::new();
+        let f = Fixture::with_task(false);
         let (mut tasks, mut decision) = f.reviewed_plan();
         match alteration {
             "access" => tasks[0].access = TaskAccess::ReadOnly,
@@ -529,7 +537,7 @@ fn plan_commit_rejects_altered_task_bodies_without_state_or_event_changes() {
 
 #[test]
 fn plan_commit_preserves_reviewed_order_and_forward_dependency_mapping() {
-    let f = Fixture::new();
+    let f = Fixture::with_task(false);
     let (tasks, decision) = f.reviewed_plan();
     f.store.save_plan_with_decision(&tasks, &decision).unwrap();
     let trace = f.store.trace(&f.session.id).unwrap();
@@ -549,6 +557,18 @@ fn plan_commit_preserves_reviewed_order_and_forward_dependency_mapping() {
     );
     assert!(committed[1].dependencies.is_empty());
     assert_eq!(committed[2].dependencies, ["generated-inspect"]);
+    let mut duplicate = decision.clone();
+    duplicate.id = new_id();
+    assert!(f
+        .store
+        .save_plan_with_decision(&tasks, &duplicate)
+        .unwrap_err()
+        .to_string()
+        .contains("stale_plan"));
+    assert_eq!(
+        serde_json::to_value(f.store.trace(&f.session.id).unwrap()).unwrap(),
+        serde_json::to_value(&trace).unwrap()
+    );
     assert_eq!(
         trace.decisions.last().unwrap().links.plan_proposal,
         decision.links.plan_proposal

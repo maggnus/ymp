@@ -1,0 +1,53 @@
+{
+  "checked_head": "edc779a2da5b101ad50a5803427b4fe4354d46f3",
+  "round2_baseline": "1dff2cbcb558639a74f46fe009372a71652cc4e7",
+  "initial_baseline": "cfdceff06cc703352b1234892729fb72a85dbf09",
+  "changed_source_sha256": {
+    "ymp-rust/crates/ymp-core/src/provenance.rs": "8e072c6168c91dad82c8138b24de255c5327c78ea317f3973c113ca9ccdf2a55",
+    "ymp-rust/crates/ymp-core/src/recovery.rs": "aaddd0e97ca330ea7562591092c5f46123f83c78fbc8e9c2f575f8009cb518df",
+    "ymp-rust/crates/ymp-runtime/src/engine.rs": "6b0e1c62a53040a75fa31fa4e6dcdf311a023b81d8218e73a8d061ad244fc37e",
+    "ymp-rust/crates/ymp-runtime/src/engine/current_files.rs": "b073c87f5a1beabd35b23e48a19c105d90edf0e0d0d5d9b7bbb7a0b9e7d86e8b",
+    "ymp-rust/crates/ymp-runtime/src/engine/fresh_plan_review.rs": "52098c0cd1b74a41e8451cd37e5845657d5ba6c02efb369fe6aafb6c3207b09b",
+    "ymp-rust/crates/ymp-runtime/src/engine/planning_recovery.rs": "aa810a7d5237f7acbee5b48ab8dcbaadfafa04a461c017278f7c0cecd7aab976",
+    "ymp-rust/crates/ymp-runtime/src/engine/recovery.rs": "7d7098c6fae579ba3b66c9ac583bfd65cc9f143d2ffcc9dd901cdefee907d2ad",
+    "ymp-rust/crates/ymp-runtime/tests/fixtures/fresh_plan_review.py": "f0ac2ee3ac192f995261fa26490f5576e53158a8b321ef41452fedbaa0b32ce1",
+    "ymp-rust/crates/ymp-runtime/tests/fresh_plan_review.rs": "f67faa635b973abfad0ae5e50513b0de55f8a8cc7682b72a755fc9b8dd968c92",
+    "ymp-rust/crates/ymp-runtime/tests/session_recovery/inspection_rework.rs": "351a746414c02771f1fa25069f7052d24bc2b5b6a6e81691909bb549a4555e2a",
+    "ymp-rust/crates/ymp-storage/src/current_files.rs": "084b88abd8fe686c23a7045545f36a72b7fb6fd212f39c8e431f399db0e90b53",
+    "ymp-rust/crates/ymp-storage/src/fresh_plan_review.rs": "18e69a395867693d3cabf1765ad2fa77f80955e5245fab08b959d088fb809de2",
+    "ymp-rust/crates/ymp-storage/src/lib.rs": "f5cced0ca50638c73d91eb4142fd6e65b2a1806c7b31c7c41eaf8bc288b81b61",
+    "ymp-rust/crates/ymp-storage/src/recovery.rs": "def7239503d2fde0c31d5d743d01d356b3743a6c6cfaec25d550504ef9aeaeb5",
+    "ymp-rust/crates/ymp-storage/src/recovery_inspection.rs": "29fa35c072aff91dd001ff504a4601c0cdc3a881b25e26a5958b1a5c4f789ade"
+  },
+  "outside_write_zone": [],
+  "preserved_files": [
+    "ymp-rust/crates/ymp-storage/src/board.rs",
+    "ymp-rust/crates/ymp-runtime/tests/session_recovery/execution_rework.rs",
+    "AGENTS.md",
+    "ymp-docs/architecture/session-recovery-contract.md"
+  ],
+  "reviewer_originals_sha256": {
+    "/tmp/ymp146-recovery-rereview/review-result.json": "f621f5721f822798c3c334bcec33d7d5f97551d5e9293ddced2fcfce60f3cb6d",
+    "/tmp/ymp146-recovery-rereview/scoped-inspection.log": "5b22c1572b4562c4d97573107a7d2f7ce26cc62188818756e8870d686c7aa66d",
+    "/tmp/ymp146-recovery-rereview/scoped-true.json": "b1ff9c5a4c1b7094709aa55d11c9adee5aaf12db3845780acb0f2e14cbd5e748",
+    "/tmp/ymp146-recovery-rereview/scoped-false.json": "c9c86510440f389276315f4602e58d75a2c104d7219c5360a1afcd9eb9695b84",
+    "/tmp/ymp146-recovery-rereview/probe/tests/inspection.rs": "61739b24079ad19441105d6c09bb631d702712a932aeaf413a8ca7e76ce6d891",
+    "/tmp/ymp146-recovery-rereview/probe/Cargo.toml": "218314cda72129bc2438d801029e17f75bcf33e76810b7030ca4eee93b6c6089",
+    "/tmp/ymp146-recovery-rereview/probe/Cargo.lock": "edcec7a7e7d6c11bfaf68ba1d729b120b0b440b6233506ebc07b239386eab31d",
+    "/tmp/ymp146-recovery-review/probe/tests/review.rs": "59c4e3c410c17dce98292b638c119a2bbd0f2525461137a8c73dc80438033012",
+    "/tmp/ymp146-recovery-review/probe/Cargo.toml": "8e556bb2dfc80132ed2e5a8a004a2dff8db2e366a7b0d3e3663230714bbc1fe3",
+    "/tmp/ymp146-recovery-review/probe/Cargo.lock": "eba55bb7cb648ca0d2571b191b5721b6badfd5ebb4d121430760ccdc48da0df0",
+    "/tmp/ymp146-recovery-review/review-result.json": "b48c6042db71651ffcd4ff3093ef760a34181cc783a0f749bce28840230ad686",
+    "/tmp/ymp146-recovery-review/legacy-true.json": "cde252bdcc8c66c53e0fd85ce46948edd2721fed5e4f1a344fb82422e0470fb7",
+    "/tmp/ymp146-recovery-review/legacy-false.json": "9bef0a3527d2fa52610fcf20cf527ef67542d177933608739c1ea4ce94e37bda",
+    "/tmp/ymp146-recovery-review/execute-n-first.json": "47acd5fc6dffa823164d4dd5d38b09a2a22fd35ac1ee24940efb0601d375684b",
+    "/tmp/ymp146-recovery-review/execute-n.json": "945f64c68fb1820e24fd0e4293e4a904aae714c0f035d4696ea8a3090c0f0710",
+    "/tmp/ymp146-recovery-review/external-probes-final.log": "00df1e3a1f5f9ae07edb48462ad55690284bbd4c5be712e120fe99a5bffc8d83"
+  },
+  "parent_contract_sha256": {
+    "/Users/maggnus/Code/ymp2/ymp-docs/product/recovery-owner-decision.md": "6fca3b06378574da229ce99bdb9e82ee365b491648448ccca7a298e7f65dd6f0",
+    "/Users/maggnus/Code/ymp2/ymp-docs/evidence/ymp-146/acceptance-round2.md": "4df6ad2adb8e322ddb30581e6da4b9b453efb88d4f73730d420109faeb157bdf"
+  },
+  "build_cache": "original recovery worktree target only; no original source/Git changes",
+  "native_execution": "controlled local protocol fixtures only; default native adapters; no real inference or application home"
+}
