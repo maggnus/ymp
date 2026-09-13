@@ -1,0 +1,18 @@
+ym┌ unknown model ──────────────────────────── read only ┐00
+──│ unknown model · execute · 00:00                      │──
+  │ agent reader · no recorded invocation is linked to t │
+  │                                                      │
+  │ REPORT_ROW_000                                       │
+  │ REPORT_ROW_001                                       │
+› │ REPORT_ROW_002                                       │
+  │ REPORT_ROW_003                                       │
+  │ REPORT_ROW_004                                       │
+  │ REPORT_ROW_005                                       │
+  │ REPORT_ROW_006                                       │
+  │ REPORT_ROW_007                                       │
+  │ REPORT_ROW_008                                       │
+  │                                                      │
+  │ Up/Down scroll  Esc close                            │
+──└───────────────────────────────────────────── 71 more ┘──
+› Describe a task, or type / for commands.
+Ready         main Enter inspect  Space expand  Esc composer

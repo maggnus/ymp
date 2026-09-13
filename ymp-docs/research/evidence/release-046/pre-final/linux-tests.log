@@ -1,0 +1,142 @@
+   Compiling ymp-core v0.4.6 (/src/ymp-rust/crates/ymp-core)
+   Compiling ymp-providers v0.4.6 (/src/ymp-rust/crates/ymp-providers)
+   Compiling ymp-workspace v0.4.6 (/src/ymp-rust/crates/ymp-workspace)
+   Compiling ymp-storage v0.4.6 (/src/ymp-rust/crates/ymp-storage)
+   Compiling ymp-runtime v0.4.6 (/src/ymp-rust/crates/ymp-runtime)
+   Compiling ymp-tui v0.4.6 (/src/ymp-rust/crates/ymp-tui)
+   Compiling ymp-eval-driver v0.4.6 (/src/ymp-rust/crates/ymp-eval-driver)
+   Compiling ymp-cli v0.4.6 (/src/ymp-rust/crates/ymp-cli)
+    Finished `test` profile [unoptimized] target(s) in 2m 21s
+     Running unittests src/main.rs (/build/linux-143/debug/deps/ymp-a4b50cfec9b4ead8)
+
+running 1 test
+test tests::team_probe_charges_its_first_explicit_invocation_at_admission ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+     Running tests/acceptance_contracts.rs (/build/linux-143/debug/deps/acceptance_contracts-7663ec6dc7b0a7fe)
+
+running 6 tests
+test demo_keeps_explicit_contract_configuration ... ok
+test executable_contract_confirms_and_supplies_supported_knowledge_to_a_later_session ... ok
+test executable_absent_partial_and_failed_contracts_do_not_create_supported_credit ... ok
+test executable_missing_and_duplicate_targets_stop_before_production ... ok
+test executable_correction_contract_scope_and_public_mcp_history_are_reachable ... ok
+test executable_resume_rejects_changed_or_added_authority_and_allows_capture_only_resume ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.04s
+
+     Running tests/long_metadata_home.rs (/build/linux-143/debug/deps/long_metadata_home-906f8bfb3831f6a2)
+
+running 1 test
+test demo_preserves_long_metadata_home_and_selected_output_directory ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.60s
+
+     Running tests/message_labels.rs (/build/linux-143/debug/deps/message_labels-7ff0fb903990cc78)
+
+running 1 test
+test headless_headings_name_each_invocation_by_its_model_and_effort ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 13.10s
+
+     Running tests/native_catalog.rs (/build/linux-143/debug/deps/native_catalog-99766b2664ea0e09)
+
+running 10 tests
+test executable_claude_sdk_scan_preserves_native_alias_names_and_selects_offerings ... ignored, requires npm ci and npm run build in ymp-bridges/claude; still fixture-only
+test effective_overrides_use_native_aliases_and_unknown_claims_never_become_native ... ok
+test executable_runtime_captures_the_effective_native_assignment_identity ... ok
+test failed_initial_and_bounded_scans_leave_explicit_unresolved_state ... ok
+test first_scan_preserves_defaulted_model_policy_qualified_experience ... ok
+test executable_scan_populates_native_names_and_selection_without_enrolling_the_catalog ... ok
+test first_scan_preserves_fixed_model_policy_qualified_experience ... ok
+test init_upgrades_existing_generated_placeholders_and_keeps_disabled_custom_actors ... ok
+test simultaneous_scans_are_serialized_and_edits_during_discovery_are_preserved ... ok
+test repeat_change_and_partial_failure_preserve_actor_pins_custom_profiles_and_history ... ok
+
+test result: ok. 9 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 30.72s
+
+     Running unittests src/lib.rs (/build/linux-143/debug/deps/ymp_core-8a25315ca16d008b)
+
+running 11 tests
+test config::execution::tests::pins_are_singletons_and_defaults_only_fill_missing_choices ... ok
+test config::execution::tests::versions_separate_effective_configuration_and_unknown_reports ... ok
+test model::tests::parses_review_after_streamed_commentary ... ok
+test model::tests::rejects_ambiguous_malformed_or_wrong_schema_responses ... ok
+test model::tests::rejects_cycles ... ok
+test model::tests::rejects_self_acceptance_and_double_assignment ... ok
+test provenance::execution_version_tests::historical_observation_identity_survives_absent_backend_metadata ... ok
+test config::lock_tests::completed_configuration_owner_releases_before_inherited_descriptor_closes ... ok
+test usage::tests::cache_and_reasoning_are_not_counted_twice ... ok
+test usage::tests::missing_usage_is_distinct_from_zero ... ok
+test reputation::tests::experienced_success_wins_more_but_newcomers_get_opportunities ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+     Running tests/pool_metadata.rs (/build/linux-143/debug/deps/pool_metadata-c5fde873b365bfca)
+
+running 5 tests
+test captured_names_survive_profile_edits_and_do_not_imply_membership_or_activity ... ok
+test invalid_capability_claims_fail_before_pool_inspection_or_invocation ... ok
+test legacy_profiles_round_trip_without_renaming_or_inventing_capabilities ... ok
+test configured_native_controls_round_trip_with_exact_types_and_unknowns ... ok
+test live_activity_requires_bound_distinct_invocations_for_current_members ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (/build/linux-143/debug/deps/ymp_eval_driver-edf21912c4f48706)
+
+running 7 tests
+test driver_controls::actual_workflow_export_rejects_missing_acceptance_and_retains_extra_usage_and_credit ... FAILED
+test driver_controls::qualitative_rubric_rejects_well_formatted_unrelated_content ... ok
+test export::tests::build_binding_rejects_source_and_checker_drift_and_unknown_backends_stay_unknown ... FAILED
+test export::tests::effort_projection_preserves_extra_early_unattributed_and_duplicate_runtime_events ... FAILED
+test driver_controls::actual_knowledge_export_retains_duplicates_order_and_rejects_missing_sources ... FAILED
+test export::tests::location_projection_preserves_extra_answers_outcomes_and_query_results ... FAILED
+test export::tests::partial_projection_uses_causal_sequence_and_maps_the_guarantee_read ... FAILED
+
+failures:
+
+---- driver_controls::actual_workflow_export_rejects_missing_acceptance_and_retains_extra_usage_and_credit stdout ----
+
+thread 'driver_controls::actual_workflow_export_rejects_missing_acceptance_and_retains_extra_usage_and_credit' panicked at ymp-rust/crates/ymp-eval-driver/src/driver_controls.rs:42:10:
+called `Result::unwrap()` on an `Err` value: Evaluation source differs from the compiled build; rebuild before running
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- export::tests::build_binding_rejects_source_and_checker_drift_and_unknown_backends_stay_unknown stdout ----
+
+thread 'export::tests::build_binding_rejects_source_and_checker_drift_and_unknown_backends_stay_unknown' panicked at ymp-rust/crates/ymp-eval-driver/src/export_tests.rs:99:43:
+called `Result::unwrap()` on an `Err` value: Evaluation source differs from the compiled build; rebuild before running
+
+---- export::tests::effort_projection_preserves_extra_early_unattributed_and_duplicate_runtime_events stdout ----
+
+thread 'export::tests::effort_projection_preserves_extra_early_unattributed_and_duplicate_runtime_events' panicked at ymp-rust/crates/ymp-eval-driver/src/export_tests.rs:19:10:
+called `Result::unwrap()` on an `Err` value: Evaluation source differs from the compiled build; rebuild before running
+
+---- driver_controls::actual_knowledge_export_retains_duplicates_order_and_rejects_missing_sources stdout ----
+
+thread 'driver_controls::actual_knowledge_export_retains_duplicates_order_and_rejects_missing_sources' panicked at ymp-rust/crates/ymp-eval-driver/src/driver_controls.rs:106:14:
+called `Result::unwrap()` on an `Err` value: Evaluation source differs from the compiled build; rebuild before running
+
+---- export::tests::location_projection_preserves_extra_answers_outcomes_and_query_results stdout ----
+
+thread 'export::tests::location_projection_preserves_extra_answers_outcomes_and_query_results' panicked at ymp-rust/crates/ymp-eval-driver/src/export_tests.rs:19:10:
+called `Result::unwrap()` on an `Err` value: Evaluation source differs from the compiled build; rebuild before running
+
+---- export::tests::partial_projection_uses_causal_sequence_and_maps_the_guarantee_read stdout ----
+
+thread 'export::tests::partial_projection_uses_causal_sequence_and_maps_the_guarantee_read' panicked at ymp-rust/crates/ymp-eval-driver/src/export_tests.rs:19:10:
+called `Result::unwrap()` on an `Err` value: Evaluation source differs from the compiled build; rebuild before running
+
+
+failures:
+    driver_controls::actual_knowledge_export_retains_duplicates_order_and_rejects_missing_sources
+    driver_controls::actual_workflow_export_rejects_missing_acceptance_and_retains_extra_usage_and_credit
+    export::tests::build_binding_rejects_source_and_checker_drift_and_unknown_backends_stay_unknown
+    export::tests::effort_projection_preserves_extra_early_unattributed_and_duplicate_runtime_events
+    export::tests::location_projection_preserves_extra_answers_outcomes_and_query_results
+    export::tests::partial_projection_uses_causal_sequence_and_maps_the_guarantee_read
+
+test result: FAILED. 1 passed; 6 failed; 0 ignored; 0 measured; 0 filtered out; finished in 11.06s
+
+error: test failed, to rerun pass `-p ymp-eval-driver --bin ymp-eval-driver`

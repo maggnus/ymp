@@ -1,0 +1,12 @@
+ym┌ Colour theme ──── saved on Enter ┐00
+──│   Solarized Dark      dark       │──
+  │   Solarized Light     light      │ …
+─ │   Monokai Pro         dark       │ ─
+  │   Rosé Pine           dark       │
+  │ › Kanagawa            dark       │
+  │   Ink and wave tones inspired by │
+  │                                  │
+  │ Up/Down preview  Enter keep      │
+──└────────────────────────── 4 more ┘──
+› Describe a task, or type / for command
+Ready main Space add or remove  Enter o…

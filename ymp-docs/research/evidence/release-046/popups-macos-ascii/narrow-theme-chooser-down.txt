@@ -1,0 +1,18 @@
+ym┌ Colour theme ──────────────────────── saved on Enter ┐00
+--│   Tokyo Night         dark                           │--
+  │   Solarized Dark      dark                           │
+  │   Solarized Light     light                          │
+  │   Monokai Pro         dark                           │
+  │   Rosé Pine           dark                           │
+  │   Kanagawa            dark                           │
+  │   Everforest          dark                           │
+  │   Cyberpunk           dark                           │
+  │ > Midnight Commander  dark                           │
+  │   The classic file manager: white and cyan on dark   │
+  │   blue.                                              │
+  │                                                      │
+  │                                                      │
+  │ Up/Down preview  Enter keep  Esc cancel              │
+--└────────────────────────────────────────────── 2 more ┘--
+> Describe a task, or type / for commands.
+Ready        composer Enter send  Ctrl+P commands  Tab focus

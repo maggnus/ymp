@@ -1,0 +1,36 @@
+ymp  project  /Users/maggnus/Code/ymp2/ymp-docs/research/evidence/git-paseo-143/terminal-aft…  no session  0 / 200 turns
+------------------------------------------------------------------------------------------------------------------------
+ Git[3]  /git feature · /Users/maggnus/Code/ymp2/ymp-docs/research/evidence/git-paseo-14…| SESSION
+-----------------------------------------------------------------------------------------| none · the next message open
+   UNCOMMITTED CHANGES AGAINST HEAD                                                      | turns next run       0 / 200
+   ST  PATH       STATE                ADDED  REMOVED                                    | dir …nal-after-ascii/project
+   ?   a-live.rs  unstaged, untracked     +1       -0                                    |
+                                                                                         |
+  ┌ new.rs ─────────────────────────────────────────────────────────────────────────────────────────────── read only ┐
+  │ | diff --git a/new.rs b/new.rs                                                                                   │
+  │ | new file mode 100644                                                                                           │
+  │ | index 0000000..24f8a4f                                                                                         │
+  │ | --- /dev/null                                                                                                  │
+  │ | +++ b/new.rs                                                                                                   │
+  │ | @@ -0,0 +1 @@                                                                                                  │
+  │ | +fn UNTRACKED_143() {}                                                                                         │
+  │                                                                                                                  │
+  │ Up/Down scroll  PageUp/PageDown page  Esc back to the list                                                       │
+  └──────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+                                                                                         |
+                                                                                         |
+                                                                                         |
+                                                                                         |
+                                                                                         |
+                                                                                         |
+                                                                                         |
+                                                                                         |
+                                                                                         |
+                                                                                         |
+                                                                                         |
+                                                                                         |
+                                                                                         |
+                                                                                         |
+------------------------------------------------------------------------------------------------------------------------
+> Describe a task, or type / for commands.
+Ready     main Enter diff  m compare  w worktree  b branch  r refresh  Esc close  / filter  Shift+letter sort  d inspect

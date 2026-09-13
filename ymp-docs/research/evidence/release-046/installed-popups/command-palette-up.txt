@@ -1,0 +1,32 @@
+ymp  project  /Users/maggnus/Code/ymp2/ymp…  90278a73  ✓ completed  — tokens  8 / 200 turns captured
+────────────────────────────────────────────────────────────────────────────────────────────────────
+  · Cygnus review · accepted · The stated acceptance criter…  13:59  │ SESSION
+  · Cygnus review · accepted · The stated acceptance criter…  13:59  │ 90278a73         ✓ completed
+  · Cygnus pr                                                        │                 on   8 / 200
+  · Atlas rev ┌ Commands ────────────────────────────────────────────────── 26 of 26 ┐ pups/project
+  ◇ Unconfirm │ › Type to search commands                                            │
+              │ ──────────────────────────────────────────────────────────────────── │            —
+  ◆ Cygnus ·  │   /agent        Create or edit an agent profile, or inspect one.     │
+    The reque │   /team         Team membership for new sessions.                    │
+              │   /limits       Turn budget and parallelism for the next run.        │
+  ◆ ymp · run │   /memory       Search verified project and global knowledge, or re… │
+    The reque │   /reputation   Evidence behind competence estimates.                │ this session
+              │   /theme        Choose a colour theme. The choice is remembered.     │
+    Acceptanc │   /sidebar      Show or hide the context sidebar.                    │
+              │   /resume       Continue an interrupted run. This starts agents.     │
+    Workspace │   /pause        Stop active turns and keep the session resumable.    │
+    /Users/ma │ › /stop         Stop active turns immediately, without leaving ymp.  │ cepted 1 / 1
+    /installe │ ▼ 1 more                                                             │
+              │                                                                      │
+  · unknown m │ Enter run  Up/Down select  Esc close                                 │
+    REPORT_RO └──────────────────────────────────────────────────────────────────────┘
+    REPORT_RO                                                        │
+    REPORT_ROW_002                                                   │
+    REPORT_ROW_003                                                   │
+    REPORT_ROW_004                                                   │
+    REPORT_ROW_005                                                   │
+    74 more lines · Enter to read the full report                    │
+  ◇ Session loaded for reading. Send a message to continue …  13:59  │
+────────────────────────────────────────────────────────────────────────────────────────────────────
+› Describe a task, or type / for commands.
+Ready                                                composer Enter send  Ctrl+P commands  Tab focus

@@ -1,0 +1,15 @@
+{
+  "binary": "/Users/maggnus/Code/ymp2/target/release/ymp",
+  "baseline": true,
+  "ascii": false,
+  "application_path": "/Users/maggnus/Code/ymp2/ymp-docs/research/evidence/git-paseo-143/terminal-before/no-tools",
+  "fixture_uses_git_cli": false,
+  "native_inference": false,
+  "cases": [
+    {
+      "case": "expected-missing-git-command",
+      "passed": true
+    }
+  ],
+  "passed": true
+}

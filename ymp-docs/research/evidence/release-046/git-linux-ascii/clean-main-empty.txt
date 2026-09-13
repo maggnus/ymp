@@ -1,0 +1,36 @@
+ymp  project  /build/ymp046-git-linux-ascii/project                                            no session  0 / 200 turns
+------------------------------------------------------------------------------------------------------------------------
+ Git  /git                       main since main · /build/ymp046-git-linux-ascii/project | SESSION
+-----------------------------------------------------------------------------------------| none · the next message open
+                                                                                         | turns next run       0 / 200
+  Committed changes since the base branch                                                | dir …git-linux-ascii/project
+                                                                                         |
+  No changes to display                                                                  | TOKENS                     -
+                                                                                         | none · nothing spent yet
+  The branch has no commits beyond its base.                                             |
+                                                                                         | TEAM                next run
+                                                                                         | AGENT     STATE
+                                                                                         | o Reader  idle
+                                                                                         |
+                                                                                         | TASKS
+                                                                                         | no task graph yet
+                                                                                         |
+                                                                                         |
+                                                                                         |
+                                                                                         |
+                                                                                         |
+                                                                                         |
+                                                                                         |
+                                                                                         |
+                                                                                         |
+                                                                                         |
+                                                                                         |
+                                                                                         |
+                                                                                         |
+                                                                                         |
+                                                                                         |
+                                                                                         |
+                                                                                         |
+------------------------------------------------------------------------------------------------------------------------
+> Describe a task, or type / for commands.
+Ready     main Enter diff  m compare  w worktree  b branch  r refresh  Esc close  / filter  Shift+letter sort  d inspect

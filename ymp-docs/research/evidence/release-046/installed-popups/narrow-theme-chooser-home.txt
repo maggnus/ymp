@@ -1,0 +1,18 @@
+ym┌ Colour theme ──────────────────────── saved on Enter ┐00
+──│ › Ember               dark                           │──
+  │   Warm amber on black. The default ymp palette.      │
+  │   Slate               dark                           │
+  │   Dracula             dark                           │
+  │   One Dark Pro        dark                           │
+  │   Nord                dark                           │
+  │   Catppuccin Mocha    dark                           │
+  │   Catppuccin Latte    light                          │
+  │   Gruvbox Dark        dark                           │
+  │   Gruvbox Light       light                          │
+  │                                                      │
+  │ ▼ 9 more                                             │
+  │                                                      │
+  │ Up/Down preview  Enter keep  Esc cancel              │
+──└────────────────────────────────────────────── 2 more ┘──
+› Describe a task, or type / for commands.
+Ready        composer Enter send  Ctrl+P commands  Tab focus

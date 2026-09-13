@@ -1,0 +1,50 @@
+ymp  project  /tmp/ymp046-output-linux/project          4bf3799b  ✓ completed  — tokens  8 / 200 turns captured  details
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+  · Atlas · execution report                                                                                     13:49
+    Created greeting.txt and verified its content.
+  · Cygnus review · accepted · The stated acceptance criteria are satisfied.                                     13:49
+    {"approved":true,"lesson":"Check the produced artifact against the requested content.","reason":"The stated
+    acceptance criteria are satisfied."}
+  · Cygnus revie                                                                                                 13:49
+    {"approved": ┌ unknown model ────────────────────────────────────────────────────────── read only ┐  stated
+    acceptance c │ unknown model · execute · 00:00                                                    │
+  · Cygnus propo │ agent reader · no recorded invocation is linked to this message                    │          13:49
+    {"content":" │                                                                                    │ he final
+    integrated a │ OUTPUT_BEGIN_140                                                                   │
+  · Atlas review │                                                                                    │          13:49
+    {"approved": │ │ fn main() {                                                                      │  stated
+    acceptance c │ │     let code_140 = "literal  spaces";                                            │
+  ◇ Unconfirmed  │ │ }                                                                                │          13:49
+                 │                                                                                    │
+  ◆ Cygnus · fin │ │ diff --git a/demo.rs b/demo.rs                                                   │          13:49
+    The requeste │ │ --- a/demo.rs                                                                    │
+                 │ │ +++ b/demo.rs                                                                    │
+  ◆ ymp · run su │ │ @@ -1 +1 @@                                                                      │          13:49
+    The requeste │ │ -let REMOVED_140 = 1;                                                            │
+                 │ │ +let ADDED_140 = 2;                                                              │
+    Acceptance:  │                                                                                    │
+                 │ • PROSE_LIST_140 is an ordinary list item.                                         │
+    Workspace: / │                                                                                    │
+                 │ OUTPUT_END_140                                                                     │
+› · unknown mode │                                                                                    │          00:00
+    OUTPUT_BEGIN │ Up/Down scroll  Esc close                                                          │
+                 └────────────────────────────────────────────────────────────────────────────────────┘
+    │ fn main()
+    │     let code_140 = "literal  spaces";
+    │ }
+
+    │ diff --git a/demo.rs b/demo.rs
+    │ --- a/demo.rs
+    │ +++ b/demo.rs
+    │ @@ -1 +1 @@
+    │ -let REMOVED_140 = 1;
+    │ +let ADDED_140 = 2;
+
+    • PROSE_LIST_140 is an ordinary list item.
+
+    OUTPUT_END_140
+  ◇ Session loaded for reading. Send a message to continue the conversation, or use /resume to continue the run. 13:49
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+› Describe a task, or type / for commands.
+Ready                                                                                   main Enter inspect  Esc composer

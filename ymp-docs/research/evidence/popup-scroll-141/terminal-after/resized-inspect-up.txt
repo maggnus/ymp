@@ -1,0 +1,18 @@
+ym┌ unknown model ──────────────────────────── read only ┐00
+──│ REPORT_ROW_067                                       │──
+  │ REPORT_ROW_068                                       │
+  │ REPORT_ROW_069                                       │
+  │ REPORT_ROW_070                                       │
+  │ REPORT_ROW_071                                       │
+› │ REPORT_ROW_072                                       │
+  │ REPORT_ROW_073                                       │
+  │ REPORT_ROW_074                                       │
+  │ REPORT_ROW_075                                       │
+  │ REPORT_ROW_076                                       │
+  │ REPORT_ROW_077                                       │
+  │ REPORT_ROW_078                                       │
+  │                                                      │
+  │ Up/Down scroll  Esc close                            │
+──└────────────────────────────────────────────── 1 more ┘──
+› Describe a task, or type / for commands.
+Ready         main Enter inspect  Space expand  Esc composer

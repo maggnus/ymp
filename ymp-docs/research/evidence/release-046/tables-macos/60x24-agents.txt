@@ -1,0 +1,24 @@
+ymp  project             99bbba80  ✓ completed  — tok  8/200
+────────────────────────────────────────────────────────────
+ Agent profiles[3]  /agents                      3 profiles
+────────────────────────────────────────────────────────────
+   AGENT   READING           PROVIDER  ENABLED  TEAM
+ › Atlas   a local provider  demo      ✓ on     in team
+   Boreal  a local provider  demo      ✓ on     in team
+   Cygnus  a local provider  demo      ✓ on     in team
+
+
+
+
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────
+› Describe a task, or type / for commands.
+Ready  main m model  i instructions  Space enable  t team  r

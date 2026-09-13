@@ -1,0 +1,32 @@
+ymp  pr┌ unknown model ────────────────────────────────────────────────────────── read only ┐aptured
+───────│ unknown model · execute · 00:00                                                    │───────
+  · Cy │ agent reader · no recorded invocation is linked to this message                    │
+  · Cy │                                                                                    │ leted
+  · Cy │ REPORT_ROW_000                                                                     │ / 200
+  · At │ REPORT_ROW_001                                                                     │ oject
+  ◇ Un │ REPORT_ROW_002                                                                     │
+       │ REPORT_ROW_003                                                                     │     —
+  ◆ Cy │ REPORT_ROW_004                                                                     │
+    Th │ REPORT_ROW_005                                                                     │
+       │ REPORT_ROW_006                                                                     │
+  ◆ ym │ REPORT_ROW_007                                                                     │
+    Th │ REPORT_ROW_008                                                                     │ ssion
+       │ REPORT_ROW_009                                                                     │
+    Ac │ REPORT_ROW_010                                                                     │
+       │ REPORT_ROW_011                                                                     │
+    Wo │ REPORT_ROW_012                                                                     │
+    /U │ REPORT_ROW_013                                                                     │ 1 / 1
+    /i │ REPORT_ROW_014                                                                     │
+       │ REPORT_ROW_015                                                                     │
+› · un │ REPORT_ROW_016                                                                     │
+    RE │ REPORT_ROW_017                                                                     │
+    RE │ REPORT_ROW_018                                                                     │
+    RE │ REPORT_ROW_019                                                                     │
+    RE │ REPORT_ROW_020                                                                     │
+    RE │ REPORT_ROW_021                                                                     │
+    RE │ REPORT_ROW_022                                                                     │
+    74 │                                                                                    │
+  ◇ Se │ Up/Down scroll  Esc close                                                          │
+───────└─────────────────────────────────────────────────────────────────────────── 57 more ┘───────
+› Describe a task, or type / for commands.
+Ready                                                 main Enter inspect  Space expand  Esc composer

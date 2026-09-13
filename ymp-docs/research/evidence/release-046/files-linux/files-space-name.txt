@@ -1,0 +1,45 @@
+ymp  project  /tmp/ymp046-files-linux/project                                                                      no session  0 / 200 turns
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ Files[9]  /files                                                        /tmp/ymp046-files-linux/project │ SESSION
+─────────────────────────────────────────────────────────────────────────────────────────────────────────│ none · the next message opens on
+   ../                                                                                                   │ turns next run           0 / 200
+   docs/                                                                                                 │ dir …/ymp046-files-linux/project
+   src/                                                                                                  │
+   to-src -> src/                                                                                        │ TOKENS                         —
+   README.md                                                                                             │ none · nothing spent yet
+   binary.bin                                                                                            │
+   large.txt                                                                                             │ TEAM                    next run
+                                                                                                         │
+ ›  ┌ same-a b.rs ────────────────────────────────────────────────────────────────────────────────────────────────────────── read only ┐
+    │ Rust · 1 line · 14 B                                                                                                             │
+    │                                                                                                                                  │
+    │ 1 │ SPACE-PAYLOAD                                                                                                                │
+    │                                                                                                                                  │
+    │ Up/Down scroll  PageUp/PageDown page  Esc back to the list                                                                       │
+    └──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+› Describe a task, or type / for commands.
+Ready                                                        main Enter open  Backspace parent  / filter  d details  r read again  Esc close

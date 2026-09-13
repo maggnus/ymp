@@ -1,0 +1,24 @@
+ymp  project             99bbba80  ✓ completed  — tok  8/200
+────────────────────────────────────────────────────────────
+ Memory[3]  /memory 3 recorded · 0 current · 0 supported as…
+────────────────────────────────────────────────────────────
+   ◇ What current, superseded and corrected mean here  w…
+
+  ┌ Confirm ─────────────────────────── cannot be undone ┐
+  │ Retire memory entry a6883d4a? It stops informing     │
+  │ future runs.                                         │
+  │                                                      │
+  │ y yes  n no  Esc cancel                              │
+  └──────────────────────────────────────────────────────┘
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────
+› Describe a task, or type / for commands.
+Ready main s search  f retire the entry  Enter read  Esc ba…

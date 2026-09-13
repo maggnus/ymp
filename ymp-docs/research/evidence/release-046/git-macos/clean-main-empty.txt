@@ -1,0 +1,36 @@
+ymp  project  /Users/maggnus/Code/ymp2/ymp-docs/research/evidence/release-046/git-macos/proj…  no session  0 / 200 turns
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ Git  /git main since main · /Users/maggnus/Code/ymp2/ymp-docs/research/evidence/release…│ SESSION
+─────────────────────────────────────────────────────────────────────────────────────────│ none · the next message open
+                                                                                         │ turns next run       0 / 200
+  Committed changes since the base branch                                                │ dir …e-046/git-macos/project
+                                                                                         │
+  No changes to display                                                                  │ TOKENS                     —
+                                                                                         │ none · nothing spent yet
+  The branch has no commits beyond its base.                                             │
+                                                                                         │ TEAM                next run
+                                                                                         │ AGENT     STATE
+                                                                                         │ ○ Reader  idle
+                                                                                         │
+                                                                                         │ TASKS
+                                                                                         │ no task graph yet
+                                                                                         │
+                                                                                         │
+                                                                                         │
+                                                                                         │
+                                                                                         │
+                                                                                         │
+                                                                                         │
+                                                                                         │
+                                                                                         │
+                                                                                         │
+                                                                                         │
+                                                                                         │
+                                                                                         │
+                                                                                         │
+                                                                                         │
+                                                                                         │
+                                                                                         │
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+› Describe a task, or type / for commands.
+Ready     main Enter diff  m compare  w worktree  b branch  r refresh  Esc close  / filter  Shift+letter sort  d inspect

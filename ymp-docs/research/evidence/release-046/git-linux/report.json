@@ -1,0 +1,47 @@
+{
+  "binary": "/build/linux-musl-143/aarch64-unknown-linux-musl/release/ymp",
+  "baseline": false,
+  "ascii": false,
+  "application_path": "/build/ymp046-git-linux/no-tools",
+  "fixture_uses_git_cli": false,
+  "native_inference": false,
+  "cases": [
+    {
+      "case": "uncommitted-without-git-or-shell-on-path",
+      "passed": true
+    },
+    {
+      "case": "actual-working-diff-with-shared-colours-or-markers",
+      "passed": true
+    },
+    {
+      "case": "committed-compares-real-base-and-head",
+      "passed": true
+    },
+    {
+      "case": "live-refresh-retains-selected-file",
+      "passed": true
+    },
+    {
+      "case": "dirty-branch-switch-does-not-discard",
+      "passed": true
+    },
+    {
+      "case": "clean-state-restores-automatic-comparison",
+      "passed": true
+    },
+    {
+      "case": "explicit-clean-checkout-and-empty-state",
+      "passed": true
+    },
+    {
+      "case": "existing-worktree-selection",
+      "passed": true
+    },
+    {
+      "case": "git-selection-keeps-files-and-execution-directory",
+      "passed": true
+    }
+  ],
+  "passed": true
+}

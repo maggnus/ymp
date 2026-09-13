@@ -1,0 +1,18 @@
+ymp  project             20ec2b47  ✓ completed  — tok  8/200
+────────────────────────────────────────────────────────────
+    Workspace:
+
+  ┌ unknown model ──────────────────────────── read only ┐
+  │ REPORT_ROW_078                                       │
+› │ REPORT_ROW_079                                       │
+  │                                                      │
+  │ Up/Down scroll  Esc close                            │
+  └────────────────────────────────────────────── 0 more ┘
+
+    REPORT_ROW_004
+    REPORT_ROW_005
+    74 more lines · Enter to read the full report
+  ◇ Session loaded for reading. Send a message to …  12:26
+────────────────────────────────────────────────────────────
+› Describe a task, or type / for commands.
+Ready         main Enter inspect  Space expand  Esc composer

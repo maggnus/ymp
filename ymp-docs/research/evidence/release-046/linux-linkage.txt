@@ -1,0 +1,1 @@
+target/linux-musl-143/aarch64-unknown-linux-musl/release/ymp: ELF 64-bit LSB executable, ARM aarch64, version 1 (SYSV), statically linked, not stripped

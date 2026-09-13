@@ -1,0 +1,45 @@
+ymp ┌ large.txt ──────────────────────────────────────────────────────────────────────────────────────────────────────────── read only ┐urns
+────│ Plain text · 5000 lines shown · 507.8 kB                                                                                         │────
+ Fi │ No grammar matches this file's name or first line, so it is not highlighted.                                                     │
+─── │ Only the first 256.0 kB of 507.8 kB were read.                                                                                   │ on
+    │ Only the first 5000 lines are shown.                                                                                             │ 00
+    │                                                                                                                                  │ ct
+    │    1 │ line of text                                                                                                              │
+    │    2 │ line of text                                                                                                              │  —
+    │    3 │ line of text                                                                                                              │
+    │    4 │ line of text                                                                                                              │
+ ›  │    5 │ line of text                                                                                                              │ un
+    │    6 │ line of text                                                                                                              │
+    │    7 │ line of text                                                                                                              │
+    │    8 │ line of text                                                                                                              │
+    │    9 │ line of text                                                                                                              │
+    │   10 │ line of text                                                                                                              │
+    │   11 │ line of text                                                                                                              │
+    │   12 │ line of text                                                                                                              │
+    │   13 │ line of text                                                                                                              │
+    │   14 │ line of text                                                                                                              │
+    │   15 │ line of text                                                                                                              │
+    │   16 │ line of text                                                                                                              │
+    │   17 │ line of text                                                                                                              │
+    │   18 │ line of text                                                                                                              │
+    │   19 │ line of text                                                                                                              │
+    │   20 │ line of text                                                                                                              │
+    │   21 │ line of text                                                                                                              │
+    │   22 │ line of text                                                                                                              │
+    │   23 │ line of text                                                                                                              │
+    │   24 │ line of text                                                                                                              │
+    │   25 │ line of text                                                                                                              │
+    │   26 │ line of text                                                                                                              │
+    │   27 │ line of text                                                                                                              │
+    │   28 │ line of text                                                                                                              │
+    │   29 │ line of text                                                                                                              │
+    │   30 │ line of text                                                                                                              │
+    │   31 │ line of text                                                                                                              │
+    │   32 │ line of text                                                                                                              │
+    │   33 │ line of text                                                                                                              │
+    │   34 │ line of text                                                                                                              │
+    │                                                                                                                                  │
+    │ Up/Down scroll  PageUp/PageDown page  Esc back to the list                                                                       │
+────└─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────── 4968 more ┘────
+› Describe a task, or type / for commands.
+Ready                                                        main Enter open  Backspace parent  / filter  d details  r read again  Esc close

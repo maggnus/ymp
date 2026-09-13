@@ -1,0 +1,99 @@
+{
+  "workspace_archived": "wks_3ec7b7f27733a72b",
+  "agent_archived": "10cfb57d-de32-4182-9573-a4717cfeebe8",
+  "worktree_removed": "/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp141-popup-scroll",
+  "retained_branch": "fix/ymp141-popup-scroll",
+  "retained_head": "e045c4b0f51a07917027fb519e4bbb6c1cec31eb",
+  "docker_container_removed": "ymp143-linux",
+  "docker_image_removed": "rust:1.89-slim-bookworm (only after no container used it)",
+  "author_extra_build_cache_removed": "ymp-rust/target (verified untracked Cargo output before workspace archive)",
+  "removed_caches": [
+    {
+      "path": "/Users/maggnus/Code/ymp2/target/release-046-stage",
+      "allocated_kib": 484564
+    },
+    {
+      "path": "/Users/maggnus/Code/ymp2/target/linux-143",
+      "allocated_kib": 1477416
+    },
+    {
+      "path": "/Users/maggnus/Code/ymp2/target/linux-musl-143",
+      "allocated_kib": 592804
+    },
+    {
+      "path": "/Users/maggnus/Code/ymp2/target/ymp142-editor-probe",
+      "allocated_kib": 439480
+    },
+    {
+      "path": "/Users/maggnus/Code/ymp2/target/ymp143-linux-terminal-pre",
+      "allocated_kib": 548
+    },
+    {
+      "path": "/Users/maggnus/Code/ymp2/target/ymp046-git-linux",
+      "allocated_kib": 548
+    },
+    {
+      "path": "/Users/maggnus/Code/ymp2/target/ymp046-git-linux-ascii",
+      "allocated_kib": 524
+    },
+    {
+      "path": "/Users/maggnus/Code/ymp2/target/ymp046-popups-linux",
+      "allocated_kib": 252
+    }
+  ],
+  "removed_fixture_paths": [
+    "ymp-docs/research/evidence/popup-scroll-141/terminal-before-choices/project",
+    "ymp-docs/research/evidence/popup-scroll-141/terminal-before-choices/metadata",
+    "ymp-docs/research/evidence/popup-scroll-141/terminal-before-arrows/project",
+    "ymp-docs/research/evidence/popup-scroll-141/terminal-before-arrows/metadata",
+    "ymp-docs/research/evidence/popup-scroll-141/terminal-before/project",
+    "ymp-docs/research/evidence/popup-scroll-141/terminal-before/metadata",
+    "ymp-docs/research/evidence/popup-scroll-141/terminal-after/project",
+    "ymp-docs/research/evidence/popup-scroll-141/terminal-after/metadata",
+    "ymp-docs/research/evidence/popup-scroll-141/terminal-after-ascii/project",
+    "ymp-docs/research/evidence/popup-scroll-141/terminal-after-ascii/metadata",
+    "ymp-docs/research/evidence/git-paseo-143/terminal-before/no-tools",
+    "ymp-docs/research/evidence/git-paseo-143/terminal-before/project",
+    "ymp-docs/research/evidence/git-paseo-143/terminal-before/metadata",
+    "ymp-docs/research/evidence/git-paseo-143/terminal-before/linked-worktree",
+    "ymp-docs/research/evidence/git-paseo-143/terminal-after/no-tools",
+    "ymp-docs/research/evidence/git-paseo-143/terminal-after/project",
+    "ymp-docs/research/evidence/git-paseo-143/terminal-after/metadata",
+    "ymp-docs/research/evidence/git-paseo-143/terminal-after/linked-worktree",
+    "ymp-docs/research/evidence/git-paseo-143/terminal-after-ascii/no-tools",
+    "ymp-docs/research/evidence/git-paseo-143/terminal-after-ascii/project",
+    "ymp-docs/research/evidence/git-paseo-143/terminal-after-ascii/metadata",
+    "ymp-docs/research/evidence/git-paseo-143/terminal-after-ascii/linked-worktree",
+    "ymp-docs/research/evidence/release-046/files-macos/project",
+    "ymp-docs/research/evidence/release-046/files-macos/metadata",
+    "ymp-docs/research/evidence/release-046/output-macos/project",
+    "ymp-docs/research/evidence/release-046/output-macos/metadata",
+    "ymp-docs/research/evidence/release-046/git-macos-ascii/no-tools",
+    "ymp-docs/research/evidence/release-046/git-macos-ascii/project",
+    "ymp-docs/research/evidence/release-046/git-macos-ascii/metadata",
+    "ymp-docs/research/evidence/release-046/git-macos-ascii/linked-worktree",
+    "ymp-docs/research/evidence/release-046/git-macos/no-tools",
+    "ymp-docs/research/evidence/release-046/git-macos/project",
+    "ymp-docs/research/evidence/release-046/git-macos/metadata",
+    "ymp-docs/research/evidence/release-046/git-macos/linked-worktree",
+    "ymp-docs/research/evidence/release-046/installed-popups/project",
+    "ymp-docs/research/evidence/release-046/installed-popups/metadata",
+    "ymp-docs/research/evidence/release-046/installed-git/no-tools",
+    "ymp-docs/research/evidence/release-046/installed-git/project",
+    "ymp-docs/research/evidence/release-046/installed-git/metadata",
+    "ymp-docs/research/evidence/release-046/installed-git/linked-worktree",
+    "ymp-docs/research/evidence/release-046/popups-macos/project",
+    "ymp-docs/research/evidence/release-046/popups-macos/metadata",
+    "ymp-docs/research/evidence/release-046/tables-macos/project",
+    "ymp-docs/research/evidence/release-046/tables-macos/metadata",
+    "ymp-docs/research/evidence/release-046/popups-macos-ascii/project",
+    "ymp-docs/research/evidence/release-046/popups-macos-ascii/metadata"
+  ],
+  "verified_fixture_archive": "/Users/maggnus/.paseo/cleanup/ymp2-20260913T082334Z/release-046-fixtures.tar.gz",
+  "fixture_archive_sha256": "57893288da1dbdc62c1c37fb0afdb7f9c2138df2f3675c749ac4d0833d4d60c5",
+  "preserved_artifacts": [
+    "target/artifacts/0.4.6/ymp-macos-arm64",
+    "target/artifacts/0.4.6/ymp-linux-arm64"
+  ],
+  "other_user_containers_untouched": true
+}

@@ -1,0 +1,32 @@
+ymp  project  /tmp/ymp046-popups-linux-asc…  26673bc3  + completed  - tokens  8 / 200 turns captured
+----------------------------------------------------------------------------------------------------
+  . Atlas · execution report                                  13:49  | SESSION
+    Created greeting.txt and verified its content.                   | 26673bc3         + completed
+  . Cygnus re                                                        |                 on   8 / 200
+  . Cygnus re ┌ Commands ────────────────────────────────────────────────── 26 of 26 ┐ scii/project
+  . Cygnus pr │ > Type to search commands                                            │
+  . Atlas rev │ -------------------------------------------------------------------- │            -
+  - Unconfirm │   /team         Team membership for new sessions.                    │
+              │   /limits       Turn budget and parallelism for the next run.        │
+  * Cygnus ·  │   /memory       Search verified project and global knowledge, or re… │
+    The reque │   /reputation   Evidence behind competence estimates.                │
+              │   /theme        Choose a colour theme. The choice is remembered.     │ this session
+  * ymp · run │   /sidebar      Show or hide the context sidebar.                    │
+    The reque │   /resume       Continue an interrupted run. This starts agents.     │
+              │   /pause        Stop active turns and keep the session resumable.    │
+    Acceptanc │   /stop         Stop active turns immediately, without leaving ymp.  │
+              │ > /quit         Leave ymp. Active work is stopped first, and the co… │ cepted 1 / 1
+    Workspace │                                                                      │
+              │                                                                      │
+  . unknown m │ Enter run  Up/Down select  Esc close                                 │
+    REPORT_RO └──────────────────────────────────────────────────────────────────────┘
+    REPORT_RO                                                        |
+    REPORT_ROW_002                                                   |
+    REPORT_ROW_003                                                   |
+    REPORT_ROW_004                                                   |
+    REPORT_ROW_005                                                   |
+    74 more lines · Enter to read the full report                    |
+  - Session loaded for reading. Send a message to continue …  13:49  |
+----------------------------------------------------------------------------------------------------
+> Describe a task, or type / for commands.
+Ready                                                composer Enter send  Ctrl+P commands  Tab focus

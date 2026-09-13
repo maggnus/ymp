@@ -1,0 +1,24 @@
+ymp  project             99bbba80  ✓ completed  — tok  8/200
+────────────────────────────────────────────────────────────
+  ┌ Commands ────────────────────────────────── 26 of 26 ┐ …
+─ │ › Type to search commands                            │ ─
+  │ ──────────────────────────────────────────────────── │
+  │ › /chat         Return to the conversation.          │
+  │   /new          Start an unrelated task. The next p… │
+  │   /details      Toggle full attributed agent messag… │
+  │   /help         Command reference and keyboard map.  │
+  │   /tasks        Task graph, assignments and outcome… │
+  │   /usage        Token statistics for the loaded ses… │
+  │   /sessions     Saved sessions for this project. Op… │
+  │   /files        Browse files read only, starting in… │
+  │   /diff         Files created, modified or deleted … │
+  │   /git          Uncommitted or committed Git change… │
+  │ ▼ 16 more                                            │
+  │                                                      │
+  │ Enter run  Up/Down select  Esc close                 │
+  └──────────────────────────────────────────────────────┘
+
+
+────────────────────────────────────────────────────────────
+› Describe a task, or type / for commands.
+Ready main Space add or remove  Enter open the record  Esc …

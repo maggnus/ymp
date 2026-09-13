@@ -1,0 +1,32 @@
+ymp  project  /Users/maggnus/Code/ymp2/ymp…  20ec2b47  ✓ completed  — tokens  8 / 200 turns captured
+────────────────────────────────────────────────────────────────────────────────────────────────────
+  · Cygnus review · accepted · The stated acceptance criter…  12:26  │ SESSION
+  · Cygnus review · accepted · The stated acceptance criter…  12:26  │ 20ec2b47         ✓ completed
+  · Cygnus proposed a reusable procedure · Verify file-prod…  12:26  │ turns this session   8 / 200
+  · Atlas review · accepted · The stated acceptance criteri…  12:26  │ dir …terminal-before/project
+  ◇ Unconfirmed procedure candidate retained: Verify file-p…  12:26  │
+                                                                     │                            —
+  ◆ Cy ┌ unknown model ────────────────────────────────────────────────────────── read only ┐
+    Th │ REPORT_ROW_078                                                                     │
+       │ REPORT_ROW_079                                                                     │
+  ◆ ym │                                                                                    │
+    Th │ Up/Down scroll  Esc close                                                          │ ssion
+       └──────────────────────────────────────────────────────────────────────────── 0 more ┘
+    Ac                                                               │
+                                                                     │ ○ Cygnus  idle
+    Workspace:                                                       │
+    /Users/maggnus/Code/ymp2/ymp-docs/research/evidence/popup-scrol  │ TASKS         accepted 1 / 1
+    l-141/terminal-before/project                                    │
+                                                                     │
+› · unknown model · execution report                          00:00  │
+    REPORT_ROW_000                                                   │
+    REPORT_ROW_001                                                   │
+    REPORT_ROW_002                                                   │
+    REPORT_ROW_003                                                   │
+    REPORT_ROW_004                                                   │
+    REPORT_ROW_005                                                   │
+    74 more lines · Enter to read the full report                    │
+  ◇ Session loaded for reading. Send a message to continue …  12:26  │
+────────────────────────────────────────────────────────────────────────────────────────────────────
+› Describe a task, or type / for commands.
+Ready                                                 main Enter inspect  Space expand  Esc composer

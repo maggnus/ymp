@@ -1,0 +1,18 @@
+ym┌ Commands ────────────────────────────────── 25 of 25 ┐00
+──│ › Type to search commands                            │──
+  │ ──────────────────────────────────────────────────── │
+  │   /team         Team membership for new sessions.    │
+  │   /limits       Turn budget and parallelism for the… │
+  │   /memory       Search verified project and global … │
+  │   /reputation   Evidence behind competence estimate… │
+  │   /theme        Choose a colour theme. The choice i… │
+  │   /sidebar      Show or hide the context sidebar.    │
+  │   /resume       Continue an interrupted run. This s… │
+  │   /pause        Stop active turns and keep the sess… │
+  │ › /stop         Stop active turns immediately, with… │
+  │ ▼ 1 more                                             │
+  │                                                      │
+  │ Enter run  Up/Down select  Esc close                 │
+──└──────────────────────────────────────────────────────┘──
+› Describe a task, or type / for commands.
+Ready        composer Enter send  Ctrl+P commands  Tab focus

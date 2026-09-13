@@ -1,0 +1,32 @@
+ymp  project  /Users/maggnus/Code/ymp2/ymp…  90278a73  ✓ completed  — tokens  8 / 200 turns captured
+────────────────────────────────────────────────────────────────────────────────────────────────────
+  · Cygnus review · accepted · The stated acceptance criter…  13:59  │ SESSION
+  · Cygnus review ·                                                  │                  ✓ completed
+  · Cygnus proposed  ┌ Colour theme ────────────────────────── saved on Enter ┐ s session   8 / 200
+  · Atlas review · a │   Gruvbox Light       light                            │ lled-popups/project
+  ◇ Unconfirmed proc │   Tokyo Night         dark                             │
+                     │   Solarized Dark      dark                             │                   —
+  ◆ Cygnus · final r │   Solarized Light     light                            │ OKENS
+    The requested ar │   Monokai Pro         dark                             │     —
+                     │   Rosé Pine           dark                             │     —
+  ◆ ymp · run summar │   Kanagawa            dark                             │
+    The requested ar │   Everforest          dark                             │        this session
+                     │ › Cyberpunk           dark                             │  STATE
+    Acceptance: acce │   Neon-soaked futuristic colours.                      │  idle
+                     │                                                        │  idle
+    Workspace:       │ ▼ 1 more                                               │
+    /Users/maggnus/C │                                                        │      accepted 1 / 1
+    /installed-popup │ The whole interface previews as you move.              │
+                     │                                                        │
+  · unknown model ·  │ Up/Down preview  Enter keep  Esc cancel                │
+    REPORT_ROW_000   └────────────────────────────────────────────────────────┘
+    REPORT_ROW_001                                                   │
+    REPORT_ROW_002                                                   │
+    REPORT_ROW_003                                                   │
+    REPORT_ROW_004                                                   │
+    REPORT_ROW_005                                                   │
+    74 more lines · Enter to read the full report                    │
+  ◇ Session loaded for reading. Send a message to continue …  13:59  │
+────────────────────────────────────────────────────────────────────────────────────────────────────
+› Describe a task, or type / for commands.
+Ready                                                composer Enter send  Ctrl+P commands  Tab focus

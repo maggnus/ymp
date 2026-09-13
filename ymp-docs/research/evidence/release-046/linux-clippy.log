@@ -1,0 +1,3 @@
+   Compiling ymp-eval-driver v0.4.6 (/src/ymp-rust/crates/ymp-eval-driver)
+    Checking ymp-tui v0.4.6 (/src/ymp-rust/crates/ymp-tui)
+    Finished `dev` profile [unoptimized] target(s) in 4.74s

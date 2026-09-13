@@ -1,0 +1,32 @@
+ymp  project  /tmp/ymp046-popups-linux-asc…  26673bc3  + completed  - tokens  8 / 200 turns captured
+----------------------------------------------------------------------------------------------------
+ Files[3]  /files             /tmp/ymp046-popups-linux-ascii/project | SESSION
+---------------------------------------------------------------------| 26673bc3         + completed
+   ../                                                               | turns this session   8 / 200
+ > a-short.rs                                                        | dir …ups-linux-ascii/project
+   gre                                                               |
+   z-l ┌ a-short.rs ───────────────────────────────────────────────────────────── read only ┐     -
+       │ path              /tmp/ymp046-popups-linux-ascii/project/a-short.rs                │
+       │ kind              file                                                             │
+       │ size              21 B                                                             │
+       │                                                                                    │
+       │ Enter shows the start of the file, read only. Nothing is run or changed.           │ ssion
+       │                                                                                    │
+       │ Up/Down scroll  Esc close                                                          │
+       └────────────────────────────────────────────────────────────────────────────────────┘
+                                                                     |
+                                                                     | TASKS         accepted 1 / 1
+                                                                     |
+                                                                     |
+                                                                     |
+                                                                     |
+                                                                     |
+                                                                     |
+                                                                     |
+                                                                     |
+                                                                     |
+                                                                     |
+                                                                     |
+----------------------------------------------------------------------------------------------------
+> Describe a task, or type / for commands.
+Ready                main Enter open  Backspace parent  / filter  d details  r read again  Esc close

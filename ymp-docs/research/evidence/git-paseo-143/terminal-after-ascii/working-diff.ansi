@@ -1,0 +1,36 @@
+ymp  [1mproject[0m  /Users/maggnus/Code/ymp2/ymp-docs/research/evidence/git-paseo-143/terminal-aft…  no session  0 / 200 turns
+------------------------------------------------------------------------------------------------------------------------
+ [1mGit[0m[2]  /git feature · /Users/maggnus/Code/ymp2/ymp-docs/research/evidence/git-paseo-14…| SESSION
+[1m-----------------------------------------------------------------------------------------[0m| none · the next message open
+   UNCOMMITTED CHANGES AGAINST HEAD                                                      | turns next run       0 / 200
+   [1;4mS[0;1mT[0m  [1;4mP[0;1mATH[0m     [1mS[4mT[0;1mATE[0m                [1;4mA[0;1mDDED[0m  [1;4mR[0;1mEMOVED[0m                                      | dir …nal-after-ascii/project
+ [1m> M   code.rs  unstaged                +1       -1                                   [0m   |
+                                                                                         |
+  ┌ code.rs ────────────────────────────────────────────────────────────────────────────────────────────── read only ┐
+  │ | diff --git a/code.rs b/code.rs                                                                                 │
+  │ | index 250dffa..169747b 100644                                                                                  │
+  │ | --- a/code.rs                                                                                                  │
+  │ | +++ b/code.rs                                                                                                  │
+  │ | @@ -1 +1 @@                                                                                                    │
+  │ | -fn COMMITTED_143() {}                                                                                         │
+  │ | +fn WORKING_143() {}                                                                                           │
+  │                                                                                                                  │
+  │ Up/Down scroll  PageUp/PageDown page  Esc back to the list                                                       │
+  └──────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+                                                                                         |
+                                                                                         |
+                                                                                         |
+                                                                                         |
+                                                                                         |
+                                                                                         |
+                                                                                         |
+                                                                                         |
+                                                                                         |
+                                                                                         |
+                                                                                         |
+                                                                                         |
+                                                                                         |
+                                                                                         |
+------------------------------------------------------------------------------------------------------------------------
+[1m> [0mDescribe a task, or type / for commands.
+Ready     main Enter diff  m compare  w worktree  b branch  r refresh  Esc close  / filter  Shift+letter sort  d inspect

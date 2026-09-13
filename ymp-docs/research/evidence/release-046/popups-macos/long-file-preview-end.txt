@@ -1,0 +1,32 @@
+ym┌ z-long.rs ──────────────────────────────────────────────────────────────────────── read only ┐ed
+──│  75 │ // FILE_ROW_074                                                                        │──
+  │  76 │ // FILE_ROW_075                                                                        │
+─ │  77 │ // FILE_ROW_076                                                                        │
+  │  78 │ // FILE_ROW_077                                                                        │
+  │  79 │ // FILE_ROW_078                                                                        │
+  │  80 │ // FILE_ROW_079                                                                        │
+  │  81 │ // FILE_ROW_080                                                                        │
+  │  82 │ // FILE_ROW_081                                                                        │
+  │  83 │ // FILE_ROW_082                                                                        │
+  │  84 │ // FILE_ROW_083                                                                        │
+  │  85 │ // FILE_ROW_084                                                                        │
+  │  86 │ // FILE_ROW_085                                                                        │
+  │  87 │ // FILE_ROW_086                                                                        │
+  │  88 │ // FILE_ROW_087                                                                        │
+  │  89 │ // FILE_ROW_088                                                                        │
+  │  90 │ // FILE_ROW_089                                                                        │
+  │  91 │ // FILE_ROW_090                                                                        │
+  │  92 │ // FILE_ROW_091                                                                        │
+  │  93 │ // FILE_ROW_092                                                                        │
+  │  94 │ // FILE_ROW_093                                                                        │
+  │  95 │ // FILE_ROW_094                                                                        │
+  │  96 │ // FILE_ROW_095                                                                        │
+  │  97 │ // FILE_ROW_096                                                                        │
+  │  98 │ // FILE_ROW_097                                                                        │
+  │  99 │ // FILE_ROW_098                                                                        │
+  │ 100 │ // FILE_ROW_099                                                                        │
+  │                                                                                              │
+  │ Up/Down scroll  PageUp/PageDown page  Esc back to the list                                   │
+──└────────────────────────────────────────────────────────────────────────────────────── 0 more ┘──
+› Describe a task, or type / for commands.
+Ready                main Enter open  Backspace parent  / filter  d details  r read again  Esc close

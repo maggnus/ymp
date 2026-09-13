@@ -1,0 +1,18 @@
+ym┌ Colour theme ──────────────────────── saved on Enter ┐00
+──│   Gruvbox Light       light                          │──
+  │   Tokyo Night         dark                           │
+  │   Solarized Dark      dark                           │
+  │   Solarized Light     light                          │
+  │   Monokai Pro         dark                           │
+  │   Rosé Pine           dark                           │
+  │   Kanagawa            dark                           │
+  │   Everforest          dark                           │
+  │ › Cyberpunk           dark                           │
+  │   Neon-soaked futuristic colours.                    │
+  │ ▼ 1 more                                             │
+  │                                                      │
+  │                                                      │
+  │ Up/Down preview  Enter keep  Esc cancel              │
+──└────────────────────────────────────────────── 1 more ┘──
+› Describe a task, or type / for commands.
+Ready        composer Enter send  Ctrl+P commands  Tab focus

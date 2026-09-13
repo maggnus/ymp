@@ -1,0 +1,6 @@
+{
+  "initial_setup": "Mock demo failed with EINVAL when application metadata was placed on the Docker host bind mount.",
+  "control": "The same static binary demo succeeded with metadata and project on the container native /tmp filesystem.",
+  "final_setup": "Session/preview terminal checks use native Linux /tmp; reports are copied out afterward. Git-only checks also passed on the host mount.",
+  "production_workaround_added": false
+}

@@ -1,0 +1,8 @@
+{
+  "status": "superseded_by_final_source_corrections",
+  "source_revision": "68b481d194dda5b58648b54c959ed4a2b2efbe96",
+  "macos_checks": "fmt,clippy,workspace tests passed on the previous candidate",
+  "linux_checks": "fmt and clippy passed; evaluator tests rejected source drift after additional backend tests/source corrections were made during the run",
+  "builds": "macOS release and static Linux ARM64 musl builds succeeded",
+  "next": "Freeze final corrected source before rerunning integration checks. These logs are not final installed acceptance evidence."
+}

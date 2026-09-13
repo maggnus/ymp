@@ -1,0 +1,61 @@
+{
+  "binary": "/Users/maggnus/Code/ymp2/target/release-046-stage/release/ymp",
+  "ascii": false,
+  "native_inference": false,
+  "inherited_no_color": true,
+  "cases": [
+    {
+      "case": "opens-at-the-start-directory",
+      "passed": true
+    },
+    {
+      "case": "enter-lists-the-directory",
+      "passed": true
+    },
+    {
+      "case": "source-preview-literal-and-highlighted",
+      "passed": true
+    },
+    {
+      "case": "backspace-returns-to-the-row",
+      "passed": true
+    },
+    {
+      "case": "names-that-read-alike-open-their-own-files",
+      "passed": true
+    },
+    {
+      "case": "binary-fifo-and-large-files-are-described",
+      "passed": true
+    },
+    {
+      "case": "a-link-to-a-directory-is-listed-where-it-leads",
+      "passed": true
+    },
+    {
+      "case": "filter-and-clear",
+      "passed": true
+    },
+    {
+      "case": "browsing-above-the-start-and-back",
+      "passed": true
+    },
+    {
+      "case": "narrow-terminals",
+      "passed": true
+    },
+    {
+      "case": "project-unchanged",
+      "passed": true
+    },
+    {
+      "case": "ctrl-c-twice-leaves",
+      "passed": true
+    }
+  ],
+  "colours": {
+    "keyword": "38;2;216;163;76",
+    "call": "38;2;216;210;198"
+  },
+  "passed": true
+}

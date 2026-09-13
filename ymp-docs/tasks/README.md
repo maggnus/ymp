@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-13 13:18 UTC.
+Updated: 2026-09-13 14:04 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -14,7 +14,7 @@ A planned task is not implemented functionality. Completed research and planning
 | design | 1 | 1 |
 | documentation | 4 | 4 |
 | experiment | 0 | 4 |
-| implementation | 33 | 38 |
+| implementation | 35 | 38 |
 | maintenance | 1 | 1 |
 | research | 9 | 9 |
 | verification | 2 | 2 |
@@ -81,9 +81,9 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-138](#ymp-138) | P2 | Clean up obsolete Paseo workspaces and ymp2 development worktrees | 2026-09-13 11:15 |
 | `[x]` | [YMP-139](#ymp-139) | P1 | Integrate a ready-made Ratatui file navigator and code highlighting | 2026-09-13 11:07 |
 | `[x]` | [YMP-140](#ymp-140) | P1 | Render agent code and explicit diffs clearly using established AI-chat patterns | 2026-09-13 11:13 |
-| `[~]` | [YMP-141](#ymp-141) | P1 | Keep popup geometry stable while scrolling content | 2026-09-13 13:18 |
+| `[x]` | [YMP-141](#ymp-141) | P1 | Keep popup geometry stable while scrolling content | 2026-09-13 14:04 |
 | `[x]` | [YMP-142](#ymp-142) | P1 | Assess ratatui-code-editor for opening files inside ymp | 2026-09-13 11:52 |
-| `[~]` | [YMP-143](#ymp-143) | P1 | Provide a separate /git changes view modeled on Paseo | 2026-09-13 13:18 |
+| `[x]` | [YMP-143](#ymp-143) | P1 | Provide a separate /git changes view modeled on Paseo | 2026-09-13 14:04 |
 
 ## YMP-001
 
@@ -2027,11 +2027,11 @@ Agent output mixes prose, code, command output and proposed changes. It needs re
 
 Keep popup geometry stable while scrolling content
 
-**State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P1
+**State:** `[x]` (done) · **Type:** implementation · **Priority:** P1
 
-**Last update (UTC):** 2026-09-13 13:18
+**Last update (UTC):** 2026-09-13 14:04
 
-**Current reason:** Popup fixes871a95b and af44e65 are integrated, covering scrolling content and overflowing choice lists. Parent terminal controls reproduce five old shrinking cases and verify stable fixed previews in Unicode/ASCII; broader palette/theme terminal checks are prepared. Final frozen-source platform checks and installation remain.
+**Current reason:** Installed 0.4.6 accepted after independent source/terminal verification. macOS ARM64 and Linux ARM64 each pass fmt, strict Clippy and 576 tests (2 ignored). Both platforms pass Git9+9, popup9+9, files12 and output2 terminal cases; macOS also tables19 and exit5. Installed command repeats Git9 and popups9 successfully. Embedded Git works with empty app PATH; Linux artifact is static, macOS uses only OS libraries. Previous executable backed up; ARM64 artifacts retained. Providers/runtimes remain the explicit exception; no x86_64 runtime claim.
 
 **Owner:** Claude Code claude-opus-5 high; maintainer owns reproduction, integration and acceptance
 
@@ -2052,6 +2052,8 @@ The shared modal renderer derives height from the remaining visible slice, allow
 
 - ymp-docs/research/evidence/popup-scroll-141/assignment.md
 - ymp-docs/research/evidence/popup-scroll-141/paused-test-draft.patch
+- ymp-docs/releases/0.4.6.md
+- ymp-docs/research/evidence/release-046/verification.json
 
 ## YMP-142
 
@@ -2088,11 +2090,11 @@ Determine whether the ready editor widget improves file interaction without dupl
 
 Provide a separate /git changes view modeled on Paseo
 
-**State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P1
+**State:** `[x]` (done) · **Type:** implementation · **Priority:** P1
 
-**Last update (UTC):** 2026-09-13 13:18
+**Last update (UTC):** 2026-09-13 14:04
 
-**Current reason:** Embedded git2 backend and /git UI are integrated; Linux static musl binary and macOS build succeed without external libgit2/zlib. Linux real-terminal9-case probe passes with empty app PATH and no Git CLI in the fixture helper. Review corrections cover reference locks, standard checkout reflog, occupancy recheck and actual conflict patches;12 backend fixtures pass. Final UI choice geometry fix integrated; source is being frozen for final platform checks and installation. Providers/runtimes remain the explicit single-binary exception.
+**Current reason:** Installed 0.4.6 accepted after independent source/terminal verification. macOS ARM64 and Linux ARM64 each pass fmt, strict Clippy and 576 tests (2 ignored). Both platforms pass Git9+9, popup9+9, files12 and output2 terminal cases; macOS also tables19 and exit5. Installed command repeats Git9 and popups9 successfully. Embedded Git works with empty app PATH; Linux artifact is static, macOS uses only OS libraries. Previous executable backed up; ARM64 artifacts retained. Providers/runtimes remain the explicit exception; no x86_64 runtime claim.
 
 **Owner:** Maintainer defines Git data contracts; Claude Code high owns future UI implementation
 
@@ -2116,6 +2118,8 @@ The current Git-marker discovery and session changes page do not expose actual s
 
 - ymp-docs/research/separate-git-inspection.md
 - ymp-docs/research/evidence/git-paseo-143/source-review.json
+- ymp-docs/releases/0.4.6.md
+- ymp-docs/research/evidence/release-046/verification.json
 
 ## Intent coverage
 

@@ -1,0 +1,115 @@
+{
+  "schema_version": 1,
+  "version": "0.4.6",
+  "status": "installed",
+  "installed_at": "2026-09-13T13:57:02.562232+00:00",
+  "source_revision": "be24a4fdf54652e09338562e57353a40315edc02",
+  "source_manifest": "source-manifest.json",
+  "artifact": {
+    "command": "/Users/maggnus/.local/bin/ymp",
+    "binary": "/Users/maggnus/Code/ymp2/target/release/ymp",
+    "sha256": "f8dfde5e69f84fe67cbc2f9b3fa117f8633a70d94f51534d3029857bdab423b9",
+    "previous_sha256": "d9aaa2bb7f40b586049c5d85b9e2c02bfde17281fded4810ebb2f84dade21943",
+    "backup": "/Users/maggnus/.ymp2/backups/release-0.4.6-20260913T135702Z/ymp.previous"
+  },
+  "standalone_artifacts": [
+    {
+      "platform": "macOS ARM64",
+      "path": "/Users/maggnus/Code/ymp2/target/artifacts/0.4.6/ymp-macos-arm64",
+      "sha256": "f8dfde5e69f84fe67cbc2f9b3fa117f8633a70d94f51534d3029857bdab423b9",
+      "linkage": "Only standard macOS system libraries/frameworks"
+    },
+    {
+      "platform": "Linux ARM64",
+      "path": "/Users/maggnus/Code/ymp2/target/artifacts/0.4.6/ymp-linux-arm64",
+      "sha256": "404a37eaebb275f81e06f9b998baea235e0b742086e1c6e52e4d84bf437600ee",
+      "linkage": "Statically linked musl ELF"
+    }
+  ],
+  "checks": {
+    "macos": {
+      "commands": [
+        {
+          "check": "fmt",
+          "exit_code": 0
+        },
+        {
+          "check": "clippy",
+          "exit_code": 0
+        },
+        {
+          "check": "tests",
+          "exit_code": 0
+        }
+      ],
+      "tests": {
+        "passed": 576,
+        "failed": 0,
+        "ignored": 2
+      }
+    },
+    "linux": {
+      "commands": [
+        {
+          "check": "fmt",
+          "exit_code": 0
+        },
+        {
+          "check": "clippy",
+          "exit_code": 0
+        },
+        {
+          "check": "tests",
+          "exit_code": 0
+        },
+        {
+          "check": "fixture",
+          "exit_code": 0
+        }
+      ],
+      "tests": {
+        "passed": 576,
+        "failed": 0,
+        "ignored": 2
+      }
+    }
+  },
+  "terminal": {
+    "macos": {
+      "git_unicode": 9,
+      "git_ascii": 9,
+      "popups_unicode": 9,
+      "popups_ascii": 9,
+      "files": 12,
+      "tables_themes": 19,
+      "agent_output_dark_light": 2,
+      "exit": 5
+    },
+    "linux": {
+      "git_unicode": 9,
+      "git_ascii": 9,
+      "popups_unicode": 9,
+      "popups_ascii": 9,
+      "files": 12,
+      "agent_output_dark_light": 2
+    }
+  },
+  "installed_terminal": {
+    "git": 9,
+    "popups": 9
+  },
+  "native_provider_inference_in_tests": false,
+  "runtime_git_executable_required": false,
+  "provider_runtime_exception": true,
+  "limitations": [
+    "ARM64 binaries were built and run; x86_64 was not tested in this session.",
+    "Only existing local branches/worktrees; no automatic stash, commit, undo, remote operations or editor.",
+    "Git time bounds are cooperative; underlying filesystem calls are not forcibly cancelled.",
+    "Store locks coordinate matching project directories in one ymp home, not arbitrary external writers.",
+    "Atomic filesystem rollback is not promised if storage fails during checkout.",
+    "Comparison base is resolved automatically; no base-ref selector or commit-history list is exposed.",
+    "Long chooser paths with indistinguishable long suffixes may still share a truncated display.",
+    "Linux session tests use native container storage; shared host-mount metadata failed an EINVAL setup control."
+  ],
+  "verified_at": "2026-09-13T14:04:01.236882+00:00"
+}

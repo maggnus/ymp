@@ -1,0 +1,9 @@
+Traceback (most recent call last):
+  File "/src/ymp-evals/scripts/check-popup-scroll.py", line 151, in <module>
+    main()
+  File "/src/ymp-evals/scripts/check-popup-scroll.py", line 48, in main
+    demo = subprocess.run([str(binary), "--home", str(home), "-C", str(project), "demo"],
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.11/subprocess.py", line 571, in run
+    raise CalledProcessError(retcode, process.args,
+subprocess.CalledProcessError: Command '['/build/linux-musl-143/aarch64-unknown-linux-musl/release/ymp', '--home', '/build/ymp046-popups-linux/metadata', '-C', '/build/ymp046-popups-linux/project', 'demo']' returned non-zero exit status 1.

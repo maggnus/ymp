@@ -1,0 +1,24 @@
+ymp  project             99bbba80  ✓ completed  — tok  8/200
+────────────────────────────────────────────────────────────
+ Agent profiles[3]  /agents                      3 profiles
+────────────────────────────────────────────────────────────
+
+  ┌ Model for atlas ───────────────────── saved on Enter ┐
+  │ ›                                                    │
+  │                                                      │
+  │ Leave empty, or type default, to inherit the         │
+  │ provider's model.                                    │
+  │                                                      │
+  │ Enter save  Esc cancel                               │
+  └──────────────────────────────────────────────────────┘
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────
+› Describe a task, or type / for commands.
+Ready  main m model  i instructions  Space enable  t team  r

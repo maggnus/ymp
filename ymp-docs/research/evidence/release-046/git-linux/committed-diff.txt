@@ -1,0 +1,36 @@
+ymp  project  /build/ymp046-git-linux/project                                                  no session  0 / 200 turns
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ Git[1]  /git                       feature since main · /build/ymp046-git-linux/project │ SESSION
+─────────────────────────────────────────────────────────────────────────────────────────│ none · the next message open
+   COMMITTED CHANGES SINCE THE BASE BRANCH                                               │ turns next run       0 / 200
+   ST  PATH     STATE  ADDED  REMOVED                                                    │ dir …mp046-git-linux/project
+ › M   code.rs            +1       -1                                                    │
+                                                                                         │
+  ┌ code.rs ────────────────────────────────────────────────────────────────────────────────────────────── read only ┐
+  │ │ diff --git a/code.rs b/code.rs                                                                                 │
+  │ │ index 0cd9134..250dffa 100644                                                                                  │
+  │ │ --- a/code.rs                                                                                                  │
+  │ │ +++ b/code.rs                                                                                                  │
+  │ │ @@ -1 +1 @@                                                                                                    │
+  │ │ -fn BASE_143() {}                                                                                              │
+  │ │ +fn COMMITTED_143() {}                                                                                         │
+  │                                                                                                                  │
+  │ Up/Down scroll  PageUp/PageDown page  Esc back to the list                                                       │
+  └──────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+                                                                                         │
+                                                                                         │
+                                                                                         │
+                                                                                         │
+                                                                                         │
+                                                                                         │
+                                                                                         │
+                                                                                         │
+                                                                                         │
+                                                                                         │
+                                                                                         │
+                                                                                         │
+                                                                                         │
+                                                                                         │
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+› Describe a task, or type / for commands.
+Ready     main Enter diff  m compare  w worktree  b branch  r refresh  Esc close  / filter  Shift+letter sort  d inspect

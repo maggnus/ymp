@@ -4,11 +4,12 @@ A terminal workspace for a self-organizing team of local AI agents. Written in R
 
 Give the team a task. Agents propose plans and temporary responsibilities; the runtime validates assignments and revisions. They work in the selected directory and independently review the deliverable. Objectively confirmed outcomes supply qualified experience and reusable knowledge; qualitative acceptance remains explicitly unconfirmed.
 
-**Status:** 0.4.5 MVP. See the [0.4.5](ymp-docs/releases/0.4.5.md), [0.4.4](ymp-docs/releases/0.4.4.md), [0.4.3](ymp-docs/releases/0.4.3.md), [0.4.2](ymp-docs/releases/0.4.2.md) and [0.4.1](ymp-docs/releases/0.4.1.md) patch notes and the [0.4.0 release notes](ymp-docs/releases/0.4.0.md) for verified behavior and limitations. Quality improvements from memory and adaptive assignment remain hypotheses to evaluate, not a measured product claim.
+**Status:** 0.4.6 MVP. See the [0.4.6](ymp-docs/releases/0.4.6.md), [0.4.5](ymp-docs/releases/0.4.5.md), [0.4.4](ymp-docs/releases/0.4.4.md), [0.4.3](ymp-docs/releases/0.4.3.md), [0.4.2](ymp-docs/releases/0.4.2.md) and [0.4.1](ymp-docs/releases/0.4.1.md) patch notes and the [0.4.0 release notes](ymp-docs/releases/0.4.0.md) for verified behavior and limitations. Quality improvements from memory and adaptive assignment remain hypotheses to evaluate, not a measured product claim.
 
 ## Requirements
 
-- macOS, Git, and Rust 1.89 or later.
+- macOS or Linux. The verified 0.4.6 binaries are ARM64.
+- Rust 1.89 or later and a C compiler when building from source; these are not required to run a distributed binary.
 - At least two enabled agent profiles for independently reviewed team runs.
 - Already authenticated local Codex and/or Claude Code installations.
 - Node.js 22 or later for the Claude bridge; an existing GLM ACP installation for GLM.
@@ -56,7 +57,7 @@ For objectively confirmed results and reusable supported experience, configure e
 
 The interface is chat-first with a right sidebar showing session context, token usage, team activity and tasks. Pages open through slash commands or the command palette. The sidebar appears from 72 columns; hide it with `Ctrl+B`.
 
-Commands: `/chat`, `/help`, `/tasks`, `/usage`, `/sessions`, `/files`, `/diff`, `/checks`, `/assignments`, `/decisions`, `/providers`, `/agents`, `/agent`, `/team`, `/limits`, `/memory`, `/reputation`, `/theme`, `/sidebar`, `/details`, `/new`, `/resume`, `/pause`, `/stop`, and `/quit`. `Ctrl+P` opens the command palette, and `/help` lists every command and key.
+Commands: `/chat`, `/help`, `/tasks`, `/usage`, `/sessions`, `/files`, `/git`, `/diff`, `/checks`, `/assignments`, `/decisions`, `/providers`, `/agents`, `/agent`, `/team`, `/limits`, `/memory`, `/reputation`, `/theme`, `/sidebar`, `/details`, `/new`, `/resume`, `/pause`, `/stop`, and `/quit`. `Ctrl+P` opens the command palette, and `/help` lists every command and key.
 
 Enter sends, Ctrl+J inserts a newline, and Tab completes a command name or moves the focus to the next region. Esc removes the topmost surface and eventually returns to the composer. A first Ctrl+C only asks for confirmation; a second one within two seconds leaves ymp, stopping active work first, and prints the command that reopens the session. `/stop` stops a run without leaving. Messages entered during execution are delivered at the next turn boundary.
 
@@ -64,7 +65,9 @@ Your prompts and the team's final answers are the content of the transcript; rou
 
 Eighteen colour themes ship with ymp: Ember, Slate and sixteen library palettes, including light themes. `/theme` or `Ctrl+T` opens a chooser that previews as you move; the choice is remembered. No state is shown by colour alone.
 
-Opening a record page never starts an agent or writes to your working directory. See the [interface guide](ymp-docs/guides/interface.md).
+`/git` follows working and committed changes in a separate page. `m` switches the comparison, `w` chooses a worktree, `b` opens branch selection and Enter shows a diff. Git support is embedded; no Git executable or system libgit2 installation is required. Providers and their execution runtimes remain external.
+
+Opening a record page never starts an agent. `/git` offers an explicit confirmed branch checkout; file browsing and previews are read-only. See the [interface guide](ymp-docs/guides/interface.md).
 
 For the 0.4.0 MVP, files are created and modified directly in the directory where you start `ymp` (or the directory selected with `-C`). Only metadata lives under `~/.ymp2`; no source-tree copies or hidden Git repositories are created. Independent assignments can overlap when their enforced access permits; conflicting or unbounded writes are serialized. This MVP policy provides no rollback guarantee.
 

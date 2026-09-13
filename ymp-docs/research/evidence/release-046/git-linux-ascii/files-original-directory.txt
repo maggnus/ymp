@@ -1,0 +1,36 @@
+ymp  project  /build/ymp046-git-linux-ascii/project                                            no session  0 / 200 turns
+------------------------------------------------------------------------------------------------------------------------
+ Files[3]  /files                                  /build/ymp046-git-linux-ascii/project | SESSION
+-----------------------------------------------------------------------------------------| none · the next message open
+ > ../                                                                                   | turns next run       0 / 200
+   .gitignore                                                                            | dir …git-linux-ascii/project
+   .ymp-git-fixture                                                                      |
+   code.rs                                                                               | TOKENS                     -
+                                                                                         | none · nothing spent yet
+                                                                                         |
+                                                                                         | TEAM                next run
+                                                                                         | AGENT     STATE
+                                                                                         | o Reader  idle
+                                                                                         |
+                                                                                         | TASKS
+                                                                                         | no task graph yet
+                                                                                         |
+                                                                                         |
+                                                                                         |
+                                                                                         |
+                                                                                         |
+                                                                                         |
+                                                                                         |
+                                                                                         |
+                                                                                         |
+                                                                                         |
+                                                                                         |
+                                                                                         |
+                                                                                         |
+                                                                                         |
+                                                                                         |
+                                                                                         |
+                                                                                         |
+------------------------------------------------------------------------------------------------------------------------
+> Describe a task, or type / for commands.
+Ready                                    main Enter open  Backspace parent  / filter  d details  r read again  Esc close

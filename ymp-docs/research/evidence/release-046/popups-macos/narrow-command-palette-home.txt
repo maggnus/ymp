@@ -1,0 +1,18 @@
+ym┌ Commands ────────────────────────────────── 26 of 26 ┐00
+──│ › Type to search commands                            │──
+  │ ──────────────────────────────────────────────────── │
+  │ › /chat         Return to the conversation.          │
+  │   /new          Start an unrelated task. The next p… │
+  │   /details      Toggle full attributed agent messag… │
+  │   /help         Command reference and keyboard map.  │
+  │   /tasks        Task graph, assignments and outcome… │
+  │   /usage        Token statistics for the loaded ses… │
+  │   /sessions     Saved sessions for this project. Op… │
+  │   /files        Browse files read only, starting in… │
+  │   /diff         Files created, modified or deleted … │
+  │ ▼ 17 more                                            │
+  │                                                      │
+  │ Enter run  Up/Down select  Esc close                 │
+──└──────────────────────────────────────────────────────┘──
+› Describe a task, or type / for commands.
+Ready        composer Enter send  Ctrl+P commands  Tab focus

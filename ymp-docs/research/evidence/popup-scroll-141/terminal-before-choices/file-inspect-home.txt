@@ -1,0 +1,32 @@
+ymp  project  /Users/maggnus/Code/ymp2/ymp…  ab3ddad1  ✓ completed  — tokens  8 / 200 turns captured
+────────────────────────────────────────────────────────────────────────────────────────────────────
+ Files[3]  /files /Users/maggnus/Code/ymp2/ymp-docs/research/evidenc…│ SESSION
+─────────────────────────────────────────────────────────────────────│ ab3ddad1         ✓ completed
+   ../                                                               │ turns this session   8 / 200
+ › a-short.rs                                                        │ dir …-before-choices/project
+   gre                                                               │
+   z-l ┌ a-short.rs ───────────────────────────────────────────────────────────── read only ┐     —
+       │ path              /Users/maggnus/Code/ymp2/ymp-docs/research/evidence/popup-scroll │
+       │                   -141/terminal-before-choices/project/a-short.rs                  │
+       │ kind              file                                                             │
+       │ size              21 B                                                             │
+       │                                                                                    │ ssion
+       │ Enter shows the start of the file, read only. Nothing is run or changed.           │
+       │                                                                                    │
+       │ Up/Down scroll  Esc close                                                          │
+       └────────────────────────────────────────────────────────────────────────────────────┘
+                                                                     │                        1 / 1
+                                                                     │
+                                                                     │
+                                                                     │
+                                                                     │
+                                                                     │
+                                                                     │
+                                                                     │
+                                                                     │
+                                                                     │
+                                                                     │
+                                                                     │
+────────────────────────────────────────────────────────────────────────────────────────────────────
+› Describe a task, or type / for commands.
+Ready                main Enter open  Backspace parent  / filter  d details  r read again  Esc close

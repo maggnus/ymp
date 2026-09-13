@@ -1,0 +1,1 @@
+{"scope":"Read-only popup cases correctly reproduced shrinking. Choice cases used End, which does not change command-palette selection, and did not inspect intermediate theme descriptions. Those choice observations are superseded by arrow-driven controls."}

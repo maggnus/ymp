@@ -1,0 +1,6 @@
+{
+  "problem": "The existing right-column-width UI test expected a no-native-model refusal from Config::default; on Linux no native provider command is installed, so availability refusal takes precedence.",
+  "required_fix": "Use deterministic offline provider availability inputs; preserve the refusal and width assertions.",
+  "owner": "Claude UI author",
+  "production_change_required": false
+}

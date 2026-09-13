@@ -1,0 +1,36 @@
+ymp  project  /Users/maggnus/Code/ymp2/ymp-docs/research/evidence/git-paseo-143/terminal-bef…  no session  0 / 200 turns
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+                                                                                         │ SESSION
+                                                                                         │ none · the next message open
+                                                                                         │ turns next run       0 / 200
+                                                                                         │ dir …terminal-before/project
+                                                                                         │
+                                                                                         │ TOKENS                     —
+                                                                                         │ none · nothing spent yet
+                                                                                         │
+                                                                                         │ TEAM                next run
+                                                                                         │ AGENT     STATE
+                                                                                         │ ○ Reader  idle
+                                                                                         │
+                                                                                         │ TASKS
+                                                                                         │ no task graph yet
+                                                                                         │
+                                                                                         │
+                                                                                         │
+                                                                                         │
+                                                                                         │
+                                                                                         │
+                                                                                         │
+                                                                                         │
+                                                                                         │
+                                                                                         │
+                                                                                         │
+                                                                                         │
+                                                                                         │
+                                                                                         │
+                                                                                         │
+                                                                                         │
+  ✗ Unknown command /git. Press Ctrl+P for the command palette.                   12:32  │
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+› Describe a task, or type / for commands.
+Ready                                                                    composer Enter send  Ctrl+P commands  Tab focus

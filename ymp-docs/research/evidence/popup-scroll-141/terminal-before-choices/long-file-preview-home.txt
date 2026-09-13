@@ -1,0 +1,32 @@
+ym┌ z-long.rs ──────────────────────────────────────────────────────────────────────── read only ┐ed
+──│ Rust · 100 lines · 1.6 kB                                                                    │──
+  │                                                                                              │
+─ │   1 │ // FILE_ROW_000                                                                        │
+  │   2 │ // FILE_ROW_001                                                                        │
+  │   3 │ // FILE_ROW_002                                                                        │
+  │   4 │ // FILE_ROW_003                                                                        │
+  │   5 │ // FILE_ROW_004                                                                        │
+  │   6 │ // FILE_ROW_005                                                                        │
+  │   7 │ // FILE_ROW_006                                                                        │
+  │   8 │ // FILE_ROW_007                                                                        │
+  │   9 │ // FILE_ROW_008                                                                        │
+  │  10 │ // FILE_ROW_009                                                                        │
+  │  11 │ // FILE_ROW_010                                                                        │
+  │  12 │ // FILE_ROW_011                                                                        │
+  │  13 │ // FILE_ROW_012                                                                        │
+  │  14 │ // FILE_ROW_013                                                                        │
+  │  15 │ // FILE_ROW_014                                                                        │
+  │  16 │ // FILE_ROW_015                                                                        │
+  │  17 │ // FILE_ROW_016                                                                        │
+  │  18 │ // FILE_ROW_017                                                                        │
+  │  19 │ // FILE_ROW_018                                                                        │
+  │  20 │ // FILE_ROW_019                                                                        │
+  │  21 │ // FILE_ROW_020                                                                        │
+  │  22 │ // FILE_ROW_021                                                                        │
+  │  23 │ // FILE_ROW_022                                                                        │
+  │  24 │ // FILE_ROW_023                                                                        │
+  │                                                                                              │
+  │ Up/Down scroll  PageUp/PageDown page  Esc back to the list                                   │
+──└───────────────────────────────────────────────────────────────────────────────────── 76 more ┘──
+› Describe a task, or type / for commands.
+Ready                main Enter open  Backspace parent  / filter  d details  r read again  Esc close
