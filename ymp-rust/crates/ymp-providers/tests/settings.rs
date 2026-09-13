@@ -3,6 +3,29 @@ use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
 use ymp_providers::{run_turn, ProviderEvent, TurnRequest};
 
+#[tokio::test]
+async fn acp_output_exhaustion_keeps_usage_without_accepting_partial_text() {
+    for reason in ["max_tokens", "max_turn_requests", "refusal", "cancelled"] {
+        let (result, wire, events) = run("acp", None, None, &format!("stop-{reason}")).await;
+        let error = result.unwrap_err();
+        assert_eq!(
+            error.is::<ymp_providers::NativeOutputLimit>(),
+            reason == "max_tokens"
+        );
+        assert_eq!(
+            wire.iter()
+                .filter(|q| q["method"] == "session/prompt")
+                .count(),
+            1
+        );
+        assert!(events
+            .iter()
+            .any(|event| matches!(event, ProviderEvent::Usage(u)
+            if u.counts.output == Some(8192) && u.counts.reasoning == Some(8185)
+                && u.finalized && u.partial)));
+    }
+}
+
 async fn run(
     kind: &str,
     model: Option<&str>,

@@ -1,10 +1,16 @@
 # Local release verification
 
-This is the procedure for YMP-121, not a release-completion record. The
-[delivery plan](../tasks/plan.md) is the source of progress. The candidate and
-workspace package version is 0.4.0. Final acceptance and publication are recorded
-separately from building the candidate. Preserve the approved intent and the
-owner's unrelated working changes.
+YMP-121 established this procedure for the original 0.4.0 release. It is not a
+release-completion record. The [delivery plan](../tasks/plan.md) is the source of
+progress; the current maintenance version is 0.4.1. Final acceptance and
+publication are recorded separately from building the candidate. Preserve the
+approved intent and the owner's unrelated working changes.
+
+Maintenance patches retain the required Rust workspace checks and add regressions
+for their changed behavior. Their release notes distinguish newly executed checks
+from the original full-release evidence; an unchanged bridge or evaluation suite
+need not be rerun without a relevant change or unresolved concern. YMP-129 records
+the bounded ACP review-recovery patch and its independent review.
 
 ## Integrated source and offline checks
 

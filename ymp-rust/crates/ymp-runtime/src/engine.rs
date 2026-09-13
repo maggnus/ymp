@@ -845,6 +845,77 @@ impl Engine {
         read_only: bool,
         task: Option<TaskAttemptRef>,
     ) -> Result<RecordedResponse> {
+        let requested = self.requested_settings(
+            ctx,
+            agent,
+            purpose,
+            task.as_ref().map(|t| t.task_id.as_str()),
+            read_only,
+        )?;
+        let review = read_only
+            && matches!(
+                purpose,
+                "review" | "review_plan" | "final_review" | "review_memory"
+            );
+        let attempts = if review {
+            ctx.limits.attempts.clamp(1, 2)
+        } else {
+            1
+        };
+        let mut next_prompt = prompt.to_owned();
+        for attempt in 1..=attempts {
+            let result = self
+                .ask_scoped_once(
+                    ctx,
+                    agent,
+                    cwd,
+                    purpose,
+                    &next_prompt,
+                    read_only,
+                    task.clone(),
+                    &requested,
+                )
+                .await;
+            match result {
+                Err(error)
+                    if error.is::<ymp_providers::NativeOutputLimit>()
+                        && review
+                        && !self.cancel.is_cancelled() =>
+                {
+                    if attempt == attempts {
+                        return Err(error.context(format!(
+                            "Independent {purpose} incomplete after {attempt} attempt(s); submitted work is retained. Inspect the trace and choose supported assignment settings before resuming"
+                        )));
+                    }
+                    self.store.event(&ctx.session.id, "review_retry_requested", &json!({
+                        "agent_id":agent.id,"purpose":purpose,"task":task,
+                        "reason":"native_output_limit","next_attempt":attempt + 1,"max_attempts":attempts
+                    }))?;
+                    self.post(&ctx.session.id, "ymp", "notice", &format!(
+                        "Independent {purpose} reached its native response limit. Requesting one fresh read-only review within the remaining budget; submitted work is retained."
+                    ))?;
+                    next_prompt = format!(
+                        "{prompt}\n\nThe previous review ended at the native response limit without a complete verdict. Inspect the retained evidence and return a concise, complete review in the required JSON format. Do not repeat implementation work. If evidence is insufficient, state that in the verdict."
+                    );
+                }
+                other => return other,
+            }
+        }
+        unreachable!("At least one invocation attempt is required")
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    async fn ask_scoped_once(
+        &self,
+        ctx: &RunContext,
+        agent: &AgentProfile,
+        cwd: &Path,
+        purpose: &str,
+        prompt: &str,
+        read_only: bool,
+        task: Option<TaskAttemptRef>,
+        requested: &ExecutionSettings,
+    ) -> Result<RecordedResponse> {
         if !self
             .refresh_team_eligibility(&ctx.session.id)?
             .iter()
@@ -872,13 +943,7 @@ impl Engine {
             )?;
         }
 
-        let requested = self.requested_settings(
-            ctx,
-            agent,
-            purpose,
-            task.as_ref().map(|t| t.task_id.as_str()),
-            read_only,
-        )?;
+        let requested = requested.clone();
         let identity = self.config.agent_identity(agent, &requested);
         let mut effective_agent = agent.clone();
         effective_agent.name = identity.name.clone();
@@ -1375,7 +1440,21 @@ impl Engine {
         });
         guard.finish(
             terminal,
-            resource_stop.map_or(terminal.as_str(), |(code, _)| code),
+            resource_stop.map_or_else(
+                || {
+                    if terminal == InvocationState::Failed
+                        && result
+                            .as_ref()
+                            .err()
+                            .is_some_and(|e| e.is::<ymp_providers::NativeOutputLimit>())
+                    {
+                        "native_output_limit"
+                    } else {
+                        terminal.as_str()
+                    }
+                },
+                |(code, _)| code,
+            ),
         )?;
         if let Some((code, message)) = resource_stop {
             let denial = BudgetDenial {

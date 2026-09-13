@@ -56,6 +56,11 @@ Claude's documented `[1m]` suffix changes the context window. Capability matchin
 
 ## Continuations and competence
 
+ACP output exhaustion has a bounded review-only recovery route in 0.4.1; see
+[incomplete native reviews](../guides/incomplete-native-review.md). Retry keeps
+the selected settings and requires fresh admission. It does not select a stronger
+effort or treat truncated content as a verdict.
+
 The runtime reuses a native session only from a typed marker written after successful invocation completion, with matching requested settings, profile/provider configuration and read/write scope. Known default-to-default and identical explicit configurations remain reusable. A setting change, explicit-to-default reset, unknown legacy marker or incompatible profile starts a new native session. Beginning an invocation invalidates the old marker; failure cannot resurrect it. Unrelated scopes keep their own continuations. These markers preserve conversation context and do not issue or restore authority; YMP-120 owns assignment grants.
 
 Requested settings, settings actually sent, and reported model/effort remain distinct in each invocation. A missing report remains unknown; an ACP empty `set_model` acknowledgement is not a provider-reported model. SDK options already sent during metadata initialization are recorded even if capability validation then prevents a user prompt.

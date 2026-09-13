@@ -62,6 +62,20 @@ pub struct TurnResult {
     pub session_id: String,
     pub usage: Option<Value>,
 }
+
+/// A native response ended before completion; any streamed text is incomplete.
+/// This is distinct from a runtime budget stop and never authorizes a retry.
+#[derive(Debug)]
+pub struct NativeOutputLimit;
+
+impl std::fmt::Display for NativeOutputLimit {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("native_output_limit: ACP response reached max_tokens before completing")
+    }
+}
+
+impl std::error::Error for NativeOutputLimit {}
+
 #[derive(Debug, Clone)]
 pub enum ProviderEvent {
     Capabilities(ymp_core::ProviderCapabilities),
@@ -608,8 +622,10 @@ async fn acp(
     if let Some(snapshot) = usage::acp_usage(&result["usage"]) {
         let _ = events.send(ProviderEvent::Usage(snapshot));
     }
-    if result["stopReason"].as_str() != Some("end_turn") {
-        bail!("ACP turn stopped: {}", result["stopReason"]);
+    match result["stopReason"].as_str() {
+        Some("end_turn") => {}
+        Some("max_tokens") => return Err(NativeOutputLimit.into()),
+        _ => bail!("ACP turn stopped: {}", result["stopReason"]),
     }
     if proc.acp_text.is_empty() {
         bail!("ACP completed without a response");

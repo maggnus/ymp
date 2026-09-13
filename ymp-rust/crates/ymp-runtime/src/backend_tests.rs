@@ -9,6 +9,9 @@ mod backend_contract_tests {
         StreamOverflow,
         ResultOverflow,
         SecretError,
+        ReviewLimit(usize),
+        WriterLimit,
+        ReviewStop(&'static str),
     }
 
     struct ScriptedBackend {
@@ -17,6 +20,9 @@ mod backend_contract_tests {
         requests: Mutex<Vec<TurnRequest>>,
         dropped: AtomicUsize,
         native_total: Option<TokenCounts>,
+        cancel_review: Option<CancellationToken>,
+        partial_review_usage: bool,
+        review_output: u64,
     }
 
     impl ScriptedBackend {
@@ -30,6 +36,9 @@ mod backend_contract_tests {
                 requests: Mutex::new(vec![]),
                 dropped: AtomicUsize::new(0),
                 native_total: None,
+                cancel_review: None,
+                partial_review_usage: false,
+                review_output: 3,
             })
         }
     }
@@ -59,15 +68,33 @@ mod backend_contract_tests {
                 let _ = events.send(ProviderEvent::Usage(UsageSnapshot {
                     counts: TokenCounts {
                         input: Some(7),
-                        output: (!hanging).then_some(3),
+                        output: (!hanging).then_some(if req.purpose == "review" { self.review_output } else { 3 }),
                         ..Default::default()
                     },
                     finalized: !hanging,
-                    partial: hanging,
+                    partial: hanging || (req.purpose == "review" && self.partial_review_usage),
                     native_total: self.native_total.clone(),
                     ..Default::default()
                 }));
+                if req.purpose == "review" {
+                    if let Some(cancel) = &self.cancel_review {
+                        cancel.cancel();
+                        return Err(ymp_providers::NativeOutputLimit.into());
+                    }
+                }
                 match self.behavior {
+                    Behavior::ReviewStop(message) if req.purpose == "review" => {
+                        bail!("{message}");
+                    }
+                    Behavior::ReviewLimit(limit) if req.purpose == "review" => {
+                        let count = self.requests.lock().unwrap().iter().filter(|r| r.purpose == "review").count();
+                        if count <= limit {
+                            return Err(ymp_providers::NativeOutputLimit.into());
+                        }
+                    }
+                    Behavior::WriterLimit if req.purpose == "execute" => {
+                        return Err(ymp_providers::NativeOutputLimit.into());
+                    }
                     Behavior::Hang => std::future::pending::<()>().await,
                     Behavior::StreamOverflow => {
                         let _ = events.send(ProviderEvent::Delta("x".repeat(70_000)));
@@ -87,7 +114,7 @@ mod backend_contract_tests {
                         return Err(anyhow::anyhow!("transport rejected {token}")
                             .context(format!("script_error: YMP_MCP_TOKEN={token}")));
                     }
-                    Behavior::Script | Behavior::ResultOverflow => {}
+                    Behavior::Script | Behavior::ResultOverflow | Behavior::ReviewLimit(_) | Behavior::WriterLimit | Behavior::ReviewStop(_) => {}
                 }
                 let text = if matches!(self.behavior, Behavior::ResultOverflow) {
                     "x".repeat(70_000)
@@ -116,6 +143,129 @@ mod backend_contract_tests {
                 })
             })
         }
+    }
+
+    #[tokio::test]
+    async fn native_review_limit_recovers_without_replaying_the_writer() {
+        for (failures, attempts, turns, expected_reviews, completed) in [
+            (1, 2, 80, 2, true),
+            (9, 8, 80, 2, false),
+            (1, 1, 80, 1, false),
+        ] {
+            let mut fixture = RunFixture::new("", false);
+            fixture.engine.config.limits.attempts = attempts;
+            fixture.engine.config.limits.turns = turns;
+            fixture.engine.set_assignment_settings(fixture.engine.config.agents.iter()
+                .map(|agent| settings_rule(agent, "review", Some("fixture-model"), Some("fixture-low")))
+                .collect()).unwrap();
+            let script = ScriptedBackend::new("example.review-limit", "1", Behavior::ReviewLimit(failures));
+            fixture.engine = fixture.engine.with_execution_backend(script.clone()).unwrap();
+            let outcome = fixture.run().await;
+            assert_eq!(outcome.session.status == "completed", completed, "{}", outcome.summary);
+            let requests = script.requests.lock().unwrap();
+            assert_eq!(requests.iter().filter(|r| r.purpose == "execute").count(), 1, "turns={turns}: {}; purposes={:?}", outcome.summary, requests.iter().map(|r| &r.purpose).collect::<Vec<_>>());
+            let reviews = requests.iter().filter(|r| r.purpose == "review").collect::<Vec<_>>();
+            assert_eq!(reviews.len(), expected_reviews);
+            for review in &reviews {
+                assert!(review.read_only);
+                assert_eq!(review.profile.id, reviews[0].profile.id);
+                assert_eq!(review.settings, reviews[0].settings);
+                assert_eq!(review.settings.effort.as_deref(), Some("fixture-low"));
+            }
+            if reviews.len() == 2 {
+                assert!(reviews[1].resume.is_none());
+                assert!(reviews[0].mcp.as_ref().unwrap().token != reviews[1].mcp.as_ref().unwrap().token, "Each attempt needs a fresh capability");
+            }
+            assert_eq!(std::fs::read_to_string(fixture.project.join("series.txt")).unwrap(), "55\n");
+            let tasks = fixture.store.tasks(&outcome.session.id).unwrap();
+            assert_eq!(tasks[0].attempts, 1);
+            assert_eq!(tasks[0].state, if completed { TaskState::Accepted } else { TaskState::Review });
+            let trace = fixture.store.trace(&outcome.session.id).unwrap();
+            assert_eq!(trace.usage.total.known_total(), Some(10 * requests.len() as u64));
+            let failed = trace.invocations.iter().filter(|i| i.terminal_reason.as_deref() == Some("native_output_limit")).collect::<Vec<_>>();
+            assert_eq!(failed.len(), failures.min(expected_reviews));
+            assert!(failed.iter().all(|i| i.state == InvocationState::Failed));
+            assert_closed(&fixture, &outcome.session.id);
+        }
+    }
+
+    #[tokio::test]
+    async fn native_output_limit_never_automatically_retries_a_writer() {
+        let mut fixture = RunFixture::new("", false);
+        let script = ScriptedBackend::new("example.writer-limit", "1", Behavior::WriterLimit);
+        fixture.engine = fixture.engine.with_execution_backend(script.clone()).unwrap();
+        let outcome = fixture.run().await;
+        assert_ne!(outcome.session.status, "completed");
+        assert_eq!(script.requests.lock().unwrap().iter().filter(|r| r.purpose == "execute").count(), 1);
+        assert_closed(&fixture, &outcome.session.id);
+    }
+
+    #[tokio::test]
+    async fn native_review_limit_does_not_retry_unrelated_or_runtime_stops() {
+        for message in ["Provider turn cancelled", "Provider turn timed out",
+            "output_limit: fixture output exceeded", "ACP turn stopped: max_turn_requests",
+            "ACP turn stopped: refusal", "untyped max_tokens diagnostic"] {
+            let mut fixture = RunFixture::new("", false);
+            let script = ScriptedBackend::new("example.review-stop", "1", Behavior::ReviewStop(message));
+            fixture.engine = fixture.engine.with_execution_backend(script.clone()).unwrap();
+            let outcome = fixture.run().await;
+            assert_ne!(outcome.session.status, "completed");
+            assert_eq!(script.requests.lock().unwrap().iter().filter(|r| r.purpose == "review").count(), 1);
+            assert_eq!(fixture.store.tasks(&outcome.session.id).unwrap()[0].state, TaskState::Review);
+            assert_closed(&fixture, &outcome.session.id);
+        }
+    }
+
+    #[tokio::test]
+    async fn native_review_limit_respects_cancellation_partial_usage_and_token_ceiling() {
+        for mode in ["cancel", "partial", "tokens"] {
+            let mut fixture = RunFixture::new("", false);
+            let mut script = ScriptedBackend::new("example.review-budget", "1", Behavior::ReviewLimit(1));
+            let backend = Arc::get_mut(&mut script).unwrap();
+            if mode == "cancel" {
+                backend.cancel_review = Some(fixture.engine.cancel.clone());
+            } else {
+                let resources = fixture.engine.config.limits.resources.as_mut().unwrap();
+                resources.observed_tokens = Some(if mode == "tokens" { 50 } else { 100 });
+                resources.invocation_tokens = Some(10);
+                resources.required_review_invocations = 1;
+                backend.partial_review_usage = mode == "partial";
+                if mode == "tokens" { backend.review_output = 13; }
+            }
+            fixture.engine = fixture.engine.with_execution_backend(script.clone()).unwrap();
+            let outcome = fixture.run().await;
+            assert_eq!(outcome.session.status, "paused", "{mode}: {}", outcome.summary);
+            assert_eq!(script.requests.lock().unwrap().iter().filter(|r| r.purpose == "review").count(), 1, "{mode}: {}", outcome.summary);
+            let trace = fixture.store.trace(&outcome.session.id).unwrap();
+            assert_eq!(trace.usage.total.known_total(), Some(if mode == "tokens" { 50 } else { 40 }));
+            assert_eq!(fixture.store.tasks(&outcome.session.id).unwrap()[0].state, TaskState::Review);
+            if mode != "cancel" {
+                assert_eq!(trace.budget.as_ref().unwrap().last_denial.as_ref().unwrap().code,
+                    if mode == "partial" { "unknown_usage" } else { "token_limit" });
+            }
+            assert_closed(&fixture, &outcome.session.id);
+        }
+    }
+
+    #[tokio::test]
+    async fn native_review_retry_cannot_exceed_remaining_invocations() {
+        let mut fixture = RunFixture::new("[mock:usage]", false);
+        fixture.engine.config.limits.turns = 7;
+        let session = fixture.run().await.session;
+        assert_eq!(session.turns_used, 6);
+        let prior = fixture.store.trace(&session.id).unwrap().usage.total.known_total().unwrap();
+        let script = ScriptedBackend::new("example.last-invocation", "1", Behavior::ReviewLimit(1));
+        fixture.engine = fixture.engine.with_execution_backend(script.clone()).unwrap();
+        let ctx = settings_context(&fixture, session).await;
+        let error = fixture.engine.ask_scoped(&ctx, &ctx.session.team[1], &fixture.project,
+            "review", "Inspect the retained result", true, None).await.err().unwrap();
+        assert_eq!(error.downcast_ref::<BudgetDenial>().unwrap().code, "invocation_limit");
+        assert_eq!(script.requests.lock().unwrap().len(), 1);
+        let trace = fixture.store.trace(&ctx.session.id).unwrap();
+        assert_eq!(trace.invocations.len(), 7);
+        assert_eq!(trace.usage.total.known_total(), Some(prior + 10));
+        assert_eq!(trace.invocations.last().unwrap().terminal_reason.as_deref(), Some("native_output_limit"));
+        assert_closed(&fixture, &ctx.session.id);
     }
 
     fn assert_backend_admitted(

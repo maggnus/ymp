@@ -28,7 +28,9 @@ for line in sys.stdin:
     elif method=='session/set_config_option':
         effort='on' if variant=='clamp' else p['value']
         result={'configOptions':options()}
-    elif method=='session/prompt': result={'stopReason':'end_turn'}
+    elif method=='session/prompt':
+        result={'stopReason':variant.removeprefix('stop-') if variant.startswith('stop-') else 'end_turn',
+                'usage':{'inputTokens':22178,'outputTokens':8192,'thoughtTokens':8185}}
     if method=='session/prompt':
         send({'method':'session/update','params':{'sessionId':'session','update':{'sessionUpdate':'agent_message_chunk','content':{'text':'done'}}}})
     send({'jsonrpc':'2.0','id':q['id'],'result':result})
