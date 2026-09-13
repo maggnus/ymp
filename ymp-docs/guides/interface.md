@@ -405,8 +405,10 @@ contains a newline, and `same-a b.rs` open their own contents.
 
 `Enter` on a file opens a read-only preview. At most 256 kB of the file is read, at most 5,000
 lines are shown, and a line shows at most 1,000 characters; the preview states each cut. `Up` and
-`Down` scroll, `PageUp` and `PageDown` move a page, `Home` and `End` jump, and `Esc`, `Enter`, `q`,
-`Backspace`, `Left` or `h` return to the list.
+`Down` scroll, `PageUp` and `PageDown` move by the rows the preview shows, `Home` and `End` jump,
+and `Esc`, `Enter`, `q`, `Backspace`, `Left` or `h` return to the list. Scrolling stops when the
+last line reaches the bottom row, and the preview keeps its size while it scrolls; only a change of
+terminal size resizes it. The same applies to the popup `d` or `Enter` opens for a row or message.
 
 A FIFO, socket or device is never opened, and the preview says what it is. A file with a NUL byte
 in what was read is described as binary. A UTF-16 or UTF-32 byte order mark, or bytes that are not

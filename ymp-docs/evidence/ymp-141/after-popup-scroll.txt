@@ -1,0 +1,11 @@
+# after fix on base 1ea9516 with uncommitted popup correction
+    Finished `test` profile [unoptimized] target(s) in 2.91s
+     Running unittests src/lib.rs (target/debug/deps/ymp_tui-d3586ed280ba57cc)
+
+running 2 tests
+test tests::an_inspect_surface_keeps_its_size_for_long_short_and_empty_records ... ok
+test tests::a_file_preview_keeps_its_size_while_it_scrolls_to_its_last_line ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 258 filtered out; finished in 0.50s
+
+exit=0

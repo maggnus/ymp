@@ -319,6 +319,12 @@ pub fn modal_body_rows(height: u16, keys: bool) -> usize {
     height.saturating_sub(4 + keys).max(1) as usize
 }
 
+/// The furthest a body `lines` long scrolls on a surface that shows `rows` of it: the point where
+/// its last line reaches the last row. Scrolling further would only leave blank rows under it.
+pub fn modal_last_scroll(lines: usize, rows: usize) -> usize {
+    lines.saturating_sub(rows)
+}
+
 /// Draw a floating surface. Returns the rect its body is painted in, inside the border and the
 /// padding, so a caller can place a cursor in it.
 ///
@@ -340,15 +346,12 @@ pub fn render_modal(
     let footer_height = if keys { MODAL_KEY_ROWS } else { 0 };
     let max_body = modal_body_rows(area.height, keys);
     let total = spec.body.len();
-    let scroll = spec.scroll.min(total.saturating_sub(1));
-    let visible: Vec<Line<'static>> = spec
-        .body
-        .iter()
-        .skip(scroll)
-        .take(max_body)
-        .cloned()
-        .collect();
-    let height = visible.len() as u16 + 2 + footer_height;
+    // The surface is as tall as the most of its body it can show, wherever the body is scrolled
+    // to, so scrolling never resizes it.
+    let rows = total.min(max_body);
+    let scroll = spec.scroll.min(modal_last_scroll(total, rows));
+    let visible: Vec<Line<'static>> = spec.body.iter().skip(scroll).take(rows).cloned().collect();
+    let height = rows as u16 + 2 + footer_height;
     let rect = Rect {
         x: area.x + area.width.saturating_sub(width) / 2,
         y: area.y + area.height.saturating_sub(height) / 3,

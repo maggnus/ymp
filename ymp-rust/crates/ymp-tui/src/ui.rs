@@ -106,6 +106,8 @@ pub fn render(frame: &mut Frame, app: &mut App) {
         let regions: Vec<Rect> = std::iter::once(main)
             .chain(side.map(|(_, panel)| panel))
             .collect();
+        // The popups that scroll name their keys, so they show the rows of body this leaves.
+        app.viewport.modal_rows = frame::modal_body_rows(area.height, true);
         cursor = overlay(frame, area, &regions, app);
     }
     if let Some((x, y)) = cursor {

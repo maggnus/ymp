@@ -232,6 +232,27 @@ pub struct Viewport {
     pub total: usize,
     /// Start line and height of each transcript entry.
     pub entries: Vec<(usize, usize)>,
+    /// Rows of body a scrolling popup showed at the last draw, so its keys page by them and stop
+    /// where its last line reaches the bottom row.
+    pub modal_rows: usize,
+}
+
+/// Where the body of a read-only popup starts after `code`, for a body `lines` long of which the
+/// popup shows `rows`. A start left beyond the end by a taller window is brought back first, so
+/// the first key moves the view.
+fn popup_scroll(code: KeyCode, scroll: usize, lines: usize, rows: usize) -> usize {
+    let rows = rows.max(1);
+    let last = frame::modal_last_scroll(lines, rows);
+    let scroll = scroll.min(last);
+    match code {
+        KeyCode::Up | KeyCode::Char('k') => scroll.saturating_sub(1),
+        KeyCode::Down | KeyCode::Char('j') => (scroll + 1).min(last),
+        KeyCode::PageUp => scroll.saturating_sub(rows),
+        KeyCode::PageDown => (scroll + rows).min(last),
+        KeyCode::Home => 0,
+        KeyCode::End => last,
+        _ => scroll,
+    }
 }
 
 pub struct App {
@@ -1905,19 +1926,10 @@ impl App {
                 body,
                 scroll,
             } => {
-                let height = self.viewport.height.max(4);
-                let next = match key.code {
-                    KeyCode::Esc | KeyCode::Enter | KeyCode::Char('q') => return Vec::new(),
-                    KeyCode::Up | KeyCode::Char('k') => scroll.saturating_sub(1),
-                    KeyCode::Down | KeyCode::Char('j') => {
-                        (scroll + 1).min(body.len().saturating_sub(1))
-                    }
-                    KeyCode::PageUp => scroll.saturating_sub(height),
-                    KeyCode::PageDown => (scroll + height).min(body.len().saturating_sub(1)),
-                    KeyCode::Home => 0,
-                    KeyCode::End => body.len().saturating_sub(1),
-                    _ => scroll,
-                };
+                if matches!(key.code, KeyCode::Esc | KeyCode::Enter | KeyCode::Char('q')) {
+                    return Vec::new();
+                }
+                let next = popup_scroll(key.code, scroll, body.len(), self.viewport.modal_rows);
                 self.overlay = Some(Overlay::Inspect {
                     title,
                     body,
@@ -1930,25 +1942,19 @@ impl App {
                 body,
                 scroll,
             } => {
-                let height = self.viewport.height.max(4);
-                let next = match key.code {
-                    // The keys that go back from a list go back from a file to its list too.
+                // The keys that go back from a list go back from a file to its list too.
+                if matches!(
+                    key.code,
                     KeyCode::Esc
-                    | KeyCode::Enter
-                    | KeyCode::Char('q')
-                    | KeyCode::Backspace
-                    | KeyCode::Left
-                    | KeyCode::Char('h') => return Vec::new(),
-                    KeyCode::Up | KeyCode::Char('k') => scroll.saturating_sub(1),
-                    KeyCode::Down | KeyCode::Char('j') => {
-                        (scroll + 1).min(body.len().saturating_sub(1))
-                    }
-                    KeyCode::PageUp => scroll.saturating_sub(height),
-                    KeyCode::PageDown => (scroll + height).min(body.len().saturating_sub(1)),
-                    KeyCode::Home => 0,
-                    KeyCode::End => body.len().saturating_sub(1),
-                    _ => scroll,
-                };
+                        | KeyCode::Enter
+                        | KeyCode::Char('q')
+                        | KeyCode::Backspace
+                        | KeyCode::Left
+                        | KeyCode::Char('h')
+                ) {
+                    return Vec::new();
+                }
+                let next = popup_scroll(key.code, scroll, body.len(), self.viewport.modal_rows);
                 self.overlay = Some(Overlay::Preview {
                     title,
                     body,
