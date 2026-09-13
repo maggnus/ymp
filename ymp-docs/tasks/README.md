@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-13 19:47 UTC.
+Updated: 2026-09-13 21:05 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -40,7 +40,7 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-107](#ymp-107) | P1 | Expose recorded checks and factual recovery limits | 2026-09-12 12:55 |
 | `[=]` | [YMP-108](#ymp-108) | P2 | Evaluate an optional usage estimate with explicit price provenance | 2026-09-12 09:35 |
 | `[x]` | [YMP-111](#ymp-111) | P0 | Apply native models and reasoning settings per assignment | 2026-09-12 12:18 |
-| `[~]` | [YMP-201](#ymp-201) | P2 | Test whether two or three weaker agents can match a stronger solo agent | 2026-09-13 19:31 |
+| `[~]` | [YMP-201](#ymp-201) | P2 | Test whether two or three weaker agents can match a stronger solo agent | 2026-09-13 21:05 |
 | `[=]` | [YMP-202](#ymp-202) | P1 | Test memory and adaptive assignment on held-out tasks | 2026-09-13 16:17 |
 | `[=]` | [YMP-203](#ymp-203) | P1 | Test effort, reduced preparation and low-effort ensembles separately | 2026-09-13 16:17 |
 | `[=]` | [YMP-204](#ymp-204) | P1 | Evaluate a project-scoped prior-outcome router | 2026-09-13 16:17 |
@@ -636,9 +636,9 @@ Test whether two or three weaker agents can match a stronger solo agent
 
 **State:** `[~]` (in_progress) · **Type:** experiment · **Priority:** P2
 
-**Last update (UTC):** 2026-09-13 19:31
+**Last update (UTC):** 2026-09-13 21:05
 
-**Current reason:** Preparation candidate 15529e6 delivered fixtures, external scoring and 12 offline protocol controls; author reports 36 Python and 580 Rust tests passed, two ignored. Native command is still an unconditional refusal, so no measured trial or completed runner is accepted. Same fork continues installed native-control verification and full manifest-to-result consumer; transport retries are distinguished from extra participants and observed stop thresholds from hard billed ceilings. Concrete calibration/pilot allowance remains unapproved.
+**Current reason:** Connected consumer candidate 8a2acaf delivered all six conditions, installed no-inference control evidence and separate 6-calibration/12-pilot manifests; author reports 631 Rust and 52 Python tests passed. Dispatched executable accounting/outcome review to 52111c72 and static controls/study review to 332e0b99. Parent identified a success-conditioned calibration prerequisite and conflation of ordinary task failure with measurement interruption; independent controls will determine required corrections. No native call, quota approval, integration or performance conclusion.
 
 **Owner:** Experiment lead
 

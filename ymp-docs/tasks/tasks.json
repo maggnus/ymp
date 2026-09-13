@@ -1027,6 +1027,11 @@
           "at": "2026-09-13T19:31:33.486117+00:00",
           "status": "in_progress",
           "note": "Preparation candidate 15529e6 delivered fixtures, external scoring and 12 offline protocol controls; author reports 36 Python and 580 Rust tests passed, two ignored. Native command is still an unconditional refusal, so no measured trial or completed runner is accepted. Same fork continues installed native-control verification and full manifest-to-result consumer; transport retries are distinguished from extra participants and observed stop thresholds from hard billed ceilings. Concrete calibration/pilot allowance remains unapproved."
+        },
+        {
+          "at": "2026-09-13T21:05:33.030781+00:00",
+          "status": "in_progress",
+          "note": "Connected consumer candidate 8a2acaf delivered all six conditions, installed no-inference control evidence and separate 6-calibration/12-pilot manifests; author reports 631 Rust and 52 Python tests passed. Dispatched executable accounting/outcome review to 52111c72 and static controls/study review to 332e0b99. Parent identified a success-conditioned calibration prerequisite and conflation of ordinary task failure with measurement interruption; independent controls will determine required corrections. No native call, quota approval, integration or performance conclusion."
         }
       ]
     },
@@ -4411,7 +4416,7 @@
       ]
     }
   ],
-  "updated_at": "2026-09-13T19:47:24.798004+00:00",
+  "updated_at": "2026-09-13T21:05:33.030781+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",

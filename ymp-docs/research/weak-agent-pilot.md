@@ -194,3 +194,47 @@ yet approved particular values. Synthetic 12,000-token/120-second limits do not
 establish that the real orchestration has enough allowance to be meaningfully
 compared. Prepare a small explicit calibration allocation and a separately stated
 conditional pilot allocation before approval.
+
+## Connected candidate under independent review
+
+Candidate 8a2acaf (consumer source 0ac1650) now implements the common manifest
+consumer for all six conditions. The author reports all 12 local protocol cells,
+631 Rust tests and 52 Python tests passing, with two existing ignored tests.
+Installed Codex configuration and artificial access canaries were checked without
+a model turn. These are preparation claims under independent review, not native
+performance results. The product source matches the accepted P0 base 1c17f4e.
+
+The concrete proposals are six calibration outcomes (80,000 observed input plus
+output tokens, 12 outer invocations and 480 seconds per outcome) and twelve
+conditional measured outcomes (160,000 observed tokens, 16 invocations and 900
+seconds each). Their summed administrative thresholds are 480,000 and 1,920,000
+observed tokens, respectively; 2,400,000 across both phases. The outer invocation
+ceilings total 72 and 192, and group deadlines total 48 and 180 minutes. These are
+maximum proposals, not observed consumption or approved allocations; native
+in-flight overshoot and currency cost remain as stated in the manifests. The
+parent has not requested owner approval yet because acceptance is still pending.
+
+### Parent finding: distinguish task failure from measurement failure
+
+The candidate currently requires objective_success=true for every calibration
+outcome before permitting the pilot. It also stops later conditions whenever an
+outcome is not interpretable; missing artifacts, a noncompleted Engine outcome or
+a known limit can enter that category. The independent executable reviewer is
+checking concrete instances. A false external score itself is already supported
+by the Python consumer and is not the identified defect.
+
+A healthy, fully accounted attempt can legitimately produce an incorrect answer,
+a missing deliverable, an ordinary task rejection or an unfinished result within
+its declared allowance. Preserve these as negative outcomes. They must not require
+successful weak-agent answers to establish the measurement path, or automatically
+prevent remaining matched conditions from being measured.
+
+Calibration should establish that controls, attribution, accounting, stopping and
+external scoring work. Instrument failure, unexpected extra participants, leaked
+private answers, an invalid envelope, unknown spend or unconfirmed termination
+remain distinct reasons to stop when continuing would violate the approved scope.
+A deadline/limit with complete final accounting and verified termination is a
+measured failure; a cancellation with unknown accounting still triggers the
+unknown-usage stop rule. Do not solve this by relabeling all failures successful
+or by ignoring shared resource restrictions. Freeze the final continuation rules
+and revised manifests before requesting owner approval.
