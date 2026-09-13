@@ -354,31 +354,66 @@ async fn cancellation_keeps_worker_ownership_until_blocking_work_finishes() {
 }
 
 #[tokio::test]
-async fn a_locked_head_refuses_checkout_before_changing_files_or_index() {
+async fn preexisting_git_locks_refuse_checkout_without_changing_files_index_or_head() {
+    for lock in ["HEAD.lock", "index.lock", "refs/heads/target.lock"] {
+        let f = Fixture::new();
+        let initial = f.initial();
+        let repo = f.repo();
+        let commit = repo.find_commit(Oid::from_str(&initial).unwrap()).unwrap();
+        repo.branch("target", &commit, false).unwrap();
+        switch_branch(f.root(), "target", Some(&initial))
+            .await
+            .unwrap();
+        f.write("code.rs", "fn target() {}\n");
+        f.stage("code.rs");
+        let target = f.commit();
+        switch_branch(f.root(), "main", Some(&target))
+            .await
+            .unwrap();
+        let before = fs::read(f.root().join("code.rs")).unwrap();
+        let index = fs::read(repo.path().join("index")).unwrap();
+        let head = fs::read(repo.path().join("HEAD")).unwrap();
+        fs::write(repo.path().join(lock), "held by another Git operation\n").unwrap();
+        assert!(
+            switch_branch(f.root(), "target", Some(&initial))
+                .await
+                .is_err(),
+            "{lock}"
+        );
+        assert_eq!(
+            fs::read(f.root().join("code.rs")).unwrap(),
+            before,
+            "{lock}"
+        );
+        assert_eq!(
+            fs::read(repo.path().join("index")).unwrap(),
+            index,
+            "{lock}"
+        );
+        assert_eq!(fs::read(repo.path().join("HEAD")).unwrap(), head, "{lock}");
+        assert_eq!(
+            fs::read_to_string(repo.path().join(lock)).unwrap(),
+            "held by another Git operation\n",
+            "{lock}"
+        );
+    }
+}
+
+#[tokio::test]
+async fn checkout_records_the_standard_previous_branch_reflog() {
     let f = Fixture::new();
     let initial = f.initial();
     let repo = f.repo();
     let commit = repo.find_commit(Oid::from_str(&initial).unwrap()).unwrap();
-    repo.branch("target", &commit, false).unwrap();
-    switch_branch(f.root(), "target", Some(&initial))
+    repo.branch("feature", &commit, false).unwrap();
+    switch_branch(f.root(), "feature", Some(&initial))
         .await
         .unwrap();
-    f.write("code.rs", "fn target() {}\n");
-    f.stage("code.rs");
-    let target = f.commit();
-    switch_branch(f.root(), "main", Some(&target))
-        .await
-        .unwrap();
-    let before = fs::read(f.root().join("code.rs")).unwrap();
-    let index = fs::read(repo.path().join("index")).unwrap();
-    fs::write(
-        repo.path().join("HEAD.lock"),
-        "held by another Git operation\n",
-    )
-    .unwrap();
-    assert!(switch_branch(f.root(), "target", Some(&initial))
-        .await
-        .is_err());
-    assert_eq!(fs::read(f.root().join("code.rs")).unwrap(), before);
-    assert_eq!(fs::read(repo.path().join("index")).unwrap(), index);
+    let log = repo.reflog("HEAD").unwrap();
+    assert_eq!(
+        log.get(0).unwrap().message().unwrap(),
+        Some("checkout: moving from main to feature")
+    );
+    let (_, previous) = repo.revparse_ext("@{-1}").unwrap();
+    assert_eq!(previous.unwrap().name().unwrap(), "refs/heads/main");
 }

@@ -27,3 +27,14 @@ previous implementation (`head-lock-before.txt`). The switch now reserves HEAD, 
 and target branch references through a libgit2 transaction before checkout. Ten backend tests
 and strict package Clippy pass after the correction. This avoids the predictable lock refusal;
 it does not promise filesystem rollback if a device fails during checkout or reference commit.
+
+## Independent review follow-up
+
+The lock regression now covers pre-existing HEAD.lock, index.lock and target-branch lock files,
+checking unchanged file bytes, index, HEAD and the foreign lock itself. The expanded control
+passed before adding any index-lock-specific check, so the review hypothesis that a pre-existing
+index.lock corrupts this implementation was not reproduced; its existing dry-run preflight is
+retained. The standard `checkout: moving from ... to ...` reflog format is restored and tested
+through `@{-1}`. Branch occupancy is rechecked after the target reference lock is acquired.
+Eleven backend tests pass after these corrections. No filesystem transaction or protection
+against arbitrary external writers is claimed.

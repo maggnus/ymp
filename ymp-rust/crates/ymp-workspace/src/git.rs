@@ -747,11 +747,26 @@ fn switch_sync(cwd: &Path, branch: &str, expected_head: Option<&str>) -> Result<
     if identity(&repo)?.1.as_deref() != expected_head {
         return Err(GitError::Stale);
     }
+    // Another ymp process can have completed a checkout in another worktree between the
+    // initial enumeration and acquiring the target lock. Recheck under that shared lock.
+    if choices_sync(cwd)?
+        .branches
+        .iter()
+        .any(|candidate| candidate.name == branch && candidate.worktree.is_some())
+    {
+        return Err(GitError::Failed(
+            "This branch is already open in another worktree".into(),
+        ));
+    }
+    let (previous_branch, previous_head) = identity(&repo)?;
+    let previous = previous_branch
+        .or(previous_head)
+        .unwrap_or_else(|| "HEAD".into());
     transaction.set_symbolic_target(
         "HEAD",
         &target_ref,
         None,
-        &format!("checkout: switching to {branch}"),
+        &format!("checkout: moving from {previous} to {branch}"),
     )?;
     // Resolve the target after its lock is held; a Reference obtained before locking may
     // still carry an earlier object id if another Git operation moved the branch meanwhile.

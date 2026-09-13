@@ -1,0 +1,19 @@
+   Compiling ymp-workspace v0.4.6 (/Users/maggnus/Code/ymp2/ymp-rust/crates/ymp-workspace)
+    Finished `test` profile [unoptimized] target(s) in 1.31s
+     Running unittests src/lib.rs (target/debug/deps/ymp_workspace-53dce03cf1c40400)
+
+running 11 tests
+test git::tests::branch_switching_refuses_dirty_stale_and_occupied_branches ... ok
+test git::tests::cancellation_keeps_worker_ownership_until_blocking_work_finishes ... ok
+test git::tests::checkout_does_not_execute_hooks_or_overwrite_ignored_collisions ... ok
+test git::tests::checkout_records_the_standard_previous_branch_reflog ... ok
+test git::tests::committed_comparison_uses_the_base_and_not_working_edits ... ok
+test git::tests::empty_and_unborn_repositories_are_distinct_from_non_git ... ok
+test git::tests::native_paths_and_renames_keep_their_identity ... ok
+test git::tests::non_utf8_paths_are_not_lossily_replaced ... ok
+test git::tests::preexisting_git_locks_refuse_checkout_without_changing_files_index_or_head ... ok
+test git::tests::stale_diff_and_binary_or_oversized_content_are_not_misrepresented ... ok
+test git::tests::status_preserves_index_and_working_changes_even_when_the_net_diff_cancels ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 15 filtered out; finished in 0.22s
+
