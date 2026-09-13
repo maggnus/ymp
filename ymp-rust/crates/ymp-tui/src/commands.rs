@@ -123,7 +123,7 @@ pub const COMMANDS: &[Command] = &[
     Command {
         name: "/files",
         usage: "/files",
-        summary: "Files in the working directory.",
+        summary: "Browse files read only, starting in the working directory.",
         group: Group::Navigate,
         args: Args::None,
     },
@@ -314,6 +314,7 @@ pub const KEYS: &[(&str, &str)] = &[
         "Sort a page table by the column whose underlined letter it is",
     ),
     ("d", "Inspect the selected page row"),
+    ("Backspace", "On the files page, go to the parent directory"),
     (
         "Up / Down",
         "Move the selection, or recall composer history",

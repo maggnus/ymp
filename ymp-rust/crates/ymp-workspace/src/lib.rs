@@ -1,3 +1,4 @@
+pub mod preview;
 pub mod repository;
 
 use anyhow::{bail, Context, Result};

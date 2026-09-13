@@ -8,6 +8,7 @@
 
 use crate::commands;
 use crate::exit;
+use crate::files::{self, Files};
 use crate::frame;
 use crate::label;
 use crate::prefs::Prefs;
@@ -25,6 +26,7 @@ use std::path::PathBuf;
 use std::time::Instant;
 use ymp_core::{AgentProfile, Config, Message, SessionUsage, Task, UiEvent};
 use ymp_storage::Store;
+use ymp_workspace::preview::{self, Preview};
 use ymp_workspace::repository::{self, Repository};
 
 /// The runtime reports tool use inside a turn as agent activity: this prefix, then the tool.
@@ -55,6 +57,12 @@ pub enum Overlay {
     Themes { selected: usize, original: String },
     /// The complete attributed text of one message.
     Inspect {
+        title: String,
+        body: Vec<Line<'static>>,
+        scroll: usize,
+    },
+    /// The start of a file on the files page, or why it is not shown.
+    Preview {
         title: String,
         body: Vec<Line<'static>>,
         scroll: usize,
@@ -234,6 +242,9 @@ pub struct App {
     /// Discovered outside the drawing path: when the window opens, when the reader asks
     /// for the change page, and after a run, which is when the answer can have changed.
     pub repository: Repository,
+    /// Where the files page is in the working directory, and what it last read there. Moving
+    /// through it changes neither `cwd` nor the loaded session.
+    pub files: Files,
     pub prefs: Prefs,
     pub theme: Theme,
 
@@ -306,6 +317,7 @@ impl App {
             store,
             config,
             repository: repository::discover(&cwd),
+            files: Files::default(),
             cwd,
             prefs,
             theme,
@@ -457,6 +469,7 @@ impl App {
                     config: &self.config,
                     cwd: &self.cwd,
                     repository: &self.repository,
+                    files: &self.files,
                     theme: &theme,
                     session: self.session.as_deref(),
                     tasks: &self.tasks,
@@ -499,6 +512,10 @@ impl App {
 
     /// Build the open page again under a changed filter or sort, keeping the selected row.
     fn rearrange(&mut self) {
+        if self.view == View::Files {
+            // The explorer lists under the filter, so a changed filter reads the directory again.
+            self.files.set_filter(&self.table.filter);
+        }
         self.invalidate_page();
         self.page_top = 0;
         self.dirty = true;
@@ -652,6 +669,11 @@ impl App {
                 // A run may have created or removed a repository in the directory it
                 // worked in, so what was discovered at startup is re-read here.
                 self.repository = repository::discover(&self.cwd);
+                if self.view == View::Files {
+                    // The run may have changed the directory the files page shows.
+                    self.files.reload();
+                    self.invalidate_page();
+                }
             }
         }
         self.changed();
@@ -814,6 +836,10 @@ impl App {
     pub fn set_view(&mut self, view: View) {
         if view == View::Changes {
             self.repository = repository::discover(&self.cwd);
+        }
+        if view == View::Files {
+            // The page opens at the working directory and reads it now, never while painting.
+            self.files.open(&self.cwd);
         }
         if view.reads_records() {
             self.refresh_records();
@@ -1154,6 +1180,12 @@ impl App {
         let step = (self.viewport.height.max(3) - 2) as isize;
         if self.view == View::Chat {
             self.scroll_by(direction * step);
+        } else if self.view == View::Files {
+            self.files.step(if direction < 0 {
+                files::Step::PageUp
+            } else {
+                files::Step::PageDown
+            });
         } else {
             self.move_page_selection(direction * step, width);
         }
@@ -1336,6 +1368,8 @@ impl App {
             // Typing a filter: letters go into it, and only the arrows still move the selection.
             match key.code {
                 KeyCode::Enter => self.table.typing = false,
+                KeyCode::Up if self.view == View::Files => self.files.step(files::Step::Up),
+                KeyCode::Down if self.view == View::Files => self.files.step(files::Step::Down),
                 KeyCode::Up => self.move_page_selection(-1, width),
                 KeyCode::Down => self.move_page_selection(1, width),
                 KeyCode::Backspace => {
@@ -1349,6 +1383,9 @@ impl App {
                 _ => {}
             }
             return Vec::new();
+        }
+        if self.view == View::Files {
+            return self.files_key(key, plain, width);
         }
         match key.code {
             KeyCode::Up | KeyCode::Char('k') => self.move_page_selection(-1, width),
@@ -1402,7 +1439,12 @@ impl App {
             )));
         }
         body.push(Line::default());
-        body.extend(text::markdown(&entry.raw, width, &theme, theme.body()));
+        body.extend(text::markdown_highlighted(
+            &entry.raw,
+            width,
+            &theme,
+            theme.body(),
+        ));
         self.overlay = Some(Overlay::Inspect {
             title: entry.author.clone(),
             body,
@@ -1589,6 +1631,101 @@ impl App {
         Vec::new()
     }
 
+    /// Keys on the files page. The explorer moves the selection; Enter lists a directory or shows
+    /// the start of a file, and every other key only reads. Nothing here writes, runs anything or
+    /// changes the directory runs work in.
+    fn files_key(&mut self, key: KeyEvent, plain: bool, width: u16) -> Vec<Action> {
+        use files::Step;
+        if !plain {
+            return Vec::new();
+        }
+        match key.code {
+            KeyCode::Up | KeyCode::Char('k') => self.files.step(Step::Up),
+            KeyCode::Down | KeyCode::Char('j') => self.files.step(Step::Down),
+            KeyCode::Home => self.files.step(Step::Home),
+            KeyCode::End => self.files.step(Step::End),
+            KeyCode::Enter | KeyCode::Right | KeyCode::Char('l') => self.open_file(width),
+            KeyCode::Backspace | KeyCode::Left | KeyCode::Char('h') => {
+                let moved = self.files.leave();
+                self.files_moved(moved);
+            }
+            KeyCode::Char('/') => self.table.typing = true,
+            KeyCode::Char('d') => self.inspect_file(width),
+            KeyCode::Char('r') => {
+                self.files.reload();
+                self.invalidate_page();
+            }
+            _ => {}
+        }
+        Vec::new()
+    }
+
+    /// Enter on the files page: go up, list a directory, or show the start of a file or why it is
+    /// not shown. The path is examined again now, because it may have changed since the directory
+    /// was read.
+    fn open_file(&mut self, total: u16) {
+        let path = match self.files.target() {
+            None => return,
+            Some(files::Target::Parent) => {
+                let moved = self.files.leave();
+                return self.files_moved(moved);
+            }
+            Some(files::Target::Directory(path)) => {
+                let moved = self.files.enter(&path);
+                return self.files_moved(moved);
+            }
+            Some(files::Target::File(path)) => path,
+        };
+        match preview::read(&path, preview::PREVIEW_BYTES) {
+            // It has become a directory since the list was read.
+            Preview::Directory => {
+                let moved = self.files.enter(&path);
+                self.files_moved(moved);
+            }
+            preview => {
+                if preview == Preview::Missing {
+                    self.files.reload();
+                    self.invalidate_page();
+                }
+                let theme = self.theme;
+                let width = frame::preview_content_width(total) as usize;
+                let title = path
+                    .file_name()
+                    .map_or_else(|| files::display_path(&path), files::display_name);
+                self.overlay = Some(Overlay::Preview {
+                    title,
+                    body: files::preview_lines(&preview, &theme, width),
+                    scroll: 0,
+                });
+            }
+        }
+    }
+
+    /// After a move on the files page. A filter belongs to the directory it was typed on.
+    fn files_moved(&mut self, moved: bool) {
+        if moved {
+            self.table.clear_filter();
+        }
+        self.invalidate_page();
+        self.dirty = true;
+    }
+
+    /// `d` on the files page: the selected entry, described as it is now.
+    fn inspect_file(&mut self, total: u16) {
+        let Some(file) = self.files.selected() else {
+            return;
+        };
+        let (path, title) = (file.path.clone(), file.name.clone());
+        let parent = self.files.parent_selected();
+        let theme = self.theme;
+        let width = frame::inspect_content_width(total) as usize;
+        self.overlay = Some(Overlay::Inspect {
+            title,
+            body: files::details_lines(&path, parent, &theme, width),
+            scroll: 0,
+        });
+    }
+
     /// Open the selected row as a read-only record.
     ///
     /// The record is built again for the width of the surface that shows it, which is
@@ -1770,6 +1907,37 @@ impl App {
                     _ => scroll,
                 };
                 self.overlay = Some(Overlay::Inspect {
+                    title,
+                    body,
+                    scroll: next,
+                });
+                Vec::new()
+            }
+            Overlay::Preview {
+                title,
+                body,
+                scroll,
+            } => {
+                let height = self.viewport.height.max(4);
+                let next = match key.code {
+                    // The keys that go back from a list go back from a file to its list too.
+                    KeyCode::Esc
+                    | KeyCode::Enter
+                    | KeyCode::Char('q')
+                    | KeyCode::Backspace
+                    | KeyCode::Left
+                    | KeyCode::Char('h') => return Vec::new(),
+                    KeyCode::Up | KeyCode::Char('k') => scroll.saturating_sub(1),
+                    KeyCode::Down | KeyCode::Char('j') => {
+                        (scroll + 1).min(body.len().saturating_sub(1))
+                    }
+                    KeyCode::PageUp => scroll.saturating_sub(height),
+                    KeyCode::PageDown => (scroll + height).min(body.len().saturating_sub(1)),
+                    KeyCode::Home => 0,
+                    KeyCode::End => body.len().saturating_sub(1),
+                    _ => scroll,
+                };
+                self.overlay = Some(Overlay::Preview {
                     title,
                     body,
                     scroll: next,

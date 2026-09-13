@@ -1,0 +1,10 @@
+# After: feat/ymp139-file-navigation, the same two screen tests
+#   cargo test -p ymp-tui --lib -- --exact tests::enter_on_a_directory_lists_it_and_backspace_returns_to_its_row tests::enter_on_a_source_file_shows_its_literal_text
+
+
+running 2 tests
+test tests::enter_on_a_directory_lists_it_and_backspace_returns_to_its_row ... ok
+test tests::enter_on_a_source_file_shows_its_literal_text ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 237 filtered out; finished in 0.16s
+

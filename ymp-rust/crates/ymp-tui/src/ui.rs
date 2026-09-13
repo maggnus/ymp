@@ -17,6 +17,7 @@ use crate::views::{self, ItemKind, Page, View};
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::Style;
 use ratatui::text::{Line, Span};
+use ratatui::widgets::FrameExt as _;
 use ratatui::Frame;
 
 /// The tallest the composer may grow before it starts scrolling.
@@ -298,7 +299,10 @@ fn hints(
             } else {
                 page_hints.to_vec()
             };
-            hints.extend(TABLE_HINTS);
+            // The files page is a file explorer rather than a table, and names its own keys.
+            if app.view != View::Files {
+                hints.extend(TABLE_HINTS);
+            }
             hints
         }
     }
@@ -536,8 +540,13 @@ fn page_view(frame: &mut Frame, area: Rect, app: &mut App) {
     if !filter.is_empty() {
         left.push(Span::styled(format!("</{filter}>"), theme.accent()));
     }
-    if unfiltered > 0 {
-        left.push(Span::styled(format!("[{shown}]"), theme.muted()));
+    let count = if app.view == View::Files {
+        app.files.is_open().then(|| app.files.shown())
+    } else {
+        (unfiltered > 0).then_some(shown)
+    };
+    if let Some(count) = count {
+        left.push(Span::styled(format!("[{count}]"), theme.muted()));
     }
     left.push(Span::styled(format!("  {command}"), theme.faint()));
     frame::header(
@@ -561,6 +570,11 @@ fn page_view(frame: &mut Frame, area: Rect, app: &mut App) {
         frame::hairline_with(frame, split[1], &theme, theme.border(focused));
     }
     let body = split[2];
+
+    if app.view == View::Files {
+        files_body(frame, body, app, inner_width, focused, empty, &filter);
+        return;
+    }
 
     if !selectable {
         let inset = Rect {
@@ -626,6 +640,116 @@ fn page_view(frame: &mut Frame, area: Rect, app: &mut App) {
         *first = lines[header].clone();
     }
     frame::paint(frame, list_area, shown);
+}
+
+/// The files page below its header: why the last move failed, when it did, then the explorer's
+/// own list, and in place of rows that are not there, what is true instead.
+fn files_body(
+    frame: &mut Frame,
+    body: Rect,
+    app: &mut App,
+    inner_width: u16,
+    focused: bool,
+    empty: Vec<Line<'static>>,
+    filter: &str,
+) {
+    let theme = app.theme;
+    app.viewport.height = body.height as usize;
+    if !app.files.is_open() {
+        let inset = Rect {
+            x: body.x + frame::PAGE_INSET,
+            y: body.y + 1,
+            width: inner_width,
+            height: body.height.saturating_sub(1),
+        };
+        frame::paint(frame, inset, empty);
+        return;
+    }
+    let notes: Vec<Line<'static>> = app
+        .files
+        .notice()
+        .map(|notice| {
+            text::wrap(
+                &text::sanitize(&format!("{} {notice}", theme.markers.warn)),
+                inner_width.max(1) as usize,
+            )
+            .into_iter()
+            .map(|piece| Line::from(Span::styled(piece, theme.warn())))
+            .collect()
+        })
+        .unwrap_or_default();
+    let noted = (notes.len() as u16).min(body.height / 2);
+    frame::paint(
+        frame,
+        Rect {
+            x: body.x + frame::PAGE_INSET,
+            y: body.y,
+            width: inner_width,
+            height: noted,
+        },
+        notes,
+    );
+    let list = Rect {
+        x: body.x + 1,
+        y: body.y + noted,
+        width: inner_width,
+        height: body.height - noted,
+    };
+    let instead = if app.files.shown() > 0 {
+        Vec::new()
+    } else if !filter.trim().is_empty() {
+        vec![
+            Line::from(Span::styled(
+                format!("Nothing in this directory matches /{filter}"),
+                theme.text(),
+            )),
+            Line::from(Span::styled(
+                "Esc clears the filter.".to_owned(),
+                theme.faint(),
+            )),
+        ]
+    } else {
+        vec![
+            Line::from(Span::styled(
+                "This directory is empty".to_owned(),
+                theme.bold(),
+            )),
+            Line::from(Span::styled(
+                "Backspace goes to the parent directory.".to_owned(),
+                theme.faint(),
+            )),
+        ]
+    };
+    // Only the rows there are take room when something is said beneath them.
+    let rows = if instead.is_empty() {
+        list.height
+    } else {
+        (app.files.rows() as u16).min(list.height)
+    };
+    app.files.style(&theme, focused);
+    if let Some(widget) = app.files.widget() {
+        frame.render_widget_ref(
+            widget,
+            Rect {
+                height: rows,
+                ..list
+            },
+        );
+    }
+    if !instead.is_empty() {
+        let gap = rows.saturating_add(1).min(list.height);
+        frame::paint(
+            frame,
+            Rect {
+                x: body.x + frame::PAGE_INSET,
+                y: list.y + gap,
+                width: inner_width,
+                height: list.height - gap,
+            },
+            instead,
+        );
+    }
+    app.viewport.height = list.height as usize;
 }
 
 /// Lay out a page's tables: for each its title, its column titles and its rows.
@@ -987,6 +1111,32 @@ fn overlay(frame: &mut Frame, area: Rect, regions: &[Rect], app: &App) -> Option
                     width: frame::inspect_width(area.width),
                     body: body.clone(),
                     footer: vec![("Up/Down", "scroll"), ("Esc", "close")],
+                    scroll: *scroll,
+                },
+                theme,
+            );
+            None
+        }
+        Overlay::Preview {
+            title,
+            body,
+            scroll,
+        } => {
+            frame::render_modal(
+                frame,
+                area,
+                regions,
+                &ModalSpec {
+                    title: title.clone(),
+                    badge: "read only".into(),
+                    role: ModalRole::Reference,
+                    width: frame::preview_width(area.width),
+                    body: body.clone(),
+                    footer: vec![
+                        ("Up/Down", "scroll"),
+                        ("PageUp/PageDown", "page"),
+                        ("Esc", "back to the list"),
+                    ],
                     scroll: *scroll,
                 },
                 theme,

@@ -1,0 +1,191 @@
+# Before: base 508d7f575ea73e9b4d65e81949b006883197caad with only two new screen tests added
+#
+# Source: `git archive 508d7f5` extracted to a scratch directory, with the helpers and the two tests
+# below appended unchanged from feat/ymp139-file-navigation to ymp-rust/crates/ymp-tui/src/tests.rs.
+# Command, with CARGO_BUILD_JOBS=2, CARGO_PROFILE_DEV_DEBUG=0, CARGO_INCREMENTAL=0 and a target
+# directory inside the worktree's target:
+#   cargo test -p ymp-tui --lib -- --exact \
+#     tests::enter_on_a_directory_lists_it_and_backspace_returns_to_its_row \
+#     tests::enter_on_a_source_file_shows_its_literal_text
+# Exit status: 101. On the base, Enter on a directory or a file opens a popup with the path, so
+# neither the directory's entries nor the file's text is shown. Temporary directory names differ
+# between runs.
+
+running 2 tests
+test tests::enter_on_a_source_file_shows_its_literal_text ... FAILED
+test tests::enter_on_a_directory_lists_it_and_backspace_returns_to_its_row ... FAILED
+
+failures:
+
+---- tests::enter_on_a_source_file_shows_its_literal_text stdout ----
+
+thread 'tests::enter_on_a_source_file_shows_its_literal_text' panicked at ymp-rust/crates/ymp-tui/src/tests.rs:9535:5:
+the source was not shown as written:
+ymp  .tmpD94fiv  /var/folders/cw/7pn8sb3x6bj69g7j2d8f_ss00000gn/T/.tmpD94fiv                   no session  0 / 200 turns
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ Files[1]  /files            /var/folders/cw/7pn8sb3x6bj69g7j2d8f_ss00000gn/T/.tmpD94fiv │ SESSION
+─────────────────────────────────────────────────────────────────────────────────────────│ none · the next message open
+   NAME     KIND  SIZE                                                                   │ turns next run       0 / 200
+ › main.rs  file  50 B                                                                   │ dir …_ss00000gn/T/.tmpD94fiv
+                                                                                         │
+                                                                                         │ TOKENS                     —
+                                                                                         │ none · nothing spent yet
+                                                                                         │
+                 ┌ main.rs ──────────────────────────────────────────────────────────────── read only ┐        next run
+                 │ path              /var/folders/cw/7pn8sb3x6bj69g7j2d8f_ss00000gn/T/.tmpD94fiv/main │     STATE
+                 │                   .rs                                                              │ el  idle
+                 │ kind              file                                                             │ el  idle
+                 │ size              50 B                                                             │
+                 │                                                                                    │
+                 │ Up/Down scroll  Esc close                                                          │  yet
+                 └────────────────────────────────────────────────────────────────────────────────────┘
+                                                                                         │
+                                                                                         │
+                                                                                         │
+                                                                                         │
+                                                                                         │
+                                                                                         │
+                                                                                         │
+                                                                                         │
+                                                                                         │
+                                                                                         │
+                                                                                         │
+                                                                                         │
+                                                                                         │
+                                                                                         │
+                                                                                         │
+                                                                                         │
+                                                                                         │
+                                                                                         │
+                                                                                         │
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+› Describe a task, or type / for commands.
+Ready                                    main Enter show the full path  Esc back  / filter  Shift+letter sort  d inspect
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- tests::enter_on_a_directory_lists_it_and_backspace_returns_to_its_row stdout ----
+
+thread 'tests::enter_on_a_directory_lists_it_and_backspace_returns_to_its_row' panicked at ymp-rust/crates/ymp-tui/src/tests.rs:9508:5:
+Enter did not list the directory:
+ymp  .tmpkyqLus  /var/folders/cw/7pn8sb3x6bj69g7j2d8f_ss00000gn/T/.tmpkyqLus                   no session  0 / 200 turns
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ Files[3]  /files            /var/folders/cw/7pn8sb3x6bj69g7j2d8f_ss00000gn/T/.tmpkyqLus │ SESSION
+─────────────────────────────────────────────────────────────────────────────────────────│ none · the next message open
+   NAME       KIND       SIZE                                                            │ turns next run       0 / 200
+   docs/      directory                                                                  │ dir …_ss00000gn/T/.tmpkyqLus
+ › src/       directory                                                                  │
+   README.md  file        7 B                                                            │ TOKENS                     —
+                                                                                         │ none · nothing spent yet
+                                                                                         │
+                                                                                         │                     next run
+                 ┌ src/ ─────────────────────────────────────────────────────────────────── read only ┐     STATE
+                 │ path              /var/folders/cw/7pn8sb3x6bj69g7j2d8f_ss00000gn/T/.tmpkyqLus/src  │ el  idle
+                 │ kind              directory                                                        │ el  idle
+                 │                                                                                    │
+                 │ Up/Down scroll  Esc close                                                          │
+                 └────────────────────────────────────────────────────────────────────────────────────┘  yet
+                                                                                         │
+                                                                                         │
+                                                                                         │
+                                                                                         │
+                                                                                         │
+                                                                                         │
+                                                                                         │
+                                                                                         │
+                                                                                         │
+                                                                                         │
+                                                                                         │
+                                                                                         │
+                                                                                         │
+                                                                                         │
+                                                                                         │
+                                                                                         │
+                                                                                         │
+                                                                                         │
+                                                                                         │
+                                                                                         │
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+› Describe a task, or type / for commands.
+Ready                                    main Enter show the full path  Esc back  / filter  Shift+letter sort  d inspect
+
+
+failures:
+    tests::enter_on_a_directory_lists_it_and_backspace_returns_to_its_row
+    tests::enter_on_a_source_file_shows_its_literal_text
+
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 213 filtered out; finished in 0.03s
+
+error: test failed, to rerun pass `-p ymp-tui --lib`
+
+# Tests added to the base, verbatim
+
+/// The terminal the files page tests draw.
+const FILES_SCREEN: (u16, u16) = (120, 40);
+
+fn files_screen(app: &mut App) -> String {
+    screen_rows(app, FILES_SCREEN.0, FILES_SCREEN.1).join("\n")
+}
+
+/// Press Down on the files page until the row named `name` is the selected one, reading the
+/// screen the way a person does.
+fn select_file_row(app: &mut App, name: &str) {
+    let selected = format!("{} {name}", app.theme.markers.selection);
+    for _ in 0..60 {
+        if files_screen(app).contains(&selected) {
+            return;
+        }
+        app.on_key(key(KeyCode::Down), FILES_SCREEN.0);
+    }
+    panic!("{name} was never selected:\n{}", files_screen(app));
+}
+
+#[test]
+fn enter_on_a_directory_lists_it_and_backspace_returns_to_its_row() {
+    let fixture = fixture();
+    let root = fixture.project.path();
+    std::fs::create_dir_all(root.join("src/nested")).unwrap();
+    std::fs::write(root.join("src/main.rs"), "fn main() {}\n").unwrap();
+    std::fs::create_dir(root.join("docs")).unwrap();
+    std::fs::write(root.join("README.md"), "# Demo\n").unwrap();
+    let mut app = fixture.app();
+    app.command("/files", FILES_SCREEN.0);
+    select_file_row(&mut app, "src/");
+
+    app.on_key(key(KeyCode::Enter), FILES_SCREEN.0);
+    let screen = files_screen(&mut app);
+    assert!(
+        screen.contains("nested/") && screen.contains("main.rs") && !screen.contains("README.md"),
+        "Enter did not list the directory:\n{screen}"
+    );
+
+    app.on_key(key(KeyCode::Backspace), FILES_SCREEN.0);
+    let screen = files_screen(&mut app);
+    let selected = format!("{} src/", app.theme.markers.selection);
+    assert!(
+        screen.contains(&selected) && screen.contains("README.md"),
+        "Backspace did not return to the row that was entered:\n{screen}"
+    );
+}
+
+#[test]
+fn enter_on_a_source_file_shows_its_literal_text() {
+    let fixture = fixture();
+    std::fs::write(
+        fixture.project.path().join("main.rs"),
+        "fn main() {\n    println!(\"a  b\");\n\tlet tab = 1;\n}\n",
+    )
+    .unwrap();
+    let mut app = fixture.app();
+    app.command("/files", FILES_SCREEN.0);
+    select_file_row(&mut app, "main.rs");
+    app.on_key(key(KeyCode::Enter), FILES_SCREEN.0);
+    let screen = files_screen(&mut app);
+    assert!(
+        screen.contains("println!(\"a  b\");"),
+        "the source was not shown as written:\n{screen}"
+    );
+    assert!(
+        screen.contains("    let tab = 1;"),
+        "a tab did not reach its stop:\n{screen}"
+    );
+}

@@ -224,27 +224,79 @@ fn split_to_width(word: &str, width: usize) -> Vec<String> {
     pieces
 }
 
+/// Wrap styled pieces to `width` cells without losing a character, as [`wrap_exact`] wraps
+/// plain text. Every row is returned, including an empty one for empty input.
+pub fn wrap_styled(pieces: &[(Style, String)], width: usize) -> Vec<Vec<Span<'static>>> {
+    let width = width.max(1);
+    let mut rows: Vec<Vec<Span<'static>>> = vec![Vec::new()];
+    let mut used = 0usize;
+    for (style, piece) in pieces {
+        let mut run = String::new();
+        for ch in piece.chars() {
+            let cell = char_width(ch);
+            if used + cell > width && used > 0 {
+                if let Some(row) = rows.last_mut() {
+                    if !run.is_empty() {
+                        row.push(Span::styled(std::mem::take(&mut run), *style));
+                    }
+                }
+                rows.push(Vec::new());
+                used = 0;
+            }
+            run.push(ch);
+            used += cell;
+        }
+        if let Some(row) = rows.last_mut() {
+            if !run.is_empty() {
+                row.push(Span::styled(run, *style));
+            }
+        }
+    }
+    rows
+}
+
 /// Render a small, well-behaved subset of Markdown: headings, bullets, ordered items,
 /// fenced code, inline code, and bold runs. Anything else is shown verbatim.
 pub fn markdown(text: &str, width: usize, theme: &Theme, base: Style) -> Vec<Line<'static>> {
+    render_markdown(text, width, theme, base, false)
+}
+
+/// [`markdown`], with fenced code that names a language the highlighter knows drawn in the
+/// theme's syntax colours. Only a surface that shows one message at a time uses it: the
+/// transcript lays out every entry again as it changes, and highlighting costs far more.
+pub fn markdown_highlighted(
+    text: &str,
+    width: usize,
+    theme: &Theme,
+    base: Style,
+) -> Vec<Line<'static>> {
+    render_markdown(text, width, theme, base, true)
+}
+
+fn render_markdown(
+    text: &str,
+    width: usize,
+    theme: &Theme,
+    base: Style,
+    highlighted: bool,
+) -> Vec<Line<'static>> {
     let markers = theme.markers;
     let mut lines = Vec::new();
-    let mut fenced = false;
+    // The info string of the open fence, and the code under it so far.
+    let mut fence: Option<(String, Vec<String>)> = None;
     for raw in sanitize(text).split('\n') {
         let trimmed = raw.trim_end();
-        if trimmed.trim_start().starts_with("```") {
-            fenced = !fenced;
+        if let Some(info) = trimmed.trim_start().strip_prefix("```") {
+            match fence.take() {
+                Some((info, code)) => {
+                    push_code(&mut lines, &info, &code, width, theme, highlighted)
+                }
+                None => fence = Some((info.trim().to_owned(), Vec::new())),
+            }
             continue;
         }
-        if fenced {
-            let gutter = format!("{} ", markers.gutter);
-            // Code is wrapped exactly: indentation and repeated spaces are content.
-            for piece in wrap_exact(trimmed, width.saturating_sub(gutter.len() + 1).max(1)) {
-                lines.push(Line::from(vec![
-                    Span::styled(gutter.clone(), theme.faint()),
-                    Span::styled(piece, theme.code()),
-                ]));
-            }
+        if let Some((_, code)) = fence.as_mut() {
+            code.push(trimmed.to_owned());
             continue;
         }
         if trimmed.trim().is_empty() {
@@ -271,10 +323,68 @@ pub fn markdown(text: &str, width: usize, theme: &Theme, base: Style) -> Vec<Lin
         }
         push_wrapped(&mut lines, trimmed, width, theme, base, "");
     }
+    // A fence left open runs to the end of the text.
+    if let Some((info, code)) = fence.take() {
+        push_code(&mut lines, &info, &code, width, theme, highlighted);
+    }
     if lines.is_empty() {
         lines.push(Line::default());
     }
     lines
+}
+
+/// Fenced code under a gutter, wrapped exactly: indentation and repeated spaces are content.
+fn push_code(
+    lines: &mut Vec<Line<'static>>,
+    info: &str,
+    code: &[String],
+    width: usize,
+    theme: &Theme,
+    highlighted: bool,
+) {
+    let gutter = format!("{} ", theme.markers.gutter);
+    let room = width.saturating_sub(gutter.len() + 1).max(1);
+    let language = if highlighted && !code.is_empty() {
+        crate::highlight::for_token(info)
+    } else {
+        None
+    };
+    let Some(language) = language else {
+        for line in code {
+            for piece in wrap_exact(line, room) {
+                lines.push(Line::from(vec![
+                    Span::styled(gutter.clone(), theme.faint()),
+                    Span::styled(piece, theme.code()),
+                ]));
+            }
+        }
+        return;
+    };
+    let mut source = code.join("\n");
+    source.push('\n');
+    let result = crate::highlight::highlight(
+        &source,
+        language,
+        theme,
+        theme.raised,
+        theme.code(),
+        crate::highlight::BUDGET,
+    );
+    for pieces in &result.lines {
+        for row in wrap_styled(pieces, room) {
+            let mut spans = vec![Span::styled(gutter.clone(), theme.faint())];
+            if row.is_empty() {
+                spans.push(Span::styled(String::new(), theme.code()));
+            }
+            spans.extend(row);
+            lines.push(Line::from(spans));
+        }
+    }
+    if let Some(stop) = &result.stopped {
+        for piece in wrap(&stop.sentence(), width.max(1)) {
+            lines.push(Line::from(Span::styled(piece, theme.faint())));
+        }
+    }
 }
 
 fn push_wrapped(

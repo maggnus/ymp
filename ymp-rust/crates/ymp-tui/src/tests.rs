@@ -9468,3 +9468,448 @@ async fn home_wins_over_a_record_remembered_from_a_live_update() {
     app.on_key(key(KeyCode::End), 100);
     assert_eq!(&app.selected_item(100).unwrap().key, rows.last().unwrap());
 }
+
+// ---------------------------------------------------------------------------
+// File navigation
+// ---------------------------------------------------------------------------
+
+/// The terminal the files page tests draw.
+const FILES_SCREEN: (u16, u16) = (120, 40);
+
+fn files_screen(app: &mut App) -> String {
+    screen_rows(app, FILES_SCREEN.0, FILES_SCREEN.1).join("\n")
+}
+
+/// Press Down on the files page until the row named `name` is the selected one, reading the
+/// screen the way a person does.
+fn select_file_row(app: &mut App, name: &str) {
+    let selected = format!("{} {name}", app.theme.markers.selection);
+    for _ in 0..60 {
+        if files_screen(app).contains(&selected) {
+            return;
+        }
+        app.on_key(key(KeyCode::Down), FILES_SCREEN.0);
+    }
+    panic!("{name} was never selected:\n{}", files_screen(app));
+}
+
+/// Select `name`, press Enter, and return the screen with the result before closing it again.
+fn open_file_row(app: &mut App, name: &str) -> String {
+    select_file_row(app, name);
+    app.on_key(key(KeyCode::Enter), FILES_SCREEN.0);
+    let screen = files_screen(app);
+    app.on_key(key(KeyCode::Esc), FILES_SCREEN.0);
+    screen
+}
+
+/// The cell where `needle` starts on a drawn screen.
+fn cell_of(buffer: &ratatui::buffer::Buffer, needle: &str) -> Option<(u16, u16)> {
+    let symbols: Vec<String> = needle.chars().map(String::from).collect();
+    let area = buffer.area;
+    (0..area.height).find_map(|y| {
+        (0..area.width).find_map(|x| {
+            symbols
+                .iter()
+                .enumerate()
+                .all(|(offset, symbol)| {
+                    let column = x as usize + offset;
+                    column < area.width as usize && buffer[(column as u16, y)].symbol() == symbol
+                })
+                .then_some((x, y))
+        })
+    })
+}
+
+/// Every file and directory beneath `root` with its contents, to show that browsing changed none.
+fn tree(root: &std::path::Path) -> Vec<(PathBuf, Option<Vec<u8>>)> {
+    let mut seen = Vec::new();
+    let mut pending = vec![root.to_path_buf()];
+    while let Some(directory) = pending.pop() {
+        for entry in std::fs::read_dir(&directory).unwrap() {
+            let path = entry.unwrap().path();
+            if path.is_dir() {
+                pending.push(path.clone());
+                seen.push((path, None));
+            } else {
+                let contents = std::fs::read(&path).unwrap();
+                seen.push((path, Some(contents)));
+            }
+        }
+    }
+    seen.sort();
+    seen
+}
+
+#[test]
+fn enter_on_a_directory_lists_it_and_backspace_returns_to_its_row() {
+    let fixture = fixture();
+    let root = fixture.project.path();
+    std::fs::create_dir_all(root.join("src/nested")).unwrap();
+    std::fs::write(root.join("src/main.rs"), "fn main() {}\n").unwrap();
+    std::fs::create_dir(root.join("docs")).unwrap();
+    std::fs::write(root.join("README.md"), "# Demo\n").unwrap();
+    let mut app = fixture.app();
+    app.command("/files", FILES_SCREEN.0);
+    select_file_row(&mut app, "src/");
+
+    app.on_key(key(KeyCode::Enter), FILES_SCREEN.0);
+    let screen = files_screen(&mut app);
+    assert!(
+        screen.contains("nested/") && screen.contains("main.rs") && !screen.contains("README.md"),
+        "Enter did not list the directory:\n{screen}"
+    );
+
+    app.on_key(key(KeyCode::Backspace), FILES_SCREEN.0);
+    let screen = files_screen(&mut app);
+    let selected = format!("{} src/", app.theme.markers.selection);
+    assert!(
+        screen.contains(&selected) && screen.contains("README.md"),
+        "Backspace did not return to the row that was entered:\n{screen}"
+    );
+}
+
+#[test]
+fn enter_on_a_source_file_shows_its_literal_text() {
+    let fixture = fixture();
+    std::fs::write(
+        fixture.project.path().join("main.rs"),
+        "fn main() {\n    println!(\"a  b\");\n\tlet tab = 1;\n}\n",
+    )
+    .unwrap();
+    let mut app = fixture.app();
+    app.command("/files", FILES_SCREEN.0);
+    select_file_row(&mut app, "main.rs");
+    app.on_key(key(KeyCode::Enter), FILES_SCREEN.0);
+    let screen = files_screen(&mut app);
+    assert!(
+        screen.contains("println!(\"a  b\");"),
+        "the source was not shown as written:\n{screen}"
+    );
+    assert!(
+        screen.contains("    let tab = 1;"),
+        "a tab did not reach its stop:\n{screen}"
+    );
+}
+
+#[test]
+fn a_source_preview_takes_the_theme_colours_and_names_its_language() {
+    let fixture = fixture();
+    std::fs::write(
+        fixture.project.path().join("main.rs"),
+        "// note\nfn main() {\n    let s = \"text\";\n}\n",
+    )
+    .unwrap();
+    let mut app = fixture.app();
+    app.command("/files", FILES_SCREEN.0);
+    select_file_row(&mut app, "main.rs");
+    app.on_key(key(KeyCode::Enter), FILES_SCREEN.0);
+    let (width, height) = FILES_SCREEN;
+    let mut terminal = Terminal::new(TestBackend::new(width, height)).unwrap();
+    terminal.draw(|frame| ui::render(frame, &mut app)).unwrap();
+    let buffer = terminal.backend().buffer().clone();
+    let theme = app.theme;
+    let colour = |needle: &str| {
+        let (x, y) = cell_of(&buffer, needle).unwrap_or_else(|| panic!("{needle} is not drawn"));
+        buffer[(x, y)].fg
+    };
+    let role = |color| crate::highlight::legible(&theme, color, theme.surface);
+    assert_eq!(colour("// note"), role(theme.muted));
+    assert_eq!(colour("fn main"), role(theme.accent));
+    assert_eq!(colour("\"text\""), role(theme.good));
+    assert!(cell_of(&buffer, "Rust · 4 lines").is_some());
+
+    // The list follows a change of theme, selection included.
+    app.on_key(key(KeyCode::Esc), FILES_SCREEN.0);
+    app.apply_theme("slate");
+    terminal.draw(|frame| ui::render(frame, &mut app)).unwrap();
+    let buffer = terminal.backend().buffer().clone();
+    let selected = format!("{} main.rs", app.theme.markers.selection);
+    let (x, y) = cell_of(&buffer, &selected).expect("the selected row is drawn");
+    assert_eq!(buffer[(x + 3, y)].bg, app.theme.accent);
+}
+
+#[test]
+fn large_binary_and_empty_files_are_described_rather_than_dumped() {
+    let fixture = fixture();
+    let root = fixture.project.path();
+    std::fs::write(root.join("large.txt"), "line of text\n".repeat(40_000)).unwrap();
+    std::fs::write(root.join("binary.bin"), b"ELF\x7f\x00\x01\x02").unwrap();
+    std::fs::write(root.join("empty.txt"), b"").unwrap();
+    let mut app = fixture.app();
+    app.command("/files", FILES_SCREEN.0);
+
+    select_file_row(&mut app, "large.txt");
+    app.on_key(key(KeyCode::Enter), FILES_SCREEN.0);
+    let screen = files_screen(&mut app);
+    assert!(
+        screen.contains("Only the first 256.0 kB of 507.8 kB were read.")
+            && screen.contains("Only the first 5000 lines are shown."),
+        "{screen}"
+    );
+    app.on_key(key(KeyCode::End), FILES_SCREEN.0);
+    let screen = files_screen(&mut app);
+    assert!(
+        screen.contains("The file continues beyond this point."),
+        "{screen}"
+    );
+    app.on_key(key(KeyCode::Esc), FILES_SCREEN.0);
+
+    let screen = open_file_row(&mut app, "binary.bin");
+    assert!(
+        screen.contains("Not shown: this looks like binary content, with a NUL byte at offset 4."),
+        "{screen}"
+    );
+    assert!(open_file_row(&mut app, "empty.txt").contains("The file is empty."));
+}
+
+#[cfg(unix)]
+#[test]
+fn unreadable_files_directories_and_fifos_are_ordinary_states() {
+    use std::os::unix::fs::PermissionsExt;
+    let fixture = fixture();
+    let root = fixture.project.path();
+    std::fs::create_dir(root.join("locked")).unwrap();
+    std::fs::write(root.join("locked.txt"), "secret").unwrap();
+    std::fs::write(root.join("visible.txt"), "").unwrap();
+    let fifo = std::ffi::CString::new(root.join("pipe").as_os_str().as_encoded_bytes()).unwrap();
+    assert_eq!(unsafe { libc::mkfifo(fifo.as_ptr(), 0o600) }, 0);
+    let mut app = fixture.app();
+    app.command("/files", FILES_SCREEN.0);
+
+    let started = Instant::now();
+    let screen = open_file_row(&mut app, "pipe");
+    assert!(screen.contains("A FIFO is not opened"), "{screen}");
+    assert!(started.elapsed() < Duration::from_secs(5));
+
+    for path in ["locked", "locked.txt"] {
+        std::fs::set_permissions(root.join(path), PermissionsExt::from_mode(0o000)).unwrap();
+    }
+    // A superuser reads through permissions, so there is nothing to observe.
+    let privileged = std::fs::read(root.join("locked.txt")).is_ok();
+    let file = open_file_row(&mut app, "locked.txt");
+    select_file_row(&mut app, "locked/");
+    app.on_key(key(KeyCode::Enter), FILES_SCREEN.0);
+    let directory = files_screen(&mut app);
+    for path in ["locked", "locked.txt"] {
+        std::fs::set_permissions(root.join(path), PermissionsExt::from_mode(0o700)).unwrap();
+    }
+    if privileged {
+        return;
+    }
+    assert!(file.contains("This cannot be read:"), "{file}");
+    let selected = format!("{} locked/", app.theme.markers.selection);
+    // The notice wraps with the width of the page, so it is recognised by the reason it gives.
+    assert!(
+        directory.contains("Permission denied")
+            && directory.contains("visible.txt")
+            && directory.contains(&selected),
+        "the failed move lost the list:\n{directory}"
+    );
+}
+
+#[test]
+fn a_directory_removed_after_it_was_listed_is_reported_and_read_again() {
+    let fixture = fixture();
+    let root = fixture.project.path();
+    std::fs::create_dir(root.join("gone")).unwrap();
+    std::fs::write(root.join("kept.txt"), "").unwrap();
+    let mut app = fixture.app();
+    app.command("/files", FILES_SCREEN.0);
+    select_file_row(&mut app, "gone/");
+    std::fs::remove_dir(root.join("gone")).unwrap();
+    app.on_key(key(KeyCode::Enter), FILES_SCREEN.0);
+    let screen = files_screen(&mut app);
+    assert!(screen.contains("(os error"), "{screen}");
+    assert!(app.files.notice().is_some());
+    app.on_key(key(KeyCode::Char('r')), FILES_SCREEN.0);
+    let screen = files_screen(&mut app);
+    assert!(
+        !screen.contains("gone/") && !screen.contains("(os error") && screen.contains("kept.txt"),
+        "{screen}"
+    );
+    assert_eq!(app.files.notice(), None);
+}
+
+#[test]
+fn unusual_names_are_escaped_and_each_opens_its_own_file() {
+    let fixture = fixture();
+    let root = fixture.project.path();
+    std::fs::write(root.join("same-a\nb.rs"), "NEWLINE-PAYLOAD\n").unwrap();
+    std::fs::write(root.join("same-a b.rs"), "SPACE-PAYLOAD\n").unwrap();
+    std::fs::write(root.join("\u{1b}[31mred.txt"), "ESCAPE-PAYLOAD\n").unwrap();
+    std::fs::write(root.join("back\\slash.txt"), "BACKSLASH-PAYLOAD\n").unwrap();
+    let mut app = fixture.app();
+    app.command("/files", FILES_SCREEN.0);
+    let screen = files_screen(&mut app);
+    assert!(
+        !screen.contains('\u{1b}'),
+        "a name reached the terminal as an escape sequence"
+    );
+    for (shown, payload, other) in [
+        ("same-a\\nb.rs", "NEWLINE-PAYLOAD", "SPACE-PAYLOAD"),
+        ("same-a b.rs", "SPACE-PAYLOAD", "NEWLINE-PAYLOAD"),
+        ("\\u{1B}[31mred.txt", "ESCAPE-PAYLOAD", "SPACE-PAYLOAD"),
+        ("back\\\\slash.txt", "BACKSLASH-PAYLOAD", "SPACE-PAYLOAD"),
+    ] {
+        let screen = open_file_row(&mut app, shown);
+        assert!(
+            screen.contains(payload) && !screen.contains(other),
+            "{shown} did not open its own file:\n{screen}"
+        );
+    }
+}
+
+#[cfg(unix)]
+#[test]
+fn a_link_is_named_with_its_target_and_described_before_it_is_followed() {
+    let fixture = fixture();
+    let root = fixture.project.path();
+    std::fs::create_dir(root.join("src")).unwrap();
+    std::fs::write(root.join("src/lib.rs"), "pub fn lib() {}\n").unwrap();
+    std::os::unix::fs::symlink("src/lib.rs", root.join("to-lib")).unwrap();
+    let mut app = fixture.app();
+    app.command("/files", FILES_SCREEN.0);
+    select_file_row(&mut app, "to-lib -> src/lib.rs");
+    app.on_key(key(KeyCode::Char('d')), FILES_SCREEN.0);
+    let details = files_screen(&mut app);
+    assert!(
+        details.contains("link to a file") && details.contains("stores"),
+        "{details}"
+    );
+    app.on_key(key(KeyCode::Esc), FILES_SCREEN.0);
+    let screen = open_file_row(&mut app, "to-lib -> src/lib.rs");
+    assert!(
+        screen.contains("pub fn lib() {}") && screen.contains("Rust · 1 line"),
+        "{screen}"
+    );
+}
+
+#[test]
+fn a_filter_narrows_the_list_and_esc_clears_it_before_closing_the_page() {
+    let fixture = fixture();
+    let root = fixture.project.path();
+    for name in ["main.rs", "lib.rs", "README.md"] {
+        std::fs::write(root.join(name), "").unwrap();
+    }
+    let mut app = fixture.app();
+    app.command("/files", FILES_SCREEN.0);
+    app.on_key(key(KeyCode::Char('/')), FILES_SCREEN.0);
+    typed(&mut app, "MAIN");
+    app.on_key(key(KeyCode::Enter), FILES_SCREEN.0);
+    let screen = files_screen(&mut app);
+    assert!(
+        screen.contains("</MAIN>[1]")
+            && screen.contains("main.rs")
+            && !screen.contains("README.md"),
+        "{screen}"
+    );
+    let selected = format!("{} main.rs", app.theme.markers.selection);
+    assert!(
+        screen.contains(&selected),
+        "the match was not selected:\n{screen}"
+    );
+
+    app.on_key(key(KeyCode::Esc), FILES_SCREEN.0);
+    let screen = files_screen(&mut app);
+    assert!(
+        screen.contains("README.md") && screen.contains("[3]"),
+        "{screen}"
+    );
+    assert_eq!(app.view, View::Files);
+    app.on_key(key(KeyCode::Esc), FILES_SCREEN.0);
+    assert_eq!(app.view, View::Chat);
+}
+
+#[test]
+fn browsing_above_the_start_changes_no_directory_setting_or_file() {
+    let fixture = fixture();
+    let root = fixture.project.path();
+    std::fs::create_dir(root.join("src")).unwrap();
+    std::fs::write(root.join("src/lib.rs"), "pub fn lib() {}\n").unwrap();
+    let mut app = fixture.app();
+    let config = serde_json::to_string(&app.config).unwrap();
+    let before = tree(root);
+    let project = root.file_name().unwrap().to_string_lossy().into_owned();
+    app.command("/files", FILES_SCREEN.0);
+
+    let mut actions = Vec::new();
+    actions.extend(app.on_key(key(KeyCode::Backspace), FILES_SCREEN.0));
+    assert_eq!(app.files.directory(), root.parent().unwrap());
+    select_file_row(&mut app, &format!("{project}/"));
+    actions.extend(app.on_key(key(KeyCode::Enter), FILES_SCREEN.0));
+    assert_eq!(app.files.directory(), root);
+    select_file_row(&mut app, "src/");
+    actions.extend(app.on_key(key(KeyCode::Right), FILES_SCREEN.0));
+    select_file_row(&mut app, "lib.rs");
+    for code in [
+        KeyCode::Enter,
+        KeyCode::Esc,
+        KeyCode::Char('d'),
+        KeyCode::Esc,
+        KeyCode::Char('r'),
+        KeyCode::Left,
+        KeyCode::Left,
+    ] {
+        actions.extend(app.on_key(key(code), FILES_SCREEN.0));
+    }
+    assert_eq!(app.files.directory(), root.parent().unwrap());
+    assert!(actions.is_empty(), "{actions:?}");
+    assert_eq!(app.cwd, root);
+    assert_eq!(app.session, None);
+    assert_eq!(serde_json::to_string(&app.config).unwrap(), config);
+    assert_eq!(tree(root), before, "browsing changed the project");
+}
+
+#[test]
+fn ctrl_c_twice_leaves_from_a_file_preview() {
+    let fixture = fixture();
+    std::fs::write(fixture.project.path().join("main.rs"), "fn main() {}\n").unwrap();
+    let mut app = fixture.app();
+    app.command("/files", FILES_SCREEN.0);
+    select_file_row(&mut app, "main.rs");
+    app.on_key(key(KeyCode::Enter), FILES_SCREEN.0);
+    assert!(matches!(app.overlay, Some(Overlay::Preview { .. })));
+    assert_eq!(
+        app.on_key(control('c'), FILES_SCREEN.0),
+        Vec::<Action>::new()
+    );
+    assert!(matches!(app.overlay, Some(Overlay::Preview { .. })));
+    assert_eq!(app.on_key(control('c'), FILES_SCREEN.0), vec![Action::Quit]);
+}
+
+#[test]
+fn an_empty_list_at_the_filesystem_root_takes_every_key() {
+    let fixture = fixture();
+    let mut app = fixture.app();
+    app.command("/files", FILES_SCREEN.0);
+    for _ in 0..64 {
+        if app.files.directory() == std::path::Path::new("/") {
+            break;
+        }
+        app.on_key(key(KeyCode::Backspace), FILES_SCREEN.0);
+    }
+    assert_eq!(app.files.directory(), std::path::Path::new("/"));
+    app.on_key(key(KeyCode::Char('/')), FILES_SCREEN.0);
+    typed(&mut app, "no entry of the root is named this 7f3c");
+    app.on_key(key(KeyCode::Enter), FILES_SCREEN.0);
+    assert_eq!(app.files.rows(), 0);
+    assert!(files_screen(&mut app).contains("Nothing in this directory matches"));
+    for code in [
+        KeyCode::Up,
+        KeyCode::Down,
+        KeyCode::Home,
+        KeyCode::End,
+        KeyCode::PageUp,
+        KeyCode::PageDown,
+        KeyCode::Enter,
+        KeyCode::Right,
+        KeyCode::Char('d'),
+        KeyCode::Char('r'),
+        KeyCode::Left,
+    ] {
+        assert!(app.on_key(key(code), FILES_SCREEN.0).is_empty());
+        files_screen(&mut app);
+    }
+    assert_eq!(app.view, View::Files);
+    assert!(app.overlay.is_none());
+}

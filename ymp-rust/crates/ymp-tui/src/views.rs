@@ -9,6 +9,8 @@
 //! the user's working directory.
 
 use crate::commands::{self, Group};
+use crate::files;
+use crate::highlight;
 use crate::label;
 use crate::provenance::{Acceptance, Pool, Records};
 use crate::table::{Cell, Column, Sort, SortKey};
@@ -228,6 +230,8 @@ pub struct Ctx<'a> {
     /// What the controller discovered about version control for `cwd`. Pages present it;
     /// they never look at the filesystem for it themselves.
     pub repository: &'a Repository,
+    /// Where the files page is in the working directory, and what the controller read there.
+    pub files: &'a files::Files,
     pub theme: &'a Theme,
     pub session: Option<&'a str>,
     pub tasks: &'a [Task],
@@ -308,7 +312,7 @@ fn page(view: View, subtitle: &str, items: Vec<Item>, _ctx: &Ctx) -> Page {
 const LABEL_COLUMN: usize = 16;
 const LABEL_GAP: usize = 2;
 
-fn field(theme: &Theme, label: &str, value: &str, width: usize) -> Vec<Line<'static>> {
+pub(crate) fn field(theme: &Theme, label: &str, value: &str, width: usize) -> Vec<Line<'static>> {
     // Every value of a record starts in one column, so the record reads as two aligned
     // columns. A label too long for its column takes a line of its own above the value
     // rather than pushing that value out of line. The column narrows on a narrow surface.
@@ -341,7 +345,7 @@ fn field(theme: &Theme, label: &str, value: &str, width: usize) -> Vec<Line<'sta
     lines
 }
 
-fn paragraph(theme: &Theme, body: &str, width: usize) -> Vec<Line<'static>> {
+pub(crate) fn paragraph(theme: &Theme, body: &str, width: usize) -> Vec<Line<'static>> {
     text::wrap(&text::sanitize(body), width.max(8))
         .into_iter()
         .map(|piece| Line::from(Span::styled(piece, theme.body())))
@@ -399,6 +403,7 @@ fn yes_no(value: bool, theme: &Theme) -> Span<'static> {
 
 const COMMAND_COLUMNS: [Column; 2] = [Column::left("COMMAND"), Column::left("SUMMARY").flex()];
 const KEY_COLUMNS: [Column; 2] = [Column::left("KEY"), Column::left("ACTION").flex()];
+const NOTICE_COLUMNS: [Column; 1] = [Column::left("NOTICE").flex()];
 
 fn help(ctx: &Ctx) -> Page {
     let theme = ctx.theme;
@@ -434,6 +439,15 @@ fn help(ctx: &Ctx) -> Page {
             .with_detail(paragraph(theme, description, ctx.width)),
         );
     }
+    let notice = format!(
+        "Source previews are highlighted with syntax definitions the bat project collects, bundled by two-face. Their licences and notices are listed at {}",
+        highlight::NOTICES
+    );
+    items.push(Item::table("Included syntax definitions", &NOTICE_COLUMNS));
+    items.push(
+        Item::note("notices", vec![Span::styled(notice.clone(), theme.muted())])
+            .with_detail(paragraph(theme, &notice, ctx.width)),
+    );
     Page {
         view: View::Help,
         title: View::Help.title().into(),
@@ -981,92 +995,49 @@ fn sessions(ctx: &Ctx) -> anyhow::Result<Page> {
     })
 }
 
+/// Where the files page is. The explorer lists the directory and draws its rows, so the page
+/// itself is the header, the keys, and what is shown when there is no list at all.
 fn files(ctx: &Ctx) -> anyhow::Result<Page> {
     let theme = ctx.theme;
-    const SKIP: &[&str] = &[".git", "node_modules", "target", "__pycache__", ".ymp2"];
-    let mut entries: Vec<(bool, String, std::fs::Metadata)> = Vec::new();
-    for entry in std::fs::read_dir(ctx.cwd)? {
-        let entry = entry?;
-        let name = entry.file_name().to_string_lossy().into_owned();
-        if SKIP.contains(&name.as_str()) {
-            continue;
-        }
-        let metadata = entry.metadata()?;
-        entries.push((metadata.is_dir(), name, metadata));
-    }
-    entries.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| a.1.cmp(&b.1)));
-    let rows = entries
-        .iter()
-        .map(|(is_dir, name, metadata)| {
-            let path = ctx.cwd.join(name);
-            let mut detail = field(theme, "path", &path.display().to_string(), ctx.width);
-            detail.extend(field(
-                theme,
-                "kind",
-                if *is_dir { "directory" } else { "file" },
-                ctx.width,
-            ));
-            if !*is_dir {
-                detail.extend(field(theme, "size", &size(metadata.len()), ctx.width));
-            }
-            Item::row(
-                path.display().to_string(),
-                vec![
-                    Cell::text(
-                        if *is_dir {
-                            format!("{name}/")
-                        } else {
-                            name.clone()
-                        },
-                        if *is_dir {
-                            theme.accent()
-                        } else {
-                            theme.text()
-                        },
-                    ),
-                    Cell::text(if *is_dir { "directory" } else { "file" }, theme.faint()),
-                    // A directory has no size of its own, so it sorts after every file.
-                    if *is_dir {
-                        Cell::empty()
-                    } else {
-                        Cell::number(
-                            size(metadata.len()),
-                            Some(i128::from(metadata.len())),
-                            theme.faint(),
-                        )
-                    },
-                ],
-            )
-            .with_detail(detail)
-        })
-        .collect::<Vec<_>>();
-    let mut items = Vec::new();
-    if !rows.is_empty() {
-        items.push(Item::table("", &FILE_COLUMNS));
-    }
-    items.extend(rows);
-    Ok(Page {
+    let mut page = Page {
         view: View::Files,
         title: View::Files.title().into(),
-        subtitle: ctx.cwd.display().to_string(),
-        items,
-        empty: nothing(
+        subtitle: files::display_path(ctx.files.directory()),
+        items: Vec::new(),
+        empty: Vec::new(),
+        hints: vec![
+            ("Enter", "open"),
+            ("Backspace", "parent"),
+            ("/", "filter"),
+            ("d", "details"),
+            ("r", "read again"),
+            ("Esc", "close"),
+        ],
+    };
+    if !ctx.files.is_open() {
+        page.empty = vec![
+            Line::from(Span::styled(
+                format!("{} This directory cannot be listed", theme.markers.fail),
+                theme.bad(),
+            )),
+            Line::default(),
+        ];
+        page.empty.extend(paragraph(
             theme,
-            "The working directory is empty",
-            "Agents write here directly. Nothing is copied into the ymp home directory.",
+            ctx.files.notice().unwrap_or_default(),
             ctx.width,
-        ),
-        hints: vec![("Enter", "show the full path"), ("Esc", "back")],
-    })
+        ));
+        page.empty.push(Line::default());
+        page.empty.extend(hint(
+            theme,
+            "r tries again, and Esc closes the page.",
+            ctx.width,
+        ));
+    }
+    Ok(page)
 }
 
-const FILE_COLUMNS: [Column; 3] = [
-    Column::left("NAME").flex(),
-    Column::left("KIND").hide(1),
-    Column::right("SIZE"),
-];
-
-fn size(bytes: u64) -> String {
+pub(crate) fn size(bytes: u64) -> String {
     const UNITS: &[&str] = &["B", "kB", "MB", "GB"];
     let mut value = bytes as f64;
     let mut unit = 0;

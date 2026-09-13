@@ -19,6 +19,11 @@ ratatui.workspace = true
 ratatui-themes.workspace = true
 crossterm.workspace = true
 unicode-width.workspace = true
+ratatui-explorer.workspace = true
+syntect.workspace = true
+two-face.workspace = true
+tui-syntax-highlight.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true
+libc.workspace = true

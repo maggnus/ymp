@@ -33,8 +33,16 @@ async-trait = "0.1"
 libc = "0.2"
 walkdir = "2"
 tempfile = "3"
-ratatui = { version = "0.30.2", features = ["unstable-rendered-line-info"] }
+# `unstable-widget-ref` draws the file explorer widget, which renders by reference.
+ratatui = { version = "0.30.2", features = ["unstable-rendered-line-info", "unstable-widget-ref"] }
 crossterm = { version = "0.29", features = ["event-stream"] }
 ratatui-themes = { version = "0.3.0", default-features = false }
+# Keys are mapped by ymp itself, so the widget's own terminal backend conversions are left out.
+ratatui-explorer = { version = "0.3.0", default-features = false }
 unicode-width = "0.2"
 clap = { version = "4", features = ["derive"] }
+# The pure-Rust regex engine, so no C library is built. two-face and tui-syntax-highlight must name
+# the same one.
+syntect = { version = "5.3.0", default-features = false, features = ["parsing", "regex-fancy"] }
+two-face = { version = "0.5.2", default-features = false, features = ["syntect-fancy"] }
+tui-syntax-highlight = { version = "0.2.0", default-features = false, features = ["regex-fancy"] }

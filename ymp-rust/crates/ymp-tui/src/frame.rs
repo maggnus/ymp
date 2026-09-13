@@ -111,6 +111,21 @@ pub fn inspect_content_width(total: u16) -> u16 {
     modal_content_width(inspect_width(total))
 }
 
+/// The widest a file preview grows: most source lines fit beside their numbers.
+const PREVIEW_MAX: u16 = 132;
+
+/// Width of the file preview surface over a terminal `total` cells wide.
+pub fn preview_width(total: u16) -> u16 {
+    PREVIEW_MAX
+        .min(total.saturating_sub(4))
+        .max(MODAL_MIN_WIDTH)
+}
+
+/// Columns the file preview has for its body, as [`inspect_content_width`] counts them.
+pub fn preview_content_width(total: u16) -> u16 {
+    modal_content_width(preview_width(total))
+}
+
 /// Cells a floating surface keeps across its width for its border and for a cell of padding
 /// inside the border on each side.
 pub const MODAL_CHROME: u16 = 4;

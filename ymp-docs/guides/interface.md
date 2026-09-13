@@ -117,6 +117,7 @@ the open page, then a focus that is not the composer, and finally the draft in t
 | `/` | Filter the rows of the open page; a leading `!` keeps the rows that do not match |
 | `Shift`+letter | Sort a page table by the column whose title has that letter underlined |
 | `d` | Inspect the selected page row |
+| `Backspace` | On the files page, go to the parent directory |
 | `Ctrl+C` | Press twice within two seconds to leave ymp; active work is stopped first |
 
 The first `Ctrl+C` only asks: the status row reads `Press Ctrl-C again to exit`, and nothing is
@@ -154,7 +155,8 @@ figures aligned right, and the column titles kept on screen while the rows scrol
 open with a note that says what it is; a note spans its table and is not sorted. On a narrow
 terminal the flexible column gives up width first, then columns of lesser importance are
 hidden, and a table is never drawn wider than the page. The full record of a row opens in a
-popup with `Enter` or `d`; there is no detail pane under the list.
+popup with `Enter` or `d`; there is no detail pane under the list. The files page is a file
+explorer rather than a table, and is described in [its own section](#files).
 
 - `/` starts a filter. Typed text is matched without regard to case against every cell, and a
   filter that starts with `!` keeps the rows that do not match. `Enter` keeps the filter and
@@ -184,8 +186,10 @@ popup with `Enter` or `d`; there is no detail pane under the list.
   browsable, but the loaded conversation cannot be switched: it is the conversation your
   next message is delivered to, so replacing it would send that message to the wrong run.
   Stop the run with `/stop` first.
-- **Files** and **Changed files** — the working directory, and the changes recorded for the
-  loaded session. The change page opens on how the directory is used: agents work in it
+- **Files** — a read-only file explorer that starts in the working directory. It is described
+  in [its own section](#files).
+- **Changed files** — the changes recorded for the loaded session. The page opens on how the
+  directory is used: agents work in it
   directly, what a turn may do is the access its backend enforces, turns overlap only where
   that access does not conflict, one run holds the directory at a time, nothing is staged or
   copied, and ymp cannot put an earlier version of a file back, because it recorded a path, a
@@ -330,6 +334,96 @@ Those invocations are counted in the session total and reported as unattributed.
 are any, no agent figure is presented as complete, and an agent with no recorded invocation
 of its own reads as `—` rather than zero, because one of the unattributed invocations may be
 its own. Nothing is divided between agents to make the figures add up.
+
+## Files
+
+`/files` opens a file explorer in the directory ymp was started in. The explorer is the
+`ratatui-explorer` widget; ymp gives it its keys, its colours and the names its rows show. The
+header names the directory being listed and, in brackets, how many entries it lists.
+
+```text
+ Files[3]  /files                                          /path/to/project/src
+───────────────────────────────────────────────────────────────────────────────
+   ../
+ › nested/
+   to-shared -> ../shared/
+   main.rs
+```
+
+Moving to another directory, including one above the start, changes only what the page shows.
+Runs still work in the directory ymp was started in, and the loaded session and every provider
+setting stay as they were. Nothing on the page writes, renames or deletes anything, and nothing
+it shows is executed.
+
+The first row leads to the parent directory, except at the root of the filesystem. Directories
+follow, then every other entry, each group in order of the name as shown. A directory's name ends
+in `/`, and a symbolic link shows the target it stores after `->`. Hidden entries are listed;
+`.git`, `node_modules`, `target`, `__pycache__` and `.ymp2` are not listed in any directory.
+
+| Key | Action |
+| --- | --- |
+| `Up` / `k`, `Down` / `j` | Move the selection; it wraps from one end of the list to the other |
+| `Home`, `End` | Select the first or the last row |
+| `PageUp`, `PageDown` | Move twelve rows |
+| `Enter`, `Right`, `l` | List the selected directory, go up from `../`, or show the start of a file |
+| `Backspace`, `Left`, `h` | Go to the parent directory, with the directory just left selected |
+| `/` | Filter the entries by name without regard to case; a leading `!` keeps the others, and `../` always stays |
+| `d` | Describe the selected entry: its path, kind, size, the target a link stores, and the bytes of a name that is not UTF-8 |
+| `r` | Read the directory again, keeping the selection on its entry |
+| `Esc` | Clear the filter, then close the page |
+
+Entering or leaving a directory clears the filter. A symbolic link to a directory is listed where
+it leads, so the header shows the real directory and `Backspace` goes to that directory's parent.
+When a directory cannot be listed, because it was removed or its permissions refuse it, the list
+stays as it was and a line above it gives the reason; `r` reads the directory on screen again.
+
+A directory is read when the page opens, on every move, filter change and `r`, and when a run
+finishes while the page is open. It is not watched in between. The whole directory is read at
+once, with a metadata request for every entry, while the interface waits, so a very large
+directory or a slow network mount holds the interface until it has been read.
+
+Names are shown so that they can neither drive the terminal nor pass for another name. Control
+and bidirectional formatting characters are written as escapes such as `\u{1B}`, a newline, tab
+or carriage return as `\n`, `\t` or `\r`, a byte that is not UTF-8 as `\xFF`, and a backslash
+as `\\`. Every row still opens the exact file its directory holds, so `same-a\nb.rs`, whose name
+contains a newline, and `same-a b.rs` open their own contents.
+
+### Previews
+
+`Enter` on a file opens a read-only preview. At most 256 kB of the file is read, at most 5,000
+lines are shown, and a line shows at most 1,000 characters; the preview states each cut. `Up` and
+`Down` scroll, `PageUp` and `PageDown` move a page, `Home` and `End` jump, and `Esc`, `Enter`, `q`,
+`Backspace`, `Left` or `h` return to the list.
+
+A FIFO, socket or device is never opened, and the preview says what it is. A file with a NUL byte
+in what was read is described as binary. A UTF-16 or UTF-32 byte order mark, or bytes that are not
+UTF-8, are named rather than decoded. An empty file says so, a broken link names the target it
+stores, and a file removed since the list was read says so while the list is read again.
+
+Text keeps its exact characters. Tabs expand to the next multiple of four columns. A control
+character appears in caret notation, such as `^[`, and a bidirectional formatting character by
+its code point, such as `<U+202E>`, both in the warning colour, so nothing in a file reaches the
+terminal as an instruction.
+
+### Syntax highlighting
+
+A preview is highlighted when a grammar matches the file's name, its extension, or its first line,
+such as `#!/usr/bin/env python3`. The grammars are the syntax definitions the bat project collects,
+bundled by two-face 0.5.2 and run by syntect 5.3.0; tui-syntax-highlight 0.2.0 turns each
+highlighted line into terminal styles. The colours are the theme's own rather than a fixed colour
+scheme: comments take the muted colour, strings the positive colour, numbers and constants the
+attention colour, keywords and tags the accent, types the informational colour, and functions the
+text colour. A colour that would not read on the preview's background gives way to the theme's
+text colour, in every light and dark theme.
+
+ARM Assembly, JavaScript (Babel), LiveScript, PowerShell, Sass and Salt State SLS are not in this
+bundle. Such a file, like any file no grammar matches, is shown as plain text, and the preview says
+that no grammar matched. Highlighting is bounded: after a line longer than 4 kB, or after 250 ms,
+the rest of the file is plain text, and the preview says where highlighting stopped and why.
+
+Fenced code that names a language, such as a block opened with ```` ```rust ````, is highlighted
+the same way in the popup `Enter` opens for a message. The transcript itself does not highlight
+code. `/help` links the licences and notices of the bundled syntax definitions.
 
 ## Themes
 

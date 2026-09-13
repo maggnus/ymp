@@ -242,6 +242,11 @@ pub fn sort_keys(columns: &[Column], reserved: &[char]) -> Vec<Option<char>> {
 /// Whether a row matches a filter: the text is looked for in every cell, without regard to case.
 /// A filter that starts with `!` keeps the rows that do not match.
 pub fn matches(filter: &str, cells: &[Cell]) -> bool {
+    matches_text(filter, cells.iter().map(Cell::plain))
+}
+
+/// [`matches`] over plain texts, for a list that is not a page table.
+pub fn matches_text<T: AsRef<str>>(filter: &str, texts: impl IntoIterator<Item = T>) -> bool {
     let filter = filter.trim();
     let (inverse, needle) = match filter.strip_prefix('!') {
         Some(rest) => (true, rest.trim()),
@@ -251,9 +256,9 @@ pub fn matches(filter: &str, cells: &[Cell]) -> bool {
         return true;
     }
     let needle = needle.to_lowercase();
-    let found = cells
-        .iter()
-        .any(|cell| cell.plain().to_lowercase().contains(&needle));
+    let found = texts
+        .into_iter()
+        .any(|text| text.as_ref().to_lowercase().contains(&needle));
     found != inverse
 }
 

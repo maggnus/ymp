@@ -20,7 +20,9 @@ use ymp_storage::Store;
 
 mod commands;
 mod exit;
+mod files;
 mod frame;
+mod highlight;
 pub mod label;
 mod prefs;
 mod provenance;
