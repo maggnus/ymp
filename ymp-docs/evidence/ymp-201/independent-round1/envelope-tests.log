@@ -1,0 +1,21 @@
+test_cannot_supply_both_permission_variants (test_codex_envelope.EnvelopeTests.test_cannot_supply_both_permission_variants) ... ok
+test_controls_override_conflicting_thread_feature_flags (test_codex_envelope.EnvelopeTests.test_controls_override_conflicting_thread_feature_flags) ... ok
+test_exact_working_directory_grant_reopens_denied_ancestor (test_codex_envelope.EnvelopeTests.test_exact_working_directory_grant_reopens_denied_ancestor) ... ok
+test_inherited_mcp_names_do_not_create_incomplete_transports (test_codex_envelope.EnvelopeTests.test_inherited_mcp_names_do_not_create_incomplete_transports) ... ok
+test_non_thread_requests_pass_unchanged (test_codex_envelope.EnvelopeTests.test_non_thread_requests_pass_unchanged) ... ok
+test_only_control_fields_change (test_codex_envelope.EnvelopeTests.test_only_control_fields_change) ... ok
+test_only_explicit_current_ymp_endpoint_is_enabled (test_codex_envelope.EnvelopeTests.test_only_explicit_current_ymp_endpoint_is_enabled) ... ok
+test_policy_rejects_owner_impersonation_metadata (test_codex_envelope.EnvelopeTests.test_policy_rejects_owner_impersonation_metadata) ... ok
+test_production_tail_matches_duplicate_endpoint (test_codex_envelope.EnvelopeTests.test_production_tail_matches_duplicate_endpoint) ... ok
+test_protected_directory_cannot_be_solving_directory (test_codex_envelope.EnvelopeTests.test_protected_directory_cannot_be_solving_directory) ... ok
+test_read_access_and_native_state_denial (test_codex_envelope.EnvelopeTests.test_read_access_and_native_state_denial) ... ok
+test_resume_uses_same_mapping_and_preserves_thread_id (test_codex_envelope.EnvelopeTests.test_resume_uses_same_mapping_and_preserves_thread_id) ... ok
+test_stdio_transparency_with_explicit_offline_echo_fixture (test_codex_envelope.EnvelopeTests.test_stdio_transparency_with_explicit_offline_echo_fixture) ... ok
+test_tail_rejects_extra_configuration (test_codex_envelope.EnvelopeTests.test_tail_rejects_extra_configuration) ... ok
+test_unrecognized_access_fails (test_codex_envelope.EnvelopeTests.test_unrecognized_access_fails) ... ok
+test_write_access_is_limited_to_working_directory (test_codex_envelope.EnvelopeTests.test_write_access_is_limited_to_working_directory) ... ok
+
+----------------------------------------------------------------------
+Ran 16 tests in 0.092s
+
+OK

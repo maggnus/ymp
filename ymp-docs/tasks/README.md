@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-13 21:14 UTC.
+Updated: 2026-09-13 21:24 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -40,7 +40,7 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-107](#ymp-107) | P1 | Expose recorded checks and factual recovery limits | 2026-09-12 12:55 |
 | `[=]` | [YMP-108](#ymp-108) | P2 | Evaluate an optional usage estimate with explicit price provenance | 2026-09-12 09:35 |
 | `[x]` | [YMP-111](#ymp-111) | P0 | Apply native models and reasoning settings per assignment | 2026-09-12 12:18 |
-| `[~]` | [YMP-201](#ymp-201) | P2 | Test whether two or three weaker agents can match a stronger solo agent | 2026-09-13 21:14 |
+| `[~]` | [YMP-201](#ymp-201) | P2 | Test whether two or three weaker agents can match a stronger solo agent | 2026-09-13 21:24 |
 | `[=]` | [YMP-202](#ymp-202) | P1 | Test memory and adaptive assignment on held-out tasks | 2026-09-13 16:17 |
 | `[=]` | [YMP-203](#ymp-203) | P1 | Test effort, reduced preparation and low-effort ensembles separately | 2026-09-13 16:17 |
 | `[=]` | [YMP-204](#ymp-204) | P1 | Evaluate a project-scoped prior-outcome router | 2026-09-13 16:17 |
@@ -636,9 +636,9 @@ Test whether two or three weaker agents can match a stronger solo agent
 
 **State:** `[~]` (in_progress) · **Type:** experiment · **Priority:** P2
 
-**Last update (UTC):** 2026-09-13 21:14
+**Last update (UTC):** 2026-09-13 21:24
 
-**Current reason:** Static review returned 8a2acaf for success-conditioned calibration/whole-phase abort on ordinary team failures and unequal usable time (raw120/180s versus group480/900s). Parent requires negative task outcomes to remain measurable and chooses genuinely shared accessible deadlines rather than an asymmetric claim. Executable reviewer is finishing targeted reproductions on the unchanged candidate; one combined rework assignment follows. No experiment, quota approval or integration.
+**Current reason:** Executable review completed RETURN with three P1 findings: task failures incorrectly stop the phase/calibration, unequal usable time and reported-metadata rules, and public candidate code escaping confinement (proved with an artificial private marker). Retained hash-verified original controls. The same author receives one bounded rework assignment covering public selection and final candidate execution, genuine negative outcomes, common deadlines and uniform configured/sent/reported metadata. No native trial, quota, integration or installed change.
 
 **Owner:** Experiment lead
 
@@ -664,6 +664,7 @@ The owner prioritizes a small direct test of capability compensation through two
 - ymp-docs/research/goal-driven-trials.md
 - ymp-docs/research/weak-agent-pilot.md
 - ymp-docs/evidence/ymp-201/review-round1.md
+- ymp-docs/evidence/ymp-201/independent-round1/review-result.json
 
 **Quota:** No concrete quota allocated yet. Prepare a small two-task/six-condition diagnostic matrix (12 outcome attempts) using discovered native model IDs, minimal supported effort, complete aggregate accounting and enforceable admission/stop rules. Replace this proposal with the concrete reviewed execution sheet before requesting the remaining quota approval.
 

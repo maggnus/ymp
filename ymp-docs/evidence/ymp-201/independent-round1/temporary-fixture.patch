@@ -1,0 +1,57 @@
+diff --git a/ymp-evals/weak-pilot/codex_protocol_v2.py b/ymp-evals/weak-pilot/codex_protocol_v2.py
+index 0364e9e..edd4a21 100755
+--- a/ymp-evals/weak-pilot/codex_protocol_v2.py
++++ b/ymp-evals/weak-pilot/codex_protocol_v2.py
+@@ -22,6 +22,9 @@ def main():
+     scenario = json.loads(args.scenario.read_text())
+     assert scenario["execution_kind"] == "protocol-fixture"
+     thread = str(uuid.uuid4())
++    import os
++    with (Path(scenario["request_log"]).parent / "fixture-pids.jsonl").open("a") as pidlog:
++        pidlog.write(json.dumps({"pid": os.getpid(), "purpose": args.purpose}) + "\n")
+     cwd = None
+ 
+     def send(value):
+@@ -41,7 +44,7 @@ def main():
+             continue
+         result = {}
+         if method == "config/read":
+-            result = {"config": {"mcp_servers": {"synthetic_unused": {"enabled": True}}}}
++            result = {"config": {"mcp_servers": {("invalid;server" if scenario.get("fault") == "broken-envelope" else "synthetic_unused"): {"enabled": True}}}}
+         elif method == "model/list":
+             result = {"data": [{"model": model, "isDefault": model == "fixture-weak",
+                                 "supportedReasoningEfforts": [{"reasoningEffort": "low"}]}
+@@ -63,6 +66,19 @@ def main():
+         if method != "turn/start":
+             continue
+         text = respond(scenario, args.purpose, cwd, params["input"][0]["text"])
++        fault = scenario.get("fault")
++        if args.purpose in ("execute", "pilot_candidate"):
++            if fault == "wrong-answer":
++                target = cwd / "totals.csv"
++                rows = target.read_text().splitlines()
++                rows[-1] = rows[-1].replace(rows[-1].split(",")[-2], "999999")
++                target.write_text("\n".join(rows) + "\n")
++            if fault == "missing-deliverable":
++                (cwd / "totals.csv").unlink()
++            if fault == "deadline-after-completed":
++                (cwd / ".fixture-delay-seal").write_text("Delay only deterministic sealing after native accounting closes")
++        if args.purpose == "final_review" and fault == "negative-final-review":
++            text = json.dumps({"approved": False, "reason": "Ordinary task-quality rejection; protocol and accounting are complete"})
+         turn = result["turn"]["id"]
+         counts = {"inputTokens": 80, "outputTokens": 20, "cachedInputTokens": 30,
+                   "reasoningOutputTokens": 10}
+diff --git a/ymp-evals/weak-pilot/observer.py b/ymp-evals/weak-pilot/observer.py
+index b711e9e..657bf16 100644
+--- a/ymp-evals/weak-pilot/observer.py
++++ b/ymp-evals/weak-pilot/observer.py
+@@ -69,6 +69,9 @@ def check_inputs(task, variant, workdir):
+ def seal(task, variant, workdir, destination, blind_id):
+     """Freeze exactly one preselected candidate without consulting private checks."""
+     require(re.fullmatch(r"[a-f0-9]{32}", blind_id) is not None, "blind ID must be 32 lowercase hex characters")
++    if (workdir / ".fixture-delay-seal").exists():
++        import time
++        time.sleep(2)
+     check_inputs(task, variant, workdir)
+     names = sorted(set(files(task, variant) + outputs(task)))
+     before = hashes(workdir, names)

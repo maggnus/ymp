@@ -1,0 +1,10 @@
+{
+  "initial_porcelain": "",
+  "removed_review_created_cache": [
+    {
+      "path": "/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp201-weak-pilot/ymp-evals/weak-pilot/__pycache__/native_controls_probe.cpython-314.pyc",
+      "sha256": "d0b6c3397405a4485fd6f6558fef8d972f4cb498ff5417c31d9b64f835b763d6",
+      "mtime": 1789333573.9421747
+    }
+  ]
+}

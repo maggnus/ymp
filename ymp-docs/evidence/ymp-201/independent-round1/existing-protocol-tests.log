@@ -1,0 +1,25 @@
+   Compiling ymp-core v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp201-weak-pilot/ymp-rust/crates/ymp-core)
+   Compiling clap_derive v4.6.4
+   Compiling ymp-eval-driver v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp201-weak-pilot/ymp-rust/crates/ymp-eval-driver)
+   Compiling clap v4.6.6
+   Compiling ymp-providers v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp201-weak-pilot/ymp-rust/crates/ymp-providers)
+   Compiling ymp-workspace v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp201-weak-pilot/ymp-rust/crates/ymp-workspace)
+   Compiling ymp-storage v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp201-weak-pilot/ymp-rust/crates/ymp-storage)
+   Compiling ymp-runtime v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp201-weak-pilot/ymp-rust/crates/ymp-runtime)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 10.60s
+     Running unittests src/bin/ymp-weak-pilot.rs (/tmp/ymp146-recovery-review/target/debug/deps/ymp_weak_pilot-68f0d7d0c0a81b50)
+
+running 1 test
+test weak_pilot::tests::offline_measurement_boundary_has_real_negative_controls ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.61s
+
+     Running tests/weak_pilot_consumer.rs (/tmp/ymp146-recovery-review/target/debug/deps/weak_pilot_consumer-9b0b90b984720183)
+
+running 3 tests
+test approval_kind_and_source_drift_fail_before_any_provider ... ok
+test unknown_usage_and_deadline_stop_the_same_consumer_without_losing_observations ... ok
+test all_six_conditions_consume_real_task_exports_and_freeze_one_blind_result ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 54.86s
+

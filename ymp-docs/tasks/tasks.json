@@ -965,7 +965,8 @@
         "[Delivery plan](plan.md)",
         "ymp-docs/research/goal-driven-trials.md",
         "ymp-docs/research/weak-agent-pilot.md",
-        "ymp-docs/evidence/ymp-201/review-round1.md"
+        "ymp-docs/evidence/ymp-201/review-round1.md",
+        "ymp-docs/evidence/ymp-201/independent-round1/review-result.json"
       ],
       "budget": "No concrete quota allocated yet. Prepare a small two-task/six-condition diagnostic matrix (12 outcome attempts) using discovered native model IDs, minimal supported effort, complete aggregate accounting and enforceable admission/stop rules. Replace this proposal with the concrete reviewed execution sheet before requesting the remaining quota approval.",
       "history": [
@@ -1038,6 +1039,11 @@
           "at": "2026-09-13T21:14:43.311953+00:00",
           "status": "in_progress",
           "note": "Static review returned 8a2acaf for success-conditioned calibration/whole-phase abort on ordinary team failures and unequal usable time (raw120/180s versus group480/900s). Parent requires negative task outcomes to remain measurable and chooses genuinely shared accessible deadlines rather than an asymmetric claim. Executable reviewer is finishing targeted reproductions on the unchanged candidate; one combined rework assignment follows. No experiment, quota approval or integration."
+        },
+        {
+          "at": "2026-09-13T21:24:18.630073+00:00",
+          "status": "in_progress",
+          "note": "Executable review completed RETURN with three P1 findings: task failures incorrectly stop the phase/calibration, unequal usable time and reported-metadata rules, and public candidate code escaping confinement (proved with an artificial private marker). Retained hash-verified original controls. The same author receives one bounded rework assignment covering public selection and final candidate execution, genuine negative outcomes, common deadlines and uniform configured/sent/reported metadata. No native trial, quota, integration or installed change."
         }
       ]
     },
@@ -4422,7 +4428,7 @@
       ]
     }
   ],
-  "updated_at": "2026-09-13T21:14:43.311953+00:00",
+  "updated_at": "2026-09-13T21:24:18.630073+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",
