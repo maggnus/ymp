@@ -1,0 +1,8 @@
+   Compiling ymp-runtime v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-recovery-backend/ymp-rust/crates/ymp-runtime)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.28s
+     Running unittests src/lib.rs (target/debug/deps/ymp_runtime-8bff37fae2c49ffb)
+
+running 1 test
+test engine::tests::budget_resume_preserves_unknown_usage_stop_and_captured_limits ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 112 filtered out; finished in 0.10s

@@ -62,6 +62,12 @@ impl Store {
                     "stale_recovery: decision uses another input version"
                 );
                 anyhow::ensure!(
+                    super::team_control::state(&tx, &stage.session_id)?
+                        .map_or(0, |s| s.policy_revision)
+                        == recovery.input.owner_policy_revision,
+                    "stale_recovery: owner policy changed"
+                );
+                anyhow::ensure!(
                     allocation::state(&tx, &stage.session_id)?
                         .as_ref()
                         .map(|s| s.revision)
@@ -129,6 +135,14 @@ impl Store {
         );
         match &command.action {
             RecoveryControl::Retry | RecoveryControl::Continue => {
+                if let Some(id) = &stage.active_invocation_id {
+                    let invocation: InvocationRecord = provenance::record(&tx, "invocations", id)?;
+                    anyhow::ensure!(
+                        invocation.state != InvocationState::Running,
+                        "active_responsibility: drain admitted work before retry"
+                    );
+                }
+                stage.admission_denial = None;
                 anyhow::ensure!(
                     stage
                         .failures
@@ -184,19 +198,26 @@ pub(super) fn bind_admission(
     assignment: &AssignmentRecord,
     invocation: &InvocationRecord,
 ) -> Result<()> {
-    for context in assignment
-        .context
-        .iter()
-        .filter(|c| c.kind == ContextKind::RecoveryStage)
-    {
+    let binding: Option<String> = tx
+        .query_row(
+            "SELECT value FROM kv WHERE key=?",
+            [format!(
+                "recovery_admission:{}:{}",
+                assignment.session_id, assignment.id
+            )],
+            |r| r.get(0),
+        )
+        .optional()?;
+    if let Some(binding) = binding {
+        let binding: RecoveryAdmission = serde_json::from_str(&binding)?;
         let raw: String = tx.query_row(
             "SELECT value FROM kv WHERE key=?",
-            [key(&assignment.session_id, &context.id)],
+            [key(&assignment.session_id, &binding.stage_id)],
             |r| r.get(0),
         )?;
         let mut stage: RecoveryStage = serde_json::from_str(&raw)?;
         anyhow::ensure!(
-            context.digest.as_ref() == Some(&stage.revision.to_string())
+            binding.revision == stage.revision
                 && stage.status == RecoveryStatus::Running
                 && stage.purpose == assignment.purpose
                 && stage.selected_agent.as_ref() == Some(&assignment.agent_id),
@@ -214,4 +235,25 @@ pub(super) fn bind_admission(
         )?;
     }
     Ok(())
+}
+
+impl Store {
+    /// Bind an assignment identity before admission. The actual stage CAS remains in
+    /// the joint invocation/grant/budget transaction; this record grants no authority.
+    pub fn bind_recovery_assignment(
+        &self,
+        session: &str,
+        assignment: &str,
+        binding: &RecoveryAdmission,
+    ) -> Result<()> {
+        let mut db = self.db()?;
+        let tx = db.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
+        let key = format!("recovery_admission:{session}:{assignment}");
+        tx.execute(
+            "INSERT INTO kv(key,value) VALUES (?,?)",
+            params![key, serde_json::to_string(binding)?],
+        )?;
+        tx.commit()?;
+        Ok(())
+    }
 }

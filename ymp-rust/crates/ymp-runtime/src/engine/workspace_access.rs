@@ -107,6 +107,7 @@ impl Engine {
         request: &TurnRequest,
         task: Option<TaskAttemptRef>,
     ) -> Result<crate::WorkspaceAdmission> {
+        self.owner_boundary(session)?;
         let policy = self
             .store
             .session_policy(session)?
@@ -292,6 +293,7 @@ impl Engine {
             if self.cancel.is_cancelled() {
                 bail!("Cancelled");
             }
+            self.owner_boundary(&ctx.session.id)?;
             match self.try_acquire_access(
                 &ctx.session.id,
                 id,
@@ -357,6 +359,7 @@ impl Engine {
         task: &mut Task,
         prompt: &str,
     ) -> Result<()> {
+        self.owner_boundary(&ctx.session.id)?;
         // Arbitrary shell checks can write anywhere. Hold the whole directory
         // through snapshotting, checks, native inspection and final acceptance.
         let id = new_id();

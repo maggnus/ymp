@@ -307,6 +307,7 @@ impl Store {
             );
         }
         let agent = task.assignee.as_deref().context("Missing claim executor")?;
+        super::team_control::check_admission(&tx, &task.session_id, agent)?;
         if let Some(team) = &board.team {
             ensure!(
                 team.current_members.iter().any(|id| id == agent)

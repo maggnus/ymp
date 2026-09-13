@@ -1,0 +1,178 @@
+    Checking allocator-api2 v0.2.21
+    Checking foldhash v0.2.0
+    Checking once_cell v1.21.4
+   Compiling rustix v1.1.4
+   Compiling syn v3.0.5
+    Checking mio v1.2.3
+   Compiling heck v0.5.0
+   Compiling syn v2.0.119
+   Compiling thiserror v2.0.20
+   Compiling rustversion v1.0.23
+   Compiling ident_case v1.0.1
+    Checking either v1.18.0
+   Compiling strsim v0.11.1
+    Checking ahash v0.8.12
+    Checking unicode-width v0.2.0
+    Checking hashbrown v0.17.1
+    Checking hashbrown v0.16.1
+    Checking hashbrown v0.14.5
+    Checking itertools v0.14.0
+    Checking static_assertions v1.1.0
+    Checking ryu v1.0.23
+    Checking unicode-segmentation v1.13.3
+    Checking indexmap v2.14.2
+    Checking hashlink v0.9.1
+    Checking lru v0.18.4
+   Compiling instability v0.3.13
+   Compiling signal-hook v0.3.18
+    Checking critical-section v1.2.0
+    Checking rusqlite v0.32.1
+   Compiling convert_case v0.10.0
+    Checking unicode-truncate v2.0.1
+   Compiling indoc v2.0.7
+    Checking num_threads v0.1.7
+   Compiling litrs v1.0.0
+    Checking num-conv v0.2.2
+    Checking deranged v0.5.8
+   Compiling crc32fast v1.5.2
+    Checking powerfmt v0.2.0
+    Checking time-core v0.1.9
+   Compiling document-features v0.2.12
+   Compiling strum_macros v0.28.0
+   Compiling derive_more-impl v2.1.1
+   Compiling darling_core v0.24.1
+    Checking time v0.3.55
+    Checking tempfile v3.27.0
+    Checking castaway v0.2.4
+    Checking derive_more v2.1.1
+    Checking aho-corasick v1.1.5
+    Checking line-clipping v0.3.8
+    Checking simd-adler32 v0.3.10
+    Checking regex-syntax v0.8.11
+    Checking adler2 v2.0.1
+    Checking utf8parse v0.2.2
+    Checking bit-vec v0.8.0
+    Checking anstyle-parse v1.0.0
+    Checking strum v0.28.0
+    Checking miniz_oxide v0.9.1
+    Checking bit-set v0.8.0
+    Checking anstyle v1.0.14
+    Checking is_terminal_polyfill v1.70.2
+    Checking anstyle-query v1.1.5
+   Compiling serde_derive v1.0.229
+   Compiling tokio-macros v2.7.2
+   Compiling futures-macro v0.3.34
+   Compiling async-trait v0.1.92
+   Compiling thiserror-impl v2.0.20
+    Checking tokio v1.53.1
+    Checking futures-util v0.3.34
+    Checking signal-hook-mio v0.2.5
+    Checking regex-automata v0.4.18
+    Checking colorchoice v1.0.5
+   Compiling darling_macro v0.24.1
+    Checking anstream v1.0.0
+   Compiling enum-ordinalize-derive v4.4.2
+   Compiling darling v0.24.1
+    Checking flate2 v1.1.10
+    Checking fnv v1.0.7
+    Checking clap_lex v1.1.0
+   Compiling enum-ordinalize v4.4.2
+    Checking clap_builder v4.6.6
+    Checking compact_str v0.9.1
+   Compiling clap_derive v4.6.4
+    Checking serde v1.0.229
+    Checking fancy-regex v0.16.2
+   Compiling typenum v1.20.1
+    Checking crossterm v0.29.0
+   Compiling serde_core v1.0.229
+   Compiling generic-array v0.14.7
+    Checking clap v4.6.6
+   Compiling crypto-common v0.1.7
+   Compiling block-buffer v0.10.4
+   Compiling cpufeatures v0.2.17
+   Compiling digest v0.10.7
+   Compiling zmij v1.0.23
+   Compiling cfg-if v1.0.4
+   Compiling memchr v2.8.3
+   Compiling same-file v1.0.6
+   Compiling itoa v1.0.18
+   Compiling walkdir v2.5.0
+   Compiling sha2 v0.10.9
+    Checking tokio-util v0.7.19
+    Checking kasuari v0.4.12
+    Checking ratatui-core v0.1.2
+   Compiling educe v0.6.0
+    Checking toml_datetime v0.6.11
+    Checking serde_spanned v0.6.9
+    Checking chrono v0.4.45
+    Checking bincode v1.3.3
+    Checking toml_edit v0.22.27
+    Checking syntect v5.3.0
+    Checking tui-syntax-highlight v0.2.0
+    Checking two-face v0.5.2+bat-0.26.1
+    Checking toml v0.8.23
+    Checking ymp-core v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-recovery-backend/ymp-rust/crates/ymp-core)
+   Compiling serde_json v1.0.151
+   Compiling ymp-eval-driver v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-recovery-backend/ymp-rust/crates/ymp-eval-driver)
+    Checking ratatui-widgets v0.3.2
+    Checking ratatui-crossterm v0.1.2
+    Checking ratatui-macros v0.7.2
+    Checking ratatui v0.30.2
+    Checking ratatui-explorer v0.3.0
+    Checking ratatui-themes v0.3.0
+    Checking ymp-providers v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-recovery-backend/ymp-rust/crates/ymp-providers)
+    Checking ymp-workspace v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-recovery-backend/ymp-rust/crates/ymp-workspace)
+    Checking ymp-storage v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-recovery-backend/ymp-rust/crates/ymp-storage)
+error: this `else { if .. }` block can be collapsed
+  --> ymp-rust/crates/ymp-providers/src/redaction.rs:22:12
+   |
+22 |       } else {
+   |  ____________^
+23 | |         if let Some(classification) = error.downcast_ref::<crate::NativeFailure>() {
+24 | |             Error::new(classification.clone()).context(sanitized)
+25 | |         } else {
+...  |
+28 | |     }
+   | |_____^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#collapsible_else_if
+   = note: `-D clippy::collapsible-else-if` implied by `-D warnings`
+   = help: to override `-D warnings` add `#[allow(clippy::collapsible_else_if)]`
+help: collapse nested if block
+   |
+22 ~     } else if let Some(classification) = error.downcast_ref::<crate::NativeFailure>() {
+23 +         Error::new(classification.clone()).context(sanitized)
+24 +     } else {
+25 +         Error::msg(sanitized)
+26 +     }
+   |
+
+error: could not compile `ymp-providers` (lib) due to 1 previous error
+warning: build failed, waiting for other jobs to finish...
+error: items after a test module
+   --> ymp-rust/crates/ymp-providers/src/failure.rs:87:1
+    |
+87  | mod tests {
+    | ^^^^^^^^^
+...
+122 | pub(crate) fn protocol_failure(value: &serde_json::Value) -> NativeFailure {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#items_after_test_module
+    = note: `-D clippy::items-after-test-module` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::items_after_test_module)]`
+    = help: move the items to before the test module was defined
+
+error: could not compile `ymp-providers` (lib test) due to 2 previous errors
+error: the borrowed expression implements the required traits
+   --> ymp-rust/crates/ymp-storage/src/team_control.rs:156:59
+    |
+156 |     if !team.reserved_final_reviewer.as_ref().is_some_and(&allowed) {
+    |                                                           ^^^^^^^^ help: change this to: `allowed`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#needless_borrows_for_generic_args
+    = note: `-D clippy::needless-borrows-for-generic-args` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::needless_borrows_for_generic_args)]`
+
+error: could not compile `ymp-storage` (lib) due to 1 previous error
+error: could not compile `ymp-storage` (lib test) due to 1 previous error

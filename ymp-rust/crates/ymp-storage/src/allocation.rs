@@ -115,6 +115,7 @@ pub(super) fn commit(
         "stale_allocation: team changed since proposal"
     );
     let members = &allocation.proposal.members;
+    super::team_control::check_allocation(tx, &session.id, allocation)?;
     let reviewer = allocation
         .proposal
         .reserved_final_reviewer

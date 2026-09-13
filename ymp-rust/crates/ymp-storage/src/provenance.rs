@@ -312,7 +312,8 @@ pub(super) fn decision(tx: &Transaction<'_>, value: &DecisionRecord) -> Result<(
         &ProvenanceEvent::DecisionRecorded {
             decision: Box::new(value.clone()),
         },
-    )
+    )?;
+    super::team_control::settle(tx, &value.session_id)
 }
 
 impl Store {
@@ -480,6 +481,7 @@ impl Store {
                     && agent.provider == assignment.provider_id),
             "Assignment agent/provider is not in the captured session team"
         );
+        super::team_control::check_admission(&tx, &assignment.session_id, &assignment.agent_id)?;
         if let Some(team) = super::allocation::state(&tx, &assignment.session_id)? {
             ensure!(
                 team.current_members.contains(&assignment.agent_id)

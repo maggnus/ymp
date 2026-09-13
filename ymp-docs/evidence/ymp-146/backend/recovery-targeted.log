@@ -13,4 +13,3 @@ test finite_transient_and_manual_wait_use_the_same_consumer ... ok
 test negative_verdict_requires_revision_but_malformed_response_is_not_a_verdict ... ok
 
 test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.88s
-

@@ -1,0 +1,15 @@
+   Compiling ymp-storage v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-recovery-backend/ymp-rust/crates/ymp-storage)
+   Compiling ymp-runtime v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-recovery-backend/ymp-rust/crates/ymp-runtime)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 4.57s
+     Running unittests src/lib.rs (target/debug/deps/ymp_runtime-8bff37fae2c49ffb)
+
+running 7 tests
+test engine::contract_ingress_tests::configured_invalid_contract_sets_leave_no_partial_session ... ok
+test engine::contract_ingress_tests::configured_resume_revalidates_saved_plan_bindings_before_production_or_review ... ok
+test engine::contract_ingress_tests::configured_missing_and_ambiguous_plan_targets_are_rejected_including_revisions ... ok
+test engine::contract_ingress_tests::configured_resume_preserves_capture_and_rejects_replacement_before_invocation ... ok
+test engine::contract_ingress_tests::configured_requirements_reach_planning_revisions_without_reference_or_verifier_bytes ... ok
+test engine::contract_ingress_tests::configured_input_and_verifier_drift_on_resume_is_not_recaptured_or_confirmed ... ok
+test engine::contract_ingress_tests::configured_changes_during_production_or_review_do_not_create_credit ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 106 filtered out; finished in 1.45s

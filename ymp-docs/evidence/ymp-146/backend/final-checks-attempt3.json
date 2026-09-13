@@ -1,0 +1,37 @@
+[
+  {
+    "command": [
+      "cargo",
+      "fmt",
+      "--all",
+      "--check"
+    ],
+    "exit": 0,
+    "log": "final-fmt.log",
+    "at": "2026-09-13T15:47:08.480549+00:00"
+  },
+  {
+    "command": [
+      "cargo",
+      "clippy",
+      "--workspace",
+      "--all-targets",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "exit": 0,
+    "log": "final-clippy.log",
+    "at": "2026-09-13T15:47:12.825548+00:00"
+  },
+  {
+    "command": [
+      "cargo",
+      "test",
+      "--workspace"
+    ],
+    "exit": 101,
+    "log": "final-workspace-tests.log",
+    "at": "2026-09-13T15:49:04.258133+00:00"
+  }
+]

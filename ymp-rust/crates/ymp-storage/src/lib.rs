@@ -19,6 +19,7 @@ mod provenance;
 #[cfg(test)]
 mod provenance_tests;
 mod recovery;
+mod team_control;
 mod usage;
 
 /// The exact FTS expression used by memory lookup and recorded by the runtime.

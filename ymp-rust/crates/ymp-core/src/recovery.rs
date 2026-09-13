@@ -61,6 +61,8 @@ pub struct RecoveryStage {
     pub id: String,
     pub revision: u64,
     pub purpose: String,
+    #[serde(default)]
+    pub request_digest: Option<String>,
     pub task: Option<TaskAttemptRef>,
     pub plan: Option<PlanVersion>,
     pub result: Option<ResultVersion>,
@@ -81,9 +83,12 @@ pub struct RecoveryStage {
 pub struct RecoveryInput {
     pub schema_version: u32,
     pub stage: RecoveryStage,
-    pub failure: InvocationFailure,
+    pub failure: Option<InvocationFailure>,
+    pub unavailable_agent: Option<String>,
     pub eligible: Vec<AgentProfile>,
     pub outstanding_assignments: Vec<String>,
+    #[serde(default)]
+    pub responsibilities: Option<Vec<ActiveResponsibility>>,
     pub provider_failures: usize,
     pub team_revision: Option<u64>,
     pub owner_policy_revision: u64,
@@ -118,6 +123,7 @@ impl Default for RecoveryConfiguration {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PolicyProvenance {
     pub implementation: ExecutionBackendIdentity,
+    #[serde(default, skip_serializing_if = "serde_json::Value::is_null")]
     pub configuration: serde_json::Value,
     pub originating_record_ids: Vec<String>,
 }
@@ -150,4 +156,46 @@ pub enum RecoveryControl {
 pub struct RecoveryControlReceipt {
     pub command: RecoveryControlCommand,
     pub resulting_revision: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RecoveryAdmission {
+    pub stage_id: String,
+    pub revision: u64,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RecoveryControlKind {
+    Retry,
+    Continue,
+    Wait,
+    Pause,
+}
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct StageManualActions {
+    pub stage_id: String,
+    pub expected_revision: u64,
+    pub controls: Vec<RecoveryControlKind>,
+}
+impl RecoveryStage {
+    pub fn manual_actions(&self) -> StageManualActions {
+        let mut controls = Vec::new();
+        if self.status != RecoveryStatus::Complete {
+            controls.extend([RecoveryControlKind::Wait, RecoveryControlKind::Pause]);
+            if self.status != RecoveryStatus::Running
+                && self.failures.iter().all(|f| {
+                    f.effective_access.is_read_only()
+                        && f.termination == TerminationEvidence::BackendEnded
+                })
+            {
+                controls.extend([RecoveryControlKind::Continue, RecoveryControlKind::Retry]);
+            }
+        }
+        StageManualActions {
+            stage_id: self.id.clone(),
+            expected_revision: self.revision,
+            controls,
+        }
+    }
 }

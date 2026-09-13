@@ -28,6 +28,14 @@ impl ExecutionBackend for ContractBackend {
         NativeExecutionBackend.identity()
     }
 
+    fn workspace_access(&self, request: &TurnRequest) -> WorkspaceAccess {
+        if matches!(&self.script,Script::ChangeFile {phase,..} if *phase==request.purpose) {
+            WorkspaceAccess::WriteAll
+        } else {
+            NativeExecutionBackend.workspace_access(request)
+        }
+    }
+
     fn execute(
         &self,
         request: TurnRequest,
@@ -346,6 +354,7 @@ async fn configured_resume_preserves_capture_and_rejects_replacement_before_invo
     f.engine.config.acceptance_contracts = None;
     f.engine.config.save(&f.store.home).unwrap();
     f.engine.config = Config::load(&f.store.home).unwrap();
+    continue_planning_fixture(&f, &first.session.id);
     let resumed = f
         .engine
         .run(&f.project, "", Some(&first.session.id))
@@ -383,6 +392,7 @@ async fn configured_input_and_verifier_drift_on_resume_is_not_recaptured_or_conf
             "changed\n",
         )
         .unwrap();
+        continue_planning_fixture(&f, &first.session.id);
         let resumed = f
             .engine
             .run(&f.project, "", Some(&first.session.id))
@@ -454,4 +464,23 @@ async fn configured_changes_during_production_or_review_do_not_create_credit() {
             assert_eq!(outcome.session.status, "blocked");
         }
     }
+}
+
+fn continue_planning_fixture(f: &RunFixture, session: &str) {
+    let stage = f
+        .store
+        .recovery_stages(session)
+        .unwrap()
+        .into_iter()
+        .find(|s| s.purpose == "plan" && s.status != RecoveryStatus::Complete)
+        .unwrap();
+    f.engine
+        .control_recovery(&RecoveryControlCommand {
+            session_id: session.into(),
+            stage_id: stage.id,
+            expected_revision: stage.revision,
+            command_id: new_id(),
+            action: RecoveryControl::Continue,
+        })
+        .unwrap();
 }

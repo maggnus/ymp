@@ -706,6 +706,14 @@ pub(super) fn validate(db: &Connection, value: &DecisionRecord) -> Result<()> {
         value.kind.as_str(),
         "task_accepted" | "task_rejected" | "final_accepted" | "final_rejected"
     ) {
+        if value.kind.starts_with("final_") {
+            ensure!(
+                !records::<DecisionRecord>(db, "decisions", &value.session_id)?
+                    .iter()
+                    .any(|d| d.kind == value.kind && d.links.result.as_ref() == Some(result)),
+                "duplicate_final_decision: final verdict already committed for this result version"
+            );
+        }
         if value.kind.starts_with("task_") {
             let task: Task = record(
                 db,

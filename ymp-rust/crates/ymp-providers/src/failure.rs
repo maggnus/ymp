@@ -1,6 +1,6 @@
 //! Conservative typed failures; arbitrary connection messages are not a diagnosis.
 use ymp_core::FailureClass;
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct NativeFailure {
     pub class: FailureClass,
     /// An allowlisted protocol code, never a raw error payload.
@@ -26,6 +26,27 @@ pub fn classify_failure(error: &anyhow::Error) -> (FailureClass, Option<String>)
                     | "insufficient_quota"
                     | "model_not_found"
                     | "authentication_error"
+                    | "serverOverloaded"
+                    | "internalServerError"
+                    | "rateLimitExceeded"
+                    | "usageLimitExceeded"
+                    | "sessionBudgetExceeded"
+                    | "unauthorized"
+                    | "badRequest"
+                    | "httpConnectionFailed"
+                    | "responseStreamConnectionFailed"
+                    | "responseStreamDisconnected"
+                    | "responseTooManyFailedAttempts"
+                    | "contextWindowExceeded"
+                    | "cyberPolicy"
+                    | "misalignmentPolicyViolation"
+                    | "threadRollbackFailed"
+                    | "sandboxError"
+                    | "other"
+                    | "-32000"
+                    | "-32602"
+                    | "-32603"
+                    | "-32700"
             )
         });
         return (failure.class, code.map(str::to_owned));
@@ -60,6 +81,39 @@ pub fn classify_failure(error: &anyhow::Error) -> (FailureClass, Option<String>)
         FailureClass::Unknown
     };
     (class, None)
+}
+
+/// Decode only explicit native protocol fields. Free-form messages never establish a cause.
+pub(crate) fn protocol_failure(value: &serde_json::Value) -> NativeFailure {
+    let code = crate::codex_error_code(&value["codexErrorInfo"])
+        .or_else(|| value["code"].as_str().map(str::to_owned))
+        .or_else(|| value["code"].as_i64().map(|n| n.to_string()))
+        .or_else(|| {
+            value
+                .pointer("/data/code")
+                .and_then(serde_json::Value::as_str)
+                .map(str::to_owned)
+        });
+    let class = match code.as_deref() {
+        Some("401" | "unauthorized" | "authentication_error") => FailureClass::Authentication,
+        Some("usageLimitExceeded" | "sessionBudgetExceeded" | "insufficient_quota") => {
+            FailureClass::QuotaExhausted
+        }
+        Some(
+            "503"
+            | "429"
+            | "serverOverloaded"
+            | "internalServerError"
+            | "rateLimitExceeded"
+            | "rate_limit_exceeded"
+            | "overloaded",
+        ) => FailureClass::TransientTransport,
+        Some("model_not_found" | "badRequest") => FailureClass::UnsupportedConfiguration,
+        _ => FailureClass::Unknown,
+    };
+    let failure = NativeFailure { class, code };
+    let (class, code) = classify_failure(&anyhow::Error::new(failure));
+    NativeFailure { class, code }
 }
 
 #[cfg(test)]

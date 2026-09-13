@@ -1,0 +1,9 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.05s
+     Running unittests src/lib.rs (target/debug/deps/ymp_runtime-8bff37fae2c49ffb)
+
+running 3 tests
+test engine::tests::backend_contract_tests::native_review_limit_respects_cancellation_partial_usage_and_token_ceiling ... ok
+test engine::tests::backend_contract_tests::native_review_limit_does_not_retry_unrelated_or_runtime_stops ... ok
+test engine::tests::backend_contract_tests::native_review_limit_recovers_without_replaying_the_writer ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 110 filtered out; finished in 1.33s

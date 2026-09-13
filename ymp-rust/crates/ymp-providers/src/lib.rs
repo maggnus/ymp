@@ -389,7 +389,10 @@ async fn codex(
                     continue;
                 }
                 if p.pointer("/turn/status").and_then(Value::as_str) != Some("completed") {
-                    bail!("Codex turn did not complete: {}", p["turn"]);
+                    return Err(
+                        anyhow::Error::new(failure::protocol_failure(&p["turn"]["error"]))
+                            .context(format!("Codex turn did not complete: {}", p["turn"])),
+                    );
                 }
                 if let Some(snapshot) = accounting.finish() {
                     let _ = events.send(ProviderEvent::Usage(snapshot));
@@ -398,7 +401,8 @@ async fn codex(
             }
             "error" => {
                 if p["willRetry"].as_bool() != Some(true) {
-                    bail!("Codex error: {}", p["error"]);
+                    return Err(anyhow::Error::new(failure::protocol_failure(&p["error"]))
+                        .context(format!("Codex error: {}", p["error"])));
                 }
                 // The native turn owns this retry. Keep its text and accounting
                 // and let the existing invocation cancellation/deadline apply.
