@@ -1,0 +1,7 @@
+{
+  "problem": "The existing assignment-settings test left the setup run write continuation in its store. Linux uses the same canonical temporary path and legitimately reused that compatible write context in the final control.",
+  "correction": "Invalidate both read and write setup contexts before the controlled sequence; retain every assertion and add context to failure output.",
+  "production_behavior_changed": false,
+  "isolated_linux_before": "failed for model=None,effort=None,read_only=false,resumed_from=Some(...)",
+  "isolated_linux_after": "passed"
+}

@@ -1,0 +1,41 @@
+   Compiling syn v3.0.5
+   Compiling ahash v0.8.12
+   Compiling hashbrown v0.14.5
+   Compiling hashlink v0.9.1
+   Compiling rusqlite v0.32.1
+   Compiling serde_derive v1.0.229
+   Compiling tokio-macros v2.7.2
+   Compiling tokio v1.53.1
+   Compiling serde v1.0.229
+   Compiling toml_datetime v0.6.11
+   Compiling serde_spanned v0.6.9
+   Compiling toml_edit v0.22.27
+   Compiling toml v0.8.23
+   Compiling chrono v0.4.45
+   Compiling futures-macro v0.3.34
+   Compiling ymp-core v0.4.6 (/src/ymp-rust/crates/ymp-core)
+   Compiling futures-util v0.3.34
+   Compiling tokio-util v0.7.19
+   Compiling async-trait v0.1.92
+   Compiling ymp-providers v0.4.6 (/src/ymp-rust/crates/ymp-providers)
+   Compiling ymp-workspace v0.4.6 (/src/ymp-rust/crates/ymp-workspace)
+   Compiling ymp-storage v0.4.6 (/src/ymp-rust/crates/ymp-storage)
+   Compiling ymp-runtime v0.4.6 (/src/ymp-rust/crates/ymp-runtime)
+    Finished `test` profile [unoptimized] target(s) in 15.15s
+     Running unittests src/lib.rs (/build/linux-143/debug/deps/ymp_runtime-f16972cb23b552a8)
+
+running 1 test
+
+thread 'engine::tests::assignment_settings_isolate_changes_and_preserve_known_default_and_explicit_continuations' panicked at ymp-rust/crates/ymp-runtime/src/assignment_settings_tests.rs:47:18:
+model=None, effort=None, read_only=false, resumed_from=Some("40735ea0-0aea-42d1-a865-7fc903f6d255")
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test engine::tests::assignment_settings_isolate_changes_and_preserve_known_default_and_explicit_continuations ... FAILED
+
+failures:
+
+failures:
+    engine::tests::assignment_settings_isolate_changes_and_preserve_known_default_and_explicit_continuations
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 111 filtered out; finished in 0.90s
+
+error: test failed, to rerun pass `-p ymp-runtime --lib`

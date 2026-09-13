@@ -32,9 +32,12 @@ async fn assignment_settings_isolate_changes_and_preserve_known_default_and_expl
         (None,None,false,false),
     ] {
         fixture.engine.set_assignment_settings(vec![settings_rule(agent,"review",model,effort)]).unwrap();
-        // Remove earlier demonstration continuations before the first control.
+        // Isolate both access scopes from the setup run. On Linux its canonical path equals
+        // this path, so an earlier write continuation would otherwise reach the final control.
         if previous.is_none() {
-            fixture.store.put_value(&format!("native:{}:{}:{}:read",ctx.session.id,agent.id,fixture.project.display()), &json!("legacy-unverified-session")).unwrap();
+            for access in ["read", "write"] {
+                fixture.store.put_value(&format!("native:{}:{}:{}:{access}",ctx.session.id,agent.id,fixture.project.display()), &json!("legacy-unverified-session")).unwrap();
+            }
         }
         let response = fixture.engine.ask_scoped(&ctx,agent,&fixture.project,"review","Inspect the fixture",read_only,None).await.unwrap();
         let invocation = fixture.store.invocation(&ctx.session.id,&response.invocation_id).unwrap();
@@ -44,7 +47,7 @@ async fn assignment_settings_isolate_changes_and_preserve_known_default_and_expl
         if should_reuse {
             assert_eq!(invocation.resumed_from,previous.as_ref().unwrap().native_session_id);
             assert_eq!(invocation.native_session_id,previous.as_ref().unwrap().native_session_id);
-        } else { assert!(invocation.resumed_from.is_none()); }
+        } else { assert!(invocation.resumed_from.is_none(), "model={model:?}, effort={effort:?}, read_only={read_only}, resumed_from={:?}", invocation.resumed_from); }
         previous = Some(invocation);
     }
 }
