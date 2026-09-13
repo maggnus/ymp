@@ -1,6 +1,6 @@
 # Delivery plan and progress
 
-Updated: 2026-09-13 05:36 UTC.
+Updated: 2026-09-13 05:41 UTC.
 
 [Approved intent](../../intent.md) · [Task details and evidence](README.md) · [Canonical register](tasks.json)
 
@@ -35,7 +35,7 @@ A planned task automatically shows `[=]` while prerequisites remain unfinished a
 - `[+]` [YMP-130](README.md#ymp-130) — Show active agent work during headless session runs (2026-09-13 00:54). Read-only diagnosis: poker checks passed at 2026-09-13T00:52:09Z; the following claude-opus-5 review invocation was active. Earlier attempts were cancelled. No active run was stopped or restarted by this investigation.
 - `[~]` [YMP-133](README.md#ymp-133) — Present non-popup data collections as consistent keyboard-navigable tables (2026-09-13 05:34). Author committed 44b6a08 for historical record labels. Parent review found an explicit-invalid-invocation fallback that could still borrow another call; a narrow correction is requested. Shared effort-label change YMP-135 and the table primitives/page conversion continue on the combined base. Native execution and stored history are unchanged.
 - `[~]` [YMP-134](README.md#ymp-134) — Finish sidebar, Detailed mode and floating-surface corrections requested directly in Paseo (2026-09-13 05:36). Integrated all sidebar, Detailed and floating-surface corrections, including R1 9a88591 and short-terminal selection fix O1 6d72b31. Parent reviewed the narrow fixes; author controls fail before and pass after, with 176 TUI tests passing and one ignored. README R2 is fixed. Final combined workspace/terminal checks and installation remain with the table release.
-- `[~]` [YMP-135](README.md#ymp-135) — Show model-only labels when native effort is unknown or only a thinking toggle is reported (2026-09-13 05:29). Inspected native invocation metadata read-only. GLM glm-4.7 and glm-4.5-air report thought_level on while requested/sent effort is absent; Codex reports xhigh; old Claude records have absent effort. Final owner choice is model-only when unknown. Sent a narrow shared-label correction to the existing table author; no real inference or changes to the owner session.
+- `[~]` [YMP-135](README.md#ymp-135) — Show model-only labels when native effort is unknown or only a thinking toggle is reported (2026-09-13 05:41). Shared-label commit 6d12bf4 is integrated. The combined source passes 475 Rust tests (two ignored), fmt and strict workspace Clippy. Four physical CLI fixtures pass: absent and binary on effort produce model-only headings; real none and max remain native values. The previous binary reproduces the missing-effort placeholder defect. Installed-binary verification awaits the combined table release.
 
 ## Ready next
 
@@ -142,9 +142,9 @@ Deferred and post-MVP work:
 
 | Time (UTC) | Task | State | Update |
 | --- | --- | --- | --- |
+| 2026-09-13 05:41 | [YMP-135](README.md#ymp-135) | `[~]` | Shared-label commit 6d12bf4 is integrated. The combined source passes 475 Rust tests (two ignored), fmt and strict workspace Clippy. Four physical CLI fixtures pass: absent and binary on effort produce model-only headings; real none and max remain native values. The previous binary reproduces the missing-effort placeholder defect. Installed-binary verification awaits the combined table release. |
 | 2026-09-13 05:36 | [YMP-134](README.md#ymp-134) | `[~]` | Integrated all sidebar, Detailed and floating-surface corrections, including R1 9a88591 and short-terminal selection fix O1 6d72b31. Parent reviewed the narrow fixes; author controls fail before and pass after, with 176 TUI tests passing and one ignored. README R2 is fixed. Final combined workspace/terminal checks and installation remain with the table release. |
 | 2026-09-13 05:34 | [YMP-133](README.md#ymp-133) | `[~]` | Author committed 44b6a08 for historical record labels. Parent review found an explicit-invalid-invocation fallback that could still borrow another call; a narrow correction is requested. Shared effort-label change YMP-135 and the table primitives/page conversion continue on the combined base. Native execution and stored history are unchanged. |
-| 2026-09-13 05:29 | [YMP-135](README.md#ymp-135) | `[~]` | Inspected native invocation metadata read-only. GLM glm-4.7 and glm-4.5-air report thought_level on while requested/sent effort is absent; Codex reports xhigh; old Claude records have absent effort. Final owner choice is model-only when unknown. Sent a narrow shared-label correction to the existing table author; no real inference or changes to the owner session. |
 | 2026-09-13 04:25 | [YMP-131](README.md#ymp-131) | `[x]` | Installed ymp 0.4.2 after independent Opus UI acceptance and review corrections. First Ctrl+C only prompts; second exits gracefully. Printed resume commands always include the saved metadata home. Final integration passes 461 Rust tests, 18 bridge tests and idle/active release-binary PTY checks. |
 | 2026-09-13 04:25 | [YMP-132](README.md#ymp-132) | `[x]` | Installed ymp 0.4.2 with raw resolved model scan labels and invocation model/effort work labels; undefined effort displays none by explicit owner preference. Captions do not identify agents. Exact origins survive follow-up and cross-session display; late settings refresh unsettled cached links. Public Claude hooks capture applied main-turn effort and tool activity. Independent backend/UI reviews and final physical CLI/PTY checks pass. Non-message historical table-view observations remain explicitly tracked in YMP-133. |
 

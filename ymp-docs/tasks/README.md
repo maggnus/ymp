@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-13 05:36 UTC.
+Updated: 2026-09-13 05:41 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -74,7 +74,7 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-132](#ymp-132) | P1 | Attribute chat output to the actual agent invocation instead of provider-shaped actor IDs | 2026-09-13 04:25 |
 | `[~]` | [YMP-133](#ymp-133) | P1 | Present non-popup data collections as consistent keyboard-navigable tables | 2026-09-13 05:34 |
 | `[~]` | [YMP-134](#ymp-134) | P1 | Finish sidebar, Detailed mode and floating-surface corrections requested directly in Paseo | 2026-09-13 05:36 |
-| `[~]` | [YMP-135](#ymp-135) | P1 | Show model-only labels when native effort is unknown or only a thinking toggle is reported | 2026-09-13 05:29 |
+| `[~]` | [YMP-135](#ymp-135) | P1 | Show model-only labels when native effort is unknown or only a thinking toggle is reported | 2026-09-13 05:41 |
 
 ## YMP-001
 
@@ -1827,9 +1827,9 @@ Show model-only labels when native effort is unknown or only a thinking toggle i
 
 **State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P1
 
-**Last update (UTC):** 2026-09-13 05:29
+**Last update (UTC):** 2026-09-13 05:41
 
-**Current reason:** Inspected native invocation metadata read-only. GLM glm-4.7 and glm-4.5-air report thought_level on while requested/sent effort is absent; Codex reports xhigh; old Claude records have absent effort. Final owner choice is model-only when unknown. Sent a narrow shared-label correction to the existing table author; no real inference or changes to the owner session.
+**Current reason:** Shared-label commit 6d12bf4 is integrated. The combined source passes 475 Rust tests (two ignored), fmt and strict workspace Clippy. Four physical CLI fixtures pass: absent and binary on effort produce model-only headings; real none and max remain native values. The previous binary reproduces the missing-effort placeholder defect. Installed-binary verification awaits the combined table release.
 
 **Owner:** Claude Code Opus 5 high; maintainer verifies and installs
 

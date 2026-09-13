@@ -3336,11 +3336,16 @@
           "at": "2026-09-13T05:29:46.846004+00:00",
           "status": "in_progress",
           "note": "Inspected native invocation metadata read-only. GLM glm-4.7 and glm-4.5-air report thought_level on while requested/sent effort is absent; Codex reports xhigh; old Claude records have absent effort. Final owner choice is model-only when unknown. Sent a narrow shared-label correction to the existing table author; no real inference or changes to the owner session."
+        },
+        {
+          "at": "2026-09-13T05:41:31.969207+00:00",
+          "status": "in_progress",
+          "note": "Shared-label commit 6d12bf4 is integrated. The combined source passes 475 Rust tests (two ignored), fmt and strict workspace Clippy. Four physical CLI fixtures pass: absent and binary on effort produce model-only headings; real none and max remain native values. The previous binary reproduces the missing-effort placeholder defect. Installed-binary verification awaits the combined table release."
         }
       ]
     }
   ],
-  "updated_at": "2026-09-13T05:36:53.423279+00:00",
+  "updated_at": "2026-09-13T05:41:31.969207+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",

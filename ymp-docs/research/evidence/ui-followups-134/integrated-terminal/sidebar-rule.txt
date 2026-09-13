@@ -1,0 +1,36 @@
+ymp  project  /private/var/folders/cw/7pn8sb3x6bj69g7j2d8f_ss0…  3fb15ffc  ✓ completed  — tokens  8 / 200 turns captured
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  ◇ Plan accepted · Create and verify a small deliverable                         05:12  │ SESSION
+                                                                                         │ 3fb15ffc         ✓ completed
+  · Atlas · execution report                                                      05:12  │ turns this session   8 / 200
+    Created greeting.txt and verified its content.                                       │ dir …rminal-rntunt6y/project
+  · Cygnus review · accepted · The stated acceptance criteria are satisfied.      05:12  │
+  · Cygnus review · accepted ·                                                           │ TOKENS                     —
+  · Cygnus proposed a reusable ┌ Colour theme ────────────────────────── saved on Enter ┐│ Atlas                      —
+  · Atlas review · accepted ·  │ › Ember     dark                                       ││ Cygnus                     —
+  ◇ Unconfirmed procedure cand │   Warm amber on black. The default ymp palette.        ││
+                               │   Slate     dark                                       ││ TEAM            this session
+  ◆ Cygnus · final result      │   Paper     light                                      ││ ○ Atlas                 idle
+    The requested artifact is  │   Contrast  high contrast                              ││ ○ Cygnus                idle
+                               │   Terminal  terminal palette                           ││
+  ◆ ymp · run summary          │                                                        ││ TASKS
+    The requested artifact is  │ The whole interface previews as you move.              ││ accepted               1 / 1
+                               │                                                        ││
+    Acceptance: accepted; conf │ Up/Down preview  Enter keep  Esc cancel                ││
+                               └────────────────────────────────────────────────────────┘│
+    Workspace:                                                                           │
+    /private/var/folders/cw/7pn8sb3x6bj69g7j2d8f_ss00000gn/T/ymp133-terminal-rntunt6y/p  │
+    roject                                                                               │
+                                                                                         │
+  · unknown model · execution report                                              00:00  │
+    Terminal detail paragraph 1.                                                         │
+                                                                                         │
+    Terminal detail paragraph 2.                                                         │
+                                                                                         │
+    Terminal detail paragraph 3.                                                         │
+                                                                                         │
+    17 more lines · Enter to read the full report                                        │
+  ◇ Session loaded for reading. Send a message to continue the conversation, or…  05:40  │
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+› Describe a task, or type / for commands.
+Ready                                                                    composer Enter send  Ctrl+P commands  Tab focus

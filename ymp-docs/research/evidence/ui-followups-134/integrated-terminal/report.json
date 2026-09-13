@@ -1,0 +1,10 @@
+{
+  "binary": "/tmp/ymp042-integrated-target/debug/ymp",
+  "checks": [
+    "sidebar-rule",
+    "short-palette",
+    "short-theme"
+  ],
+  "passed": true,
+  "native_inference": false
+}

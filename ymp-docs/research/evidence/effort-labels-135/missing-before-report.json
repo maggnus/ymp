@@ -1,0 +1,21 @@
+{
+  "binary": "/Users/maggnus/Code/ymp2/target/release/ymp",
+  "directory": "/var/folders/cw/7pn8sb3x6bj69g7j2d8f_ss00000gn/T/ymp132-cli-xxqbbc5d",
+  "reported_effort": "missing",
+  "headers": [
+    "native-model-z none \u00b7 chat",
+    "native-model-z none \u00b7 plan",
+    "native-model-z none \u00b7 chat",
+    "native-model-z none \u00b7 review_plan",
+    "native-model-z none \u00b7 chat",
+    "native-model-z none \u00b7 execute",
+    "native-model-z none \u00b7 chat",
+    "native-model-z none \u00b7 review",
+    "native-model-z none \u00b7 chat",
+    "native-model-z none \u00b7 final_review",
+    "native-model-z none \u00b7 chat",
+    "native-model-z none \u00b7 synthesis"
+  ],
+  "native_inference": false,
+  "result": "expected old labeling failure"
+}

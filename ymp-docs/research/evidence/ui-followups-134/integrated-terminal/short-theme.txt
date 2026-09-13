@@ -1,0 +1,10 @@
+ymp  projec┌ Colour theme ────────────────────────── saved on Enter ┐ tok  8/200
+───────────│   Slate     dark                                       │───────────
+           │   Paper     light                                      │
+    Termin │   Contrast  high contrast                              │ completed
+           │ › Terminal  terminal palette                           │   8 / 200
+    17 mor │                                                        │ y/project
+  ◇ Sessio │ Up/Down preview  Enter keep  Esc cancel                │
+───────────└──────────────────────────────────────────────── 4 more ┘───────────
+› Describe a task, or type / for commands.
+Ready                            composer Enter send  Ctrl+P commands  Tab focus

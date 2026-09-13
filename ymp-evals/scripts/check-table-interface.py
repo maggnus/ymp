@@ -183,7 +183,10 @@ provider = "demo"
         keys("C-p", "Down", "Down", "Down", "Down")
         text = capture("short-palette-selection")
         assert re.search(r"›\s+/tasks\b", text), "selected command is outside the visible palette"
-        keys("Escape", "C-t", "Down", "Down", "Down", "Down")
+        keys("Escape")
+        tmux("resize-window", "-t", "check", "-x", "80", "-y", "10")
+        time.sleep(0.2)
+        keys("C-t", "Down", "Down", "Down", "Down")
         text = capture("short-theme-selection")
         assert re.search(r"›\s+Terminal\b", text), "selected theme is outside the visible chooser"
         keys("Escape")
