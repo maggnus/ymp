@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-12 23:45 UTC.
+Updated: 2026-09-13 00:12 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -14,7 +14,7 @@ A planned task is not implemented functionality. Completed research and planning
 | design | 1 | 1 |
 | documentation | 4 | 4 |
 | experiment | 0 | 4 |
-| implementation | 23 | 25 |
+| implementation | 23 | 26 |
 | research | 8 | 8 |
 | verification | 2 | 2 |
 
@@ -68,6 +68,7 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-126](#ymp-126) | P1 | Execute universal acceptance scenarios through a trusted runtime driver | 2026-09-12 22:52 |
 | `[x]` | [YMP-127](#ymp-127) | P0 | Build and display the agent pool from provider-returned native names | 2026-09-12 20:43 |
 | `[x]` | [YMP-128](#ymp-128) | P1 | Support internal team transport with long metadata paths | 2026-09-12 21:24 |
+| `[~]` | [YMP-129](#ymp-129) | P1 | Recover bounded independent reviews after ACP output exhaustion | 2026-09-13 00:21 |
 
 ## YMP-001
 
@@ -1623,6 +1624,36 @@ The actual isolated install succeeds, but its mock demo fails with path must be 
 **Evidence:**
 
 - [Local release verification procedure](../guides/release-verification.md)
+
+## YMP-129
+
+Recover bounded independent reviews after ACP output exhaustion
+
+**State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P1
+
+**Last update (UTC):** 2026-09-13 00:21
+
+**Current reason:** Offline protocol and Engine regressions failed before the fix. Typed ACP output exhaustion and bounded read-only review recovery now preserve the candidate, settings, fresh capabilities and both usage records. Cancellation, incomplete accounting and token-ceiling controls pass; finishing invocation-ceiling coverage and required workspace checks.
+
+**Owner:** Maintainer
+
+**Authorization:** Owner supplied a blocked real poker run; investigate and correct the runtime failure without replaying generated work or using paid models in tests.
+
+**Depends on:** [YMP-103](#ymp-103), [YMP-104](#ymp-104), [YMP-102](#ymp-102), [YMP-117](#ymp-117)
+
+The real GLM review ended max_tokens at 8192 output tokens, 8185 reasoning; the adapter returned a generic error and stopped the session while the completed producer remained in review.
+
+**Acceptance criteria:**
+
+- Classify ACP max_tokens as an incomplete provider response, retain observed usage, and never treat truncated content as a successful review.
+- Allow at most one additional read-only independent review attempt within captured attempt/invocation/resource constraints, with a fresh grant and no producer replay, automatic effort escalation or changed pins.
+- Cancellation, local budget/time/output stops, other native stop reasons and exhausted attempt allowances must remain terminal; repeated provider limits must stop with a useful retained reason.
+- Verify native protocol and actual Engine paths offline, including preserved candidate/artifact and prior spend, successful bounded recovery, repeated exhaustion and no write retry.
+- Update recovery documentation and provide a concrete low-effort resume route for the reported session without changing its stored history or executing real provider requests as tests.
+
+**Evidence:**
+
+- Pending.
 
 ## Intent coverage
 

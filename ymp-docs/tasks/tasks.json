@@ -22,11 +22,11 @@
       ],
       "reason": "Research request 01 requires evidence before adopting hypotheses.",
       "acceptance": [
-        "Give an evidence-backed verdict for H1–H9, including the added outcome reuse and weighted accounting hypotheses.",
+        "Give an evidence-backed verdict for H1\u2013H9, including the added outcome reuse and weighted accounting hypotheses.",
         "Address all seven success gaps and register every retained action."
       ],
       "evidence": [
-        "[Findings for H1–H9 and all success gaps](../research/research-program-findings.md)",
+        "[Findings for H1\u2013H9 and all success gaps](../research/research-program-findings.md)",
         "[Controlled experiment protocol](../research/experiment-protocol.md)",
         "[Verification evidence](../research/evidence/verification.json)"
       ],
@@ -2977,9 +2977,45 @@
           "note": "Independent review accepts af6a4dc (9/10);26 focused socket/MCP/executable checks pass. Integrated as235d0a with all125 reviewed source hashes preserved; main formatting, Clippy,382 tests and build pass. The complete isolated installer workflow now passes installation, version/help, mock demo in the long metadata path, backup preservation and repeat installation. Artifacts stay in the selected directory; owner installation remains unchanged. Final-version packaging remains121."
         }
       ]
+    },
+    {
+      "id": "YMP-129",
+      "title": "Recover bounded independent reviews after ACP output exhaustion",
+      "type": "implementation",
+      "priority": "P1",
+      "status": "in_progress",
+      "owner": "Maintainer",
+      "authorization": "Owner supplied a blocked real poker run; investigate and correct the runtime failure without replaying generated work or using paid models in tests.",
+      "depends_on": [
+        "YMP-103",
+        "YMP-104",
+        "YMP-102",
+        "YMP-117"
+      ],
+      "reason": "The real GLM review ended max_tokens at 8192 output tokens, 8185 reasoning; the adapter returned a generic error and stopped the session while the completed producer remained in review.",
+      "acceptance": [
+        "Classify ACP max_tokens as an incomplete provider response, retain observed usage, and never treat truncated content as a successful review.",
+        "Allow at most one additional read-only independent review attempt within captured attempt/invocation/resource constraints, with a fresh grant and no producer replay, automatic effort escalation or changed pins.",
+        "Cancellation, local budget/time/output stops, other native stop reasons and exhausted attempt allowances must remain terminal; repeated provider limits must stop with a useful retained reason.",
+        "Verify native protocol and actual Engine paths offline, including preserved candidate/artifact and prior spend, successful bounded recovery, repeated exhaustion and no write retry.",
+        "Update recovery documentation and provide a concrete low-effort resume route for the reported session without changing its stored history or executing real provider requests as tests."
+      ],
+      "evidence": [],
+      "history": [
+        {
+          "at": "2026-09-13T00:12:07.131236+00:00",
+          "status": "in_progress",
+          "note": "Actual session0b24eea4 retained the completed poker engine in review; UI/browser tasks never started. All23 current poker logic tests pass. Investigating typed provider stop and bounded review-only recovery; project artifacts remain untouched."
+        },
+        {
+          "at": "2026-09-13T00:21:54.373500+00:00",
+          "status": "in_progress",
+          "note": "Offline protocol and Engine regressions failed before the fix. Typed ACP output exhaustion and bounded read-only review recovery now preserve the candidate, settings, fresh capabilities and both usage records. Cancellation, incomplete accounting and token-ceiling controls pass; finishing invocation-ceiling coverage and required workspace checks."
+        }
+      ]
     }
   ],
-  "updated_at": "2026-09-12T23:45:47.067870+00:00",
+  "updated_at": "2026-09-13T00:12:07.131236+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",
@@ -3006,7 +3042,8 @@
     "YMP-127",
     "YMP-126",
     "YMP-128",
-    "YMP-121"
+    "YMP-121",
+    "YMP-129"
   ],
   "intent": "intent.md",
   "intent_sha256": "4479e919c5b47934e69e81ac493d16e90a0dc420a9a370382e79bca3f3c754d9",
@@ -3085,6 +3122,14 @@
         "YMP-126",
         "YMP-128",
         "YMP-121"
+      ]
+    },
+    {
+      "id": "M6",
+      "title": "Post-release reliability corrections",
+      "outcome": "Real reported failures receive bounded recovery without losing existing outcomes.",
+      "task_ids": [
+        "YMP-129"
       ]
     }
   ],
