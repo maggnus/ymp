@@ -137,8 +137,8 @@ provider = "demo"
         command("/files")
         wait_for(lambda s: all(name in s for name in files), "files")
         text = capture("files-default")
-        assert all(title in text for title in ("NAME", "SIZE")), "missing table headers"
-        passed("files-table")
+        assert "Files" in "\n".join(text.splitlines()[:5]), "missing Files page header"
+        passed("files-widget")
 
         type_text("/m-")
         tmux("set-buffer", "-b", "ymp-check", "small")
@@ -168,13 +168,11 @@ provider = "demo"
         wait_for(lambda s: all(name in s for name in files), "inverse-clear")
         passed("inverse-filter")
 
-        type_text("S")
-        text = capture("files-size-ascending")
-        assert text.index("m-small.txt") < text.index("z-medium.txt") < text.index("a-large.txt"), text
-        type_text("S")
-        text = capture("files-size-descending")
-        assert text.index("a-large.txt") < text.index("z-medium.txt") < text.index("m-small.txt"), text
-        passed("numeric-sort-both-directions")
+        # /files uses the explorer library's directory/name order. Column sorting
+        # remains on the application's record tables, not this native widget.
+        text = capture("files-native-order")
+        assert text.index("a-large.txt") < text.index("m-small.txt") < text.index("z-medium.txt"), text
+        passed("file-widget-native-order")
 
         type_text("/no-file-has-this-name")
         wait_for(lambda s: "Nothing" in s and all(name not in s for name in files), "empty-filter")
