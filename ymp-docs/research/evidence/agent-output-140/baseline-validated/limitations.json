@@ -1,0 +1,5 @@
+{
+  "passed": false,
+  "reason": "Correct report was selected, but capture raced the initial grammar load before the modal was painted. Checker now waits for the actual read-only dialog. This is not a product-failure finding.",
+  "replacement": "../baseline-message/report.json"
+}

@@ -1,0 +1,36 @@
+{
+  "binary": "/Users/maggnus/Code/ymp2/target/release/ymp",
+  "baseline": false,
+  "monochrome": true,
+  "native_inference": false,
+  "cases": [
+    {
+      "theme": "ember",
+      "literal_text": true,
+      "code_colored": false,
+      "diff_colored": false,
+      "prose_visible": true,
+      "chat_code_colored": false,
+      "chat_diff_colored": false,
+      "inspect_opened": true,
+      "prose_not_diff": true,
+      "distinct_color_pairs": 1,
+      "monochrome_markers_preserved": true
+    },
+    {
+      "theme": "catppuccin-latte",
+      "literal_text": true,
+      "code_colored": false,
+      "diff_colored": false,
+      "prose_visible": true,
+      "chat_code_colored": false,
+      "chat_diff_colored": false,
+      "inspect_opened": true,
+      "prose_not_diff": true,
+      "distinct_color_pairs": 1,
+      "monochrome_markers_preserved": true
+    }
+  ],
+  "stored_messages_unchanged": true,
+  "passed": true
+}

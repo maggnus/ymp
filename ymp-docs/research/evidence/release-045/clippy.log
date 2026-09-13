@@ -1,0 +1,10 @@
+    Blocking waiting for file lock on build directory
+    Checking ymp-core v0.4.5 (/Users/maggnus/Code/ymp2/ymp-rust/crates/ymp-core)
+   Compiling ymp-eval-driver v0.4.5 (/Users/maggnus/Code/ymp2/ymp-rust/crates/ymp-eval-driver)
+    Checking ymp-providers v0.4.5 (/Users/maggnus/Code/ymp2/ymp-rust/crates/ymp-providers)
+    Checking ymp-workspace v0.4.5 (/Users/maggnus/Code/ymp2/ymp-rust/crates/ymp-workspace)
+    Checking ymp-storage v0.4.5 (/Users/maggnus/Code/ymp2/ymp-rust/crates/ymp-storage)
+    Checking ymp-runtime v0.4.5 (/Users/maggnus/Code/ymp2/ymp-rust/crates/ymp-runtime)
+    Checking ymp-tui v0.4.5 (/Users/maggnus/Code/ymp2/ymp-rust/crates/ymp-tui)
+    Checking ymp-cli v0.4.5 (/Users/maggnus/Code/ymp2/ymp-rust/crates/ymp-cli)
+    Finished `dev` profile [unoptimized] target(s) in 11.77s

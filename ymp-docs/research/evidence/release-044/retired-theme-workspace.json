@@ -1,0 +1,11 @@
+{
+  "theme_workspace": "wks_841aaed5bc7d56dd",
+  "agent": "1e1a7a7b-030f-4eca-9d9f-9a02c32b1cd9",
+  "project_deleted": "prj_2c2de4a18b4fb0b3",
+  "worktree_removed": "/private/tmp/ymp132-agent-attribution",
+  "retained_branch": "feat/ymp137-library-themes",
+  "retained_commit": "508d7f575ea73e9b4d65e81949b006883197caad",
+  "removed_cache": "/private/tmp/ymp132-test-target",
+  "cache_allocated_kib": 2917988,
+  "reason": "Theme changes accepted and verified in installed 0.4.4; worktree clean and no process using it."
+}

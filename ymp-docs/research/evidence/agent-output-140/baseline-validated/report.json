@@ -1,0 +1,9 @@
+{
+  "binary": "/Users/maggnus/Code/ymp2/target/debug/ymp",
+  "baseline": true,
+  "monochrome": false,
+  "native_inference": false,
+  "cases": [],
+  "passed": false,
+  "error": "Inspect did not open the agent report"
+}

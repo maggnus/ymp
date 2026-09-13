@@ -1,0 +1,45 @@
+ymp  project  /Users/maggnus/Code/ymp2/ymp-docs/research/evidence/release-045/files-ascii/project                  no session  0 / 200 turns
+--------------------------------------------------------------------------------------------------------------------------------------------
+ Files</READ>[1]  /files /Users/maggnus/Code/ymp2/ymp-docs/research/evidence/release-045/files-ascii/pro…| SESSION
+ / READ                                                                             Enter keep  Esc clear| none · the next message opens on
+   ../                                                                                                   | turns next run           0 / 200
+ > README.md                                                                                             | dir …ase-045/files-ascii/project
+                                                                                                         |
+                                                                                                         | TOKENS                         -
+                                                                                                         | none · nothing spent yet
+                                                                                                         |
+                                                                                                         | TEAM                    next run
+                                                                                                         | AGENT    STATE
+                                                                                                         | o Atlas  idle
+                                                                                                         |
+                                                                                                         | TASKS
+                                                                                                         | no task graph yet
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+--------------------------------------------------------------------------------------------------------------------------------------------
+> Describe a task, or type / for commands.
+Ready                                                                                                main type filter  Enter keep  Esc clear

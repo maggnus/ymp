@@ -1,0 +1,24 @@
+ymp  project             209513f5  ✓ completed  — tok  8/200
+────────────────────────────────────────────────────────────
+ Assignments[8]  /assignments 8 assigned · none open · read…
+────────────────────────────────────────────────────────────
+ › ◇ How work is assigned, and what these records are  w…
+
+   RECORDED EARLIER
+      AGENT   PURPOSE        STATE      STARTED
+   ✓  Atlas   plan           completed  2026-09-13 11:10
+   ✓  Cygnus  review_plan    completed  2026-09-13 11:10
+   ✓  Atlas   execute        completed  2026-09-13 11:10
+   ✓  Cygnus  review         completed  2026-09-13 11:10
+   ✓  Cygnus  final_review   completed  2026-09-13 11:10
+   ✓  Cygnus  learn          completed  2026-09-13 11:10
+   ✓  Atlas   review_memory  completed  2026-09-13 11:10
+   ✓  Cygnus  synthesis      completed  2026-09-13 11:10
+
+
+
+
+
+────────────────────────────────────────────────────────────
+› Describe a task, or type / for commands.
+Ready main Enter show the record  Esc back  / filter  Shift…

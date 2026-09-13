@@ -1,0 +1,5 @@
+{
+  "inspect_checks_valid": false,
+  "reason": "The dialog contained the final session notice while report markers remained visible in the underlying chat. The checker now selects the preceding report and limits assertions to the dialog rectangle. Inline chat observations remain valid.",
+  "replacement": "../baseline-validated/report.json"
+}

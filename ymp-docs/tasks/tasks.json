@@ -3489,7 +3489,9 @@
         "Verify remaining Paseo and Git state, record reclaimed disk allocation and retain restoration details without changing product source or approved intent."
       ],
       "evidence": [
-        "ymp-docs/research/paseo-cleanup-2026-09-13.md"
+        "ymp-docs/research/paseo-cleanup-2026-09-13.md",
+        "ymp-docs/research/evidence/release-044/retired-theme-workspace.json",
+        "ymp-docs/research/evidence/release-045/retired-assignment.json"
       ],
       "history": [
         {
@@ -3501,6 +3503,11 @@
           "at": "2026-09-13T08:31:17.370517+00:00",
           "status": "done",
           "note": "Deleted four obsolete Paseo projects and archived their four completed agents/workspaces; removed 61 historical worktrees and 14 unused Cargo caches; stopped orphan mock PID 7407. Preserved 97 archive entries and 15 previously unreferenced Git heads, all verified. Main and pending YMP-136/137 worktree, agent and cache remain. Observed free space increased by 57.24 GiB to 71.50 GiB. Required fmt, strict Clippy and workspace tests pass: 498 passed, 0 failed, 2 ignored. Recovery record and limitations are documented."
+        },
+        {
+          "at": "2026-09-13T11:15:46.512245+00:00",
+          "status": "done",
+          "note": "After 0.4.4/0.4.5 acceptance, archived the final two assignment agents/workspaces and removed their clean worktrees, the obsolete theme project and three remaining temporary build caches. Both branches/commits are retained; generated fixture data is verified in a compact recovery archive. Only the main Git worktree remains; installed executable, release backups and owner changes are preserved."
         }
       ]
     },
@@ -3584,7 +3591,7 @@
       "title": "Render agent code and explicit diffs clearly using established AI-chat patterns",
       "type": "implementation",
       "priority": "P1",
-      "status": "in_progress",
+      "status": "done",
       "owner": "Existing Claude Opus 5 xhigh author continues the current assignment; maintainer owns reference research, contracts and acceptance",
       "authorization": "Owner explicitly requested implementing the agreed navigation/highlighting work and adding highlighted agent output in the same or a separate task, informed by mature systems and other AI chats.",
       "depends_on": [
@@ -3602,7 +3609,10 @@
         "ymp-docs/architecture/agent-output-highlighting.md",
         "ymp-docs/research/evidence/agent-output-140/reference-sources.json",
         "ymp-docs/research/evidence/agent-output-140/baseline-color/report.json",
-        "ymp-docs/research/evidence/agent-output-140/baseline-message/report.json"
+        "ymp-docs/research/evidence/agent-output-140/baseline-message/report.json",
+        "ymp-docs/research/evidence/agent-output-140/acceptance.md",
+        "ymp-docs/research/evidence/release-045/verification.json",
+        "ymp-docs/evidence/ymp-140/README.md"
       ],
       "history": [
         {
@@ -3629,11 +3639,16 @@
           "at": "2026-09-13T10:35:25.819604+00:00",
           "status": "in_progress",
           "note": "Validated terminal baseline after accepted 139 confirms the exact remaining gap: Inspect highlights code and explicit diff in Ember/Latte, while inline Detailed chat does not. The checker now observes the actual selected message dialog after grammar load, with independent SGR-observability and stored-byte checks. Opus is implementing 140; final positive and monochrome checks remain."
+        },
+        {
+          "at": "2026-09-13T11:13:46.227159+00:00",
+          "status": "done",
+          "note": "Independently accepted author 8d3da6a and integrated as 0829dc6. Release source f29bb7a passes fmt, strict Clippy and 554 tests (2 ignored), colour/monochrome inline+Inspect checks with immutable stored messages, 12+12 file cases, 19 table/theme cases and five exit cases. Installed 0.4.5 passes independent colour and monochrome checks in Ember/Latte. Cooperative timing, source-byte cache limits and plain streaming code are documented; no Linux/Windows or real-provider inference claim."
         }
       ]
     }
   ],
-  "updated_at": "2026-09-13T11:07:10.648046+00:00",
+  "updated_at": "2026-09-13T11:15:46.512245+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",
@@ -4040,8 +4055,8 @@
     "stage": "MVP"
   },
   "installed_release": {
-    "version": "0.4.4",
+    "version": "0.4.5",
     "status": "installed",
-    "evidence": "ymp-docs/research/evidence/release-044/verification.json"
+    "evidence": "ymp-docs/research/evidence/release-045/verification.json"
   }
 }

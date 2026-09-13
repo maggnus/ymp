@@ -1,0 +1,5 @@
+{
+  "inspect_checks_valid": false,
+  "reason": "End selected the session-loaded notice, so Enter did not open Inspect. Inline chat checks remain valid; the corrected checker selects the preceding report and requires the read-only badge.",
+  "replacement": "../baseline-inline/report.json"
+}

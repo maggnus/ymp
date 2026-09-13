@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "version": "0.4.5",
+  "status": "installed",
+  "installed_at": "2026-09-13T11:12:06.037921+00:00",
+  "source_revision": "f29bb7a21b01e29250f1ab27f63eccfcfa8f9e61",
+  "author_commit": "8d3da6a0f4743fb7fa52bd31b55b38802fcd618d",
+  "integrated_commit": "0829dc6",
+  "artifact": {
+    "command": "/Users/maggnus/.local/bin/ymp",
+    "binary": "/Users/maggnus/Code/ymp2/target/release/ymp",
+    "sha256": "d9aaa2bb7f40b586049c5d85b9e2c02bfde17281fded4810ebb2f84dade21943",
+    "previous_sha256": "4864834d4dfcd44554fe4f6ca63bd10c828f500f71cb75dc7f3974721906e2f9",
+    "backup": "/Users/maggnus/.ymp2/backups/release-0.4.5-20260913T111206Z/ymp.previous"
+  },
+  "checks": [
+    {
+      "check": "fmt",
+      "exit_code": 0,
+      "log": "fmt.log"
+    },
+    {
+      "check": "clippy",
+      "exit_code": 0,
+      "log": "clippy.log"
+    },
+    {
+      "check": "tests",
+      "exit_code": 0,
+      "log": "tests.log"
+    }
+  ],
+  "tests": {
+    "passed": 554,
+    "failed": 0,
+    "ignored": 2
+  },
+  "staged_terminal": {
+    "output_color_dark_light": 2,
+    "output_monochrome_dark_light": 2,
+    "files_unicode": 12,
+    "files_ascii": 12,
+    "tables_unicode": 19,
+    "deliberate_exit": 5
+  },
+  "installed_terminal": {
+    "output_color_dark_light": 2,
+    "output_monochrome_dark_light": 2
+  },
+  "native_provider_inference_in_tests": false,
+  "source_manifest": "source-manifest.json",
+  "limits": [
+    "Syntax highlighting is applied to completed messages; streamed code remains literal plain code and explicit streamed patches retain diff roles.",
+    "Time limits are cooperative at block/line boundaries; grammar initialization is separate.",
+    "Cache is bounded by source bytes and entry count, not total memory.",
+    "Directory enumeration remains synchronous with no timeout or cancellation.",
+    "Linux and Windows runtime checks were not run."
+  ],
+  "verified_at": "2026-09-13T11:13:46.227159+00:00"
+}

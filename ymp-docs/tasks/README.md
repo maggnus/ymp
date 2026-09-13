@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-13 11:07 UTC.
+Updated: 2026-09-13 11:15 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -14,7 +14,7 @@ A planned task is not implemented functionality. Completed research and planning
 | design | 1 | 1 |
 | documentation | 4 | 4 |
 | experiment | 0 | 4 |
-| implementation | 32 | 36 |
+| implementation | 33 | 36 |
 | maintenance | 1 | 1 |
 | research | 8 | 8 |
 | verification | 2 | 2 |
@@ -78,9 +78,9 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-135](#ymp-135) | P1 | Show model-only labels when native effort is unknown or only a thinking toggle is reported | 2026-09-13 07:01 |
 | `[x]` | [YMP-136](#ymp-136) | P1 | Upgrade the terminal stack to the latest stable Ratatui release | 2026-09-13 08:42 |
 | `[x]` | [YMP-137](#ymp-137) | P1 | Keep Ember and Slate and add the sixteen requested library themes | 2026-09-13 11:07 |
-| `[x]` | [YMP-138](#ymp-138) | P2 | Clean up obsolete Paseo workspaces and ymp2 development worktrees | 2026-09-13 08:31 |
+| `[x]` | [YMP-138](#ymp-138) | P2 | Clean up obsolete Paseo workspaces and ymp2 development worktrees | 2026-09-13 11:15 |
 | `[x]` | [YMP-139](#ymp-139) | P1 | Integrate a ready-made Ratatui file navigator and code highlighting | 2026-09-13 11:07 |
-| `[~]` | [YMP-140](#ymp-140) | P1 | Render agent code and explicit diffs clearly using established AI-chat patterns | 2026-09-13 10:35 |
+| `[x]` | [YMP-140](#ymp-140) | P1 | Render agent code and explicit diffs clearly using established AI-chat patterns | 2026-09-13 11:13 |
 
 ## YMP-001
 
@@ -1926,9 +1926,9 @@ Clean up obsolete Paseo workspaces and ymp2 development worktrees
 
 **State:** `[x]` (done) · **Type:** maintenance · **Priority:** P2
 
-**Last update (UTC):** 2026-09-13 08:31
+**Last update (UTC):** 2026-09-13 11:15
 
-**Current reason:** Deleted four obsolete Paseo projects and archived their four completed agents/workspaces; removed 61 historical worktrees and 14 unused Cargo caches; stopped orphan mock PID 7407. Preserved 97 archive entries and 15 previously unreferenced Git heads, all verified. Main and pending YMP-136/137 worktree, agent and cache remain. Observed free space increased by 57.24 GiB to 71.50 GiB. Required fmt, strict Clippy and workspace tests pass: 498 passed, 0 failed, 2 ignored. Recovery record and limitations are documented.
+**Current reason:** After 0.4.4/0.4.5 acceptance, archived the final two assignment agents/workspaces and removed their clean worktrees, the obsolete theme project and three remaining temporary build caches. Both branches/commits are retained; generated fixture data is verified in a compact recovery archive. Only the main Git worktree remains; installed executable, release backups and owner changes are preserved.
 
 **Owner:** Maintainer
 
@@ -1948,6 +1948,8 @@ Completed Paseo assignments and temporary Git worktrees retain old build output,
 **Evidence:**
 
 - ymp-docs/research/paseo-cleanup-2026-09-13.md
+- ymp-docs/research/evidence/release-044/retired-theme-workspace.json
+- ymp-docs/research/evidence/release-045/retired-assignment.json
 
 ## YMP-139
 
@@ -1986,11 +1988,11 @@ The Files page only lists the selected directory and exposes path metadata; it c
 
 Render agent code and explicit diffs clearly using established AI-chat patterns
 
-**State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P1
+**State:** `[x]` (done) · **Type:** implementation · **Priority:** P1
 
-**Last update (UTC):** 2026-09-13 10:35
+**Last update (UTC):** 2026-09-13 11:13
 
-**Current reason:** Validated terminal baseline after accepted 139 confirms the exact remaining gap: Inspect highlights code and explicit diff in Ember/Latte, while inline Detailed chat does not. The checker now observes the actual selected message dialog after grammar load, with independent SGR-observability and stored-byte checks. Opus is implementing 140; final positive and monochrome checks remain.
+**Current reason:** Independently accepted author 8d3da6a and integrated as 0829dc6. Release source f29bb7a passes fmt, strict Clippy and 554 tests (2 ignored), colour/monochrome inline+Inspect checks with immutable stored messages, 12+12 file cases, 19 table/theme cases and five exit cases. Installed 0.4.5 passes independent colour and monochrome checks in Ember/Latte. Cooperative timing, source-byte cache limits and plain streaming code are documented; no Linux/Windows or real-provider inference claim.
 
 **Owner:** Existing Claude Opus 5 xhigh author continues the current assignment; maintainer owns reference research, contracts and acceptance
 
@@ -2014,6 +2016,9 @@ Agent output mixes prose, code, command output and proposed changes. It needs re
 - ymp-docs/research/evidence/agent-output-140/reference-sources.json
 - ymp-docs/research/evidence/agent-output-140/baseline-color/report.json
 - ymp-docs/research/evidence/agent-output-140/baseline-message/report.json
+- ymp-docs/research/evidence/agent-output-140/acceptance.md
+- ymp-docs/research/evidence/release-045/verification.json
+- ymp-docs/evidence/ymp-140/README.md
 
 ## Intent coverage
 

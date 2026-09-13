@@ -1,0 +1,25 @@
+{
+  "binary": "/private/tmp/ymp132-test-target/debug/ymp",
+  "baseline": true,
+  "native_inference": false,
+  "cases": [
+    {
+      "theme": "ember",
+      "literal_text": true,
+      "code_colored": false,
+      "diff_colored": false,
+      "prose_visible": true,
+      "expected_missing_behavior": true
+    },
+    {
+      "theme": "catppuccin-latte",
+      "literal_text": true,
+      "code_colored": false,
+      "diff_colored": false,
+      "prose_visible": true,
+      "expected_missing_behavior": true
+    }
+  ],
+  "stored_messages_unchanged": true,
+  "passed": true
+}

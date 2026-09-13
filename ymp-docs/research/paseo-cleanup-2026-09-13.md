@@ -75,3 +75,22 @@ the same directory contains before/after inventories and validation logs.
 Archive entries were verified individually; full restoration of all historical
 worktrees and new theme acceptance were not performed. The next product step is
 independent verification and integration of the retained YMP-136/137 branch.
+
+## Follow-up after the accepted 0.4.4 and 0.4.5 releases
+
+The inventory above records the initial cleanup snapshot. After independent integration and
+installed verification, the two remaining assignment worktrees were also retired: the theme
+branch at `508d7f5` and the file-navigation/output branch at `8d3da6a`. Both branches and all
+commits remain referenced. Their native agents and workspaces are archived. The obsolete theme
+project `prj_2c2de4a18b4fb0b3` was deleted. Git now has only the main development checkout.
+
+The retained theme test cache and the completed release/highlighter staging caches were removed.
+Fifty-three generated fixture paths from this session were archived, read back and checked
+before removal. Their reports, source probes and terminal captures remain in the repository.
+The fixture archive is `post-release-fixtures.tar.gz` in the recovery directory above.
+
+Exact retained identifiers, paths and hashes are in
+[theme retirement](evidence/release-044/retired-theme-workspace.json) and
+[assignment retirement](evidence/release-045/retired-assignment.json).
+The installed executable and both release backups remain available. Existing owner request
+edits and unrelated projects/workspaces are preserved.

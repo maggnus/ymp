@@ -1,0 +1,28 @@
+{
+  "binary": "/Users/maggnus/Code/ymp2/target/release-044-stage/release/ymp",
+  "fixture_directory": "/var/folders/cw/7pn8sb3x6bj69g7j2d8f_ss00000gn/T/ymp131-pty-pkxsgw52",
+  "session": "3d5848ad-1c27-42e4-8bca-f18d6f5a481b",
+  "cases": [
+    {
+      "case": "double",
+      "passed": true
+    },
+    {
+      "case": "input-reset",
+      "passed": true
+    },
+    {
+      "case": "expiry",
+      "passed": true
+    },
+    {
+      "case": "quit",
+      "passed": true
+    },
+    {
+      "case": "sessionless",
+      "passed": true
+    }
+  ],
+  "native_inference": false
+}

@@ -1,0 +1,12 @@
+ym┌ Colour theme ──── saved on Enter ┐00
+──│   Tokyo Night         dark       │──
+  │   Solarized Dark      dark       │ …
+─ │   Solarized Light     light      │ ─
+  │   Monokai Pro         dark       │
+  │ › Rosé Pine           dark       │
+  │   Muted rose, iris and pine on a │
+  │                                  │
+  │ Up/Down preview  Enter keep      │
+──└────────────────────────── 4 more ┘──
+› Describe a task, or type / for command
+Ready main Space add or remove  Enter o…

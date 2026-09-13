@@ -4,7 +4,7 @@ A terminal workspace for a self-organizing team of local AI agents. Written in R
 
 Give the team a task. Agents propose plans and temporary responsibilities; the runtime validates assignments and revisions. They work in the selected directory and independently review the deliverable. Objectively confirmed outcomes supply qualified experience and reusable knowledge; qualitative acceptance remains explicitly unconfirmed.
 
-**Status:** 0.4.4 MVP. See the [0.4.4](ymp-docs/releases/0.4.4.md), [0.4.3](ymp-docs/releases/0.4.3.md), [0.4.2](ymp-docs/releases/0.4.2.md) and [0.4.1](ymp-docs/releases/0.4.1.md) patch notes and the [0.4.0 release notes](ymp-docs/releases/0.4.0.md) for verified behavior and limitations. Quality improvements from memory and adaptive assignment remain hypotheses to evaluate, not a measured product claim.
+**Status:** 0.4.5 MVP. See the [0.4.5](ymp-docs/releases/0.4.5.md), [0.4.4](ymp-docs/releases/0.4.4.md), [0.4.3](ymp-docs/releases/0.4.3.md), [0.4.2](ymp-docs/releases/0.4.2.md) and [0.4.1](ymp-docs/releases/0.4.1.md) patch notes and the [0.4.0 release notes](ymp-docs/releases/0.4.0.md) for verified behavior and limitations. Quality improvements from memory and adaptive assignment remain hypotheses to evaluate, not a measured product claim.
 
 ## Requirements
 

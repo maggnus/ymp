@@ -1,0 +1,32 @@
+{
+  "binary": "/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp139-file-navigation/target/debug/ymp",
+  "baseline": true,
+  "monochrome": false,
+  "native_inference": false,
+  "cases": [
+    {
+      "theme": "ember",
+      "literal_text": true,
+      "code_colored": false,
+      "diff_colored": false,
+      "prose_visible": true,
+      "chat_code_colored": false,
+      "chat_diff_colored": false,
+      "distinct_color_pairs": 8,
+      "expected_missing_behavior": true
+    },
+    {
+      "theme": "catppuccin-latte",
+      "literal_text": true,
+      "code_colored": false,
+      "diff_colored": false,
+      "prose_visible": true,
+      "chat_code_colored": false,
+      "chat_diff_colored": false,
+      "distinct_color_pairs": 12,
+      "expected_missing_behavior": true
+    }
+  ],
+  "stored_messages_unchanged": true,
+  "passed": true
+}

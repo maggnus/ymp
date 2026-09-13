@@ -1,0 +1,45 @@
+ymp  project  /Users/maggnus/Code/ymp2/ymp-docs/research/evidence/release-045/tabl…  209513f5  ✓ completed  — tokens  8 / 200 turns captured
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ Team[7]  /team                                  2 captured by this session · 3 eligible on this machine │ SESSION
+─────────────────────────────────────────────────────────────────────────────────────────────────────────│ 209513f5             ✓ completed
+ › ◇ What membership means here  what this page is                                                       │ turns this session       8 / 200
+                                                                                                         │ dir …/release-045/tables/project
+   MEMBERS OF THIS SESSION                                                                               │
+      AGENT   READING             PROVIDER  STATE                                                        │ TOKENS                         —
+   ✓  Atlas   model not recorded  demo      3 turn(s) here                                               │ AGENT   TOKENS
+   ✓  Cygnus  model not recorded  demo      5 turn(s) here                                               │ Atlas        —
+                                                                                                         │ Cygnus       —
+   HOW THE ROSTER IS BOUNDED                                                                             │
+      RULE          VALUE                                                                                │ TEAM                this session
+   ✓  roster        2 member(s) · revision 8                                                             │ AGENT     STATE
+   •  roster rules  up to 4                                                                              │ ○ Atlas   idle
+                                                                                                         │ ○ Cygnus  idle
+   AVAILABLE ON THIS MACHINE                                                                             │
+      MODEL   PROVIDER  STATE                                                                            │ TASKS             accepted 1 / 1
+   ✓  Atlas   demo      eligible                                                                         │
+   ✓  Boreal  demo      eligible                                                                         │
+   ✓  Cygnus  demo      eligible                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+› Describe a task, or type / for commands.
+Ready                                      main Space add or remove  Enter open the record  Esc back  / filter  Shift+letter sort  d inspect

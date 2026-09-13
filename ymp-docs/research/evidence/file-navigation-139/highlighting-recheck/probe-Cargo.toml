@@ -1,0 +1,15 @@
+[package]
+name = "ymp-highlight-adapter-probe"
+version = "0.0.0"
+edition = "2021"
+
+[dependencies]
+ratatui = { version = "=0.30.2", default-features = false }
+tui-syntax-highlight = { version = "=0.2.0", default-features = false, features = ["regex-fancy"] }
+syntect = { version = "=5.3.0", default-features = false, features = ["parsing", "regex-fancy"] }
+two-face = { version = "=0.5.2", default-features = false, features = ["syntect-fancy"] }
+serde_json = "1"
+
+[profile.dev]
+debug = 0
+incremental = false

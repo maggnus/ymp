@@ -1,0 +1,5 @@
+{
+  "color_checks_valid": false,
+  "reason": "The inherited NO_COLOR=1 suppressed SGR output; the initial missing-color result was not valid color evidence. Literal text and stored-message checks remain valid.",
+  "replacement": "../baseline-color/report.json"
+}
