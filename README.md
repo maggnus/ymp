@@ -4,7 +4,7 @@ A terminal workspace for a self-organizing team of local AI agents. Written in R
 
 Give the team a task. Agents propose plans and temporary responsibilities; the runtime validates assignments and revisions. They work in the selected directory and independently review the deliverable. Objectively confirmed outcomes supply qualified experience and reusable knowledge; qualitative acceptance remains explicitly unconfirmed.
 
-**Status:** 0.4.2 MVP. See the [0.4.2](ymp-docs/releases/0.4.2.md) and [0.4.1](ymp-docs/releases/0.4.1.md) patch notes and the [0.4.0 release notes](ymp-docs/releases/0.4.0.md) for verified behavior and limitations. Quality improvements from memory and adaptive assignment remain hypotheses to evaluate, not a measured product claim.
+**Status:** 0.4.3 MVP. See the [0.4.3](ymp-docs/releases/0.4.3.md), [0.4.2](ymp-docs/releases/0.4.2.md) and [0.4.1](ymp-docs/releases/0.4.1.md) patch notes and the [0.4.0 release notes](ymp-docs/releases/0.4.0.md) for verified behavior and limitations. Quality improvements from memory and adaptive assignment remain hypotheses to evaluate, not a measured product claim.
 
 ## Requirements
 
@@ -54,7 +54,7 @@ For objectively confirmed results and reusable supported experience, configure e
 
 ## Working with a team
 
-The interface is chat-first with a right sidebar showing session context, token usage, team activity and tasks. Pages open through slash commands or the command palette. The sidebar appears from 80 columns; hide it with `Ctrl+B`.
+The interface is chat-first with a right sidebar showing session context, token usage, team activity and tasks. Pages open through slash commands or the command palette. The sidebar appears from 72 columns; hide it with `Ctrl+B`.
 
 Commands: `/chat`, `/help`, `/tasks`, `/usage`, `/sessions`, `/files`, `/diff`, `/checks`, `/assignments`, `/decisions`, `/providers`, `/agents`, `/agent`, `/team`, `/limits`, `/memory`, `/reputation`, `/theme`, `/sidebar`, `/details`, `/new`, `/resume`, `/pause`, `/stop`, and `/quit`. `Ctrl+P` opens the command palette, and `/help` lists every command and key.
 

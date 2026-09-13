@@ -1,0 +1,45 @@
+ymp  project  /private/var/folders/cw/7pn8sb3x6bj69g7j2d8f_ss00000gn/T/ymp133-term…  2cb83752  ✓ completed  — tokens  8 / 200 turns captured
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ Token usage[3]  /usage                                           — tokens · 0 of 8 invocations reported │ SESSION
+─────────────────────────────────────────────────────────────────────────────────────────────────────────│ 2cb83752             ✓ completed
+   SESSION                                                                                               │ turns this session       8 / 200
+   SCOPE          TOKENS                                                                                 │ dir …3-terminal-89_hhb3d/project
+ › session total       —                                                                                 │
+                                                                                                         │ TOKENS                         —
+   AGENTS                                                                                                │ AGENT   TOKENS
+   AGENT   PROVIDER  TOKENS                                                                              │ Atlas        —
+   Atlas   demo           —                                                                              │ Cygnus       —
+   Cygnus  demo           —                                                                              │
+                                                                                                         │ TEAM                this session
+                                                                                                         │ AGENT     STATE
+                                                                                                         │ ○ Atlas   idle
+                                                                                                         │ ○ Cygnus  idle
+                                                                                                         │
+                                                                                                         │ TASKS             accepted 1 / 1
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+› Describe a task, or type / for commands.
+Ready                                                                   main Enter inspect  Esc back  / filter  Shift+letter sort  d inspect

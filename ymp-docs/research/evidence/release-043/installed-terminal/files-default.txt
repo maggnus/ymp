@@ -1,0 +1,45 @@
+ymp  project  /private/var/folders/cw/7pn8sb3x6bj69g7j2d8f_ss00000gn/T/ymp133-term…  8d53642b  ✓ completed  — tokens  8 / 200 turns captured
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ Files[4]  /files /private/var/folders/cw/7pn8sb3x6bj69g7j2d8f_ss00000gn/T/ymp133-terminal-z6wmg25m/proj…│ SESSION
+─────────────────────────────────────────────────────────────────────────────────────────────────────────│ 8d53642b             ✓ completed
+   NAME          KIND    SIZE                                                                            │ turns this session       8 / 200
+ › a-large.txt   file  1.0 kB                                                                            │ dir …3-terminal-z6wmg25m/project
+   greeting.txt  file    15 B                                                                            │
+   m-small.txt   file     3 B                                                                            │ TOKENS                         —
+   z-medium.txt  file    80 B                                                                            │ AGENT   TOKENS
+                                                                                                         │ Atlas        —
+                                                                                                         │ Cygnus       —
+                                                                                                         │
+                                                                                                         │ TEAM                this session
+                                                                                                         │ AGENT     STATE
+                                                                                                         │ ○ Atlas   idle
+                                                                                                         │ ○ Cygnus  idle
+                                                                                                         │
+                                                                                                         │ TASKS             accepted 1 / 1
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+› Describe a task, or type / for commands.
+Ready                                                        main Enter show the full path  Esc back  / filter  Shift+letter sort  d inspect

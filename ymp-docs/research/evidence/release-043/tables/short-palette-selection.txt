@@ -1,0 +1,12 @@
+ym┌ Commands ────────────── 25 of 25 ┐00
+──│ › Type to search commands        │──
+  │ ──────────────────────────────── │ …
+─ │   /details      Toggle full att… │ ─
+  │   /help         Command referen… │
+  │ › /tasks        Task graph, ass… │
+  │ ▼ 20 more                        │
+  │                                  │
+  │ Enter run  Up/Down select  Esc   │
+──└──────────────────────────────────┘──
+› Describe a task, or type / for command
+Ready main Space add or remove  Enter o…

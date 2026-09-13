@@ -1,0 +1,28 @@
+{
+  "binary": "/private/tmp/ymp042-integrated-target/release/ymp",
+  "fixture_directory": "/var/folders/cw/7pn8sb3x6bj69g7j2d8f_ss00000gn/T/ymp131-pty-egvrz7ca",
+  "session": "2606e0b9-e8d9-4a5d-b86c-eab6a7c8499c",
+  "cases": [
+    {
+      "case": "double",
+      "passed": true
+    },
+    {
+      "case": "input-reset",
+      "passed": true
+    },
+    {
+      "case": "expiry",
+      "passed": true
+    },
+    {
+      "case": "quit",
+      "passed": true
+    },
+    {
+      "case": "sessionless",
+      "passed": true
+    }
+  ],
+  "native_inference": false
+}

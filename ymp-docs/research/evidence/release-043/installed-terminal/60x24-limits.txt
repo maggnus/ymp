@@ -1,0 +1,24 @@
+ymp  project             8d53642b  ✓ completed  — tok  8/200
+────────────────────────────────────────────────────────────
+ Limits[16]  /limits        captured 200 turns, 3 at a time
+────────────────────────────────────────────────────────────
+ › ◇ What a limit is, and which run it applies to  what …
+
+   THIS SESSION, AS CAPTURED
+   LIMIT              VALUE
+   turns              8 of 200
+   parallel           3
+   timeout            900 s
+   attempts           3
+   turns admitted     8
+   reserved turns     2 + 0
+   tokens observed    unknown
+   token ceiling      none
+   turn allowance     none
+   review tokens      none
+   incomplete counts  stop admitting
+   strict bound       not proved
+
+────────────────────────────────────────────────────────────
+› Describe a task, or type / for commands.
+Ready main + / - adjust the next run  Enter type a value, o…

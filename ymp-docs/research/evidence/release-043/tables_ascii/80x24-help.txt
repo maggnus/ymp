@@ -1,0 +1,24 @@
+ymp  project                                 6e55b773  + completed  - tok  8/200
+--------------------------------------------------------------------------------
+ Help[43]  /help Every command and key, in one place | SESSION
+-----------------------------------------------------| 6e55b773     + completed
+   CONVERSATION                                      | turns this ses…  8 / 200
+   COMMAND   SUMMARY                                 | dir …al-3de8rdd8/project
+ > /chat     Return to the conversation.             |
+   /new      Start an unrelated task. The next pr…   | TOKENS                 -
+   /details  Toggle full attributed agent message…   | AGENT   TOKENS
+                                                     | Atlas        -
+   NAVIGATE                                          | Cygnus       -
+   COMMAND       SUMMARY                             |
+   /help         Command reference and keyboard m…   | TEAM        this session
+   /tasks        Task graph, assignments and outc…   | AGENT     STATE
+   /usage        Token statistics for the loaded …   | o Atlas   idle
+   /sessions     Saved sessions for this project.…   | o Cygnus  idle
+   /files        Files in the working directory.     |
+   /diff         Files created, modified or delet…   | TASKS     accepted 1 / 1
+   /checks       Commands ymp ran itself for the …   |
+   /assignments  Turns the run assigned, with the…   |
+                                                     |
+--------------------------------------------------------------------------------
+> Describe a task, or type / for commands.
+Ready main Enter run the command  Esc back to the conversation  / filter  Shift…

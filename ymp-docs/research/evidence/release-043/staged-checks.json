@@ -1,0 +1,286 @@
+{
+  "tables": {
+    "binary": "/private/tmp/ymp042-integrated-target/release/ymp",
+    "ascii": false,
+    "native_inference": false,
+    "cases": [
+      {
+        "case": "sidebar-without-navigation",
+        "passed": true
+      },
+      {
+        "case": "detailed-expands-long-agent-report",
+        "passed": true
+      },
+      {
+        "case": "files-table",
+        "passed": true
+      },
+      {
+        "case": "paste-stays-in-filter",
+        "passed": true
+      },
+      {
+        "case": "filter-and-clear",
+        "passed": true
+      },
+      {
+        "case": "inverse-filter",
+        "passed": true
+      },
+      {
+        "case": "numeric-sort-both-directions",
+        "passed": true
+      },
+      {
+        "case": "empty-filter-recovery",
+        "passed": true
+      },
+      {
+        "case": "inspect-filtered-row-and-return",
+        "passed": true
+      },
+      {
+        "case": "pages-at-140x45",
+        "passed": true
+      },
+      {
+        "case": "pages-at-80x24",
+        "passed": true
+      },
+      {
+        "case": "pages-at-60x24",
+        "passed": true
+      },
+      {
+        "case": "sorted-profile-edit-retains-record",
+        "passed": true
+      },
+      {
+        "case": "team-selection-keeps-table-identity",
+        "passed": true
+      },
+      {
+        "case": "modal-margin-preserves-sidebar-divider",
+        "passed": true
+      },
+      {
+        "case": "short-surface-selection-stays-visible",
+        "passed": true
+      },
+      {
+        "case": "narrow-choice-prompt-and-confirm-surfaces",
+        "passed": true
+      },
+      {
+        "case": "workspace-unchanged",
+        "passed": true
+      }
+    ],
+    "passed": true,
+    "evidence": "/var/folders/cw/7pn8sb3x6bj69g7j2d8f_ss00000gn/T/ymp133-terminal-89_hhb3d"
+  },
+  "tables_ascii": {
+    "binary": "/private/tmp/ymp042-integrated-target/release/ymp",
+    "ascii": true,
+    "native_inference": false,
+    "cases": [
+      {
+        "case": "sidebar-without-navigation",
+        "passed": true
+      },
+      {
+        "case": "detailed-expands-long-agent-report",
+        "passed": true
+      },
+      {
+        "case": "files-table",
+        "passed": true
+      },
+      {
+        "case": "paste-stays-in-filter",
+        "passed": true
+      },
+      {
+        "case": "filter-and-clear",
+        "passed": true
+      },
+      {
+        "case": "inverse-filter",
+        "passed": true
+      },
+      {
+        "case": "numeric-sort-both-directions",
+        "passed": true
+      },
+      {
+        "case": "empty-filter-recovery",
+        "passed": true
+      },
+      {
+        "case": "inspect-filtered-row-and-return",
+        "passed": true
+      },
+      {
+        "case": "pages-at-140x45",
+        "passed": true
+      },
+      {
+        "case": "pages-at-80x24",
+        "passed": true
+      },
+      {
+        "case": "pages-at-60x24",
+        "passed": true
+      },
+      {
+        "case": "sorted-profile-edit-retains-record",
+        "passed": true
+      },
+      {
+        "case": "team-selection-keeps-table-identity",
+        "passed": true
+      },
+      {
+        "case": "modal-margin-preserves-sidebar-divider",
+        "passed": true
+      },
+      {
+        "case": "short-surface-selection-stays-visible",
+        "passed": true
+      },
+      {
+        "case": "narrow-choice-prompt-and-confirm-surfaces",
+        "passed": true
+      },
+      {
+        "case": "workspace-unchanged",
+        "passed": true
+      }
+    ],
+    "passed": true,
+    "evidence": "/var/folders/cw/7pn8sb3x6bj69g7j2d8f_ss00000gn/T/ymp133-terminal-3de8rdd8"
+  },
+  "exit": {
+    "binary": "/private/tmp/ymp042-integrated-target/release/ymp",
+    "fixture_directory": "/var/folders/cw/7pn8sb3x6bj69g7j2d8f_ss00000gn/T/ymp131-pty-egvrz7ca",
+    "session": "2606e0b9-e8d9-4a5d-b86c-eab6a7c8499c",
+    "cases": [
+      {
+        "case": "double",
+        "passed": true
+      },
+      {
+        "case": "input-reset",
+        "passed": true
+      },
+      {
+        "case": "expiry",
+        "passed": true
+      },
+      {
+        "case": "quit",
+        "passed": true
+      },
+      {
+        "case": "sessionless",
+        "passed": true
+      }
+    ],
+    "native_inference": false
+  },
+  "active_exit": {
+    "binary": "/private/tmp/ymp042-integrated-target/release/ymp",
+    "directory": "/var/folders/cw/7pn8sb3x6bj69g7j2d8f_ss00000gn/T/ymp-active-exit-jz1_9jkd",
+    "first_press": "invocation remained running",
+    "second_press": "graceful exit",
+    "session_status": "paused",
+    "cancelled_invocations": 1,
+    "revoked_grants": 1,
+    "native_inference": false
+  },
+  "labels_missing": {
+    "binary": "/private/tmp/ymp042-integrated-target/release/ymp",
+    "directory": "/var/folders/cw/7pn8sb3x6bj69g7j2d8f_ss00000gn/T/ymp132-cli-i0z5ccf7",
+    "reported_effort": "missing",
+    "headers": [
+      "native-model-z · chat",
+      "native-model-z · plan",
+      "native-model-z · chat",
+      "native-model-z · review_plan",
+      "native-model-z · chat",
+      "native-model-z · execute",
+      "native-model-z · chat",
+      "native-model-z · review",
+      "native-model-z · chat",
+      "native-model-z · final_review",
+      "native-model-z · chat",
+      "native-model-z · synthesis"
+    ],
+    "native_inference": false,
+    "result": "passed"
+  },
+  "labels_on": {
+    "binary": "/private/tmp/ymp042-integrated-target/release/ymp",
+    "directory": "/var/folders/cw/7pn8sb3x6bj69g7j2d8f_ss00000gn/T/ymp132-cli-1nneyceq",
+    "reported_effort": "on",
+    "headers": [
+      "native-model-z · chat",
+      "native-model-z · plan",
+      "native-model-z · chat",
+      "native-model-z · review_plan",
+      "native-model-z · chat",
+      "native-model-z · execute",
+      "native-model-z · chat",
+      "native-model-z · review",
+      "native-model-z · chat",
+      "native-model-z · final_review",
+      "native-model-z · chat",
+      "native-model-z · synthesis"
+    ],
+    "native_inference": false,
+    "result": "passed"
+  },
+  "labels_none": {
+    "binary": "/private/tmp/ymp042-integrated-target/release/ymp",
+    "directory": "/var/folders/cw/7pn8sb3x6bj69g7j2d8f_ss00000gn/T/ymp132-cli-8g7oy7ce",
+    "reported_effort": "none",
+    "headers": [
+      "native-model-z none · chat",
+      "native-model-z none · plan",
+      "native-model-z none · chat",
+      "native-model-z none · review_plan",
+      "native-model-z none · chat",
+      "native-model-z none · execute",
+      "native-model-z none · chat",
+      "native-model-z none · review",
+      "native-model-z none · chat",
+      "native-model-z none · final_review",
+      "native-model-z none · chat",
+      "native-model-z none · synthesis"
+    ],
+    "native_inference": false,
+    "result": "passed"
+  },
+  "labels_max": {
+    "binary": "/private/tmp/ymp042-integrated-target/release/ymp",
+    "directory": "/var/folders/cw/7pn8sb3x6bj69g7j2d8f_ss00000gn/T/ymp132-cli-53oi0td5",
+    "reported_effort": "max",
+    "headers": [
+      "native-model-z max · chat",
+      "native-model-z max · plan",
+      "native-model-z max · chat",
+      "native-model-z max · review_plan",
+      "native-model-z max · chat",
+      "native-model-z max · execute",
+      "native-model-z max · chat",
+      "native-model-z max · review",
+      "native-model-z max · chat",
+      "native-model-z max · final_review",
+      "native-model-z max · chat",
+      "native-model-z max · synthesis"
+    ],
+    "native_inference": false,
+    "result": "passed"
+  }
+}

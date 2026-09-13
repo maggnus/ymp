@@ -1,0 +1,8 @@
+   Compiling ymp-core v0.4.3 (/Users/maggnus/Code/ymp2/ymp-rust/crates/ymp-core)
+   Compiling ymp-storage v0.4.3 (/Users/maggnus/Code/ymp2/ymp-rust/crates/ymp-storage)
+   Compiling ymp-workspace v0.4.3 (/Users/maggnus/Code/ymp2/ymp-rust/crates/ymp-workspace)
+   Compiling ymp-providers v0.4.3 (/Users/maggnus/Code/ymp2/ymp-rust/crates/ymp-providers)
+   Compiling ymp-runtime v0.4.3 (/Users/maggnus/Code/ymp2/ymp-rust/crates/ymp-runtime)
+   Compiling ymp-tui v0.4.3 (/Users/maggnus/Code/ymp2/ymp-rust/crates/ymp-tui)
+   Compiling ymp-cli v0.4.3 (/Users/maggnus/Code/ymp2/ymp-rust/crates/ymp-cli)
+    Finished `release` profile [optimized] target(s) in 51.08s

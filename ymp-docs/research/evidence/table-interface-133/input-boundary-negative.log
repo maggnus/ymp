@@ -1,0 +1,33 @@
+   Compiling ymp-tui v0.4.3 (/private/tmp/ymp132-agent-attribution/ymp-rust/crates/ymp-tui)
+    Finished `test` profile [unoptimized] target(s) in 3.63s
+     Running unittests src/lib.rs (/tmp/ymp132-test-target/debug/deps/ymp_tui-f17bc405a46a6861)
+
+running 2 tests
+test tests::a_paste_while_a_filter_is_typed_stays_in_the_filter_and_the_palette_ends_typing ... FAILED
+test tests::home_wins_over_a_record_remembered_from_a_live_update ... FAILED
+
+failures:
+
+---- tests::a_paste_while_a_filter_is_typed_stays_in_the_filter_and_the_palette_ends_typing stdout ----
+
+thread 'tests::a_paste_while_a_filter_is_typed_stays_in_the_filter_and_the_palette_ends_typing' panicked at ymp-rust/crates/ymp-tui/src/tests.rs:9330:5:
+assertion `left == right` failed
+  left: "the"
+ right: "theme line"
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- tests::home_wins_over_a_record_remembered_from_a_live_update stdout ----
+
+thread 'tests::home_wins_over_a_record_remembered_from_a_live_update' panicked at ymp-rust/crates/ymp-tui/src/tests.rs:9400:5:
+assertion `left == right` failed: a record remembered from the update took the selection back from Home
+  left: "5f139189-9da6-4f7d-9976-e0a306511177"
+ right: "c3f791f2-b31d-4602-953e-e580bd7d508a"
+
+
+failures:
+    tests::a_paste_while_a_filter_is_typed_stays_in_the_filter_and_the_palette_ends_typing
+    tests::home_wins_over_a_record_remembered_from_a_live_update
+
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 204 filtered out; finished in 0.62s
+
+error: test failed, to rerun pass `-p ymp-tui --lib`

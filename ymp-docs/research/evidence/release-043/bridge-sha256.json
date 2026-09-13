@@ -1,0 +1,12 @@
+{
+  "ymp-bridges/claude/dist/effort.js": "a81f89895aacf720efddc7e93a82e44e9b9b6499e0db132c5a9b4ba04c116e3c",
+  "ymp-bridges/claude/dist/effort.test.js": "39907561d7261be8a43f1367ea8b340ae3cfd940f40ad3ab152713893d1407c9",
+  "ymp-bridges/claude/dist/index.js": "5b9c0d15d4b54e4af5f05eac5c8495d7dba78470c40a6e55f126e0e886f22ba7",
+  "ymp-bridges/claude/dist/protocol.test.js": "09a80cad31e91520ec57672483851e33c3fd7e2c418d2186a3cce526f19a4509",
+  "ymp-bridges/claude/dist/resources.js": "a4a3e96434a7e7035cddde2baa0db0d03f11f7c3b896fd53338da61de7cb73cc",
+  "ymp-bridges/claude/dist/resources.test.js": "0bfba2bb029f609effa0f60300fd9a7935288fb142175472ff7d2bacd4116457",
+  "ymp-bridges/claude/dist/settings.js": "df647d25243ad034c8747d5fcd8ccbc08f7e40afd33a2d57103354d3446f4ca8",
+  "ymp-bridges/claude/dist/settings.test.js": "095378b5a0ba9d27837e2bddb5084d6abfc78ea37df68576f815f8f7ea4f7fd0",
+  "ymp-bridges/claude/dist/usage.js": "01e350f8f83a5ebe9db0bf46eac0e0340ddc139ab8ca9847f4e4e300c37d3627",
+  "ymp-bridges/claude/dist/usage.test.js": "8e7b27585c036fc8f810c930be263206830efb9143faa4153d8458192ce00f0d"
+}

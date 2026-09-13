@@ -1,0 +1,36 @@
+ymp  project  /private/var/folders/cw/7pn8sb3x6bj69g7j2d8f_ss0…  6e55b773  + completed  - tokens  8 / 200 turns captured
+------------------------------------------------------------------------------------------------------------------------
+ Team</Atlas>[2]  /team          2 captured by this session · 3 eligible on this machine | SESSION
+-----------------------------------------------------------------------------------------| 6e55b773         + completed
+   MEMBERS OF THIS SESSION                                                               | turns this session   8 / 200
+      AGENT  READING             PROVIDER  STATE                                         | dir …rminal-3de8rdd8/project
+   +  Atlas  model not recorded  demo      3 turn(s) here                                |
+                                                                                         | TOKENS                     -
+   AVAILABLE ON THIS MACHINE   ┌ Colour theme ────────────────────────── saved on Enter ┐| AGENT   TOKENS
+      MODEL v  PROVIDER  STATE │ > Ember     dark                                       │| Atlas        -
+ > +  Atlas    demo      eligi │   Warm amber on black. The default ymp palette.        │| Cygnus       -
+                               │   Slate     dark                                       │|
+                               │   Paper     light                                      │| TEAM            this session
+                               │   Contrast  high contrast                              │| AGENT     STATE
+                               │   Terminal  terminal palette                           │| o Atlas   idle
+                               │                                                        │| o Cygnus  idle
+                               │ The whole interface previews as you move.              │|
+                               │                                                        │| TASKS         accepted 1 / 1
+                               │ Up/Down preview  Enter keep  Esc cancel                │|
+                               └────────────────────────────────────────────────────────┘|
+                                                                                         |
+                                                                                         |
+                                                                                         |
+                                                                                         |
+                                                                                         |
+                                                                                         |
+                                                                                         |
+                                                                                         |
+                                                                                         |
+                                                                                         |
+                                                                                         |
+                                                                                         |
+                                                                                         |
+------------------------------------------------------------------------------------------------------------------------
+> Describe a task, or type / for commands.
+Ready                  main Space add or remove  Enter open the record  Esc back  / filter  Shift+letter sort  d inspect

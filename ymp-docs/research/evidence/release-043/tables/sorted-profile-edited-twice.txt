@@ -1,0 +1,45 @@
+ymp  project  /private/var/folders/cw/7pn8sb3x6bj69g7j2d8f_ss00000gn/T/ymp133-term…  2cb83752  ✓ completed  — tokens  8 / 200 turns captured
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ Agent profiles[3]  /agents                                                                   3 profiles │ SESSION
+─────────────────────────────────────────────────────────────────────────────────────────────────────────│ 2cb83752             ✓ completed
+   AGENT   READING           PROVIDER  ENABLED ↑  TEAM                                                   │ turns this session       8 / 200
+   Atlas   a local provider  demo      ✓ on       in team                                                │ dir …3-terminal-89_hhb3d/project
+   Boreal  a local provider  demo      ✓ on       in team                                                │
+ › Cygnus  a local provider  demo      ✓ on       in team                                                │ TOKENS                         —
+                                                                                                         │ AGENT   TOKENS
+                                                                                                         │ Atlas        —
+                                                                                                         │ Cygnus       —
+                                                                                                         │
+                                                                                                         │ TEAM                this session
+                                                                                                         │ AGENT     STATE
+                                                                                                         │ ○ Atlas   idle
+                                                                                                         │ ○ Cygnus  idle
+                                                                                                         │
+                                                                                                         │ TASKS             accepted 1 / 1
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+› Describe a task, or type / for commands.
+Ready main m model  i instructions  Space enable  t team  r re-read  R ask the installations  Esc back  / filter  Shift+letter sort  d insp…

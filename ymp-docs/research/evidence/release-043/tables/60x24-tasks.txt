@@ -1,0 +1,24 @@
+ymp  project             2cb83752  ✓ completed  — tok  8/200
+────────────────────────────────────────────────────────────
+ Tasks[1]  /tasks                           1 of 1 accepted
+────────────────────────────────────────────────────────────
+      TITLE            STATE     GRADE        RESPONSIBLE
+ › ✓  Create a greet…  accepted  unconfirmed  Atlas
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────
+› Describe a task, or type / for commands.
+Ready main Enter inspect  Esc back  / filter  Shift+letter …

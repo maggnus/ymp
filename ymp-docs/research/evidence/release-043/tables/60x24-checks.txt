@@ -1,0 +1,24 @@
+ymp  project             2cb83752  ✓ completed  — tok  8/200
+────────────────────────────────────────────────────────────
+ Recorded checks[2]  /checks 2 recorded · 0 declared withou…
+────────────────────────────────────────────────────────────
+ › ◇ How checks run  read from the session log
+
+   RECORDED RUNS
+      COMMAND                                     OUTCOME
+   ✓  test -f greeting.txt && grep -q 'Hello fr…  passed
+   ✓  test -f greeting.txt && grep -q 'Hello fr…  passed
+
+
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────
+› Describe a task, or type / for commands.
+Ready main Enter show the recorded run  Esc back  / filter

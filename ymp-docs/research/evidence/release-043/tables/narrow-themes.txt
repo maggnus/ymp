@@ -1,0 +1,24 @@
+ymp  project             2cb83752  ✓ completed  — tok  8/200
+────────────────────────────────────────────────────────────
+ Team</Atlas>[2]  /team 2 captured by this session · 3 elig…
+─                                                          ─
+  ┌ Colour theme ──────────────────────── saved on Enter ┐
+  │ › Ember     dark                                     │
+  │   Warm amber on black. The default ymp palette.      │
+  │   Slate     dark                                     │
+  │   Paper     light                                    │
+  │   Contrast  high contrast                            │
+  │   Terminal  terminal palette                         │
+  │                                                      │
+  │ The whole interface previews as you move.            │
+  │                                                      │
+  │ Up/Down preview  Enter keep  Esc cancel              │
+  └──────────────────────────────────────────────────────┘
+
+
+
+
+
+────────────────────────────────────────────────────────────
+› Describe a task, or type / for commands.
+Ready main Space add or remove  Enter open the record  Esc …

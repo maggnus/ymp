@@ -3203,7 +3203,7 @@
       "title": "Present non-popup data collections as consistent keyboard-navigable tables",
       "type": "implementation",
       "priority": "P1",
-      "status": "in_progress",
+      "status": "done",
       "owner": "Maintainer",
       "authorization": "Owner explicitly requested k9s-style tabular presentation for all list data outside popups in the delegated Paseo conversation.",
       "depends_on": [
@@ -3218,6 +3218,8 @@
         "Resolve historical session, decision and board actor labels from their own captured model/assignment evidence when available; do not rename old rows from current provider kind or a later invocation. Preserve unknown values where the old record has no resolution."
       ],
       "evidence": [
+        "ymp-docs/releases/0.4.3.md",
+        "ymp-docs/research/evidence/release-043/verification.json",
         "ymp-docs/research/paseo-direct-message-audit-2026-09-13.md",
         "ymp-docs/tasks/ymp-133-table-plan.md"
       ],
@@ -3281,6 +3283,11 @@
           "at": "2026-09-13T06:49:06.365734+00:00",
           "status": "in_progress",
           "note": "Selection fix5dd98cc is integrated and exactly matches independently accepted snapshot5e2506f. Parent extended terminal check passes all17 scenarios, including the previously failing profile toggle and same-table Team sorting. The author and parent full workspace checks pass495 tests. Final small paste/filter-focus and pending-Home corrections are being completed before packaging; no new table features are being added."
+        },
+        {
+          "at": "2026-09-13T07:01:31.793139+00:00",
+          "status": "done",
+          "note": "Installed0.4.3 with all record pages and sidebar collections as tables, numeric sorting, substring/inverse filters, sticky headers and Inspect. Required layout and selected-record defects were fixed; same-table identity survives refresh/edit events. Final input-boundary corrections are included. Independent review accepted;498 Rust tests and18 terminal cases in both Unicode and ASCII pass, plus the installed-binary rerun."
         }
       ]
     },
@@ -3289,7 +3296,7 @@
       "title": "Finish sidebar, Detailed mode and floating-surface corrections requested directly in Paseo",
       "type": "implementation",
       "priority": "P1",
-      "status": "in_progress",
+      "status": "done",
       "owner": "Maintainer integrates and verifies; Claude Code Opus 5 high implements UI",
       "authorization": "Direct owner messages to Paseo agent 1e1a7a7b require removing sidebar navigation, preventing collapsed agent messages in Detailed mode, and improving slash-panel/popup formatting using the earlier ymp as reference. The owner explicitly authorized continuing with these changes together or as additions.",
       "depends_on": [
@@ -3305,6 +3312,8 @@
         "Update the interface guide and release evidence, verify the installed binary, and keep the unfinished YMP-133 table conversion separate from completion of these fixes."
       ],
       "evidence": [
+        "ymp-docs/releases/0.4.3.md",
+        "ymp-docs/research/evidence/release-043/verification.json",
         "ymp-docs/research/paseo-direct-message-audit-2026-09-13.md",
         "ymp-docs/research/evidence/ui-followups-134/author-report.md",
         "ymp-docs/research/evidence/ui-followups-134/author-workspace-test.log"
@@ -3339,6 +3348,11 @@
           "at": "2026-09-13T05:36:53.423279+00:00",
           "status": "in_progress",
           "note": "Integrated all sidebar, Detailed and floating-surface corrections, including R1 9a88591 and short-terminal selection fix O1 6d72b31. Parent reviewed the narrow fixes; author controls fail before and pass after, with 176 TUI tests passing and one ignored. README R2 is fixed. Final combined workspace/terminal checks and installation remain with the table release."
+        },
+        {
+          "at": "2026-09-13T07:01:31.793139+00:00",
+          "status": "done",
+          "note": "Installed0.4.3 with sidebar navigation removed, full Detailed agent messages, aligned/padded floating surfaces and preserved window rules. Short palette/theme selections remain visible. Independent review and final workspace/terminal/exit checks pass; existing double Ctrl+C, resume and invocation attribution are preserved."
         }
       ]
     },
@@ -3347,7 +3361,7 @@
       "title": "Show model-only labels when native effort is unknown or only a thinking toggle is reported",
       "type": "implementation",
       "priority": "P1",
-      "status": "in_progress",
+      "status": "done",
       "owner": "Claude Code Opus 5 high; maintainer verifies and installs",
       "authorization": "Owner clarified that none was intended only for unknown effort, then explicitly replaced that placeholder with showing only the model name. The current none/on display was reported as misleading.",
       "depends_on": [
@@ -3360,7 +3374,10 @@
         "Apply one rule to TUI and headless invocation/message labels without altering execution settings, historical links, model-only scanning or provider metadata. Use focused offline controls for missing effort, binary toggles, real effort and different historical invocations.",
         "Delegate UI implementation to Claude Code Opus 5 high and verify the combined source and installed executable with YMP-133/134. Update user-facing guidance and release evidence."
       ],
-      "evidence": [],
+      "evidence": [
+        "ymp-docs/releases/0.4.3.md",
+        "ymp-docs/research/evidence/release-043/verification.json"
+      ],
       "history": [
         {
           "at": "2026-09-13T05:29:46.846004+00:00",
@@ -3371,11 +3388,16 @@
           "at": "2026-09-13T05:41:31.969207+00:00",
           "status": "in_progress",
           "note": "Shared-label commit 6d12bf4 is integrated. The combined source passes 475 Rust tests (two ignored), fmt and strict workspace Clippy. Four physical CLI fixtures pass: absent and binary on effort produce model-only headings; real none and max remain native values. The previous binary reproduces the missing-effort placeholder defect. Installed-binary verification awaits the combined table release."
+        },
+        {
+          "at": "2026-09-13T07:01:31.793139+00:00",
+          "status": "done",
+          "note": "Installed0.4.3 with model-only labels when effort is absent or a binary thinking toggle is reported. Actual graded native effort, including an explicitly reported none, stays factual. TUI and headless share the helper; four actual CLI fixture variants and final terminal checks pass. No execution settings or stored native metadata were rewritten."
         }
       ]
     }
   ],
-  "updated_at": "2026-09-13T06:49:06.365734+00:00",
+  "updated_at": "2026-09-13T07:01:31.793139+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",
@@ -3782,8 +3804,8 @@
     "stage": "MVP"
   },
   "installed_release": {
-    "version": "0.4.2",
+    "version": "0.4.3",
     "status": "installed",
-    "evidence": "ymp-docs/research/evidence/release-042/verification.json"
+    "evidence": "ymp-docs/research/evidence/release-043/verification.json"
   }
 }

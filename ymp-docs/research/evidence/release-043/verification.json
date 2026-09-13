@@ -1,0 +1,97 @@
+{
+  "schema_version": 1,
+  "version": "0.4.3",
+  "status": "installed",
+  "verified_at": "2026-09-13T07:01:31.789999+00:00",
+  "source_revision": "8c58f36504d5868566aeac33f7219d18ce563563",
+  "artifact": {
+    "version": "ymp 0.4.3",
+    "installed_at": "2026-09-13T06:57:44.362330+00:00",
+    "source_revision": "8c58f36504d5868566aeac33f7219d18ce563563",
+    "binary": "/Users/maggnus/Code/ymp2/target/release/ymp",
+    "command": "/Users/maggnus/.local/bin/ymp",
+    "sha256": "a09d261a1c5220a7f1acd98760f494f1b6d5e7a929b87cb590d6ca382b84d3aa",
+    "previous_sha256": "fb9a4e5afe267de88b802a29113d0b3d3c4508d0d3241386144f84f2ee1acfc5",
+    "backup": "/Users/maggnus/.ymp2/backups/release-0.4.3-20260913T065744Z/ymp.previous"
+  },
+  "checks": {
+    "fmt": {
+      "command": "cargo fmt --all --check",
+      "exit_code": 0,
+      "log": "fmt.log"
+    },
+    "clippy": {
+      "command": "cargo clippy --workspace --all-targets --locked -- -D warnings",
+      "exit_code": 0,
+      "log": "clippy.log"
+    },
+    "tests": {
+      "command": "cargo test --workspace --locked",
+      "exit_code": 0,
+      "passed": 498,
+      "failed": 0,
+      "ignored": 2,
+      "log": "workspace-tests.log"
+    },
+    "release_build": {
+      "exit_code": 0,
+      "log": "build.log"
+    },
+    "terminal_unicode": {
+      "passed": true,
+      "cases": 18,
+      "report": "tables/report.json"
+    },
+    "terminal_ascii": {
+      "passed": true,
+      "cases": 18,
+      "report": "tables_ascii/report.json"
+    },
+    "deliberate_exit": {
+      "passed": true,
+      "cases": 5,
+      "report": "exit/report.json"
+    },
+    "active_cancellation": {
+      "passed": true,
+      "report": "staged-checks.json"
+    },
+    "native_labels": {
+      "passed": true,
+      "variants": [
+        "missing",
+        "on",
+        "none",
+        "max"
+      ],
+      "report": "staged-checks.json"
+    },
+    "installed_terminal": {
+      "passed": true,
+      "cases": 18,
+      "report": "installed-terminal/report.json"
+    },
+    "installed_version": {
+      "passed": true,
+      "log": "installed-version.log"
+    }
+  },
+  "production_source_manifest": "production-source-sha256.json",
+  "bridge_manifest": "bridge-sha256.json",
+  "bridge_changed": false,
+  "reviews": [
+    "../ui-followups-134/independent-review.md",
+    "../ui-followups-134/modal-fixes.md",
+    "../table-interface-133/foundation-review.md",
+    "../table-interface-133/controls-review.md",
+    "../table-interface-133/selection-review.md",
+    "../table-interface-133/maintainer-final-review.md"
+  ],
+  "native_provider_inference_in_tests": false,
+  "metadata_migration": false,
+  "limits": [
+    "Columns are fixed per page and sort/filter state is not persisted between application launches.",
+    "The existing MVP workspace execution policy is unchanged.",
+    "Headless progress improvements remain tracked separately in YMP-130."
+  ]
+}

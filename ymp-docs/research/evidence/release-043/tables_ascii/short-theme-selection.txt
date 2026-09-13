@@ -1,0 +1,10 @@
+ymp  projec┌ Colour theme ────────────────────────── saved on Enter ┐ tok  8/200
+-----------│   Slate     dark                                       │-----------
+ Team</Atl │   Paper     light                                      │
+---------- │   Contrast  high contrast                              │ completed
+   AVAILAB │ > Terminal  terminal palette                           │   8 / 200
+      MODE │                                                        │ 8/project
+ > +  Atla │ Up/Down preview  Enter keep  Esc cancel                │
+-----------└──────────────────────────────────────────────── 4 more ┘-----------
+> Describe a task, or type / for commands.
+Ready main Space add or remove  Enter open the record  Esc back  / filter  Shif…

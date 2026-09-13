@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-13 06:49 UTC.
+Updated: 2026-09-13 07:01 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -14,7 +14,7 @@ A planned task is not implemented functionality. Completed research and planning
 | design | 1 | 1 |
 | documentation | 4 | 4 |
 | experiment | 0 | 4 |
-| implementation | 26 | 32 |
+| implementation | 29 | 32 |
 | research | 8 | 8 |
 | verification | 2 | 2 |
 
@@ -72,9 +72,9 @@ A planned task is not implemented functionality. Completed research and planning
 | `[+]` | [YMP-130](#ymp-130) | P1 | Show active agent work during headless session runs | 2026-09-13 00:54 |
 | `[x]` | [YMP-131](#ymp-131) | P1 | Support deliberate double Ctrl+C exit and print session reopening command | 2026-09-13 04:25 |
 | `[x]` | [YMP-132](#ymp-132) | P1 | Attribute chat output to the actual agent invocation instead of provider-shaped actor IDs | 2026-09-13 04:25 |
-| `[~]` | [YMP-133](#ymp-133) | P1 | Present non-popup data collections as consistent keyboard-navigable tables | 2026-09-13 06:49 |
-| `[~]` | [YMP-134](#ymp-134) | P1 | Finish sidebar, Detailed mode and floating-surface corrections requested directly in Paseo | 2026-09-13 05:36 |
-| `[~]` | [YMP-135](#ymp-135) | P1 | Show model-only labels when native effort is unknown or only a thinking toggle is reported | 2026-09-13 05:41 |
+| `[x]` | [YMP-133](#ymp-133) | P1 | Present non-popup data collections as consistent keyboard-navigable tables | 2026-09-13 07:01 |
+| `[x]` | [YMP-134](#ymp-134) | P1 | Finish sidebar, Detailed mode and floating-surface corrections requested directly in Paseo | 2026-09-13 07:01 |
+| `[x]` | [YMP-135](#ymp-135) | P1 | Show model-only labels when native effort is unknown or only a thinking toggle is reported | 2026-09-13 07:01 |
 
 ## YMP-001
 
@@ -1763,11 +1763,11 @@ Headless output prints Message.author directly. Stable actor IDs such as claude 
 
 Present non-popup data collections as consistent keyboard-navigable tables
 
-**State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P1
+**State:** `[x]` (done) · **Type:** implementation · **Priority:** P1
 
-**Last update (UTC):** 2026-09-13 06:49
+**Last update (UTC):** 2026-09-13 07:01
 
-**Current reason:** Selection fix5dd98cc is integrated and exactly matches independently accepted snapshot5e2506f. Parent extended terminal check passes all17 scenarios, including the previously failing profile toggle and same-table Team sorting. The author and parent full workspace checks pass495 tests. Final small paste/filter-focus and pending-Home corrections are being completed before packaging; no new table features are being added.
+**Current reason:** Installed0.4.3 with all record pages and sidebar collections as tables, numeric sorting, substring/inverse filters, sticky headers and Inspect. Required layout and selected-record defects were fixed; same-table identity survives refresh/edit events. Final input-boundary corrections are included. Independent review accepted;498 Rust tests and18 terminal cases in both Unicode and ASCII pass, plus the installed-binary rerun.
 
 **Owner:** Maintainer
 
@@ -1786,6 +1786,8 @@ Collection pages need consistent rows, columns and selection without changing th
 
 **Evidence:**
 
+- ymp-docs/releases/0.4.3.md
+- ymp-docs/research/evidence/release-043/verification.json
 - ymp-docs/research/paseo-direct-message-audit-2026-09-13.md
 - ymp-docs/tasks/ymp-133-table-plan.md
 
@@ -1793,11 +1795,11 @@ Collection pages need consistent rows, columns and selection without changing th
 
 Finish sidebar, Detailed mode and floating-surface corrections requested directly in Paseo
 
-**State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P1
+**State:** `[x]` (done) · **Type:** implementation · **Priority:** P1
 
-**Last update (UTC):** 2026-09-13 05:36
+**Last update (UTC):** 2026-09-13 07:01
 
-**Current reason:** Integrated all sidebar, Detailed and floating-surface corrections, including R1 9a88591 and short-terminal selection fix O1 6d72b31. Parent reviewed the narrow fixes; author controls fail before and pass after, with 176 TUI tests passing and one ignored. README R2 is fixed. Final combined workspace/terminal checks and installation remain with the table release.
+**Current reason:** Installed0.4.3 with sidebar navigation removed, full Detailed agent messages, aligned/padded floating surfaces and preserved window rules. Short palette/theme selections remain visible. Independent review and final workspace/terminal/exit checks pass; existing double Ctrl+C, resume and invocation attribution are preserved.
 
 **Owner:** Maintainer integrates and verifies; Claude Code Opus 5 high implements UI
 
@@ -1817,6 +1819,8 @@ These accepted UI requirements were absent from the central register, and the ta
 
 **Evidence:**
 
+- ymp-docs/releases/0.4.3.md
+- ymp-docs/research/evidence/release-043/verification.json
 - ymp-docs/research/paseo-direct-message-audit-2026-09-13.md
 - ymp-docs/research/evidence/ui-followups-134/author-report.md
 - ymp-docs/research/evidence/ui-followups-134/author-workspace-test.log
@@ -1825,11 +1829,11 @@ These accepted UI requirements were absent from the central register, and the ta
 
 Show model-only labels when native effort is unknown or only a thinking toggle is reported
 
-**State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P1
+**State:** `[x]` (done) · **Type:** implementation · **Priority:** P1
 
-**Last update (UTC):** 2026-09-13 05:41
+**Last update (UTC):** 2026-09-13 07:01
 
-**Current reason:** Shared-label commit 6d12bf4 is integrated. The combined source passes 475 Rust tests (two ignored), fmt and strict workspace Clippy. Four physical CLI fixtures pass: absent and binary on effort produce model-only headings; real none and max remain native values. The previous binary reproduces the missing-effort placeholder defect. Installed-binary verification awaits the combined table release.
+**Current reason:** Installed0.4.3 with model-only labels when effort is absent or a binary thinking toggle is reported. Actual graded native effort, including an explicitly reported none, stays factual. TUI and headless share the helper; four actual CLI fixture variants and final terminal checks pass. No execution settings or stored native metadata were rewritten.
 
 **Owner:** Claude Code Opus 5 high; maintainer verifies and installs
 
@@ -1848,7 +1852,8 @@ The shared label helper appends none for all missing reported effort and present
 
 **Evidence:**
 
-- Pending.
+- ymp-docs/releases/0.4.3.md
+- ymp-docs/research/evidence/release-043/verification.json
 
 ## Intent coverage
 

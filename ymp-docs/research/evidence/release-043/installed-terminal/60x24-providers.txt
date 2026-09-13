@@ -1,0 +1,24 @@
+ymp  project             8d53642b  ✓ completed  — tok  8/200
+────────────────────────────────────────────────────────────
+ Providers[1]  /providers     Local programs that run turns
+────────────────────────────────────────────────────────────
+   PROVIDER  COMMAND   EXECUTABLE    ENABLED
+ › demo      internal  ✓ in process  ✓ on
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────
+› Describe a task, or type / for commands.
+Ready main Space enable or disable  r re-read what is stored

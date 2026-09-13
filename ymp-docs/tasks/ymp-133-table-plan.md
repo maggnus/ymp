@@ -1,8 +1,7 @@
 # YMP-133: k9s-style tables in the TUI (bounded plan)
 
-Status: planned next UI increment. This plan does not change application code and is separate from YMP-132.
-Base: the integrated `main` after YMP-134. The existing draft branch starts at `5899589`
-and predates the final 0.4.2 attribution fixes; it must not replace the integrated sources.
+Status: completed and installed in 0.4.3; required review, workspace and terminal checks pass. Implementation started from `b01ffe7`, which combines 0.4.2 with YMP-134.
+The earlier draft from `5899589` is historical reference only.
 
 ## Progress
 
@@ -10,9 +9,9 @@ These checkpoints describe implementation work; the task closes only after integ
 and installation. The [task register](README.md#ymp-133) holds the current timestamp and status.
 
 - `[x]` Correct historical record origins: `44b6a08` and `49b3c79` are integrated and covered by the passing pre-table workspace checks.
-- `[~]` Shared table layout and sidebar collections: initial implementation `d0b674a`; independent review requires narrow-label priority and a strict width bound (T1/T2).
-- `[~]` Main-column tables, sorting, filtering and keyboard interaction.
-- `[ ]` Independent final review, combined workspace and terminal checks, release installation.
+- `[x]` Shared table layout and sidebar collections: `d0b674a` and `63e4780`; T1/T2 width and label-priority corrections accepted.
+- `[x]` Main-column tables, sorting, filtering and keyboard interaction: `63e4780`, with selection corrections in `5dd98cc` and input boundaries in `58fe689`.
+- `[x]` Independent review accepted; 498 workspace tests, release terminal checks and installed-binary verification pass.
 
 ## Owner requirements and implementation choices
 
@@ -78,13 +77,13 @@ Keys (main column focus only; composer and overlays unchanged; `Ctrl+C` stays fi
 | Team | members | •, AGENT*, MODEL/READING(2), PROVIDER(1), STATE |
 | Team | aside; roster; pool | •, AGENT*, STATE; •, RULE*, VALUE; •, MODEL*, PROVIDER, STATE |
 | Agents | - | AGENT*, READING, PROVIDER, ENABLED, TEAM |
-| Providers | - | PROVIDER, COMMAND*, EXECUTABLE, ENABLED |
+| Providers | - | PROVIDER, COMMAND, EXECUTABLE*, ENABLED |
 | Memory | - | TITLE*, STATE, SCOPE |
 | Reputation | - | AGENT, COMPETENCE*, OUTCOME, EVIDENCE |
 | Limits | This session, as captured; The next run | LIMIT*, VALUE |
 | Sidebar | TOKENS | AGENT*, TOKENS> |
-| Sidebar | TEAM | •, AGENT*, ACTIVITY |
-| Sidebar | TASKS | heading `TASKS | accepted N / M`; open tasks as •, TASK*, STATE |
+| Sidebar | TEAM | AGENT (including marker), STATE*; activity gives way before the model label |
+| Sidebar | TASKS | heading `TASKS | accepted N / M`; open tasks as TASK* (including marker), STATE |
 
 ## Commits
 
@@ -134,8 +133,12 @@ compatibility with the final integrated base. Use the patch as reference for the
 not as a branch to merge. Four separate owner-requested UI commits on `feat/ymp133-tables`
 are tracked in YMP-134 and do not implement these tables.
 
-## Needed before implementation
+## Delivery checks
 
-- Integrate and verify YMP-134, then select a checkout from that integrated base.
-- No owner answer is pending. Memory search may move to `s` as the routine key-binding choice
-  described above; preserve `/memory QUERY` and document the change.
+- YMP-134 and YMP-135 are integrated with the tables. No owner answer is pending.
+- Memory search uses `s`; `/memory QUERY` remains available.
+- The final source preserves record selection by table and key on every rebuild, counts records
+  without explanatory notes, keeps unknown values last, and routes paste to the active filter.
+- Independent review and failing controls are recorded under
+  `ymp-docs/research/evidence/table-interface-133`. Final executable checks and installation are
+  recorded under `ymp-docs/research/evidence/release-043`.

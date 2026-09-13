@@ -1,0 +1,45 @@
+ymp  project  /private/var/folders/cw/7pn8sb3x6bj69g7j2d8f_ss00000gn/T/ymp133-term…  8d53642b  ✓ completed  — tokens  8 / 200 turns captured
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+                                                                                                         │ SESSION
+                                                                                                         │ 8d53642b             ✓ completed
+                                                                                                         │ turns this session       8 / 200
+                                                                                                         │ dir …3-terminal-z6wmg25m/project
+                                                                                                         │
+                                                                                                         │ TOKENS                         —
+  ▌ you                                                                                           06:57  │ AGENT   TOKENS
+  ▌ Create greeting.txt containing Hello from ymp, and verify it.                                        │ Atlas        —
+  · Atlas proposed a plan · 1 task · Create and verify a small deliverable                        06:57  │ Cygnus       —
+  · Cygnus review · accepted · The stated acceptance criteria are satisfied.                      06:57  │
+  ◇ Plan accepted · Create and verify a small deliverable                                         06:57  │ TEAM                this session
+                                                                                                         │ AGENT     STATE
+  · Atlas · execution report                                                                      06:57  │ ○ Atlas   idle
+    Created greeting.txt and verified its content.                                                       │ ○ Cygnus  idle
+  · Cygnus review · accepted · The stated acceptance criteria are satisfied.                      06:57  │
+  · Cygnus review · accepted · The stated acceptance criteria are satisfied.                      06:57  │ TASKS             accepted 1 / 1
+  · Cygnus proposed a reusable procedure · Verify file-producing tasks                            06:57  │
+  · Atlas review · accepted · The stated acceptance criteria are satisfied.                       06:57  │
+  ◇ Unconfirmed procedure candidate retained: Verify file-producing tasks                         06:57  │
+                                                                                                         │
+  ◆ Cygnus · final result                                                                         06:57  │
+    The requested artifact is complete and independently verified.                                       │
+                                                                                                         │
+  ◆ ymp · run summary                                                                             06:57  │
+    The requested artifact is complete and independently verified.                                       │
+                                                                                                         │
+    Acceptance: accepted; confirmation: unconfirmed.                                                     │
+                                                                                                         │
+    Workspace:                                                                                           │
+    /private/var/folders/cw/7pn8sb3x6bj69g7j2d8f_ss00000gn/T/ymp133-terminal-z6wmg25m/project            │
+                                                                                                         │
+  · unknown model · execution report                                                              00:00  │
+    Terminal detail paragraph 1.                                                                         │
+                                                                                                         │
+    Terminal detail paragraph 2.                                                                         │
+                                                                                                         │
+    Terminal detail paragraph 3.                                                                         │
+                                                                                                         │
+    17 more lines · Enter to read the full report                                                        │
+  ◇ Session loaded for reading. Send a message to continue the conversation, or use /resume to …  06:57  │
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+› Describe a task, or type / for commands.
+Ready                                                                                        composer Enter send  Ctrl+P commands  Tab focus

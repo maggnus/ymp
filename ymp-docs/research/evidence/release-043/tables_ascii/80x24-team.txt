@@ -1,0 +1,24 @@
+ymp  project                                 6e55b773  + completed  - tok  8/200
+--------------------------------------------------------------------------------
+ Team[7]  /team 2 captured by this session · 3 eligi…| SESSION
+-----------------------------------------------------| 6e55b773     + completed
+ > - What membership means here  what this page is   | turns this ses…  8 / 200
+                                                     | dir …al-3de8rdd8/project
+   MEMBERS OF THIS SESSION                           |
+      AGENT   PROVIDER  STATE                        | TOKENS                 -
+   +  Atlas   demo      3 turn(s) here               | AGENT   TOKENS
+   +  Cygnus  demo      5 turn(s) here               | Atlas        -
+                                                     | Cygnus       -
+   HOW THE ROSTER IS BOUNDED                         |
+      RULE          VALUE                            | TEAM        this session
+   +  roster        2 member(s) · revision 8         | AGENT     STATE
+   -  roster rules  up to 4                          | o Atlas   idle
+                                                     | o Cygnus  idle
+   AVAILABLE ON THIS MACHINE                         |
+      MODEL   PROVIDER  STATE                        | TASKS     accepted 1 / 1
+   +  Atlas   demo      eligible                     |
+   +  Boreal  demo      eligible                     |
+   +  Cygnus  demo      eligible                     |
+--------------------------------------------------------------------------------
+> Describe a task, or type / for commands.
+Ready main Space add or remove  Enter open the record  Esc back  / filter  Shif…
