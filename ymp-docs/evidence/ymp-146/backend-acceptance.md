@@ -35,8 +35,11 @@ failures retain their relevant refusals.
 The author's complete fmt/strict-Clippy/workspace sequence passed with 624 tests
 and two existing ignored tests. The parent assigned one additional complete
 integration sequence because main combines this backend with separately accepted
-UI changes. That sequence is pending; it is not a repeated standalone acceptance
-of an unchanged candidate. Logs will be retained from /tmp/ymp146-integrated-checks.
+UI changes. That sequence passed: fmt and strict Clippy exited zero, and 627 workspace
+tests passed with zero failures and two existing ignored tests. The reviewer
+verified 218 unchanged execution inputs; this is integration evidence, not a
+repeated standalone acceptance of the same candidate. Exact commands, source
+bindings and raw logs are retained under [integrated/](integrated/).
 
 ## Delivery limits
 

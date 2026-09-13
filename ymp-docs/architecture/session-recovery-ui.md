@@ -3,7 +3,8 @@
 Scope: the remaining UI consumer of YMP-146, using its typed owner APIs after
 backend acceptance and integration. Claude Code claude-opus-5 high owns UI source.
 The backend candidate 743543f is independently accepted and integrated in main
-as c28f501. Combined-source checks are pending. This contract
+as c28f501. Combined-source checks passed (627 tests, two ignored; fmt and
+strict Clippy passed). This contract
 is preparation, not implemented functionality. YMP-148/YMP-150 strategy selection
 and the later longer slash-command list YMP-154 remain separate.
 

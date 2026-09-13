@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-13 19:45 UTC.
+Updated: 2026-09-13 19:47 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -86,7 +86,7 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-143](#ymp-143) | P1 | Provide a separate /git changes view modeled on Paseo | 2026-09-13 14:04 |
 | `[x]` | [YMP-144](#ymp-144) | P1 | Research recovery of sessions after one or more agent failures | 2026-09-13 14:36 |
 | `[x]` | [YMP-145](#ymp-145) | P1 | Unify full-row popup selection and verify stable scrolling geometry | 2026-09-13 16:31 |
-| `[~]` | [YMP-146](#ymp-146) | P0 | Recover interrupted session stages and let the owner change the active team | 2026-09-13 19:45 |
+| `[~]` | [YMP-146](#ymp-146) | P0 | Recover interrupted session stages and let the owner change the active team | 2026-09-13 19:47 |
 | `[x]` | [YMP-147](#ymp-147) | P1 | Translate product goals into a focused comparative trial program | 2026-09-13 15:38 |
 | `[=]` | [YMP-148](#ymp-148) | P1 | Make session coordination replaceable through a typed strategy contract | 2026-09-13 16:13 |
 | `[x]` | [YMP-149](#ymp-149) | P1 | Use concise professional terminology throughout the interface | 2026-09-13 18:44 |
@@ -2202,9 +2202,9 @@ Recover interrupted session stages and let the owner change the active team
 
 **State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P0
 
-**Last update (UTC):** 2026-09-13 19:45
+**Last update (UTC):** 2026-09-13 19:47
 
-**Current reason:** Claude read-only UI mapping completed. Parent clarified that the existing inspect_recovery API is included, not a permanently disabled placeholder, and allowed existing read-only team metadata without authority duplication. Launched Claude Code claude-opus-5 high via Paseo CLI as c206255b-f322-42f4-b842-8a21de3a8b05 in feat/ymp146-recovery-ui from 211f314. Implementation covers current-session membership and usable recovery, one current-files confirmation followed by ordinary resume, responsive jobs and meaningful terminal tests. Backend/product policies and YMP-154 remain separate; main combined-source checks continue independently.
+**Current reason:** Combined-source verification completed: fmt and strict Clippy exited zero; workspace tests passed 627 with zero failures and two ignored. Reviewer preserved all 218 execution inputs and the unrelated owner request edit. Parent retained hash-verified raw logs, runner, manifests and 32 executable hashes. Recovery UI implementation c206255b continues in its isolated fork; no repeated integration checks are pending, and installed0.4.6/Linux/native-session status is unchanged.
 
 **Owner:** Background backend author and Claude Code claude-opus-5 high UI author; maintainer owns contracts and acceptance
 
@@ -2238,6 +2238,7 @@ Saved proposals cannot resume at failed pre-task review, provider failures do no
 - ymp-docs/architecture/session-recovery-ui.md
 - ymp-docs/evidence/ymp-146/backend-acceptance.md
 - ymp-docs/evidence/ymp-146/independent-round2/review-result.json
+- ymp-docs/evidence/ymp-146/integrated/manifest.json
 
 ## YMP-147
 

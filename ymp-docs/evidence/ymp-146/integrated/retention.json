@@ -1,0 +1,45 @@
+{
+  "source_directory": "/tmp/ymp146-integrated-checks",
+  "files": [
+    {
+      "path": "manifest.json",
+      "sha256": "53754ae2fe2ca35d8e5b6320691a25b5d9ff5213c2fdf4bbed8424d2ab26d410",
+      "bytes": 10135
+    },
+    {
+      "path": "executables.json",
+      "sha256": "762aaec4a70f72723d3299b7c398b0777da0cf7ad1f041b97ef89b7c1bf6f742",
+      "bytes": 6125
+    },
+    {
+      "path": "before.json",
+      "sha256": "a0906596b7fd00590da31244697427f22fe422e08f075f7e1a34b24f09f7ba3a",
+      "bytes": 26640
+    },
+    {
+      "path": "after.json",
+      "sha256": "b73d66b9e835a463781bb9ce496165102c7f61d39ff4b7e75a129c0d4760d64d",
+      "bytes": 26640
+    },
+    {
+      "path": "run-checks.py",
+      "sha256": "18302b27b3b3913755be33f86313690e0ad96a9e5fcff0dbb24e89c63f37bd84",
+      "bytes": 6567
+    },
+    {
+      "path": "fmt.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "clippy.log",
+      "sha256": "b7b9040896f3fde514a14149877b618fa1fe09915daab598687efae8bf099402",
+      "bytes": 5904
+    },
+    {
+      "path": "tests.log",
+      "sha256": "4bacd479aa0f3fa086fba224b38775c5b98993d70cdb61f436017c3046fef47f",
+      "bytes": 65546
+    }
+  ]
+}

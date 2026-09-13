@@ -1,0 +1,423 @@
+{
+  "integration_base": "c28f50192aa136b4d0fdf05e9457a90ea510543f",
+  "platform": "macOS-26.6.2-arm64-arm-64bit-Mach-O",
+  "machine": "arm64",
+  "target": "/tmp/ymp146-recovery-review/target",
+  "started_at": "2026-09-13T19:42:13.476507+00:00",
+  "commands": [
+    {
+      "name": "fmt",
+      "command": [
+        "cargo",
+        "fmt",
+        "--all",
+        "--check"
+      ],
+      "cwd": "/Users/maggnus/Code/ymp2",
+      "started_at": "2026-09-13T19:42:13.905570+00:00",
+      "log": "fmt.log",
+      "exit_code": 0,
+      "finished_at": "2026-09-13T19:42:14.703706+00:00",
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "clippy",
+      "command": [
+        "cargo",
+        "clippy",
+        "--workspace",
+        "--all-targets",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "cwd": "/Users/maggnus/Code/ymp2",
+      "started_at": "2026-09-13T19:42:14.763537+00:00",
+      "log": "clippy.log",
+      "exit_code": 0,
+      "finished_at": "2026-09-13T19:42:34.228251+00:00",
+      "log_sha256": "b7b9040896f3fde514a14149877b618fa1fe09915daab598687efae8bf099402"
+    },
+    {
+      "name": "tests",
+      "command": [
+        "cargo",
+        "test",
+        "--workspace"
+      ],
+      "cwd": "/Users/maggnus/Code/ymp2",
+      "started_at": "2026-09-13T19:42:34.282062+00:00",
+      "log": "tests.log",
+      "exit_code": 0,
+      "finished_at": "2026-09-13T19:45:11.812631+00:00",
+      "log_sha256": "4bacd479aa0f3fa086fba224b38775c5b98993d70cdb61f436017c3046fef47f"
+    }
+  ],
+  "status": "passed",
+  "environment_overrides": {
+    "CARGO_TARGET_DIR": "/tmp/ymp146-recovery-review/target",
+    "CARGO_NET_OFFLINE": "true",
+    "CARGO_TERM_COLOR": "never"
+  },
+  "start_head": "1c17f4e447b839e20f8efbdee0900963a5d8fcad",
+  "accepted_backend_diff": [],
+  "accepted_ui_diff": [],
+  "toolchain": {
+    "cargo": {
+      "version": "cargo 1.89.0 (c24e10642 2025-06-23)",
+      "path": "/Users/maggnus/.rustup/toolchains/1.89.0-aarch64-apple-darwin/bin/cargo",
+      "sha256": "798a97c06e6fc3a63f1b7e3141f87e515e6bc8da1527bc32e19ba27d86bb89c5"
+    },
+    "rustc": {
+      "version": "rustc 1.89.0 (29483883e 2025-08-04)\nbinary: rustc\ncommit-hash: 29483883eed69d5fb4db01964cdf2af4d86e9cb2\ncommit-date: 2025-08-04\nhost: aarch64-apple-darwin\nrelease: 1.89.0\nLLVM version: 20.1.7",
+      "path": "/Users/maggnus/.rustup/toolchains/1.89.0-aarch64-apple-darwin/bin/rustc",
+      "sha256": "af4a9eb303553510e9d74220636dc4b21f8574ddeab73741bf6b892adc49c21c"
+    },
+    "rustfmt": {
+      "path": "/Users/maggnus/.rustup/toolchains/1.89.0-aarch64-apple-darwin/bin/rustfmt",
+      "sha256": "a5127950ba832ec4a5ab8701f0e06dbae675271812c7462fd55d0ff5b1a07093"
+    },
+    "clippy-driver": {
+      "path": "/Users/maggnus/.rustup/toolchains/1.89.0-aarch64-apple-darwin/bin/clippy-driver",
+      "sha256": "d96c5d7a8e3fbb6920ade89d389f96d19003f654c75d96383d7b2fb21b883ab8"
+    },
+    "python3": {
+      "path": "/opt/homebrew/bin/python3",
+      "sha256": "cbf84109626aa1013bbe408fbb9590bd0f1c1548f038b2221c6b8b87de26ca43"
+    },
+    "sh": {
+      "path": "/bin/sh",
+      "sha256": "c0eaf44f9242d5bbc2e14f4e8b7dccc1eff7f2976d64dc18914d5ef9f373e100"
+    }
+  },
+  "test_result_groups": [
+    {
+      "status": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 0
+    },
+    {
+      "status": "ok",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 0
+    },
+    {
+      "status": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 0
+    },
+    {
+      "status": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 0
+    },
+    {
+      "status": "ok",
+      "passed": 9,
+      "failed": 0,
+      "ignored": 1,
+      "measured": 0,
+      "filtered_out": 0
+    },
+    {
+      "status": "ok",
+      "passed": 11,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 0
+    },
+    {
+      "status": "ok",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 0
+    },
+    {
+      "status": "ok",
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 0
+    },
+    {
+      "status": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 0
+    },
+    {
+      "status": "ok",
+      "passed": 14,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 0
+    },
+    {
+      "status": "ok",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 0
+    },
+    {
+      "status": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 0
+    },
+    {
+      "status": "ok",
+      "passed": 11,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 0
+    },
+    {
+      "status": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 0
+    },
+    {
+      "status": "ok",
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 0
+    },
+    {
+      "status": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 0
+    },
+    {
+      "status": "ok",
+      "passed": 113,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 0
+    },
+    {
+      "status": "ok",
+      "passed": 13,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 0
+    },
+    {
+      "status": "ok",
+      "passed": 11,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 0
+    },
+    {
+      "status": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 0
+    },
+    {
+      "status": "ok",
+      "passed": 11,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 0
+    },
+    {
+      "status": "ok",
+      "passed": 12,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 0
+    },
+    {
+      "status": "ok",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 0
+    },
+    {
+      "status": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 0
+    },
+    {
+      "status": "ok",
+      "passed": 33,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 0
+    },
+    {
+      "status": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 0
+    },
+    {
+      "status": "ok",
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 0
+    },
+    {
+      "status": "ok",
+      "passed": 39,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 0
+    },
+    {
+      "status": "ok",
+      "passed": 270,
+      "failed": 0,
+      "ignored": 1,
+      "measured": 0,
+      "filtered_out": 0
+    },
+    {
+      "status": "ok",
+      "passed": 27,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 0
+    },
+    {
+      "status": "ok",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 0
+    },
+    {
+      "status": "ok",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 0
+    },
+    {
+      "status": "ok",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 0
+    },
+    {
+      "status": "ok",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 0
+    },
+    {
+      "status": "ok",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 0
+    },
+    {
+      "status": "ok",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 0
+    }
+  ],
+  "test_totals": {
+    "passed": 627,
+    "failed": 0,
+    "ignored": 2,
+    "measured": 0,
+    "filtered_out": 0
+  },
+  "finish_head": "211f314ff85b3609884db81634794ac1a61684d8",
+  "execution_inputs_unchanged": true,
+  "dirty_request_unchanged": true,
+  "execution_input_count": 218,
+  "post_base_changed_paths": [
+    "ymp-docs/architecture/session-recovery-ui.md",
+    "ymp-docs/evidence/ymp-146/backend-acceptance.md",
+    "ymp-docs/evidence/ymp-146/independent-round2/independent-controls.log",
+    "ymp-docs/evidence/ymp-146/independent-round2/native-negative-false.json",
+    "ymp-docs/evidence/ymp-146/independent-round2/native-negative-true.json",
+    "ymp-docs/evidence/ymp-146/independent-round2/probe/Cargo.lock",
+    "ymp-docs/evidence/ymp-146/independent-round2/probe/Cargo.toml",
+    "ymp-docs/evidence/ymp-146/independent-round2/probe/tests/fixtures/fresh_plan_review.py",
+    "ymp-docs/evidence/ymp-146/independent-round2/probe/tests/inspection.rs",
+    "ymp-docs/evidence/ymp-146/independent-round2/probe/tests/native.rs",
+    "ymp-docs/evidence/ymp-146/independent-round2/public-scenarios.log",
+    "ymp-docs/evidence/ymp-146/independent-round2/review-result.json",
+    "ymp-docs/evidence/ymp-146/independent-round2/scoped-false.json",
+    "ymp-docs/evidence/ymp-146/independent-round2/scoped-true.json",
+    "ymp-docs/tasks/README.md",
+    "ymp-docs/tasks/plan.md",
+    "ymp-docs/tasks/tasks.json"
+  ],
+  "finished_at": "2026-09-13T19:45:12.151691+00:00",
+  "executable_count": 32,
+  "runner_sha256": "18302b27b3b3913755be33f86313690e0ad96a9e5fcff0dbb24e89c63f37bd84",
+  "limits": [
+    "macOS only; no Linux verification",
+    "No real provider inference or original session action",
+    "No installed release update",
+    "Existing 49-case acceptance package was not separately repeated",
+    "Document-only commits may differ between start and finish"
+  ]
+}

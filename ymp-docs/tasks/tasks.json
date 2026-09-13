@@ -3998,7 +3998,8 @@
         "ymp-docs/evidence/ymp-146/authority-round2.md",
         "ymp-docs/architecture/session-recovery-ui.md",
         "ymp-docs/evidence/ymp-146/backend-acceptance.md",
-        "ymp-docs/evidence/ymp-146/independent-round2/review-result.json"
+        "ymp-docs/evidence/ymp-146/independent-round2/review-result.json",
+        "ymp-docs/evidence/ymp-146/integrated/manifest.json"
       ],
       "history": [
         {
@@ -4105,6 +4106,11 @@
           "at": "2026-09-13T19:45:44.298403+00:00",
           "status": "in_progress",
           "note": "Claude read-only UI mapping completed. Parent clarified that the existing inspect_recovery API is included, not a permanently disabled placeholder, and allowed existing read-only team metadata without authority duplication. Launched Claude Code claude-opus-5 high via Paseo CLI as c206255b-f322-42f4-b842-8a21de3a8b05 in feat/ymp146-recovery-ui from 211f314. Implementation covers current-session membership and usable recovery, one current-files confirmation followed by ordinary resume, responsive jobs and meaningful terminal tests. Backend/product policies and YMP-154 remain separate; main combined-source checks continue independently."
+        },
+        {
+          "at": "2026-09-13T19:47:24.798004+00:00",
+          "status": "in_progress",
+          "note": "Combined-source verification completed: fmt and strict Clippy exited zero; workspace tests passed 627 with zero failures and two ignored. Reviewer preserved all 218 execution inputs and the unrelated owner request edit. Parent retained hash-verified raw logs, runner, manifests and 32 executable hashes. Recovery UI implementation c206255b continues in its isolated fork; no repeated integration checks are pending, and installed0.4.6/Linux/native-session status is unchanged."
         }
       ]
     },
@@ -4405,7 +4411,7 @@
       ]
     }
   ],
-  "updated_at": "2026-09-13T19:45:44.298403+00:00",
+  "updated_at": "2026-09-13T19:47:24.798004+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",
