@@ -269,6 +269,10 @@ fn hints(
         (View::Chat, Focus::Composer) => {
             vec![("Enter", "send"), ("Ctrl+P", "commands"), ("Tab", "focus")]
         }
+        // Detailed mode draws every entry in full, so there is nothing left to expand.
+        (View::Chat, Focus::Main) if app.prefs.details => {
+            vec![("Enter", "inspect"), ("Esc", "composer")]
+        }
         (View::Chat, Focus::Main) => vec![
             ("Enter", "inspect"),
             ("Space", "expand"),
@@ -351,6 +355,8 @@ fn transcript_view(frame: &mut Frame, area: Rect, app: &mut App) {
     let selected = app.selected_entry;
     let focus_main = app.focus == Focus::Main;
     let expanded = app.expanded.clone();
+    // Detailed mode collapses nothing, so every entry is drawn as if it had been expanded.
+    let details = app.prefs.details;
     let welcome = welcome_lines(app, width);
 
     let mut lines: Vec<Line<'static>> = Vec::new();
@@ -363,7 +369,7 @@ fn transcript_view(frame: &mut Frame, area: Rect, app: &mut App) {
             for (index, entry) in entries.iter().enumerate() {
                 let start = lines.len();
                 let is_selected = focus_main && index == selected;
-                let is_expanded = entry.seq.is_some_and(|seq| expanded.contains(&seq));
+                let is_expanded = details || entry.seq.is_some_and(|seq| expanded.contains(&seq));
                 let rendered = transcript::render(entry, width, &theme, is_selected, is_expanded);
                 offsets.push((start, rendered.len()));
                 lines.extend(rendered);

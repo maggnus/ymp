@@ -1756,6 +1756,92 @@ fn a_single_line_stream_cannot_fill_the_transcript() {
     );
 }
 
+#[test]
+fn detailed_mode_collapses_no_agent_message() {
+    let fixture = fixture();
+    let mut app = fixture.app();
+    post(
+        &mut app,
+        1,
+        "codex",
+        "plan",
+        &serde_json::json!({"summary": "Split the parser", "tasks": [{"title": "Tokenise the input"}]})
+            .to_string(),
+    );
+    post(
+        &mut app,
+        2,
+        "claude",
+        "review",
+        &serde_json::json!({"approved": true, "reason": "The tokens match", "evidence": "tokenise passes"})
+            .to_string(),
+    );
+    let report = (1..=12)
+        .map(|step| format!("Step {step} of the report."))
+        .collect::<Vec<_>>()
+        .join("\n\n");
+    post(&mut app, 3, "codex", "execute", &report);
+    let hidden_by_default = [
+        "Tokenise the input",
+        "tokenise passes",
+        "Step 12 of the report.",
+    ];
+
+    app.focus = Focus::Main;
+    let collapsed = draw(&mut app, 160, 60);
+    assert!(
+        collapsed.contains("proposed a plan · 1 task · Split the parser"),
+        "{collapsed}"
+    );
+    assert!(collapsed.contains("more lines · Enter to read the full report"));
+    assert!(collapsed.contains("Space expand"), "{collapsed}");
+    for text in hidden_by_default {
+        assert!(
+            !collapsed.contains(text),
+            "{text:?} was not collapsed:\n{collapsed}"
+        );
+    }
+
+    app.command("/details", 160);
+    app.focus = Focus::Main;
+    let detailed = draw(&mut app, 160, 60);
+    assert!(
+        detailed.contains("proposed a plan · 1 task · Split the parser"),
+        "detailed mode lost the sentence that names the plan:\n{detailed}"
+    );
+    for text in hidden_by_default {
+        assert!(
+            detailed.contains(text),
+            "detailed mode collapsed {text:?}:\n{detailed}"
+        );
+    }
+    assert!(!detailed.contains("more lines"), "{detailed}");
+    assert!(!detailed.contains("Space expand"), "{detailed}");
+    app.on_key(key(KeyCode::Char(' ')), 160);
+    assert!(
+        app.expanded.is_empty(),
+        "Space has nothing to expand in detailed mode"
+    );
+
+    // Text still arriving is not a message yet, so its preview stays bounded here as well.
+    app.event(UiEvent::Delta {
+        agent: "codex".into(),
+        text: "word ".repeat(2000),
+    });
+    draw(&mut app, 160, 60);
+    let stream = app
+        .viewport
+        .entries
+        .last()
+        .copied()
+        .expect("the stream entry is rendered");
+    assert!(
+        stream.1 <= 5,
+        "a stream occupied {} rows in detailed mode",
+        stream.1
+    );
+}
+
 // ---------------------------------------------------------------------------
 // Team identity
 // ---------------------------------------------------------------------------

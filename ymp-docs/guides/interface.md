@@ -73,8 +73,11 @@ session is measured against the limit it captured, not against a limit edited af
 
 - `Tab` moves the focus into the transcript, then `Up`/`Down` select an entry.
 - `Enter` opens the complete attributed message, with its author, kind and timestamp.
-- `Space` expands a long execution report in place.
-- `/details` or `Ctrl+L` switches the whole transcript to full attributed messages.
+- `Space` expands one collapsed entry in place: a long execution report, or the full message
+  behind a one-line plan, bid, review or learning note.
+- `/details` or `Ctrl+L` switches the whole transcript to full attributed messages: messages
+  that only route the conversation between agents appear, and no agent message is collapsed, so
+  `Space` has nothing to expand.
 
 Scrolling up pauses auto-follow. The status row then reads `⏸ paused` and names the key
 that returns to the newest message, which is `End`. Text that streams in while you are

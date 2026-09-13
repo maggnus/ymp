@@ -1237,7 +1237,8 @@ impl App {
                     self.reveal_entry();
                 }
                 KeyCode::End => self.jump_to_latest(),
-                KeyCode::Char(' ') => {
+                // Detailed mode already draws every entry in full, so Space has nothing to expand.
+                KeyCode::Char(' ') if !self.prefs.details => {
                     let index = self.selected_entry;
                     if let Some(seq) = self.entries().get(index).and_then(|entry| entry.seq) {
                         if !self.expanded.remove(&seq) {

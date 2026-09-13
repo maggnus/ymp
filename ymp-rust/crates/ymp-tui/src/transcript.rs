@@ -197,21 +197,11 @@ fn entry(message: &Message, attribution: &Attribution, details: bool) -> Entry {
 
 /// Decide how one stored message reads. Structured payloads become a sentence; prose stays
 /// prose. Nothing here invents a value the message does not contain.
+///
+/// Detailed mode keeps that sentence and attaches the whole message to every entry, so no
+/// agent message is collapsed to its sentence.
 fn present(kind: &str, body: &str, details: bool) -> (Role, String, Option<String>) {
-    if details {
-        return (
-            match kind {
-                "user" => Role::User,
-                "answer" | "summary" | "synthesis" => Role::Answer,
-                "execute" => Role::Work,
-                "notice" | "memory" | "plan_accepted" => Role::Notice,
-                _ => Role::Activity,
-            },
-            text::first_line(body),
-            Some(body.to_owned()),
-        );
-    }
-    match kind {
+    let (role, headline, full) = match kind {
         "user" => (Role::User, text::one_line(body), Some(body.to_owned())),
         "answer" | "summary" | "synthesis" => {
             (Role::Answer, text::first_line(body), Some(body.to_owned()))
@@ -234,7 +224,9 @@ fn present(kind: &str, body: &str, details: bool) -> (Role, String, Option<Strin
             format!("{kind} · {}", text::one_line(body)),
             None,
         ),
-    }
+    };
+    let full = if details { Some(body.to_owned()) } else { full };
+    (role, headline, full)
 }
 
 fn json(body: &str) -> Option<Value> {
