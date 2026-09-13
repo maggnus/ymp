@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-13 18:21 UTC.
+Updated: 2026-09-13 18:36 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -10,7 +10,7 @@ A planned task is not implemented functionality. Completed research and planning
 
 | Type | Completed | Total |
 | --- | ---: | ---: |
-| decision | 1 | 2 |
+| decision | 1 | 3 |
 | design | 2 | 2 |
 | documentation | 4 | 4 |
 | experiment | 0 | 4 |
@@ -86,13 +86,14 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-143](#ymp-143) | P1 | Provide a separate /git changes view modeled on Paseo | 2026-09-13 14:04 |
 | `[x]` | [YMP-144](#ymp-144) | P1 | Research recovery of sessions after one or more agent failures | 2026-09-13 14:36 |
 | `[x]` | [YMP-145](#ymp-145) | P1 | Unify full-row popup selection and verify stable scrolling geometry | 2026-09-13 16:31 |
-| `[~]` | [YMP-146](#ymp-146) | P0 | Recover interrupted session stages and let the owner change the active team | 2026-09-13 18:21 |
+| `[~]` | [YMP-146](#ymp-146) | P0 | Recover interrupted session stages and let the owner change the active team | 2026-09-13 18:36 |
 | `[x]` | [YMP-147](#ymp-147) | P1 | Translate product goals into a focused comparative trial program | 2026-09-13 15:38 |
 | `[=]` | [YMP-148](#ymp-148) | P1 | Make session coordination replaceable through a typed strategy contract | 2026-09-13 16:13 |
 | `[~]` | [YMP-149](#ymp-149) | P1 | Use concise professional terminology throughout the interface | 2026-09-13 17:36 |
 | `[=]` | [YMP-150](#ymp-150) | P1 | Make /team the session control page and separate the /agents catalog | 2026-09-13 16:13 |
 | `[=]` | [YMP-151](#ymp-151) | P1 | Prepare reproducible offline comparisons of coordination strategies | 2026-09-13 16:17 |
 | `[+]` | [YMP-152](#ymp-152) | P2 | Keep the selected palette command visible in very short terminals | 2026-09-13 16:25 |
+| `[?]` | [YMP-153](#ymp-153) | P0 | Decide explicit owner continuation from current files after unverified effects | 2026-09-13 18:36 |
 
 ## YMP-001
 
@@ -2198,9 +2199,9 @@ Recover interrupted session stages and let the owner change the active team
 
 **State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P0
 
-**Last update (UTC):** 2026-09-13 18:21
+**Last update (UTC):** 2026-09-13 18:36
 
-**Current reason:** R4 independently accepted. R3 returned for Completed plus MalformedResponse being rejected despite sufficient scope evidence, and for native applicability: all normal adapters and genuine legacy records lack the new scope declaration. Parent added a narrow explicit fresh read-only saved-plan review action, preserving old uncertainty and requiring a separate ordinary continuation; no global effect waiver or automatic production. Same correction fork resumes. Remaining authority review is pinned to an immutable 1dff2cb snapshot. No acceptance, installation or live-session action.
+**Current reason:** Parent approved separate typed saved-verdict consumption, with no retry permit or effect resolution, as an interim outcome. Write execution remains stopped where effect dependencies are unknown. Explicit owner holds need a reachable release path that itself authorizes no unsafe call. Owner policy decision 153 now addresses possible new work from current files; it is not assumed approved, and a plan-only result is not full P0 completion.
 
 **Owner:** Background backend author and Claude Code claude-opus-5 high UI author; maintainer owns contracts and acceptance
 
@@ -2419,6 +2420,34 @@ At60x8, palette search and separator use the entire two-row modal body, hiding e
 **Evidence:**
 
 - ymp-docs/evidence/ymp-145/independent/README.md
+
+## YMP-153
+
+Decide explicit owner continuation from current files after unverified effects
+
+**State:** `[?]` (owner_question) · **Type:** decision · **Priority:** P0
+
+**Last update (UTC):** 2026-09-13 18:36
+
+**Current reason:** Concrete owner question: allow an explicit Continue with current files action after known local termination, preserving unverified effects and history, or keep write refusal until effects are verified? No answer is recorded. Safe read-only recovery implementation continues independently.
+
+**Owner:** Project owner; maintainer supplies concrete behavior and preserves the safe implementation boundary
+
+**Authorization:** Owner approval is required for the proposed change to the maintainer-defined conservative write-continuation rule. Existing approval covers recovery and live team changes, but is not recorded as acceptance of unknown historical effects.
+
+**Depends on:** [YMP-144](#ymp-144)
+
+Fresh read-only review can recover a saved proposal, but current records cannot prove how every future write depends on unverified old effects. A write continuation decision must remain explicit.
+
+**Acceptance criteria:**
+
+- Record the owner decision on the concrete Continue with current files action, including preservation of historical uncertainty and existing constraints.
+- If approved, define the bounded owner command without false effect confirmation, blind native replay, budget reset or extra permissions; otherwise preserve refusal until adequate evidence is available.
+- Do not resume the real session or launch comparative model trials merely because a product behavior is approved.
+
+**Evidence:**
+
+- ymp-docs/product/recovery-owner-decision.md
 
 ## Intent coverage
 
