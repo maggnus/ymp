@@ -1,6 +1,6 @@
 # Delivery plan and progress
 
-Updated: 2026-09-13 16:17 UTC.
+Updated: 2026-09-13 16:21 UTC.
 
 [Approved intent](../../intent.md) · [Task details and evidence](README.md) · [Canonical register](tasks.json)
 
@@ -143,11 +143,11 @@ Deferred and post-MVP work:
 
 | Time (UTC) | Task | State | Update |
 | --- | --- | --- | --- |
+| 2026-09-13 16:21 | [YMP-149](README.md#ymp-149) | `[=]` | Read-only terminology inventory completed, including table/filter/sort hints, generated strings and human-readable CLI. Maintainer accepted scoped corrections and rejected replacing READING with another metadata column, conflating pool/catalog, inventing profile-version events, using unconfirmed for missing native settings or broad branding changes. Durable audit recorded; implementation remains sequenced after independent145acceptance, with no wording tests/install claim. |
 | 2026-09-13 16:17 | [YMP-201](README.md#ymp-201) | `[=]` | Owner explicitly required marking comparative trials as subject to owner approval. The experiment remains paused; no automatic start after preparation/dependency completion. Obtain separate approval of the concrete protocol, configurations and resource envelope before calibration or measured comparative runs. |
 | 2026-09-13 16:17 | [YMP-202](README.md#ymp-202) | `[=]` | Owner explicitly required marking comparative trials as subject to owner approval. The experiment remains paused; no automatic start after preparation/dependency completion. Obtain separate approval of the concrete protocol, configurations and resource envelope before calibration or measured comparative runs. |
 | 2026-09-13 16:17 | [YMP-203](README.md#ymp-203) | `[=]` | Owner explicitly required marking comparative trials as subject to owner approval. The experiment remains paused; no automatic start after preparation/dependency completion. Obtain separate approval of the concrete protocol, configurations and resource envelope before calibration or measured comparative runs. |
 | 2026-09-13 16:17 | [YMP-204](README.md#ymp-204) | `[=]` | Owner explicitly required marking comparative trials as subject to owner approval. The experiment remains paused; no automatic start after preparation/dependency completion. Obtain separate approval of the concrete protocol, configurations and resource envelope before calibration or measured comparative runs. |
-| 2026-09-13 16:17 | [YMP-151](README.md#ymp-151) | `[=]` | Owner approval boundary made explicit:151 prepares fixtures/runner/manifests and scripted correctness checks only; it does not launch comparative product trials. Subsequent201–204 experiments require separate owner approval. |
 
 ## Maintenance
 

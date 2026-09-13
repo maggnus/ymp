@@ -4089,13 +4089,19 @@
         "Keep P0 recovery and YMP-148 coordination/catalog semantics separate; no generic policy settings, scope-changing runtime work or false installed-completion claims."
       ],
       "evidence": [
-        "ymp-docs/guides/ui-language.md"
+        "ymp-docs/guides/ui-language.md",
+        "ymp-docs/evidence/ymp-149/audit.md"
       ],
       "history": [
         {
           "at": "2026-09-13T16:07:28.802206+00:00",
           "status": "planned",
           "note": "Parent verified the supplied phrase in identity_row_words and ambiguous Config.team-derived in team/blank values. Read-only interface audit is being assigned while145 is independently reviewed; UI implementation waits for the shared component acceptance. No language changes are installed yet."
+        },
+        {
+          "at": "2026-09-13T16:21:48.094911+00:00",
+          "status": "planned",
+          "note": "Read-only terminology inventory completed, including table/filter/sort hints, generated strings and human-readable CLI. Maintainer accepted scoped corrections and rejected replacing READING with another metadata column, conflating pool/catalog, inventing profile-version events, using unconfirmed for missing native settings or broad branding changes. Durable audit recorded; implementation remains sequenced after independent145acceptance, with no wording tests/install claim."
         }
       ]
     },
@@ -4171,7 +4177,7 @@
       ]
     }
   ],
-  "updated_at": "2026-09-13T16:17:00.229942+00:00",
+  "updated_at": "2026-09-13T16:21:48.094911+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",

@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-13 16:17 UTC.
+Updated: 2026-09-13 16:21 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -89,7 +89,7 @@ A planned task is not implemented functionality. Completed research and planning
 | `[~]` | [YMP-146](#ymp-146) | P0 | Recover interrupted session stages and let the owner change the active team | 2026-09-13 16:13 |
 | `[x]` | [YMP-147](#ymp-147) | P1 | Translate product goals into a focused comparative trial program | 2026-09-13 15:38 |
 | `[=]` | [YMP-148](#ymp-148) | P1 | Make session coordination replaceable through a typed strategy contract | 2026-09-13 16:13 |
-| `[=]` | [YMP-149](#ymp-149) | P1 | Use concise professional terminology throughout the interface | 2026-09-13 16:07 |
+| `[=]` | [YMP-149](#ymp-149) | P1 | Use concise professional terminology throughout the interface | 2026-09-13 16:21 |
 | `[=]` | [YMP-150](#ymp-150) | P1 | Make /team the session control page and separate the /agents catalog | 2026-09-13 16:13 |
 | `[=]` | [YMP-151](#ymp-151) | P1 | Prepare reproducible offline comparisons of coordination strategies | 2026-09-13 16:17 |
 
@@ -2292,7 +2292,7 @@ Use concise professional terminology throughout the interface
 
 **State:** `[=]` (planned) · **Type:** implementation · **Priority:** P1
 
-**Last update (UTC):** 2026-09-13 16:07
+**Last update (UTC):** 2026-09-13 16:21
 
 **Current reason:** Needs YMP-145
 
@@ -2304,7 +2304,7 @@ Use concise professional terminology throughout the interface
 
 Primary rows currently include provenance prose and ambiguous membership values. Terminology needs a consistent interface-wide review without losing meaningful states or changing stored evidence.
 
-**Latest progress note:** Parent verified the supplied phrase in identity_row_words and ambiguous Config.team-derived in team/blank values. Read-only interface audit is being assigned while145 is independently reviewed; UI implementation waits for the shared component acceptance. No language changes are installed yet.
+**Latest progress note:** Read-only terminology inventory completed, including table/filter/sort hints, generated strings and human-readable CLI. Maintainer accepted scoped corrections and rejected replacing READING with another metadata column, conflating pool/catalog, inventing profile-version events, using unconfirmed for missing native settings or broad branding changes. Durable audit recorded; implementation remains sequenced after independent145acceptance, with no wording tests/install claim.
 
 **Acceptance criteria:**
 
@@ -2317,6 +2317,7 @@ Primary rows currently include provenance prose and ambiguous membership values.
 **Evidence:**
 
 - ymp-docs/guides/ui-language.md
+- ymp-docs/evidence/ymp-149/audit.md
 
 ## YMP-150
 
