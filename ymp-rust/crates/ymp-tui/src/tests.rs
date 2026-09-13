@@ -4,16 +4,18 @@
 //! reach a provider: the state layer reads the store directly, and anything that could
 //! start a turn leaves as an `Action` the test inspects instead of executing.
 
+use crate::exit::{self, Departure};
 use crate::prefs::Prefs;
 use crate::state::{route, Action, App, Field, Focus, Overlay, Route};
 use crate::text;
 use crate::theme;
 use crate::ui;
 use crate::views::View;
-use crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers};
+use crossterm::event::{Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers, ModifierKeyCode};
 use ratatui::backend::TestBackend;
 use ratatui::Terminal;
 use std::path::PathBuf;
+use std::time::{Duration, Instant};
 use tempfile::TempDir;
 use ymp_core::{
     new_id, now, AgentProfile, Config, Message, Session, SessionUsage, Task, TaskAttemptRef,
@@ -350,6 +352,419 @@ fn the_sidebar_opens_a_destination_without_leaving_the_keyboard() {
     assert!(actions.is_empty());
     assert_eq!(app.view, View::Tasks);
     assert_eq!(app.focus, Focus::Main);
+}
+
+// ---------------------------------------------------------------------------
+// Leaving
+// ---------------------------------------------------------------------------
+
+#[test]
+fn a_first_ctrl_c_leaves_active_work_and_the_draft_untouched() {
+    let fixture = fixture();
+    let mut app = fixture.app();
+    app.active = true;
+    app.status = "Working in the project".into();
+    typed(&mut app, "a draft");
+
+    assert_eq!(app.on_key(control('c'), 100), Vec::<Action>::new());
+    assert!(app.active, "the run is not stopped");
+    assert_eq!(app.status, "Working in the project");
+    assert_eq!(app.input.value, "a draft");
+    assert_eq!(app.on_key(control('c'), 100), vec![Action::Quit]);
+}
+
+#[test]
+fn a_first_ctrl_c_when_idle_does_not_leave() {
+    let fixture = fixture();
+    let mut app = fixture.app();
+    assert_eq!(app.on_key(control('c'), 100), Vec::<Action>::new());
+    assert_eq!(app.on_key(control('c'), 100), vec![Action::Quit]);
+}
+
+#[test]
+fn ctrl_c_twice_leaves_from_an_open_overlay_without_closing_it_first() {
+    let fixture = fixture();
+    let mut app = fixture.app();
+    app.on_key(control('p'), 100);
+    typed(&mut app, "the");
+
+    assert_eq!(app.on_key(control('c'), 100), Vec::<Action>::new());
+    assert!(matches!(&app.overlay, Some(Overlay::Palette { field, .. }) if field.value == "the"));
+    assert_eq!(app.on_key(control('c'), 100), vec![Action::Quit]);
+}
+
+#[test]
+fn a_first_ctrl_c_during_a_catalog_reading_stops_nothing() {
+    let fixture = fixture();
+    let mut app = fixture.app();
+    app.status = "Asking the installations what they offer".into();
+    assert!(app.on_key(control('c'), 100).is_empty());
+    assert_eq!(app.status, "Asking the installations what they offer");
+}
+
+#[test]
+fn the_question_is_painted_and_withdrawn_when_its_window_passes() {
+    let fixture = fixture();
+    let mut app = fixture.app();
+    let start = Instant::now();
+
+    assert!(app.on_key_at(control('c'), 100, start).is_empty());
+    assert!(draw(&mut app, 100, 30).contains(exit::CONFIRM_PROMPT));
+    app.expire_exit_request(start + Duration::from_millis(1_999));
+    assert!(draw(&mut app, 100, 30).contains(exit::CONFIRM_PROMPT));
+
+    app.expire_exit_request(start + exit::CONFIRM_WINDOW);
+    assert!(!draw(&mut app, 100, 30).contains(exit::CONFIRM_PROMPT));
+    let later = start + Duration::from_millis(2_100);
+    assert!(app.on_key_at(control('c'), 100, later).is_empty());
+}
+
+#[test]
+fn a_second_ctrl_c_after_the_window_only_asks_again() {
+    let fixture = fixture();
+    let mut app = fixture.app();
+    let start = Instant::now();
+    let late = start + exit::CONFIRM_WINDOW;
+
+    assert!(app.on_key_at(control('c'), 100, start).is_empty());
+    assert!(app.on_key_at(control('c'), 100, late).is_empty());
+    assert_eq!(
+        app.on_key_at(control('c'), 100, late + Duration::from_millis(1_999)),
+        vec![Action::Quit]
+    );
+}
+
+#[test]
+fn other_input_withdraws_the_question() {
+    let fixture = fixture();
+    let mut app = fixture.app();
+    let start = Instant::now();
+    let at = |ms: u64| start + Duration::from_millis(ms);
+
+    assert!(app.on_key_at(control('c'), 100, at(0)).is_empty());
+    assert!(app
+        .on_key_at(key(KeyCode::Char('x')), 100, at(100))
+        .is_empty());
+    assert_eq!(app.input.value, "x", "the key still does its own work");
+    assert!(app.on_key_at(control('c'), 100, at(200)).is_empty());
+
+    app.paste(" pasted");
+    assert!(app.on_key_at(control('c'), 100, at(300)).is_empty());
+
+    // Ctrl held on the way to the second press is part of that press.
+    let held = KeyEvent::new(
+        KeyCode::Modifier(ModifierKeyCode::LeftControl),
+        KeyModifiers::CONTROL,
+    );
+    assert!(app.on_key_at(held, 100, at(400)).is_empty());
+    assert_eq!(
+        app.on_key_at(control('c'), 100, at(500)),
+        vec![Action::Quit]
+    );
+    assert_eq!(app.input.value, "x pasted");
+}
+
+#[test]
+fn a_repeated_or_released_key_is_not_a_second_press() {
+    let fixture = fixture();
+    let mut app = fixture.app();
+    let start = Instant::now();
+    let later = start + Duration::from_millis(100);
+
+    assert!(app.on_key_at(control('c'), 100, start).is_empty());
+    for (code, modifiers, kind) in [
+        (
+            KeyCode::Char('c'),
+            KeyModifiers::CONTROL,
+            KeyEventKind::Repeat,
+        ),
+        (
+            KeyCode::Char('c'),
+            KeyModifiers::CONTROL,
+            KeyEventKind::Release,
+        ),
+        (
+            KeyCode::Char('x'),
+            KeyModifiers::NONE,
+            KeyEventKind::Release,
+        ),
+    ] {
+        let event = KeyEvent::new_with_kind(code, modifiers, kind);
+        assert!(app.on_key_at(event, 100, later).is_empty(), "{event:?}");
+        assert!(
+            app.exit_requested.is_some(),
+            "{event:?} withdrew the question"
+        );
+    }
+    assert_eq!(app.on_key_at(control('c'), 100, later), vec![Action::Quit]);
+}
+
+#[test]
+fn ctrl_c_asks_the_same_question_from_every_region() {
+    let fixture = fixture();
+    let start = Instant::now();
+    let later = start + Duration::from_millis(300);
+    type Open = fn(&mut App);
+    let regions: [(&str, Open); 5] = [
+        ("composer", |_| {}),
+        ("transcript", |app| app.focus = Focus::Main),
+        ("page", |app| app.set_view(View::Tasks)),
+        ("sidebar", |app| app.focus = Focus::Sidebar),
+        ("theme chooser", |app| {
+            app.on_key(control('t'), 120);
+        }),
+    ];
+    for (region, open) in regions {
+        let mut app = fixture.app();
+        app.viewport.width = 120;
+        open(&mut app);
+        let before = (app.focus, app.view, app.overlay.is_some(), app.theme.id);
+
+        assert!(
+            app.on_key_at(control('c'), 120, start).is_empty(),
+            "{region}"
+        );
+        assert_eq!(
+            (app.focus, app.view, app.overlay.is_some(), app.theme.id),
+            before,
+            "{region}"
+        );
+        assert!(
+            draw(&mut app, 120, 30).contains(exit::CONFIRM_PROMPT),
+            "{region}"
+        );
+        assert_eq!(
+            app.on_key_at(control('c'), 120, later),
+            vec![Action::Quit],
+            "{region}"
+        );
+    }
+}
+
+#[test]
+fn quit_and_ctrl_d_still_leave_on_one_explicit_request() {
+    let fixture = fixture();
+    let mut app = fixture.app();
+    assert_eq!(submit(&mut app, "/quit"), vec![Action::Quit]);
+    assert_eq!(app.on_key(control('d'), 100), vec![Action::Quit]);
+    typed(&mut app, "draft");
+    assert!(
+        app.on_key(control('d'), 100).is_empty(),
+        "Ctrl+D keeps a draft"
+    );
+
+    app.active = true;
+    assert_eq!(submit(&mut app, "/stop"), vec![Action::Cancel]);
+}
+
+#[test]
+fn the_closing_status_names_the_work_it_waits_on() {
+    assert_eq!(exit::closing_status(false, false), "Leaving ymp");
+    assert!(exit::closing_status(true, false).contains("stopping the active run and waiting"));
+    assert!(exit::closing_status(false, true).contains("stopping the catalog reading"));
+    assert!(exit::closing_status(true, true).contains("the active run and the catalog reading"));
+}
+
+#[tokio::test]
+async fn leaving_stops_the_work_and_names_a_session_opened_while_it_stopped() {
+    let (events, mut received) = tokio::sync::mpsc::unbounded_channel();
+    let cancel = tokio_util::sync::CancellationToken::new();
+    let scan_cancel = tokio_util::sync::CancellationToken::new();
+    let run = tokio::spawn({
+        let cancel = cancel.clone();
+        async move {
+            cancel.cancelled().await;
+            let message = Message {
+                seq: 1,
+                session_id: "opened-while-stopping".into(),
+                author: "you".into(),
+                recipient: None,
+                kind: "user".into(),
+                text: "A prompt".into(),
+                created_at: now(),
+            };
+            events.send(UiEvent::Message(message)).unwrap();
+        }
+    });
+    let scan = tokio::spawn({
+        let scan_cancel = scan_cancel.clone();
+        async move { scan_cancel.cancelled().await }
+    });
+
+    let departure = exit::stop_and_wait(
+        &cancel,
+        &scan_cancel,
+        Some(run),
+        Some(scan),
+        &mut received,
+        None,
+        Duration::from_secs(30),
+    )
+    .await;
+    assert_eq!(
+        departure,
+        Departure {
+            session: Some("opened-while-stopping".into()),
+            unfinished: false,
+        }
+    );
+}
+
+#[tokio::test]
+async fn leaving_waits_only_so_long_for_work_that_does_not_stop() {
+    let (_events, mut received) = tokio::sync::mpsc::unbounded_channel();
+    let cancel = tokio_util::sync::CancellationToken::new();
+    let stuck = tokio::spawn(std::future::pending::<()>());
+
+    let departure = exit::stop_and_wait(
+        &cancel,
+        &tokio_util::sync::CancellationToken::new(),
+        Some(stuck),
+        None::<tokio::task::JoinHandle<()>>,
+        &mut received,
+        Some("loaded".into()),
+        Duration::from_millis(50),
+    )
+    .await;
+    assert!(cancel.is_cancelled());
+    assert_eq!(
+        departure,
+        Departure {
+            session: Some("loaded".into()),
+            unfinished: true,
+        }
+    );
+}
+
+/// The arguments a shell reads from a printed `ymp` command, without starting ymp.
+fn shell_words(shell: &str, flags: &[&str], command: &str) -> Vec<String> {
+    let arguments = command.strip_prefix("ymp ").expect("a ymp command");
+    let scratch = TempDir::new().unwrap();
+    let output = std::process::Command::new(shell)
+        .args(flags)
+        .arg("-c")
+        .arg(format!("printf '%s\\0' {arguments}"))
+        .current_dir(scratch.path())
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{shell}: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    String::from_utf8(output.stdout)
+        .unwrap()
+        .split_terminator('\0')
+        .map(str::to_owned)
+        .collect()
+}
+
+#[test]
+fn the_resume_command_names_the_saved_project_and_reads_back_through_a_shell() {
+    let fixture = fixture();
+    let elsewhere = TempDir::new().unwrap();
+    let directory = elsewhere
+        .path()
+        .join("project ' $(printf leaked) \"literal\"");
+    std::fs::create_dir(&directory).unwrap();
+    let project = fixture.store.project(&directory).unwrap();
+    let session = Session {
+        id: new_id(),
+        project_id: project.id.clone(),
+        title: "Stopped".into(),
+        status: "paused".into(),
+        created_at: now(),
+        team: Config::default().members(),
+        turns_used: 0,
+    };
+    fixture.store.save_session(&session).unwrap();
+
+    // The window started in the fixture project and then opened a session saved elsewhere.
+    let mut app = fixture.app();
+    app.load_session(&session.id).unwrap();
+    let departure = Departure {
+        session: app.session.clone(),
+        unfinished: false,
+    };
+    let text = exit::farewell(&fixture.store, &departure, None);
+    let lines: Vec<&str> = text.lines().collect();
+    assert_eq!(lines[0], "Resume this session with:", "{text}");
+    assert!(lines[2].contains("starts no agents") && lines[2].contains("/resume"));
+
+    let home = std::path::absolute(&fixture.store.home).unwrap();
+    assert_eq!(
+        shell_words("/bin/sh", &[], lines[1]),
+        [
+            "--home",
+            home.to_str().unwrap(),
+            "-C",
+            project.path.to_str().unwrap(),
+            "resume",
+            session.id.as_str(),
+        ]
+    );
+}
+
+#[test]
+fn only_a_session_that_exists_gets_a_resume_command() {
+    let fixture = fixture();
+    let id = fixture.seed_session("Finished");
+    let home = std::path::absolute(&fixture.store.home).unwrap();
+    let command = exit::resume_command(&fixture.store, &id, Some(&home)).unwrap();
+    assert!(
+        !command.contains("--home"),
+        "the standard home is not named: {command}"
+    );
+    assert!(command.ends_with(&format!(" resume {id}")), "{command}");
+
+    assert!(fixture.app().session.is_none());
+    assert_eq!(
+        exit::farewell(&fixture.store, &Departure::default(), None),
+        ""
+    );
+    let stopped = Departure {
+        session: None,
+        unfinished: true,
+    };
+    let text = exit::farewell(&fixture.store, &stopped, None);
+    assert!(text.contains("stopped waiting") && !text.contains("Resume this session"));
+
+    let missing = Departure {
+        session: Some(new_id()),
+        unfinished: false,
+    };
+    let text = exit::farewell(&fixture.store, &missing, None);
+    assert!(text.contains("could not be read again") && !text.contains("Resume this session"));
+}
+
+#[test]
+fn a_word_with_quotes_or_control_characters_reads_back_exactly() {
+    let words = [
+        "plain-1.2_x/y:z@a+b,c",
+        "two words",
+        "it's",
+        "",
+        "tab\there",
+        "\u{1b}]0;title\u{7}",
+        "back\\slash 'single' \"double\" $HOME `id` $(printf leaked)",
+    ];
+    let quoted: Vec<String> = words.iter().map(|word| exit::shell_word(word)).collect();
+    assert_eq!(quoted[0], words[0], "a plain word stays as it is");
+    assert!(
+        quoted
+            .iter()
+            .all(|word| !word.chars().any(char::is_control)),
+        "{quoted:?}"
+    );
+    let command = format!("ymp {}", quoted.join(" "));
+    for (shell, flags) in [
+        ("/bin/bash", &["--noprofile", "--norc"][..]),
+        ("/bin/zsh", &["-f"][..]),
+    ] {
+        if std::path::Path::new(shell).exists() {
+            assert_eq!(shell_words(shell, flags, &command), words, "{shell}");
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------

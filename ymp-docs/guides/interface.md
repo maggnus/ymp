@@ -80,7 +80,18 @@ finally the draft in the composer.
 | `Ctrl+L` | Toggle detailed agent messages |
 | `PageUp` / `PageDown` | Scroll the transcript or the current list |
 | `Home` / `End` | Jump to the oldest or the newest message |
-| `Ctrl+C` | Stop an active run, or leave ymp when idle |
+| `Ctrl+C` | Press twice within two seconds to leave ymp; active work is stopped first |
+
+The first `Ctrl+C` only asks: the status row reads `Press Ctrl-C again to exit`, and nothing is
+stopped, closed or cleared, whichever region or overlay owns the keyboard. Another key, a paste
+or two seconds without a second press withdraws the question; a repeated or released key is not
+a second press. The second press, `/quit`, or `Ctrl+D` in an empty composer leaves. The status
+row names the work being stopped, and ymp waits up to 10 seconds for a run to record its state
+before it restores the terminal and prints `Resume this session with:` and a shell-quoted
+command. The command names the session's saved project directory, its ID, and `--home` when the
+metadata directory is not `~/.ymp2`. It opens the conversation without starting agents; use
+`/resume` there to continue the run. Nothing is printed when no session was open. `/stop` and
+`/pause` stop a run without leaving.
 
 A command runs on one press of Enter unless it cannot act without an argument. `/theme`,
 `/team`, `/memory`, `/limits` and `/resume` all do something useful on their own, so they

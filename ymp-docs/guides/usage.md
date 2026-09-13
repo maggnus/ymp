@@ -28,7 +28,7 @@ To configure a provider's command, arguments, or environment references, edit th
 
 `/sessions` lists sessions for the current project. `Enter` loads one for reading, which does not start agents; `r` on the list, or `/resume SESSION_ID`, continues the run and inspects unfinished work before doing so. Every other page reachable from the sidebar is a read-only projection.
 
-Use `/pause` or Ctrl+C to stop active turns. Native agent sessions and files in the working directory are retained. `/limits` shows the limits the loaded session captured apart from the ones a later run would use, together with what the session admitted, what it reserved for review, what it observed and any stop the budget recorded. A captured limit is a record and cannot be edited there. Increase the turn limit before resuming a run that exhausted its budget:
+Use `/pause` or `/stop` to stop active turns without leaving ymp; pressing Ctrl+C twice leaves and stops them first. Native agent sessions and files in the working directory are retained. `/limits` shows the limits the loaded session captured apart from the ones a later run would use, together with what the session admitted, what it reserved for review, what it observed and any stop the budget recorded. A captured limit is a record and cannot be edited there. Increase the turn limit before resuming a run that exhausted its budget:
 
 ```text
 /limits turns 300

@@ -4,6 +4,7 @@
 //! split into the main column and the sidebar, the composer, and a status row. Nothing here
 //! invents a value; every span carries text that came from the state or names a key.
 
+use crate::exit;
 use crate::frame::{self, ModalRole, ModalSpec};
 use crate::sidebar;
 use crate::state::{App, Focus, Overlay, PromptTarget};
@@ -232,14 +233,18 @@ fn status(frame: &mut Frame, area: Rect, app: &App, page_hints: &[(&'static str,
         let spinner = theme.markers.spinner[(app.tick % 4) as usize];
         left.push(Span::styled(format!("{spinner} "), theme.accent()));
     }
-    left.push(Span::styled(
-        text::one_line(&app.status),
-        if app.active {
-            theme.body()
-        } else {
-            theme.faint()
-        },
-    ));
+    left.push(if app.exit_requested.is_some() {
+        Span::styled(exit::CONFIRM_PROMPT.to_owned(), theme.warn())
+    } else {
+        Span::styled(
+            text::one_line(&app.status),
+            if app.active {
+                theme.body()
+            } else {
+                theme.faint()
+            },
+        )
+    });
     let mut right: Vec<Span<'static>> = Vec::new();
     if app.view == View::Chat && !app.follow {
         right.push(Span::styled(

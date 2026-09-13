@@ -8,7 +8,7 @@
 
 use anyhow::{bail, Result};
 use crossterm::event::Event;
-use std::io::IsTerminal;
+use std::io::{IsTerminal, Write};
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
 use tokio::sync::mpsc;
@@ -19,6 +19,7 @@ use ymp_runtime::{Engine, RunOutcome};
 use ymp_storage::Store;
 
 mod commands;
+mod exit;
 mod frame;
 mod prefs;
 mod provenance;
@@ -63,7 +64,7 @@ pub async fn run(
         }
     }
 
-    let (mut terminal, _guard) = terminal::enter()?;
+    let (mut terminal, guard) = terminal::enter()?;
     let mut input = terminal::input();
     let (events, mut runtime_events) = mpsc::unbounded_channel();
 
@@ -80,7 +81,7 @@ pub async fn run(
     let mut last_draw = Instant::now() - FRAME_BUDGET;
     let mut quit = false;
 
-    loop {
+    let departure = loop {
         let mut actions: Vec<Action> = Vec::new();
         tokio::select! {
             Some(event) = runtime_events.recv() => app.event(event),
@@ -107,6 +108,7 @@ pub async fn run(
                 app.dirty = true;
             }
         }
+        app.expire_exit_request(Instant::now());
 
         if scanning.as_ref().is_some_and(JoinHandle::is_finished) {
             if let Some(handle) = scanning.take() {
@@ -167,7 +169,11 @@ pub async fn run(
 
         for action in actions {
             match action {
-                Action::Quit => quit = true,
+                Action::Quit => {
+                    // Nothing typed after leaving was committed is started.
+                    quit = true;
+                    break;
+                }
                 Action::Cancel => {
                     cancel.cancel();
                     scan_cancel.cancel();
@@ -283,12 +289,20 @@ pub async fn run(
         }
 
         if quit {
-            cancel.cancel();
-            scan_cancel.cancel();
-            if let Some(handle) = running.take() {
-                let _ = tokio::time::timeout(Duration::from_secs(10), handle).await;
-            }
-            break;
+            // Stopping a run can take seconds, so the window says what it waits on first.
+            app.exit_requested = None;
+            app.status = exit::closing_status(running.is_some(), scanning.is_some());
+            let _ = terminal.draw(|frame| ui::render(frame, &mut app));
+            break exit::stop_and_wait(
+                &cancel,
+                &scan_cancel,
+                running.take(),
+                scanning.take(),
+                &mut runtime_events,
+                app.session.clone(),
+                exit::SHUTDOWN_WAIT,
+            )
+            .await;
         }
 
         if app.dirty && last_draw.elapsed() >= FRAME_BUDGET {
@@ -296,7 +310,16 @@ pub async fn run(
             app.dirty = false;
             last_draw = Instant::now();
         }
-    }
+    };
+    // Printed once the terminal is restored, so the command stays in the shell's scrollback
+    // instead of vanishing with the alternate screen.
+    drop(input);
+    drop(terminal);
+    drop(guard);
+    let standard_home = std::env::var_os("HOME").map(|home| PathBuf::from(home).join(".ymp2"));
+    let mut out = std::io::stdout();
+    let _ = out.write_all(exit::farewell(&store, &departure, standard_home.as_deref()).as_bytes());
+    let _ = out.flush();
     Ok(())
 }
 

@@ -7,6 +7,7 @@
 //! and what lets the keyboard contract be tested without a terminal or a provider.
 
 use crate::commands;
+use crate::exit;
 use crate::frame;
 use crate::prefs::Prefs;
 use crate::provenance::{Pool, Records};
@@ -20,6 +21,7 @@ use crossterm::event::{KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 use ratatui::text::Line;
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::PathBuf;
+use std::time::Instant;
 use ymp_core::{AgentProfile, Config, Message, SessionUsage, Task, UiEvent};
 use ymp_storage::Store;
 use ymp_workspace::repository::{self, Repository};
@@ -266,6 +268,8 @@ pub struct App {
     pub status: String,
     pub active: bool,
     pub started: Option<std::time::Instant>,
+    /// When a first Ctrl+C asked for a second one. The status row asks while this is set.
+    pub exit_requested: Option<Instant>,
 
     pub follow: bool,
     pub top: usize,
@@ -320,6 +324,7 @@ impl App {
             status: "Ready".into(),
             active: false,
             started: None,
+            exit_requested: None,
             follow: true,
             top: 0,
             selected_entry: 0,
@@ -373,6 +378,7 @@ impl App {
     /// such as a confirmation, ignore the paste rather than leaking it underneath.
     pub fn paste(&mut self, text: &str) {
         self.dirty = true;
+        self.exit_requested = None;
         let normalized = text.replace("\r\n", "\n").replace('\r', "\n");
         match &mut self.overlay {
             Some(Overlay::Prompt {
@@ -928,23 +934,30 @@ impl App {
     // -----------------------------------------------------------------------
 
     pub fn on_key(&mut self, key: KeyEvent, width: u16) -> Vec<Action> {
+        self.on_key_at(key, width, Instant::now())
+    }
+
+    /// A key pressed at `now`. Only the Ctrl+C confirmation depends on the time.
+    pub(crate) fn on_key_at(&mut self, key: KeyEvent, width: u16, now: Instant) -> Vec<Action> {
         if key.kind != KeyEventKind::Press {
             return Vec::new();
         }
         self.dirty = true;
+        let control = key.modifiers.contains(KeyModifiers::CONTROL);
+        // Ctrl+C belongs to no overlay and no region, so it is handled before either. The
+        // first press stops nothing, clears nothing and closes nothing.
+        if control && key.code == KeyCode::Char('c') {
+            return self.interrupt(now);
+        }
+        // Anything else the reader does withdraws the question. A bare modifier is reported
+        // on the way to a chord, possibly the second Ctrl+C itself, so it does not.
+        if !matches!(key.code, KeyCode::Modifier(_)) {
+            self.exit_requested = None;
+        }
         if self.overlay.is_some() {
             return self.overlay_key(key);
         }
-        let control = key.modifiers.contains(KeyModifiers::CONTROL);
         match key.code {
-            KeyCode::Char('c') if control => {
-                return if self.active {
-                    self.status = "Stopping active turns".into();
-                    vec![Action::Cancel]
-                } else {
-                    vec![Action::Quit]
-                };
-            }
             KeyCode::Char('d') if control && self.input.is_empty() => {
                 return vec![Action::Quit];
             }
@@ -1007,6 +1020,30 @@ impl App {
             Focus::Composer => self.composer_key(key, width),
             Focus::Main => self.main_key(key, width),
             Focus::Sidebar => self.sidebar_key(key),
+        }
+    }
+
+    /// Ctrl+C. The first press asks for a second; a second within the window leaves.
+    fn interrupt(&mut self, now: Instant) -> Vec<Action> {
+        match self.exit_requested.take() {
+            Some(asked) if now.saturating_duration_since(asked) < exit::CONFIRM_WINDOW => {
+                vec![Action::Quit]
+            }
+            _ => {
+                self.exit_requested = Some(now);
+                Vec::new()
+            }
+        }
+    }
+
+    /// Withdraw a first Ctrl+C whose window passed without a second one.
+    pub fn expire_exit_request(&mut self, now: Instant) {
+        if self
+            .exit_requested
+            .is_some_and(|asked| now.saturating_duration_since(asked) >= exit::CONFIRM_WINDOW)
+        {
+            self.exit_requested = None;
+            self.dirty = true;
         }
     }
 

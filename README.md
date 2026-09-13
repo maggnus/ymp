@@ -4,7 +4,7 @@ A terminal workspace for a self-organizing team of local AI agents. Written in R
 
 Give the team a task. Agents propose plans and temporary responsibilities; the runtime validates assignments and revisions. They work in the selected directory and independently review the deliverable. Objectively confirmed outcomes supply qualified experience and reusable knowledge; qualitative acceptance remains explicitly unconfirmed.
 
-**Status:** 0.4.1 MVP. See the [patch notes](ymp-docs/releases/0.4.1.md) and [0.4.0 release notes](ymp-docs/releases/0.4.0.md) for verified behavior and limitations. Quality improvements from memory and adaptive assignment remain hypotheses to evaluate, not a measured product claim.
+**Status:** 0.4.2 MVP. See the [0.4.2](ymp-docs/releases/0.4.2.md) and [0.4.1](ymp-docs/releases/0.4.1.md) patch notes and the [0.4.0 release notes](ymp-docs/releases/0.4.0.md) for verified behavior and limitations. Quality improvements from memory and adaptive assignment remain hypotheses to evaluate, not a measured product claim.
 
 ## Requirements
 
@@ -58,7 +58,7 @@ The interface is chat-first with a right sidebar that carries navigation, live t
 
 Commands: `/chat`, `/help`, `/tasks`, `/usage`, `/sessions`, `/files`, `/diff`, `/checks`, `/assignments`, `/decisions`, `/providers`, `/agents`, `/agent`, `/team`, `/limits`, `/memory`, `/reputation`, `/theme`, `/sidebar`, `/details`, `/new`, `/resume`, `/pause`, `/stop`, and `/quit`. `Ctrl+P` opens the command palette, and `/help` lists every command and key.
 
-Enter sends, Ctrl+J inserts a newline, and Tab completes a command name or moves the focus to the next region. Esc removes the topmost surface and eventually returns to the composer. Ctrl+C stops an active run; when idle, it exits. Messages entered during execution are delivered at the next turn boundary.
+Enter sends, Ctrl+J inserts a newline, and Tab completes a command name or moves the focus to the next region. Esc removes the topmost surface and eventually returns to the composer. A first Ctrl+C only asks for confirmation; a second one within two seconds leaves ymp, stopping active work first, and prints the command that reopens the session. `/stop` stops a run without leaving. Messages entered during execution are delivered at the next turn boundary.
 
 Your prompts and the team's final answers are the content of the transcript; routine plan, bid and review payloads are collapsed into one readable line each, and `Enter` on an entry shows the complete attributed message. `/details` switches to full messages. Scrolling up pauses auto-follow, which the status row reports along with the key that returns to the newest message.
 

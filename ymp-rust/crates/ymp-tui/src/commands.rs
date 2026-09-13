@@ -235,14 +235,14 @@ pub const COMMANDS: &[Command] = &[
     Command {
         name: "/stop",
         usage: "/stop",
-        summary: "Stop active turns immediately.",
+        summary: "Stop active turns immediately, without leaving ymp.",
         group: Group::System,
         args: Args::None,
     },
     Command {
         name: "/quit",
         usage: "/quit",
-        summary: "Leave ymp.",
+        summary: "Leave ymp. Active work is stopped first, and the command that reopens the session is printed.",
         group: Group::System,
         args: Args::None,
     },
@@ -317,6 +317,9 @@ pub const KEYS: &[(&str, &str)] = &[
     ("Ctrl+T", "Open the theme chooser"),
     ("Ctrl+B", "Show or hide the context sidebar"),
     ("Ctrl+L", "Toggle detailed agent messages"),
-    ("Ctrl+C", "Stop an active run, or leave ymp when idle"),
+    (
+        "Ctrl+C",
+        "Press twice within 2 seconds to leave ymp; active work is stopped first",
+    ),
     ("Ctrl+D", "Leave ymp when the composer is empty"),
 ];
