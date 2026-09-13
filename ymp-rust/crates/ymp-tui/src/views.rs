@@ -9,6 +9,7 @@
 //! the user's working directory.
 
 use crate::commands::{self, Group};
+use crate::label;
 use crate::provenance::{Acceptance, Pool, Records};
 use crate::text;
 use crate::theme::Theme;
@@ -730,7 +731,7 @@ fn agent_usage(ctx: &Ctx, row: &usage::AgentUsage) -> Item {
         "Counters belong to the agent, not to the provider it runs on. Two agents that share a provider are counted apart.",
         prose,
     ));
-    let mut left = vec![Span::styled(row.name.clone(), theme.text())];
+    let mut left = vec![Span::styled(presented_name(ctx, &row.id), theme.text())];
     if !row.provider.is_empty() {
         left.push(Span::styled(format!(" · {}", row.provider), theme.faint()));
     }
@@ -796,7 +797,7 @@ fn sessions(ctx: &Ctx) -> anyhow::Result<Page> {
                 &session
                     .team
                     .iter()
-                    .map(|a| a.name.clone())
+                    .map(|profile| label::profile(profile, ctx.config))
                     .collect::<Vec<_>>()
                     .join(", "),
                 ctx.width,
@@ -1524,6 +1525,12 @@ fn team(ctx: &Ctx) -> Page {
         items.push(pool_unavailable_row(ctx));
     } else {
         for agent in ctx.pool.agents() {
+            // An alias that resolves to no concrete model is no choice of model. A member stays
+            // listed with the members above, where its model reads as unknown.
+            let member = members.iter().any(|member| member.id == agent.profile.id);
+            if label::unresolved_alias(&agent.identity) && !member {
+                continue;
+            }
             items.push(pool_row(ctx, agent));
         }
     }
@@ -1579,15 +1586,16 @@ fn recorded_models(ctx: &Ctx, agent: &str) -> (Vec<String>, usize) {
         .filter(|assignment| assignment.agent_id == agent)
     {
         for invocation in records.invocations_of(&assignment.id) {
-            match invocation
-                .reported
-                .model
-                .as_deref()
-                .or(invocation.sent.model.as_deref())
+            let named = invocation.reported.model.is_some() || invocation.sent.model.is_some();
+            // The internal default alias is resolved as the turn's own identity resolves it, or
+            // it names no model.
+            match named
+                .then(|| label::assignment_model(assignment, Some(invocation)))
+                .flatten()
             {
                 Some(model) => {
-                    if !names.iter().any(|seen| seen == model) {
-                        names.push(model.to_owned());
+                    if !names.contains(&model) {
+                        names.push(model);
                     }
                 }
                 None => unrecorded += 1,
@@ -1683,12 +1691,9 @@ fn catalog_models_words(catalog: Option<&ProviderCapabilities>) -> String {
     }
 }
 
-/// The label a captured member carries: the native name the record captured at admission, or
-/// the name the session captured with the profile.
+/// The label a captured member carries: the concrete model its recorded turns name, or unknown.
 fn captured_label(ctx: &Ctx, profile: &AgentProfile) -> String {
-    captured_identity(ctx, &profile.id)
-        .map(|identity| identity.name.clone())
-        .unwrap_or_else(|| profile.name.clone())
+    presented_name(ctx, &profile.id)
 }
 
 /// The identity recorded with this agent's last assignment, if one was recorded.
@@ -1710,7 +1715,7 @@ fn captured_identity_lines(ctx: &Ctx, profile: &AgentProfile) -> Vec<Line<'stati
     let theme = ctx.theme;
     let mut lines = Vec::new();
     if let Some(identity) = captured_identity(ctx, &profile.id) {
-        lines.extend(field(theme, "name", &identity.name, ctx.width));
+        lines.extend(field(theme, "native label", &identity.name, ctx.width));
         if identity.configured_name != identity.name {
             lines.extend(field(
                 theme,
@@ -1724,10 +1729,7 @@ fn captured_identity_lines(ctx: &Ctx, profile: &AgentProfile) -> Vec<Line<'stati
             "captured as",
             &format!(
                 "{} · the identity recorded when the turn was admitted",
-                identity
-                    .model
-                    .as_deref()
-                    .unwrap_or("no model was recorded with it")
+                asked_words(identity.model.as_deref())
             ),
             ctx.width,
         ));
@@ -1742,8 +1744,8 @@ fn captured_identity_lines(ctx: &Ctx, profile: &AgentProfile) -> Vec<Line<'stati
 }
 
 fn captured_model_row_words(ctx: &Ctx, profile: &AgentProfile) -> String {
-    if let Some(id) = captured_identity(ctx, &profile.id).and_then(|i| i.model.as_deref()) {
-        return id.to_owned();
+    if let Some(id) = captured_identity(ctx, &profile.id).and_then(label::resolved_model) {
+        return label::clean(id);
     }
     // What the turns recorded comes before the profile's own field: a model can reach a turn
     // from an execution policy without ever being written on the profile, so an empty field is
@@ -1777,38 +1779,54 @@ fn identity_of<'a>(ctx: &'a Ctx, profile: &AgentProfile) -> Option<&'a AgentIden
 
 /// The label a row carries for an agent, and the short words beside it.
 ///
-/// A provider id is a transport label: `codex` is how ymp reaches an installation, not the name
-/// of a model it offers. So a native name, where the installation gave one, is the label; where
-/// it did not, the label is the configured one and the words beside it say exactly what is
-/// missing. Nothing here derives a name from an identifier.
+/// A provider id is a transport label: `codex` is how ymp reaches an installation, not a model it
+/// offers. A caption such as `Default (recommended)` describes an offering without naming its
+/// model. So the label is the concrete model identifier native metadata resolves the agent to,
+/// and where nothing resolves one the label says the model is unknown and the words beside it
+/// say why. A local fixture has no native model and keeps its configured name.
 fn identity_row_words(
     identity: Option<&AgentIdentity>,
     profile: &AgentProfile,
+    config: &Config,
 ) -> (String, String) {
     let Some(identity) = identity else {
         return (
-            profile.name.clone(),
+            label::profile(profile, config),
             "what is installed could not be read".to_owned(),
         );
     };
-    match identity.status {
-        AgentIdentityStatus::Native => (
-            identity.name.clone(),
-            identity
-                .model
-                .clone()
-                .unwrap_or_else(|| "no identifier recorded".to_owned()),
-        ),
-        AgentIdentityStatus::Stale => (identity.name.clone(), "not read recently".to_owned()),
-        AgentIdentityStatus::Unknown => (
-            identity.configured_name.clone(),
-            "not in the catalog".to_owned(),
-        ),
-        AgentIdentityStatus::Unresolved => (
-            identity.configured_name.clone(),
-            "no native model".to_owned(),
-        ),
-        AgentIdentityStatus::Local => (identity.name.clone(), "a local provider".to_owned()),
+    let model = label::offering(identity);
+    let words = match identity.status {
+        AgentIdentityStatus::Native if model.is_none() => "no concrete model resolved",
+        AgentIdentityStatus::Native => "read from the installation",
+        AgentIdentityStatus::Stale => "not read recently",
+        AgentIdentityStatus::Unknown => "not in the catalog",
+        AgentIdentityStatus::Unresolved => "no native model",
+        AgentIdentityStatus::Local => "a local provider",
+    };
+    (
+        model.unwrap_or_else(|| label::UNKNOWN_MODEL.to_owned()),
+        words.to_owned(),
+    )
+}
+
+/// The model an identity stands for, in words, where the row gives it as a label.
+fn identity_model_words(identity: &AgentIdentity) -> String {
+    match label::offering(identity) {
+        Some(model) => model,
+        None if identity.model.is_some() => {
+            "unknown · native metadata resolves what it asks for to no concrete model".to_owned()
+        }
+        None => "unknown · none is set, so the installation would choose".to_owned(),
+    }
+}
+
+/// What the settings ask the installation for, with the internal default alias said as such.
+fn asked_words(model: Option<&str>) -> String {
+    match model {
+        Some(id) if label::is_default_alias(id) => "the installation's default alias".to_owned(),
+        Some(id) => id.to_owned(),
+        None => "no model; the installation would choose".to_owned(),
     }
 }
 
@@ -1824,7 +1842,11 @@ fn identity_lines(ctx: &Ctx, profile: &AgentProfile) -> Vec<Line<'static>> {
             ctx.width,
         );
     };
-    let mut lines = field(theme, "name", &identity.name, ctx.width);
+    let mut lines = field(theme, "model", &identity_model_words(identity), ctx.width);
+    // A caption stays source metadata beside the model, never the name.
+    if identity.status != AgentIdentityStatus::Local {
+        lines.extend(field(theme, "native label", &identity.name, ctx.width));
+    }
     if identity.configured_name != identity.name {
         lines.extend(field(
             theme,
@@ -1835,17 +1857,19 @@ fn identity_lines(ctx: &Ctx, profile: &AgentProfile) -> Vec<Line<'static>> {
     }
     lines.extend(field(
         theme,
-        "model",
-        &match identity.model.as_deref() {
-            Some(id) => id.to_owned(),
-            None => "none is set, so the installation would choose".to_owned(),
-        },
+        "asks for",
+        &asked_words(identity.model.as_deref()),
         ctx.width,
     ));
     if let Some(resolved) = identity.resolved_model.as_deref() {
         lines.extend(field(theme, "resolved to", resolved, ctx.width));
     }
-    lines.extend(field(theme, "name from", &name_source(identity), ctx.width));
+    lines.extend(field(
+        theme,
+        "metadata from",
+        &name_source(identity),
+        ctx.width,
+    ));
     let catalog = ctx.config.provider_capabilities(&profile.provider);
     if let Some(offering) = catalog
         .zip(identity.model.as_deref())
@@ -1988,7 +2012,7 @@ fn member_row(ctx: &Ctx, profile: &AgentProfile) -> Item {
         }
     };
     let identity = identity_of(ctx, profile);
-    let (label, words) = identity_row_words(identity, profile);
+    let (label, words) = identity_row_words(identity, profile, ctx.config);
     let mut detail = field(theme, "profile", &profile.id, ctx.width);
     // A catalog read today says nothing about a turn that ran yesterday, so a captured member
     // is read from what its own session recorded and never from the catalog as it stands now.
@@ -2374,7 +2398,10 @@ fn pool_row(ctx: &Ctx, agent: &PoolAgent) -> Item {
                 ),
                 if eligible { theme.good() } else { theme.warn() },
             ),
-            Span::styled(agent.profile.name.clone(), theme.muted()),
+            Span::styled(
+                label::offering(&agent.identity).unwrap_or_else(|| label::UNKNOWN_MODEL.to_owned()),
+                theme.muted(),
+            ),
             Span::styled(format!(" · {}", agent.profile.provider), theme.faint()),
         ],
     )
@@ -2478,7 +2505,7 @@ fn agents(ctx: &Ctx) -> Page {
         .iter()
         .map(|profile| {
             let in_team = ctx.config.team.contains(&profile.id);
-            let (label, words) = identity_row_words(identity_of(ctx, profile), profile);
+            let (label, words) = identity_row_words(identity_of(ctx, profile), profile, ctx.config);
             let mut detail = field(theme, "profile", &profile.id, ctx.width);
             detail.extend(identity_lines(ctx, profile));
             detail.extend(field(theme, "provider", &profile.provider, ctx.width));
@@ -3781,7 +3808,8 @@ fn assignment_row(ctx: &Ctx, assignment: &AssignmentRecord, live: bool) -> Item 
     let invocation = ctx.records.last_invocation(&assignment.id);
     let state = invocation.map(|i| i.state).unwrap_or(assignment.state);
     let (marker, word, style) = invocation_state(state, live, theme);
-    let name = presented_name(ctx, &assignment.agent_id);
+    // The row is one turn, so it is named by that turn's own model and reported effort.
+    let name = label::assignment(assignment, invocation);
     let mut detail = field(theme, "assignment", &assignment.id, ctx.width);
     detail.extend(field(
         theme,
@@ -3951,10 +3979,7 @@ fn assignment_row(ctx: &Ctx, assignment: &AssignmentRecord, live: bool) -> Item 
             Span::styled(format!(" · {}", assignment.purpose), theme.faint()),
         ],
     )
-    .with_right(vec![
-        Span::styled(format!("{word}  "), style),
-        Span::styled(model_word(assignment, invocation).to_owned(), theme.muted()),
-    ])
+    .with_right(vec![Span::styled(word.to_owned(), style)])
     .with_detail(detail)
 }
 
@@ -4015,18 +4040,6 @@ fn invocation_state(
         InvocationState::Cancelled => (m.warn.into(), "cancelled", theme.warn()),
         InvocationState::Interrupted => (m.warn.into(), "interrupted", theme.warn()),
     }
-}
-
-/// The model on the row: what the installation reported, or what was sent, said as such.
-fn model_word<'a>(
-    assignment: &'a AssignmentRecord,
-    invocation: Option<&'a InvocationRecord>,
-) -> &'a str {
-    invocation
-        .and_then(|i| i.reported.model.as_deref())
-        .or_else(|| invocation.and_then(|i| i.sent.model.as_deref()))
-        .or(assignment.requested.model.as_deref())
-        .unwrap_or("no model recorded")
 }
 
 /// The three columns of one execution setting, then what they do and do not establish.
@@ -5760,50 +5773,17 @@ fn empty_records(ctx: &Ctx, headline: &str, hint: &str) -> Vec<Line<'static>> {
     nothing(theme, headline, hint, ctx.width)
 }
 
-pub fn display_name(config: &Config, id: &str) -> String {
-    config
-        .agents
-        .iter()
-        .find(|a| a.id == id)
-        .map(|a| a.name.clone())
-        .unwrap_or_else(|| id.to_owned())
-}
-
-/// The name to present for one actor, from what was actually recorded or read.
+/// The name to present for one actor where no single invocation is meant.
 ///
-/// The order is a statement about sources and not a preference for longer names. An identity a
-/// record captured names the actor as its turns ran, so it comes first and a later reading of
-/// the installations never renames finished work. A session that recorded turns without
-/// capturing an identity keeps its configured name for the same reason: the present catalog is
-/// not evidence about a past turn. Only where no record speaks does the reading name the actor,
-/// and where nothing was read the configured name is all that is known. A provider id is never
-/// used as a name.
+/// The shared rule in [`label::agent`] decides it. What this session recorded for the actor
+/// speaks first, so a later reading of the installations never renames finished work, and only
+/// an actor the records do not mention is named from the pool. A caption, a configured name and
+/// a provider or actor identifier are never the name; a model nothing recorded stays unknown.
 fn presented_name(ctx: &Ctx, id: &str) -> String {
     actor_name(ctx.config, ctx.pool, ctx.records, id)
 }
 
-pub fn actor_name(config: &Config, pool: &Pool, records: &Records, id: &str) -> String {
-    if let Some(identity) = captured_identity_of(records, id) {
-        return identity.name.clone();
-    }
-    if records
-        .assignments()
-        .iter()
-        .any(|assignment| assignment.agent_id == id)
-    {
-        return display_name(config, id);
-    }
-    match pool.agent(id).map(|agent| &agent.identity) {
-        Some(identity) => match identity.status {
-            AgentIdentityStatus::Native
-            | AgentIdentityStatus::Stale
-            | AgentIdentityStatus::Local => identity.name.clone(),
-            // The installation named no model for this actor, so it has no native name to
-            // present. The pages that discuss models say that in their own words.
-            AgentIdentityStatus::Unknown | AgentIdentityStatus::Unresolved => {
-                identity.configured_name.clone()
-            }
-        },
-        None => display_name(config, id),
-    }
+fn actor_name(config: &Config, pool: &Pool, records: &Records, id: &str) -> String {
+    let pooled = pool.agent(id).map(|agent| &agent.identity);
+    label::agent(id, records.trace.as_ref(), pooled, config)
 }

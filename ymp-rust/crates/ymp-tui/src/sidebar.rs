@@ -287,7 +287,10 @@ fn tokens(app: &App, width: usize) -> Section {
         lines.push(text::row(
             width,
             vec![Span::styled(
-                text::truncate(&row.name, width.saturating_sub(text::width(&figure) + 2)),
+                text::truncate(
+                    &app.agent_label(&row.id),
+                    width.saturating_sub(text::width(&figure) + 2),
+                ),
                 theme.body(),
             )],
             vec![Span::styled(
@@ -356,10 +359,7 @@ fn team(app: &App, width: usize) -> Section {
             width,
             vec![
                 Span::styled(format!("{marker} "), style),
-                Span::styled(
-                    views::actor_name(&app.config, &app.pool, &app.records, &member.id),
-                    theme.body(),
-                ),
+                Span::styled(app.agent_label(&member.id), theme.body()),
             ],
             vec![Span::styled(word.to_owned(), style)],
         ));

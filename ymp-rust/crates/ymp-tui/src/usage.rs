@@ -96,8 +96,8 @@ pub fn present(session: Option<&str>, stats: &Stats) -> bool {
 /// One agent's line of statistics.
 #[derive(Clone, Debug)]
 pub struct AgentUsage {
+    /// The stable actor ID. A row is named where it is drawn, by the model its turns ran.
     pub id: String,
-    pub name: String,
     /// Secondary metadata. It never groups a row: two agents on one provider stay apart.
     pub provider: String,
     pub totals: Option<UsageTotals>,
@@ -119,7 +119,6 @@ pub fn agent_rows(stats: &Stats, team: &[AgentProfile], config: &Config) -> Vec<
         .iter()
         .map(|profile| AgentUsage {
             id: profile.id.clone(),
-            name: profile.name.clone(),
             provider: profile.provider.clone(),
             totals: stats.agent(&profile.id),
             outside_team: false,
@@ -134,7 +133,6 @@ pub fn agent_rows(stats: &Stats, team: &[AgentProfile], config: &Config) -> Vec<
         let profile = config.agents.iter().find(|agent| &agent.id == id);
         rows.push(AgentUsage {
             id: id.clone(),
-            name: profile.map_or_else(|| id.clone(), |agent| agent.name.clone()),
             provider: profile
                 .map(|agent| agent.provider.clone())
                 .unwrap_or_default(),

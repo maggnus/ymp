@@ -17,14 +17,86 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 use ymp_core::{
-    now, AgentPool, AssignmentRecord, BoardCommitment, BoardDecision, BoardProposal,
-    BoardProposalStatus, BoardSnapshot, BoardTask, Config, ConfirmationStatus, DecisionOutcome,
-    DecisionRecord, GrantRecord, InvocationRecord, InvocationState, PoolAgent, ResultVersion,
-    SessionPolicy, SessionTrace, StoredOutcome, TeamConstraints, TeamState,
-    WorkspaceAccessDecision, WorkspaceWait,
+    now, AgentAttribution, AgentPool, AssignmentRecord, BoardCommitment, BoardDecision,
+    BoardProposal, BoardProposalStatus, BoardSnapshot, BoardTask, Config, ConfirmationStatus,
+    DecisionOutcome, DecisionRecord, GrantRecord, HistoryEvent, InvocationRecord, InvocationState,
+    Message, PoolAgent, ResultVersion, SessionPolicy, SessionTrace, StoredOutcome, TeamConstraints,
+    TeamState, WorkspaceAccessDecision, WorkspaceWait,
 };
 use ymp_providers::discovery::ProviderHealth;
 use ymp_storage::Store;
+
+/// Which recorded invocation wrote each message, and which one each agent is running, as last
+/// read.
+///
+/// A message is named by the invocation linked to it and never by its author's latest turn. The
+/// link is committed together with the message, so the controller reads the session again when an
+/// agent message arrives, when a stream starts and when a turn starts or ends, and presents from
+/// that read. A message nothing links stays unlinked.
+#[derive(Default)]
+pub struct Attribution {
+    pub trace: Option<SessionTrace>,
+    /// Keyed by message sequence. `None` is a message no invocation is linked to.
+    linked: BTreeMap<i64, Option<AgentAttribution>>,
+}
+
+impl Attribution {
+    /// Read the session again. Links already resolved are kept, because a written link never
+    /// changes; a read that fails leaves the messages it could not resolve for the next read.
+    pub fn refresh(&mut self, store: &Store, session: Option<&str>, messages: &[Message]) {
+        let same = matches!(
+            (&self.trace, session),
+            (Some(trace), Some(id)) if trace.session.id == id
+        );
+        if !same {
+            self.linked.clear();
+        }
+        self.trace = session.and_then(|id| store.trace(id).ok());
+        self.resolve(messages);
+    }
+
+    /// The invocation linked to one message, where one is.
+    pub fn message(&self, seq: i64) -> Option<&AgentAttribution> {
+        self.linked.get(&seq).and_then(Option::as_ref)
+    }
+
+    fn resolve(&mut self, messages: &[Message]) {
+        let Some(trace) = self.trace.as_mut() else {
+            return;
+        };
+        let pending: Vec<&Message> = messages
+            .iter()
+            .filter(|message| {
+                message.session_id == trace.session.id
+                    && !matches!(message.author.as_str(), "you" | "ymp")
+                    && !self.linked.contains_key(&message.seq)
+            })
+            .collect();
+        if pending.is_empty() {
+            return;
+        }
+        // `message_attribution` considers only the events that name the message's sequence.
+        // Handing it exactly those keeps a read linear in the history rather than scanning the
+        // whole history once per message.
+        let history = std::mem::take(&mut trace.history);
+        let mut named: BTreeMap<i64, Vec<HistoryEvent>> = BTreeMap::new();
+        for event in &history {
+            if let Some(seq) = event
+                .data
+                .get("message_seq")
+                .and_then(serde_json::Value::as_i64)
+            {
+                named.entry(seq).or_default().push(event.clone());
+            }
+        }
+        for message in pending {
+            trace.history = named.remove(&message.seq).unwrap_or_default();
+            self.linked
+                .insert(message.seq, trace.message_attribution(message));
+        }
+        trace.history = history;
+    }
+}
 
 /// Whether the files an accepted result named are still the ones it was accepted with.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

@@ -11,19 +11,19 @@ ymp  project  /path/to/project      3fa27c81  ✓ completed  154.9k+ tokens  12 
   ▌ you                                                    12:04  │ NAVIGATE
   ▌ Add validation and tests for the import command                │ ● Conversation
                                                                    │   Tasks            3
-  · Codex proposed a plan · 2 tasks · Validate then test     12:04 │   Token usage 154.9k+
-  · Claude review · accepted · The parser rejects empty rows 12:07 │   Sessions
+  · gpt-5.6-sol high proposed a plan · 2 tasks · Validate…   12:04 │   Token usage 154.9k+
+  · glm-5.2 max review · accepted · Empty rows are rejected  12:07 │   Sessions
                                                                    │   …
-  ◆ Codex · final result                                    12:09  │ SESSION
+  ◆ gpt-5.6-sol high · final result                         12:09  │ SESSION
     Added `validate_row` and six tests. `cargo test` passes.       │ 3fa27c81 ✓ completed
                                                                    │ turns this session 12 / 200
                                                                    │ dir  …/project
                                                                    │ TOKENS       154.9k+
-                                                                   │ Codex         131.8k
-                                                                   │ Claude        23.1k+
+                                                                   │ gpt-5.6-sol   131.8k
+                                                                   │ glm-5.2       23.1k+
                                                                    │ TEAM
-                                                                   │ ● Codex     working
-                                                                   │ ○ Claude    idle
+                                                                   │ ○ gpt-5.6-sol   idle
+                                                                   │ ○ glm-5.2       idle
 ──────────────────────────────────────────────────────────────────────────────────────────
 › Describe a task, or type / for commands.
 Ready                                     composer  Enter send  Ctrl+P commands  Tab focus
@@ -46,6 +46,24 @@ can be compared against a file.
 A member the runtime reports as waiting is shown as waiting and not as busy: a turn held up
 by coordination is not work in flight, and the code it waited under is on the task and on the
 decision that recorded it.
+
+Agents are named by model. Neither the caption an installation gives a model, such as
+`Default (recommended)`, nor the provider or actor ID is used as a name. A message is headed
+by the model and effort of the invocation it is bound to, for example `glm-5.2 max`: the model
+the installation reported for that turn, otherwise the concrete model that was sent, with the
+internal `default` alias resolved only through the identity captured for that turn. Effort
+appears only when the installation reported it; otherwise the heading reads
+`(effort not reported)`. Two turns of one actor that ran different models or efforts therefore
+carry different headings. A message no recorded invocation is linked to, such as one written
+before messages were linked, reads `unknown model`; a later turn, a configuration change or the
+provider the actor uses now does not rename it. Your prompts stay `you`, runtime notices stay
+`ymp`, and local fixture agents keep the name their turn captured. `Enter` shows the actor ID,
+provider and invocation behind a heading. Headless `ymp run` prints the same headings.
+
+A stream, a working member in the sidebar and a tool call in the status row are named by the
+invocation that is running. An idle member, a token row and every choice on the team and agent
+pages are named by the concrete model alone, as native metadata resolved it. A profile whose
+`default` alias nothing resolved reads `unknown model` and is not offered as a new choice.
 
 The sidebar's team section names the profiles the loaded session captured when it started,
 and says so. With no session loaded it describes the team the next run would use instead; the

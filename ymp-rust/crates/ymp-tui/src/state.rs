@@ -9,8 +9,9 @@
 use crate::commands;
 use crate::exit;
 use crate::frame;
+use crate::label;
 use crate::prefs::Prefs;
-use crate::provenance::{Pool, Records};
+use crate::provenance::{Attribution, Pool, Records};
 use crate::text;
 use crate::theme::{self, Theme};
 use crate::transcript::{self, Entry, Notice};
@@ -25,6 +26,9 @@ use std::time::Instant;
 use ymp_core::{AgentProfile, Config, Message, SessionUsage, Task, UiEvent};
 use ymp_storage::Store;
 use ymp_workspace::repository::{self, Repository};
+
+/// The runtime reports tool use inside a turn as agent activity: this prefix, then the tool.
+const TOOL_ACTIVITY: &str = "tool: ";
 
 /// The region that owns the keyboard. Exactly one is active at any moment.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -261,6 +265,9 @@ pub struct App {
     /// What the controller last found installed on this machine. Inspecting it looks for
     /// executables on `PATH`, so it happens here and never while a page is painted.
     pub pool: Pool,
+    /// Which invocation wrote each message and which one each agent is running, as last read.
+    /// The transcript, the sidebar and the status row name agents from this read.
+    pub attribution: Attribution,
     /// Token accounting for the loaded session, per agent. Replaced as a whole whenever
     /// the run reports, and re-read from the store when a conversation is opened.
     pub stats: Stats,
@@ -319,6 +326,7 @@ impl App {
             session_team: Vec::new(),
             records: Records::unopened(),
             pool,
+            attribution: Attribution::default(),
             stats: Stats::default(),
             turns_used: 0,
             status: "Ready".into(),
@@ -409,9 +417,7 @@ impl App {
                 &self.messages,
                 &self.notices,
                 &self.streams,
-                &self.config,
-                &self.pool,
-                &self.records,
+                &self.attribution,
                 self.prefs.details,
             );
             self.entries_revision = self.revision;
@@ -491,16 +497,21 @@ impl App {
                 }
                 let opened = self.session.as_deref() != Some(message.session_id.as_str());
                 self.session = Some(message.session_id.clone());
-                if opened {
-                    // A new session has just been recorded; read the team it captured.
-                    self.refresh_session_facts();
-                }
+                let agent = !matches!(message.author.as_str(), "you" | "ymp");
                 self.streams.remove(&message.author);
                 if !self.messages.iter().any(|old| old.seq == message.seq) {
                     self.messages.push(message);
                 }
+                if opened {
+                    // A new session has just been recorded; read the team it captured.
+                    self.refresh_session_facts();
+                } else if agent {
+                    // The invocation an agent message is linked to was committed with it.
+                    self.refresh_attribution();
+                }
             }
             UiEvent::Delta { agent, text } => {
+                let started = !self.streams.contains_key(&agent);
                 let buffer = self.streams.entry(agent).or_default();
                 buffer.push_str(&text);
                 if buffer.len() > 100_000 {
@@ -511,12 +522,25 @@ impl App {
                         .unwrap_or(0);
                     buffer.drain(..cut);
                 }
+                if started {
+                    // A stream is named by the invocation running it, which this reads.
+                    self.refresh_attribution();
+                }
             }
             UiEvent::AgentStatus { agent, status } => {
-                self.statuses.insert(agent, status);
-                // A turn starting or ending is when an assignment record appears or closes.
-                if self.view.reads_records() {
-                    self.refresh_records();
+                // A turn starting or ending is when its invocation record appears or closes.
+                self.refresh_attribution();
+                if let Some(tool) = status.strip_prefix(TOOL_ACTIVITY) {
+                    // Tool use is activity inside a turn, not a change in what the turn is for:
+                    // the member keeps its purpose, and the status row names the running
+                    // invocation and the tool.
+                    let working = label::streaming(&agent, self.attribution.trace.as_ref());
+                    self.status = format!("{working} · {}", label::clean(tool));
+                } else {
+                    self.statuses.insert(agent, status);
+                    if self.view.reads_records() {
+                        self.refresh_records();
+                    }
                 }
             }
             UiEvent::Task(task) => {
@@ -658,6 +682,16 @@ impl App {
             self.reload_usage();
         }
         self.refresh_records();
+        self.refresh_attribution();
+    }
+
+    /// Read which invocation wrote each message and which one each agent is running now.
+    ///
+    /// Only the session's own records answer that, so this reads them rather than inferring an
+    /// invocation from an author's latest turn or from the configuration.
+    fn refresh_attribution(&mut self) {
+        self.attribution
+            .refresh(&self.store, self.session.as_deref(), &self.messages);
     }
 
     /// Read the loaded session's own records again.
@@ -753,6 +787,27 @@ impl App {
         } else {
             (self.config.members(), false)
         }
+    }
+
+    /// How the window names an agent outside the transcript.
+    ///
+    /// While a run in this window has the agent working, it is named by the invocation the
+    /// records show it running. Otherwise it is named by what the session recorded for it or,
+    /// where nothing was recorded, by the pool as it was last read.
+    pub fn agent_label(&self, id: &str) -> String {
+        let trace = self.attribution.trace.as_ref();
+        let working = self.active
+            && self.statuses.get(id).is_some_and(|status| {
+                !matches!(status.as_str(), "idle" | "error") && !status.starts_with("waiting")
+            });
+        if let Some(attribution) = working
+            .then(|| trace.and_then(|trace| trace.active_agent_attribution(id)))
+            .flatten()
+        {
+            return label::invocation(&attribution);
+        }
+        let pooled = self.pool.agent(id).map(|agent| &agent.identity);
+        label::agent(id, trace, pooled, &self.config)
     }
 
     pub fn sidebar_visible(&self, width: u16) -> bool {
@@ -1276,6 +1331,12 @@ impl App {
             ),
             theme.muted(),
         )));
+        if let Some(origin) = &entry.origin {
+            body.push(Line::from(ratatui::text::Span::styled(
+                text::truncate(origin, width),
+                theme.faint(),
+            )));
+        }
         body.push(Line::default());
         body.extend(text::markdown(&entry.raw, width, &theme, theme.body()));
         self.overlay = Some(Overlay::Inspect {
@@ -2017,6 +2078,7 @@ impl App {
                 self.session = None;
                 self.session_status = "no session".into();
                 self.session_team.clear();
+                self.attribution = Attribution::default();
                 self.stats.clear();
                 self.turns_used = 0;
                 self.set_view(View::Chat);

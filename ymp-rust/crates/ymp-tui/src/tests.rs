@@ -1082,9 +1082,7 @@ fn routine_coordination_is_collapsed_and_routing_is_hidden() {
         &app.messages,
         &[],
         &Default::default(),
-        &app.config,
-        &app.pool,
-        &app.records,
+        &app.attribution,
         true,
     );
     assert_eq!(entries.len(), 4, "detailed mode shows every message");
@@ -1738,9 +1736,18 @@ fn the_sidebar_shows_the_team_the_session_captured_not_the_edited_configuration(
 
     let rendered = draw(&mut app, 120, 30);
     assert!(rendered.contains("this session"), "{rendered}");
-    assert!(
-        rendered.contains("Claude"),
-        "the team actually in use disappeared from the sidebar"
+    let rows = screen_rows(&mut app, 120, 30);
+    let shown = rows
+        .iter()
+        .skip_while(|row| !row.contains("TEAM"))
+        .skip(1)
+        .take_while(|row| row.contains(app.theme.markers.idle))
+        .count();
+    assert_eq!(
+        shown,
+        2,
+        "the team actually in use disappeared from the sidebar:\n{}",
+        rows.join("\n")
     );
 
     // With no session loaded, the sidebar describes the next run instead.
@@ -2149,7 +2156,10 @@ fn the_session_total_and_the_agents_survive_a_small_terminal() {
         "the session total left the 80x24 screen:\n{rendered}"
     );
     assert!(rendered.contains("TOKENS"), "{rendered}");
-    assert!(rendered.contains("Codex"), "{rendered}");
+    // Each agent keeps its row and figure. With no model recorded or read, its label says so
+    // rather than borrowing its provider's name.
+    assert!(rendered.contains("12.3k"), "{rendered}");
+    assert!(!rendered.contains("Codex"), "{rendered}");
 
     // The project is still identifiable, and the composer still works.
     typed(&mut app, "hello");
@@ -5140,17 +5150,23 @@ fn a_profile_with_no_native_reading_is_not_presented_as_a_named_agent() {
     }
     // The pool itself refuses them for the same reason, and the team page says which.
     app.command("/team", 100);
+    let member = left_of_key(&mut app, 100, "codex");
     assert!(
-        row_prose(&mut app, 100, "Codex").contains("no native model is resolved for it"),
-        "the pool's own reason is not shown:\n{}",
-        row_prose(&mut app, 100, "Codex")
+        member.contains("unknown model") && !member.contains("Codex"),
+        "a profile with no model is named after its provider: {member}"
+    );
+    let detail = detail_of_key(&mut app, 100, "codex");
+    assert!(
+        detail.contains("no native model is resolved for it"),
+        "the pool's own reason is not shown:\n{detail}"
     );
 }
 
 #[test]
 fn the_whole_window_names_a_member_by_what_the_installation_returned() {
     // The window outside the pages names members too: the right panel and the opening summary.
-    // A provider label standing in for an actor there would be the same claim the pages refuse.
+    // A provider label or an installation's caption standing in for an actor there would be the
+    // same claim the pages refuse.
     let fixture = fixture();
     let config = config_with_reading(
         Some("gpt-5.6-sol"),
@@ -5159,8 +5175,8 @@ fn the_whole_window_names_a_member_by_what_the_installation_returned() {
     let mut app = app_with(&fixture, config);
     let rendered = draw(&mut app, 100, 30);
     assert!(
-        rendered.contains("GPT-5.6-Sol"),
-        "the window does not name the member as the installation does:\n{rendered}"
+        rendered.contains("gpt-5.6-sol-0913") && !rendered.contains("GPT-5.6-Sol"),
+        "the window does not name the member by the model the installation resolved:\n{rendered}"
     );
     let team_line = rendered
         .lines()
@@ -5168,7 +5184,7 @@ fn the_whole_window_names_a_member_by_what_the_installation_returned() {
         .unwrap_or_default()
         .to_owned();
     assert!(
-        team_line.contains("GPT-5.6-Sol") && !team_line.contains("Codex"),
+        team_line.contains("gpt-5.6-sol-0913") && !team_line.contains("Codex"),
         "the opening summary still presents the provider label as the actor: {team_line}"
     );
     let panel = rendered
@@ -5178,7 +5194,7 @@ fn the_whole_window_names_a_member_by_what_the_installation_returned() {
         .collect::<Vec<_>>()
         .join("\n");
     assert!(
-        panel.contains("GPT-5.6-Sol"),
+        panel.contains("gpt-5.6-sol-0913"),
         "the right panel still presents the provider label as the actor:\n{panel}"
     );
 }
@@ -5253,7 +5269,7 @@ async fn a_finished_session_is_named_by_the_identity_its_turns_captured() {
         .collect::<Vec<_>>()
         .join("\n");
     assert!(
-        panel.contains("GPT-5.6-Terra"),
+        panel.contains("gpt-5.6-terra") && !panel.contains("GPT-5.6-Terra"),
         "the window does not name a finished session's actor as its turns captured it:\n{panel}"
     );
 
@@ -5261,22 +5277,23 @@ async fn a_finished_session_is_named_by_the_identity_its_turns_captured() {
     app.command("/assignments", 100);
     let row = left_of_key(&mut app, 100, &text::short_id(&assignment.id));
     assert!(
-        row.contains("GPT-5.6-Terra"),
+        row.contains("gpt-5.6-terra") && !row.contains("GPT-5.6-Terra"),
         "the assignment row does not name the identity it captured: {row}"
     );
     app.command("/team", 100);
     let member = left_of_key(&mut app, 100, &agent);
     assert!(
-        member.contains("GPT-5.6-Terra"),
+        member.contains("gpt-5.6-terra") && !member.contains("GPT-5.6-Terra"),
         "the team page does not name the member as its turns captured it: {member}"
     );
 }
 
 #[tokio::test]
-async fn turns_recorded_without_a_captured_identity_keep_the_name_they_ran_under() {
+async fn turns_recorded_without_a_captured_identity_are_not_renamed_from_the_present_catalog() {
     // The negative control for the rule above. This turn was recorded without an identity,
     // which is what every session written before the catalog existed looks like. Naming that
-    // actor from the catalog as it stands now would rename finished work.
+    // actor from the catalog as it stands now would rename finished work, and nothing recorded
+    // says which model the turn ran, so its row says that instead.
     let run = mock_run("Create a greeting", |_| {}).await;
     let trace = run.store.trace(&run.session).unwrap();
     let previous = trace.assignments.last().unwrap().clone();
@@ -5343,8 +5360,8 @@ async fn turns_recorded_without_a_captured_identity_keep_the_name_they_ran_under
 
     let row = left_of_key(&mut app, 100, &text::short_id(&assignment.id));
     assert!(
-        row.contains(&configured),
-        "a turn that captured no identity lost the name it ran under: {row}"
+        row.contains("unknown model"),
+        "a turn that captured no identity was given a model nothing recorded: {row}"
     );
     assert!(
         !row.contains("GPT-6-Astra"),
@@ -5359,7 +5376,7 @@ async fn turns_recorded_without_a_captured_identity_keep_the_name_they_ran_under
 }
 
 #[test]
-fn a_native_name_is_shown_exactly_as_the_installation_returned_it() {
+fn a_scanned_model_is_shown_exactly_as_the_installation_resolved_it() {
     let fixture = fixture();
     let config = config_with_reading(
         Some("gpt-5.6-sol"),
@@ -5370,8 +5387,8 @@ fn a_native_name_is_shown_exactly_as_the_installation_returned_it() {
 
     let row = left_of_key(&mut app, 65, "codex");
     assert!(
-        row.starts_with("GPT-5.6-Sol"),
-        "the installation's own name is not the label: {row}"
+        row.starts_with("gpt-5.6-sol-0913") && !row.contains("GPT-5.6-Sol"),
+        "the model the installation resolved is not the label: {row}"
     );
     assert!(
         row.contains("gpt-5.6-sol") && row.contains("codex"),
@@ -5379,6 +5396,8 @@ fn a_native_name_is_shown_exactly_as_the_installation_returned_it() {
     );
     let detail = detail_of_key(&mut app, 100, "codex");
     for expected in [
+        "native label",
+        "GPT-5.6-Sol",
         "configured as",
         "Codex",
         "resolved to",
@@ -5429,7 +5448,7 @@ fn an_actor_whose_model_comes_from_its_execution_policy_is_still_named_natively(
 
     let row = left_of_key(&mut app, 65, "codex");
     assert!(
-        row.starts_with("GPT-5.6-Sol"),
+        row.starts_with("gpt-5.6-sol-0913"),
         "an actor whose model comes from its policy is not named natively: {row}"
     );
     assert!(
@@ -5457,7 +5476,7 @@ fn a_reading_that_is_no_longer_current_says_so_rather_than_reading_as_native() {
 
     let row = left_of_key(&mut app, 65, "codex");
     assert!(
-        row.starts_with("GPT-5.6-Sol") && row.contains("not read recently"),
+        row.starts_with("gpt-5.6-sol-0913") && row.contains("not read recently"),
         "a reading two days old is presented as current: {row}"
     );
     assert!(
@@ -5478,7 +5497,7 @@ fn a_model_no_reading_lists_is_unknown_and_never_native() {
 
     let row = left_of_key(&mut app, 65, "codex");
     assert!(
-        row.starts_with("Codex") && row.contains("not in the catalog"),
+        row.starts_with("gpt-9") && row.contains("not in the catalog"),
         "a model nothing read is presented as a native name: {row}"
     );
     let detail = detail_of_key(&mut app, 100, "codex");
@@ -7054,4 +7073,646 @@ async fn keep_the_fixtures_an_interface_walk_reads() {
     )
     .unwrap();
     println!("manifest written under {target}");
+}
+
+// ---------------------------------------------------------------------------
+// Agent labels
+// ---------------------------------------------------------------------------
+
+/// A configuration whose agents run on a native installation no test launches. The profile
+/// names are captions an installation returns, so a label that falls back to a configured name
+/// is caught, and so is one that falls back to the actor identifier.
+fn native_label_config() -> Config {
+    use ymp_core::{ProviderConfig, ProviderKind};
+    Config {
+        providers: vec![ProviderConfig {
+            id: "fixture-provider".into(),
+            kind: ProviderKind::Acp,
+            command: "/ymp-test/never-launched".into(),
+            args: vec![],
+            env_refs: Default::default(),
+            enabled: true,
+        }],
+        agents: [
+            ("transport-one", "Default (recommended)"),
+            ("transport-two", "Latest release"),
+        ]
+        .into_iter()
+        .map(|(id, name)| AgentProfile {
+            id: id.into(),
+            name: name.into(),
+            provider: "fixture-provider".into(),
+            model: None,
+            instructions: String::new(),
+            enabled: true,
+        })
+        .collect(),
+        team: vec!["transport-one".into(), "transport-two".into()],
+        ..Config::default()
+    }
+}
+
+/// A session that captured this configuration's team and has recorded nothing yet.
+fn native_label_session(fixture: &Fixture, config: &Config) -> String {
+    let project = fixture.store.project(fixture.project.path()).unwrap();
+    let session = Session {
+        id: new_id(),
+        project_id: project.id,
+        title: "Report the fixture fact".into(),
+        status: "running".into(),
+        created_at: now(),
+        team: config.agents.clone(),
+        turns_used: 0,
+    };
+    fixture.store.save_session(&session).unwrap();
+    session.id
+}
+
+/// The identity a run captures when it admits a turn: the installation's caption, the model the
+/// settings ask for, and the concrete model native metadata resolves that to, if any.
+fn captured(caption: &str, model: &str, resolved: Option<&str>) -> ymp_core::AgentIdentity {
+    ymp_core::AgentIdentity {
+        name: caption.into(),
+        configured_name: caption.into(),
+        model: Some(model.into()),
+        effort: None,
+        resolved_model: resolved.map(str::to_owned),
+        source: None,
+        status: ymp_core::AgentIdentityStatus::Native,
+    }
+}
+
+/// Admit one turn the way a run does, and record the model and effort the installation reported.
+fn native_turn(
+    fixture: &Fixture,
+    session: &str,
+    agent: &str,
+    identity: ymp_core::AgentIdentity,
+    reported: (Option<&str>, Option<&str>),
+) -> String {
+    let turn = fixture.store.trace(session).unwrap().invocations.len() as u64 + 1;
+    let requested = ymp_core::ExecutionSettings {
+        model: identity.model.clone(),
+        ..Default::default()
+    };
+    let assignment = ymp_core::AssignmentRecord {
+        token_reservation: None,
+        agent_identity: Some(identity),
+        id: new_id(),
+        session_id: session.into(),
+        task: None,
+        agent_id: agent.into(),
+        agent_config_version: "fixture".into(),
+        provider_id: "fixture-provider".into(),
+        purpose: "plan".into(),
+        reason: "Fixture turn".into(),
+        cwd: fixture.project.path().into(),
+        requested: requested.clone(),
+        timeout_secs: 10,
+        grant_ids: Vec::new(),
+        context: Vec::new(),
+        state: ymp_core::InvocationState::Running,
+        started_at: now(),
+        ended_at: None,
+    };
+    let invocation = ymp_core::InvocationRecord {
+        id: new_id(),
+        session_id: session.into(),
+        assignment_id: assignment.id.clone(),
+        execution_backend: None,
+        turn,
+        requested: requested.clone(),
+        sent: requested,
+        reported: Default::default(),
+        resumed_from: None,
+        native_session_id: None,
+        native_turn_id: None,
+        native_version: None,
+        state: ymp_core::InvocationState::Running,
+        started_at: now(),
+        ended_at: None,
+        usage: None,
+        terminal_reason: None,
+    };
+    fixture
+        .store
+        .begin_invocation_with_grants(&assignment, &invocation, &[])
+        .unwrap();
+    fixture
+        .store
+        .observe_invocation(
+            session,
+            &invocation.id,
+            &ymp_core::InvocationObservation {
+                reported: Some(ymp_core::ExecutionSettings {
+                    model: reported.0.map(str::to_owned),
+                    effort: reported.1.map(str::to_owned),
+                    permission_mode: None,
+                }),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+    invocation.id
+}
+
+#[test]
+fn every_message_names_the_model_and_effort_of_the_invocation_that_wrote_it() {
+    let fixture = fixture();
+    let config = native_label_config();
+    let session = native_label_session(&fixture, &config);
+    let store = &fixture.store;
+    store
+        .message(&session, "you", None, "user", "Report the fixture fact")
+        .unwrap();
+    // Written before messages were linked to invocations: no record says which turn wrote it.
+    store
+        .message(
+            &session,
+            "transport-one",
+            None,
+            "chat",
+            "An unlinked finding",
+        )
+        .unwrap();
+    // The first turn asked for the internal default alias, which native metadata resolved, and
+    // the installation reported the model it ran but no effort.
+    let first = native_turn(
+        &fixture,
+        &session,
+        "transport-one",
+        captured(
+            "Default (recommended)",
+            "default",
+            Some("claude-opus-5[1m]"),
+        ),
+        (Some("claude-opus-5"), None),
+    );
+    store
+        .invocation_message(&session, &first, "plan", "The first turn's plan")
+        .unwrap();
+    store
+        .finish_invocation(&session, &first, ymp_core::InvocationState::Completed, None)
+        .unwrap();
+    // The same actor's next turn ran another model and reported its effort.
+    let second = native_turn(
+        &fixture,
+        &session,
+        "transport-one",
+        captured("Latest release", "glm-5.2", None),
+        (Some("glm-5.2"), Some("max")),
+    );
+    store
+        .invocation_message(&session, &second, "execute", "The second turn's report")
+        .unwrap();
+    store
+        .finish_invocation(
+            &session,
+            &second,
+            ymp_core::InvocationState::Completed,
+            None,
+        )
+        .unwrap();
+    store
+        .message(&session, "ymp", None, "notice", "A runtime notice")
+        .unwrap();
+
+    let mut app = app_with(&fixture, config);
+    app.load_session(&session).unwrap();
+    let authors: Vec<(String, String)> = app
+        .entries()
+        .iter()
+        .map(|entry| (entry.raw.clone(), entry.author.clone()))
+        .collect();
+    let author = |text: &str| {
+        authors
+            .iter()
+            .find(|(raw, _)| raw == text)
+            .map(|(_, author)| author.clone())
+            .unwrap_or_else(|| panic!("no entry carries {text:?}: {authors:#?}"))
+    };
+    assert_eq!(author("Report the fixture fact"), "you");
+    assert_eq!(author("A runtime notice"), "ymp");
+    assert_eq!(
+        author("The first turn's plan"),
+        "claude-opus-5 (effort not reported)",
+        "the first turn is not named by the model it reported, with its missing effort said"
+    );
+    assert_eq!(
+        author("The second turn's report"),
+        "glm-5.2 max",
+        "the second turn is not named by its own model and effort"
+    );
+    assert_eq!(
+        author("An unlinked finding"),
+        "unknown model",
+        "a message no invocation is linked to was named from a turn that did not write it"
+    );
+    for (_, author) in &authors {
+        for forbidden in [
+            "Default (recommended)",
+            "Latest release",
+            "transport-",
+            "default",
+        ] {
+            assert!(
+                !author.contains(forbidden),
+                "{author:?} carries {forbidden:?} as a name"
+            );
+        }
+    }
+    let rendered = draw(&mut app, 120, 30);
+    assert!(
+        rendered.contains("glm-5.2 max")
+            && rendered.contains("claude-opus-5 (effort not reported)"),
+        "the transcript does not show the invocation labels:\n{rendered}"
+    );
+}
+
+#[test]
+fn a_live_stream_and_the_sidebar_name_the_invocation_that_is_running() {
+    let fixture = fixture();
+    let config = native_label_config();
+    let session = native_label_session(&fixture, &config);
+    let store = &fixture.store;
+    store
+        .message(&session, "you", None, "user", "Report the fixture fact")
+        .unwrap();
+    let earlier = native_turn(
+        &fixture,
+        &session,
+        "transport-one",
+        captured(
+            "Default (recommended)",
+            "default",
+            Some("claude-opus-5[1m]"),
+        ),
+        (Some("claude-opus-5"), None),
+    );
+    store
+        .invocation_message(&session, &earlier, "plan", "The earlier plan")
+        .unwrap();
+    store
+        .finish_invocation(
+            &session,
+            &earlier,
+            ymp_core::InvocationState::Completed,
+            None,
+        )
+        .unwrap();
+    let mut app = app_with(&fixture, config);
+    app.load_session(&session).unwrap();
+    app.active = true;
+
+    // The runtime records the admission, and what the installation reported, before it streams.
+    native_turn(
+        &fixture,
+        &session,
+        "transport-one",
+        captured("Latest release", "glm-5.2", None),
+        (Some("glm-5.2"), Some("max")),
+    );
+    app.event(UiEvent::AgentStatus {
+        agent: "transport-one".into(),
+        status: "execute".into(),
+    });
+    app.event(UiEvent::Delta {
+        agent: "transport-one".into(),
+        text: "Working through the fixture".into(),
+    });
+
+    let stream = app
+        .entries()
+        .iter()
+        .find(|entry| entry.kind == "streaming")
+        .map(|entry| entry.author.clone())
+        .expect("the stream is an entry");
+    assert_eq!(
+        stream, "glm-5.2 max",
+        "the stream is not named by the running invocation"
+    );
+    let rows = screen_rows(&mut app, 120, 30);
+    let team = rows
+        .iter()
+        .skip_while(|row| !row.contains("TEAM"))
+        .take(3)
+        .cloned()
+        .collect::<Vec<_>>()
+        .join("\n");
+    assert!(
+        team.contains("glm-5.2 max"),
+        "the working member is not named by its running invocation:\n{team}"
+    );
+    let screen = rows.join("\n");
+    for forbidden in ["Default (recommended)", "Latest release", "transport-"] {
+        assert!(
+            !screen.contains(forbidden),
+            "the window names an agent {forbidden:?}:\n{screen}"
+        );
+    }
+}
+
+#[test]
+fn tool_activity_names_the_running_invocation_and_keeps_the_members_purpose() {
+    let fixture = fixture();
+    let config = native_label_config();
+    let session = native_label_session(&fixture, &config);
+    fixture
+        .store
+        .message(&session, "you", None, "user", "Report the fixture fact")
+        .unwrap();
+    let mut app = app_with(&fixture, config);
+    app.load_session(&session).unwrap();
+    app.active = true;
+    native_turn(
+        &fixture,
+        &session,
+        "transport-one",
+        captured("Default (recommended)", "default", Some("glm-5.2")),
+        (Some("glm-5.2"), Some("max")),
+    );
+    app.event(UiEvent::AgentStatus {
+        agent: "transport-one".into(),
+        status: "execute".into(),
+    });
+    // What the runtime sends for one tool call: a plain status, then the typed activity.
+    app.event(UiEvent::Status("Using Bash".into()));
+    app.event(UiEvent::AgentStatus {
+        agent: "transport-one".into(),
+        status: "tool: Bash".into(),
+    });
+    assert_eq!(
+        app.status, "glm-5.2 max · Bash",
+        "tool activity is not named by the running invocation"
+    );
+    assert_eq!(
+        app.statuses.get("transport-one").map(String::as_str),
+        Some("execute"),
+        "tool use replaced what the member's turn is for"
+    );
+    assert_eq!(app.agent_label("transport-one"), "glm-5.2 max");
+    let screen = screen_rows(&mut app, 120, 30).join("\n");
+    for forbidden in ["Default (recommended)", "transport-", "tool: "] {
+        assert!(
+            !screen.contains(forbidden),
+            "the window shows {forbidden:?} for tool activity:\n{screen}"
+        );
+    }
+}
+
+/// Stored readings for two installations. One resolves its internal default alias to a concrete
+/// model; the other lists the alias and resolves it to nothing.
+fn scanned_selection_config() -> Config {
+    use ymp_core::{
+        CapabilitySource, ModelCapabilities, NativeProviderSnapshot, ProviderCapabilities,
+    };
+    let offering = |id: &str, caption: &str, resolved: Option<&str>| ModelCapabilities {
+        id: id.into(),
+        display_name: Some(caption.into()),
+        picker_id: None,
+        aliases: Vec::new(),
+        resolved_model: resolved.map(str::to_owned),
+        controls: None,
+    };
+    let mut config = Config::default();
+    for agent in &mut config.agents {
+        match agent.id.as_str() {
+            "claude" => agent.model = Some("default".into()),
+            "codex" => agent.model = Some("fixture-sol-7".into()),
+            _ => {}
+        }
+    }
+    for (id, provider, model, caption) in [
+        (
+            "native-swift",
+            "claude",
+            "swift",
+            "Fastest for quick answers",
+        ),
+        (
+            "native-unresolved",
+            "codex",
+            "default",
+            "Default (recommended)",
+        ),
+    ] {
+        config.agents.push(AgentProfile {
+            id: id.into(),
+            name: caption.into(),
+            provider: provider.into(),
+            model: Some(model.into()),
+            instructions: String::new(),
+            enabled: true,
+        });
+    }
+    for (provider, models) in [
+        (
+            "claude",
+            vec![
+                offering(
+                    "default",
+                    "Default (recommended)",
+                    Some("fixture-opus-9[1m]"),
+                ),
+                offering(
+                    "swift",
+                    "Fastest for quick answers",
+                    Some("fixture-swift-3"),
+                ),
+            ],
+        ),
+        (
+            "codex",
+            vec![
+                offering("fixture-sol-7", "Latest release", None),
+                offering("default", "Default (recommended)", None),
+            ],
+        ),
+    ] {
+        let provider_fingerprint =
+            ymp_core::provider_fingerprint(config.provider(provider).unwrap());
+        config.native_catalog.providers.insert(
+            provider.into(),
+            NativeProviderSnapshot {
+                provider_fingerprint,
+                last_attempt: now(),
+                failure: None,
+                catalog: Some(ProviderCapabilities {
+                    source: CapabilitySource::NativeMetadata {
+                        method: "fixture.models".into(),
+                        observed_at: now(),
+                    },
+                    models_complete: true,
+                    models,
+                    default_model: Some("default".into()),
+                }),
+            },
+        );
+    }
+    config
+}
+
+/// The rows under the pool heading of the team page, by key and left-hand text.
+fn pool_choices(app: &mut App, width: u16) -> Vec<(String, String)> {
+    let left = |item: &crate::views::Item| {
+        item.left
+            .iter()
+            .map(|span| span.content.as_ref())
+            .collect::<String>()
+    };
+    app.page(width)
+        .items
+        .iter()
+        .skip_while(|item| {
+            !(item.kind == crate::views::ItemKind::Heading
+                && left(item) == "AVAILABLE ON THIS MACHINE")
+        })
+        .skip(1)
+        .filter(|item| item.kind == crate::views::ItemKind::Row)
+        .map(|item| (item.key.clone(), left(item)))
+        .collect()
+}
+
+#[test]
+fn a_choice_of_agent_is_its_concrete_model_and_never_a_caption_or_an_unresolved_alias() {
+    let fixture = fixture();
+    let mut app = app_with(&fixture, scanned_selection_config());
+    app.command("/agents", 100);
+    let captions = [
+        "Default (recommended)",
+        "Fastest for quick answers",
+        "Latest release",
+    ];
+    for (profile, model) in [
+        ("claude", "fixture-opus-9[1m]"),
+        ("native-swift", "fixture-swift-3"),
+        ("codex", "fixture-sol-7"),
+    ] {
+        let row = left_of_key(&mut app, 100, profile);
+        assert!(
+            row.starts_with(model),
+            "{profile} is not named by its concrete model: {row}"
+        );
+        for caption in captions {
+            assert!(
+                !row.contains(caption),
+                "{profile} carries the caption {caption:?}: {row}"
+            );
+        }
+    }
+    // An alias nothing resolves stays a configured profile, and it is not given a model name.
+    let unresolved = left_of_key(&mut app, 100, "native-unresolved");
+    assert!(
+        unresolved.starts_with("unknown model") && !unresolved.contains("default"),
+        "an unresolved alias is presented as a model: {unresolved}"
+    );
+
+    app.command("/team", 100);
+    let choices = pool_choices(&mut app, 100);
+    let keys: Vec<&str> = choices.iter().map(|(key, _)| key.as_str()).collect();
+    assert!(
+        !keys.contains(&"native-unresolved"),
+        "an alias with no concrete model is offered as a choice: {choices:#?}"
+    );
+    assert!(
+        keys.contains(&"claude") && keys.contains(&"native-swift") && keys.contains(&"codex"),
+        "a concrete choice is missing: {choices:#?}"
+    );
+    for (key, left) in &choices {
+        for caption in captions {
+            assert!(
+                !left.contains(caption),
+                "the choice {key} carries the caption {caption:?}: {left}"
+            );
+        }
+    }
+}
+
+#[tokio::test]
+async fn local_fixture_agents_keep_their_names_and_the_user_and_ymp_keep_theirs() {
+    let run = mock_run("Create a greeting", |_| {}).await;
+    let mut app = run.app();
+    app.load_session(&run.session).unwrap();
+    let entries = app.entries().to_vec();
+    assert!(
+        entries.iter().any(|entry| entry.author == "you"),
+        "the user's own entry lost its name"
+    );
+    let agents: Vec<_> = entries
+        .iter()
+        .filter(|entry| entry.author != "you" && entry.author != "ymp")
+        .collect();
+    assert!(!agents.is_empty(), "the mock run recorded no agent message");
+    for entry in agents {
+        assert!(
+            ["one", "two"].contains(&entry.author.as_str()),
+            "a local fixture agent lost its configured name: {:?} on {}",
+            entry.author,
+            entry.kind
+        );
+    }
+}
+
+#[test]
+fn an_unlinked_native_message_stays_unknown_after_its_actor_runs_as_a_local_fixture() {
+    let fixture = fixture();
+    let native = native_label_config();
+    let session = native_label_session(&fixture, &native);
+    let store = &fixture.store;
+    // Written by the native actor before messages were linked to invocations.
+    store
+        .message(
+            &session,
+            "transport-one",
+            None,
+            "chat",
+            "An old native finding",
+        )
+        .unwrap();
+    // The actor is later moved to a local fixture provider, and its next turn is bound.
+    let mut local = native.clone();
+    local.providers[0].kind = ymp_core::ProviderKind::Mock;
+    local.providers[0].command = "internal".into();
+    local.agents[0].name = "Local fixture".into();
+    let identity = ymp_core::AgentIdentity {
+        name: "Local fixture".into(),
+        configured_name: "Local fixture".into(),
+        model: None,
+        effort: None,
+        resolved_model: None,
+        source: None,
+        status: ymp_core::AgentIdentityStatus::Local,
+    };
+    let turn = native_turn(&fixture, &session, "transport-one", identity, (None, None));
+    store
+        .invocation_message(&session, &turn, "chat", "A bound local finding")
+        .unwrap();
+    store
+        .finish_invocation(&session, &turn, ymp_core::InvocationState::Completed, None)
+        .unwrap();
+
+    let mut app = app_with(&fixture, local);
+    app.load_session(&session).unwrap();
+    let authors: Vec<(String, String)> = app
+        .entries()
+        .iter()
+        .map(|entry| (entry.raw.clone(), entry.author.clone()))
+        .collect();
+    let author = |text: &str| {
+        authors
+            .iter()
+            .find(|(raw, _)| raw == text)
+            .map(|(_, author)| author.clone())
+            .unwrap_or_else(|| panic!("no entry carries {text:?}: {authors:#?}"))
+    };
+    assert_eq!(
+        author("An old native finding"),
+        "unknown model",
+        "an unlinked message was named from a later turn or the current provider"
+    );
+    assert_eq!(
+        author("A bound local finding"),
+        "Local fixture",
+        "a bound local fixture turn lost the name it captured"
+    );
 }

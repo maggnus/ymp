@@ -574,6 +574,9 @@ async fn headless(
 ) -> Result<()> {
     let (tx, mut rx) = mpsc::unbounded_channel();
     let cancel = CancellationToken::new();
+    // Headings are read back from the store the engine writes, so each one names the
+    // invocation that wrote its message.
+    let records = store.clone();
     let mut engine = Engine::new(store, config, tx, cancel.clone())?;
     engine.use_memory = memory;
     engine.adaptive = adaptive;
@@ -584,15 +587,19 @@ async fn headless(
     tokio::pin!(future);
     let outcome = loop {
         tokio::select! {
-            result=&mut future=>break result?,
-            Some(event)=rx.recv()=>match event{
-                UiEvent::Status(text)=>if !json_output{eprintln!("{text}");},
-                UiEvent::Message(m)=>if !json_output{eprintln!("\n[{} · {}]\n{}",m.author,m.kind,m.text);},
-                _=>{},
-            },
+            result=&mut future=>break result,
+            Some(event)=rx.recv()=>if !json_output{print_event(&records, event);},
             _=tokio::signal::ctrl_c()=>{cancel.cancel();},
         }
     };
+    // The run can finish while its last messages are still queued. They are printed before
+    // the outcome instead of being dropped with the channel.
+    while let Ok(event) = rx.try_recv() {
+        if !json_output {
+            print_event(&records, event);
+        }
+    }
+    let outcome = outcome?;
     if json_output {
         println!(
             "{}",
@@ -615,6 +622,30 @@ async fn headless(
         );
     }
     Ok(())
+}
+
+/// Print one engine event for a person following a headless run.
+fn print_event(records: &Store, event: UiEvent) {
+    match event {
+        UiEvent::Status(text) => eprintln!("{text}"),
+        UiEvent::Message(message) => {
+            // An agent's message is headed by the model and effort of the invocation bound to
+            // it, never by the caption its actor was configured or discovered with.
+            let linked = match message.author.as_str() {
+                "you" | "ymp" => None,
+                _ => records
+                    .trace(&message.session_id)
+                    .ok()
+                    .and_then(|trace| trace.message_attribution(&message)),
+            };
+            eprintln!(
+                "\n[{}]\n{}",
+                ymp_tui::label::heading(&message, linked.as_ref()),
+                message.text
+            );
+        }
+        _ => {}
+    }
 }
 
 fn demo_config() -> Config {

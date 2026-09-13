@@ -414,7 +414,7 @@ fn welcome_lines(app: &App, width: usize) -> Vec<Line<'static>> {
     } else {
         members
             .iter()
-            .map(|m| views::actor_name(&app.config, &app.pool, &app.records, &m.id))
+            .map(|m| app.agent_label(&m.id))
             .collect::<Vec<_>>()
             .join(", ")
     };

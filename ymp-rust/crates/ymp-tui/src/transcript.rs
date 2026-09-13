@@ -6,13 +6,15 @@
 //! summarised rather than printed; internal conversation routing is not shown at all.
 //! Every collapsed entry keeps its complete attributed text, which the inspector shows.
 
+use crate::label;
+use crate::provenance::Attribution;
 use crate::text;
 use crate::theme::Theme;
 use ratatui::style::Style;
 use ratatui::text::{Line, Span};
 use serde_json::Value;
 use std::collections::BTreeMap;
-use ymp_core::{parse_response, Config, Message};
+use ymp_core::{parse_response, AgentAttribution, Message};
 
 /// How an entry is presented. The role decides the marker and the emphasis, never the
 /// colour alone.
@@ -56,6 +58,9 @@ pub struct Entry {
     pub body: Option<String>,
     /// The complete attributed text, shown by the inspector.
     pub raw: String,
+    /// For an agent entry, the stable agent and provider identifiers and the invocation behind
+    /// the name, which the inspector shows beside it rather than as it.
+    pub origin: Option<String>,
 }
 
 impl Entry {
@@ -82,9 +87,7 @@ pub fn build(
     messages: &[Message],
     notices: &[Notice],
     streams: &BTreeMap<String, String>,
-    config: &Config,
-    pool: &crate::provenance::Pool,
-    records: &crate::provenance::Records,
+    attribution: &Attribution,
     details: bool,
 ) -> Vec<Entry> {
     let mut entries = Vec::with_capacity(messages.len() + notices.len() + streams.len());
@@ -92,7 +95,7 @@ pub fn build(
         if ROUTING.contains(&message.kind.as_str()) && !details {
             continue;
         }
-        entries.push(entry(message, config, pool, records, details));
+        entries.push(entry(message, attribution, details));
     }
     for notice in notices {
         entries.push(Entry {
@@ -108,6 +111,7 @@ pub fn build(
             headline: text::one_line(&notice.text),
             body: notice.text.contains('\n').then(|| notice.text.clone()),
             raw: notice.text.clone(),
+            origin: None,
         });
     }
     for (agent, partial) in streams {
@@ -127,43 +131,54 @@ pub fn build(
             .collect::<Vec<_>>()
             .join("\n");
         let tail = text::last_cells(&tail, STREAM_PREVIEW_CELLS);
+        let trace = attribution.trace.as_ref();
+        let running = trace.and_then(|trace| trace.active_agent_attribution(agent));
         entries.push(Entry {
             role: Role::Stream,
-            author: display_name(config, pool, records, agent),
+            // Text still arriving is work in progress, named by the invocation doing it.
+            author: label::streaming(agent, trace),
             kind: "streaming".into(),
             time: String::new(),
             seq: None,
             headline: text::one_line(&tail),
             body: Some(tail.clone()),
             raw: partial.clone(),
+            origin: Some(origin_words(
+                agent,
+                running.as_ref(),
+                "no running invocation of this agent was read",
+            )),
         });
     }
     entries
 }
 
-/// Who wrote an entry. Agents are named by the shared rule, so the transcript, the sidebar and
-/// every page say the same thing about the same actor.
-fn display_name(
-    config: &Config,
-    pool: &crate::provenance::Pool,
-    records: &crate::provenance::Records,
-    id: &str,
-) -> String {
-    match id {
-        "you" => "you".into(),
-        "ymp" => "ymp".into(),
-        other => crate::views::actor_name(config, pool, records, other),
+/// The identifiers an agent entry's name is kept apart from: the agent, its provider and the
+/// invocation behind the entry, or the absence of one.
+fn origin_words(agent: &str, linked: Option<&AgentAttribution>, unlinked: &str) -> String {
+    match linked {
+        Some(attribution) => format!(
+            "agent {} · provider {} · invocation {}",
+            label::clean(&attribution.agent_id),
+            label::clean(&attribution.provider_id),
+            text::short_id(&attribution.invocation_id)
+        ),
+        None => format!("agent {} · {unlinked}", label::clean(agent)),
     }
 }
 
-fn entry(
-    message: &Message,
-    config: &Config,
-    pool: &crate::provenance::Pool,
-    records: &crate::provenance::Records,
-    details: bool,
-) -> Entry {
-    let author = display_name(config, pool, records, &message.author);
+fn entry(message: &Message, attribution: &Attribution, details: bool) -> Entry {
+    // Every surface names agents by one rule, so the transcript, the window and the headless
+    // command say the same thing about the same invocation.
+    let linked = attribution.message(message.seq);
+    let author = label::author(message, linked);
+    let origin = (!matches!(message.author.as_str(), "you" | "ymp")).then(|| {
+        origin_words(
+            &message.author,
+            linked,
+            "no recorded invocation is linked to this message",
+        )
+    });
     let time = text::clock(&message.created_at);
     let raw = message.text.clone();
     let (role, headline, body) = present(&message.kind, &message.text, details);
@@ -176,6 +191,7 @@ fn entry(
         headline,
         body,
         raw,
+        origin,
     }
 }
 

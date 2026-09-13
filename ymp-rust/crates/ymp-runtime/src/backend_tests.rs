@@ -5,6 +5,7 @@ mod backend_contract_tests {
     #[derive(Clone, Copy)]
     enum Behavior {
         Script,
+        Tool,
         Hang,
         StreamOverflow,
         ResultOverflow,
@@ -95,6 +96,9 @@ mod backend_contract_tests {
                     Behavior::WriterLimit if req.purpose == "execute" => {
                         return Err(ymp_providers::NativeOutputLimit.into());
                     }
+                    Behavior::Tool if req.purpose == "execute" => {
+                        let _ = events.send(ProviderEvent::Tool("fixture-tool".into()));
+                    }
                     Behavior::Hang => std::future::pending::<()>().await,
                     Behavior::StreamOverflow => {
                         let _ = events.send(ProviderEvent::Delta("x".repeat(70_000)));
@@ -114,7 +118,7 @@ mod backend_contract_tests {
                         return Err(anyhow::anyhow!("transport rejected {token}")
                             .context(format!("script_error: YMP_MCP_TOKEN={token}")));
                     }
-                    Behavior::Script | Behavior::ResultOverflow | Behavior::ReviewLimit(_) | Behavior::WriterLimit | Behavior::ReviewStop(_) => {}
+                    Behavior::Script | Behavior::Tool | Behavior::ResultOverflow | Behavior::ReviewLimit(_) | Behavior::WriterLimit | Behavior::ReviewStop(_) => {}
                 }
                 let text = if matches!(self.behavior, Behavior::ResultOverflow) {
                     "x".repeat(70_000)
@@ -197,6 +201,44 @@ mod backend_contract_tests {
         let outcome = fixture.run().await;
         assert_ne!(outcome.session.status, "completed");
         assert_eq!(script.requests.lock().unwrap().iter().filter(|r| r.purpose == "execute").count(), 1);
+        assert_closed(&fixture, &outcome.session.id);
+    }
+
+    #[tokio::test]
+    async fn tool_activity_names_the_actor_by_id_and_never_by_its_caption() {
+        let mut fixture = RunFixture::new("", false);
+        for agent in &mut fixture.engine.config.agents {
+            agent.name = "Default (recommended)".into();
+        }
+        let script = ScriptedBackend::new("example.tool", "1", Behavior::Tool);
+        fixture.engine = fixture
+            .engine
+            .with_execution_backend(script.clone())
+            .unwrap();
+        let outcome = fixture.run().await;
+        assert_eq!(outcome.session.status, "completed", "{}", outcome.summary);
+        let writer = script
+            .requests
+            .lock()
+            .unwrap()
+            .iter()
+            .find(|request| request.purpose == "execute")
+            .map(|request| request.profile.id.clone())
+            .unwrap();
+        let (mut activity, mut statuses) = (Vec::new(), Vec::new());
+        while let Ok(event) = fixture.events.try_recv() {
+            match event {
+                UiEvent::AgentStatus { agent, status } if status.starts_with("tool: ") => {
+                    activity.push((agent, status));
+                }
+                UiEvent::Status(text) if text.contains("fixture-tool") => statuses.push(text),
+                _ => {}
+            }
+        }
+        // The interface names the actor from the invocation it is running; the runtime only
+        // says which actor, by its stable ID, and which tool.
+        assert_eq!(activity, vec![(writer, "tool: fixture-tool".to_owned())]);
+        assert_eq!(statuses, vec!["Using fixture-tool".to_owned()]);
         assert_closed(&fixture, &outcome.session.id);
     }
 

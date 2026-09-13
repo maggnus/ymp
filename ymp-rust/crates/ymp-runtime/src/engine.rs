@@ -1357,7 +1357,16 @@ impl Engine {
                         },
                     )?;
                 }
-                ProviderEvent::Tool(name) => self.status(format!("{} · {name}", agent.name)),
+                ProviderEvent::Tool(name) => {
+                    // Tool use is activity inside this agent's turn. The stable agent ID lets a
+                    // presenter name the agent by the invocation it runs; the plain status keeps
+                    // tool use visible where nothing names agents, and it carries no caption.
+                    self.status(format!("Using {name}"));
+                    let _ = self.events.send(UiEvent::AgentStatus {
+                        agent: agent.id.clone(),
+                        status: format!("tool: {name}"),
+                    });
+                }
                 ProviderEvent::Retry {
                     session_id,
                     turn_id,
