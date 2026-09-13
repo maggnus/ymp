@@ -1,0 +1,40 @@
+ymp  project  <output>/project                                                                     no session  0 / 200 turns
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ Team[7]  /team                                          2 for the next run · 1 eligible on this machine │ SESSION
+─────────────────────────────────────────────────────────────────────────────────────────────────────────│ none · the next message opens on
+ › ◇ What membership means here  what this page is                                                       │ turns next run           0 / 200
+                                                                                                         │ dir …ate<output>/project
+   MEMBERS OF THE NEXT RUN                                                                               │
+      AGENT          PROVIDER  STATE                                                                     │ TOKENS                         —
+   ○  Atlas          demo      eligible                                                                  │ none · nothing spent yet
+   ○  unknown model  absent    executable not found                                                      │
+                                                                                                         │ TEAM                    next run
+   HOW THE ROSTER IS BOUNDED                                                                             │ AGENT            STATE
+      RULE          VALUE                                                                                │ ○ Atlas          idle
+   ○  roster        none recorded                                                                        │ ○ unknown model  idle
+   •  roster rules  up to 4                                                                              │
+                                                                                                         │ TASKS
+   AVAILABLE ON THIS MACHINE                                                                             │ no task graph yet
+      MODEL          PROVIDER  STATE                                                                     │
+   ✓  Atlas          demo      eligible                                                                  │
+   ▲  Boreal         demo      profile disabled                                                          │
+   ▲  unknown model  absent    executable not found                                                      │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+› Describe a task, or type / for commands.
+Ready                                          main Space next-session team  Enter inspect  Esc back  / filter  Shift+letter sort  d inspect

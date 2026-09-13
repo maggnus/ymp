@@ -178,7 +178,7 @@ async fn entry() -> Result<()> {
         )
         .await?;
         eprintln!(
-            "Read {} installation(s): {} offering(s) stored, {} actor(s) added, {} existing actor(s) now resolved to a model the installation named. No configured name was changed. Use ymp catalog to inspect what was stored.",
+            "Catalog scan: providers scanned: {}; entries stored: {}; agents added: {}; existing agents resolved to a native model: {}. Configured names unchanged. Run `ymp catalog` for details.",
             report.providers.len(),
             report.providers.iter().map(|p| p.model_count).sum::<usize>(),
             report.created_agents.len(),
@@ -249,7 +249,10 @@ async fn entry() -> Result<()> {
                     }
                 }
                 if failures > 0 {
-                    bail!("{failures} provider probe(s) failed");
+                    bail!(
+                        "{failures} provider {} failed",
+                        if failures == 1 { "probe" } else { "probes" }
+                    );
                 }
             }
         }
@@ -507,7 +510,7 @@ fn print_health(config: &Config) {
             "{:<10} {:<12} {}",
             health.id,
             if health.available {
-                "installed"
+                "available"
             } else {
                 "unavailable"
             },

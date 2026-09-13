@@ -1,0 +1,133 @@
+{
+  "binary": "<target>/debug/ymp",
+  "ascii": false,
+  "native_inference": false,
+  "cases": [
+    {
+      "case": "140x40-agents-no-reading",
+      "passed": true
+    },
+    {
+      "case": "140x40-agents-no-in-team",
+      "passed": true
+    },
+    {
+      "case": "140x40-agents-flags-read",
+      "flags": {
+        "atlas": "true",
+        "boreal": "false",
+        "cygnus": "true"
+      }
+    },
+    {
+      "case": "140x40-agents-true-false",
+      "passed": true
+    },
+    {
+      "case": "140x40-team-no-reading",
+      "passed": true
+    },
+    {
+      "case": "140x40-team-refusal-causes",
+      "passed": true
+    },
+    {
+      "case": "100x30-agents-no-reading",
+      "passed": true
+    },
+    {
+      "case": "100x30-agents-no-in-team",
+      "passed": true
+    },
+    {
+      "case": "100x30-agents-flags-read",
+      "flags": {
+        "atlas": "true",
+        "boreal": "false",
+        "cygnus": "true"
+      }
+    },
+    {
+      "case": "100x30-agents-true-false",
+      "passed": true
+    },
+    {
+      "case": "100x30-team-no-reading",
+      "passed": true
+    },
+    {
+      "case": "100x30-team-refusal-causes",
+      "passed": true
+    },
+    {
+      "case": "80x24-agents-no-reading",
+      "passed": true
+    },
+    {
+      "case": "80x24-agents-no-in-team",
+      "passed": true
+    },
+    {
+      "case": "80x24-agents-flags-read",
+      "flags": {
+        "atlas": "true",
+        "boreal": "false",
+        "cygnus": "true"
+      }
+    },
+    {
+      "case": "80x24-agents-true-false",
+      "passed": true
+    },
+    {
+      "case": "80x24-team-no-reading",
+      "passed": true
+    },
+    {
+      "case": "80x24-team-refusal-causes",
+      "passed": true
+    },
+    {
+      "case": "60x20-agents-no-reading",
+      "passed": true
+    },
+    {
+      "case": "60x20-agents-no-in-team",
+      "passed": true
+    },
+    {
+      "case": "60x20-agents-flags-read",
+      "flags": {
+        "atlas": "true",
+        "boreal": "false",
+        "cygnus": "true"
+      }
+    },
+    {
+      "case": "60x20-agents-true-false",
+      "passed": true
+    },
+    {
+      "case": "60x20-team-no-reading",
+      "passed": true
+    },
+    {
+      "case": "60x20-team-refusal-causes",
+      "passed": true
+    },
+    {
+      "case": "inspect-source-catalog-scope",
+      "passed": true
+    },
+    {
+      "case": "toggle-flips-next-session-preference",
+      "passed": true
+    },
+    {
+      "case": "second-toggle-restores",
+      "passed": true
+    }
+  ],
+  "failures": [],
+  "passed": true
+}

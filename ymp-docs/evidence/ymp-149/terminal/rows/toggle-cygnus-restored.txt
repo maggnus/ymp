@@ -1,0 +1,40 @@
+ymp  project  <output>/project                                                                     no session  0 / 200 turns
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ Agent profiles</absent>[1]  /agents                                                          3 profiles │ SESSION
+─────────────────────────────────────────────────────────────────────────────────────────────────────────│ none · the next message opens on
+   AGENT          PROVIDER  ENABLED  NEXT TEAM                                                           │ turns next run           0 / 200
+ › unknown model  absent    ✓ on     true                                                                │ dir …ate<output>/project
+                                                                                                         │
+                                                                                                         │ TOKENS                         —
+                                                                                                         │ none · nothing spent yet
+                                                                                                         │
+                                                                                                         │ TEAM                    next run
+                                                                                                         │ AGENT            STATE
+                                                                                                         │ ○ Atlas          idle
+                                                                                                         │ ○ unknown model  idle
+                                                                                                         │
+                                                                                                         │ TASKS
+                                                                                                         │ no task graph yet
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+› Describe a task, or type / for commands.
+Ready main m model  i instructions  Space enable or disable  t next-session team  r reload  R scan catalogs  Esc back  / filter  Shift+lett…

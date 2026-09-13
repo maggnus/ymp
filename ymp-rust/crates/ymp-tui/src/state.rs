@@ -1571,7 +1571,7 @@ impl App {
             (View::Providers | View::Agents, KeyCode::Char('r')) => {
                 self.refresh_pool();
                 self.notice(
-                    "Re-read what is installed on this machine and the catalog already stored. This asks no provider anything: reading a provider's own offerings is R.",
+                    "Reloaded local providers and stored catalogs. No provider was queried; press R to scan.",
                 );
             }
             (View::Providers | View::Agents, KeyCode::Char('R')) => {
@@ -1898,7 +1898,7 @@ impl App {
         self.edit_config(move |config| {
             if config.team.contains(&id) {
                 config.team.retain(|member| member != &id);
-                return Ok(format!("{id} left the team."));
+                return Ok(format!("{id} removed from the next-session team."));
             }
             let profile = config.agent(&id)?.clone();
             if let Some(provider) = config
@@ -1912,7 +1912,7 @@ impl App {
                 agent.enabled = true;
             }
             config.team.push(id.clone());
-            Ok(format!("{id} joined the team."))
+            Ok(format!("{id} added to the next-session team."))
         });
     }
 
@@ -2491,9 +2491,7 @@ impl App {
                         .find(|a| a.id == id)
                         .ok_or_else(|| anyhow::anyhow!("Unknown profile: {id}"))?;
                     profile.instructions = value;
-                    Ok(format!(
-                        "Instructions for {id} saved. This starts a new experience identity."
-                    ))
+                    Ok(format!("Instructions for {id} saved."))
                 });
             }
             PromptTarget::Limit(key) => match value.parse::<usize>() {
@@ -2739,12 +2737,8 @@ impl App {
                         let member = self.config.team.contains(&id);
                         if adding == member {
                             self.notice(format!(
-                                "{id} is already {}.",
-                                if member {
-                                    "a member"
-                                } else {
-                                    "outside the team"
-                                }
+                                "{id} is already {} the next-session team.",
+                                if member { "in" } else { "not in" }
                             ));
                         } else {
                             self.toggle_membership(&id);

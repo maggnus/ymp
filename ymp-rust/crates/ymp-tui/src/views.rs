@@ -1386,7 +1386,7 @@ fn changes(ctx: &Ctx) -> anyhow::Result<Page> {
             lines.extend(recovery_lines(ctx));
             lines
         },
-        hints: vec![("Enter", "show the full path"), ("Esc", "back")],
+        hints: vec![("Enter", "inspect"), ("Esc", "back")],
     })
 }
 
@@ -1638,7 +1638,7 @@ fn checks(ctx: &Ctx) -> anyhow::Result<Page> {
             lines.extend(paragraph(theme, HOW_CHECKS_RUN[0], ctx.width));
             lines
         },
-        hints: vec![("Enter", "show the recorded run"), ("Esc", "back")],
+        hints: vec![("Enter", "inspect"), ("Esc", "back")],
     })
 }
 
@@ -1807,10 +1807,9 @@ const WHAT_MEMBERSHIP_MEANS: &[&str] = &[
     "Eligibility below is about this machine: the profile is enabled, its provider is enabled, and the provider's program was found on PATH. Model lists come from the configuration, not from asking a provider. Whether an account may run a model is the installation's own business, and ymp reads no credential to build this page.",
 ];
 
-const MEMBER_COLUMNS: [Column; 5] = [
+const MEMBER_COLUMNS: [Column; 4] = [
     Column::left(""),
     Column::left("AGENT").flex(),
-    Column::left("READING").hide(2),
     Column::left("PROVIDER").hide(1),
     Column::left("STATE"),
 ];
@@ -1924,8 +1923,8 @@ fn team(ctx: &Ctx) -> Page {
             ctx.width,
         ),
         hints: vec![
-            ("Space", "add or remove"),
-            ("Enter", "open the record"),
+            ("Space", "next-session team"),
+            ("Enter", "inspect"),
             ("Esc", "back"),
         ],
     }
@@ -1985,8 +1984,8 @@ fn models_used(ctx: &Ctx, agent: &str) -> String {
 /// A catalog read today says nothing about a turn that ran yesterday, so a captured member is
 /// never resolved against the present catalog: the answer comes from the profile the session
 /// captured, or from the turns the session itself recorded, or it stays missing.
-/// What is stored for a provider: a reading from the installation, a claim the configuration
-/// wrote, or nothing, with the last attempt and any bounded failure the scan recorded.
+/// What is stored for a provider: a native scan, a catalog the configuration wrote, or nothing,
+/// with the last attempt and any bounded failure the scan recorded.
 fn catalog_words(ctx: &Ctx, provider: &str) -> String {
     let snapshot = ctx.config.native_provider_snapshot(provider);
     let source = ctx
@@ -2001,26 +2000,24 @@ fn catalog_words(ctx: &Ctx, provider: &str) -> String {
                 observed_at,
             }),
         ) => match snapshot.failure.as_deref() {
-            None => format!("read from the installation by {method} at {observed_at}"),
+            None => format!("native scan · {method} · {observed_at}"),
             Some(failure) => format!(
-                "the attempt at {} ended as {failure}; the reading by {method} at {observed_at} is kept",
+                "last attempt {} failed: {failure} · keeping native scan · {method} · {observed_at}",
                 snapshot.last_attempt
             ),
         },
         (Some(snapshot), _) => match snapshot.failure.as_deref() {
             Some(failure) => format!(
-                "not read · the attempt at {} ended as {failure}",
+                "not scanned · last attempt {} failed: {failure}",
                 snapshot.last_attempt
             ),
-            None => format!("attempted at {}, with nothing stored", snapshot.last_attempt),
+            None => format!("not scanned · attempt {} stored nothing", snapshot.last_attempt),
         },
-        (None, Some(CapabilitySource::Configured)) => {
-            "written by configuration; no reading from the installation stands behind it".to_owned()
-        }
+        (None, Some(CapabilitySource::Configured)) => "configured · not scanned".to_owned(),
         (None, Some(CapabilitySource::NativeMetadata { .. })) => {
-            "a claim of a native reading that no stored scan matches".to_owned()
+            "native claim · no stored scan matches".to_owned()
         }
-        (None, None) => "nothing stored; this provider's own offerings have not been read".to_owned(),
+        (None, None) => "not scanned".to_owned(),
     }
 }
 
@@ -2029,7 +2026,7 @@ fn catalog_models_words(catalog: Option<&ProviderCapabilities>) -> String {
     match catalog {
         None => "none listed".to_owned(),
         Some(catalog) if catalog.models.is_empty() && catalog.models_complete => {
-            "none, and the list is complete: this installation offers nothing".to_owned()
+            "none · complete list".to_owned()
         }
         Some(catalog) if catalog.models.is_empty() => "none listed".to_owned(),
         Some(catalog) => format!(
@@ -2044,17 +2041,12 @@ fn catalog_models_words(catalog: Option<&ProviderCapabilities>) -> String {
                 .collect::<Vec<_>>()
                 .join(", "),
             if catalog.models_complete {
-                "the whole list"
+                "complete list"
             } else {
-                "not known to be the whole list"
+                "completeness not reported"
             }
         ),
     }
-}
-
-/// The label a captured member carries: the concrete model its recorded turns name, or unknown.
-fn captured_label(ctx: &Ctx, profile: &AgentProfile) -> String {
-    presented_name(ctx, &profile.id)
 }
 
 /// The identity recorded with this agent's last assignment, if one was recorded.
@@ -2138,37 +2130,38 @@ fn identity_of<'a>(ctx: &'a Ctx, profile: &AgentProfile) -> Option<&'a AgentIden
     ctx.pool.agent(&profile.id).map(|agent| &agent.identity)
 }
 
-/// The label a row carries for an agent, and the short words beside it.
+/// The cell that names an agent in a row.
 ///
 /// A provider id is a transport label: `codex` is how ymp reaches an installation, not a model it
 /// offers. A caption such as `Default (recommended)` describes an offering without naming its
 /// model. So the label is the concrete model identifier native metadata resolves the agent to,
-/// and where nothing resolves one the label says the model is unknown and the words beside it
-/// say why. A local fixture has no native model and keeps its configured name.
-fn identity_row_words(
+/// and where nothing resolves one the label says the model is unknown. A local fixture has no
+/// native model and keeps its configured name. A short qualifier follows only where the identity
+/// needs attention; where a name came from, and when, is read with Inspect.
+fn identity_cell(
+    theme: &Theme,
     identity: Option<&AgentIdentity>,
     profile: &AgentProfile,
     config: &Config,
-) -> (String, String) {
-    let Some(identity) = identity else {
-        return (
-            label::profile(profile, config),
-            "what is installed could not be read".to_owned(),
-        );
+) -> Cell {
+    let (label, qualifier) = match identity {
+        None => (label::profile(profile, config), Some("unavailable")),
+        Some(identity) => (
+            label::offering(identity).unwrap_or_else(|| label::UNKNOWN_MODEL.to_owned()),
+            match identity.status {
+                AgentIdentityStatus::Stale => Some("stale"),
+                AgentIdentityStatus::Unknown => Some("not in catalog"),
+                AgentIdentityStatus::Native
+                | AgentIdentityStatus::Unresolved
+                | AgentIdentityStatus::Local => None,
+            },
+        ),
     };
-    let model = label::offering(identity);
-    let words = match identity.status {
-        AgentIdentityStatus::Native if model.is_none() => "no concrete model resolved",
-        AgentIdentityStatus::Native => "read from the installation",
-        AgentIdentityStatus::Stale => "not read recently",
-        AgentIdentityStatus::Unknown => "not in the catalog",
-        AgentIdentityStatus::Unresolved => "no native model",
-        AgentIdentityStatus::Local => "a local provider",
-    };
-    (
-        model.unwrap_or_else(|| label::UNKNOWN_MODEL.to_owned()),
-        words.to_owned(),
-    )
+    let mut spans = vec![Span::styled(label, theme.text())];
+    if let Some(qualifier) = qualifier {
+        spans.push(Span::styled(format!(" · {qualifier}"), theme.warn()));
+    }
+    Cell::spans(spans)
 }
 
 /// The model an identity stands for, in words, where the row gives it as a label.
@@ -2225,12 +2218,7 @@ fn identity_lines(ctx: &Ctx, profile: &AgentProfile) -> Vec<Line<'static>> {
     if let Some(resolved) = identity.resolved_model.as_deref() {
         lines.extend(field(theme, "resolved to", resolved, ctx.width));
     }
-    lines.extend(field(
-        theme,
-        "metadata from",
-        &name_source(identity),
-        ctx.width,
-    ));
+    lines.extend(field(theme, "source", &name_source(identity), ctx.width));
     let catalog = ctx.config.provider_capabilities(&profile.provider);
     if let Some(offering) = catalog
         .zip(identity.model.as_deref())
@@ -2266,27 +2254,25 @@ fn name_source(identity: &AgentIdentity) -> String {
                 method,
                 observed_at,
             }),
-        ) => format!("the installation, read by {method} at {observed_at}"),
+        ) => format!("native scan · {method} · {observed_at}"),
         (
             AgentIdentityStatus::Stale,
             Some(CapabilitySource::NativeMetadata {
                 method,
                 observed_at,
             }),
-        ) => format!(
-            "the installation, read by {method} at {observed_at}, which is no longer current"
-        ),
+        ) => format!("native scan · {method} · {observed_at} · stale"),
         (AgentIdentityStatus::Native | AgentIdentityStatus::Stale, _) => {
-            "a stored reading whose source was not recorded".to_owned()
+            "stored scan · method and time not recorded".to_owned()
         }
         (AgentIdentityStatus::Unknown, _) => {
-            "the configuration · no stored catalog lists this model".to_owned()
+            "configuration · no stored catalog lists this model".to_owned()
         }
         (AgentIdentityStatus::Unresolved, _) => {
-            "nowhere yet · no model is set and no stored catalog names a default".to_owned()
+            "not resolved · no model is set and no stored catalog reports a default".to_owned()
         }
         (AgentIdentityStatus::Local, _) => {
-            "the configuration · a local provider has no native identity".to_owned()
+            "configuration · local provider, no native identity".to_owned()
         }
     }
 }
@@ -2295,18 +2281,8 @@ fn name_source(identity: &AgentIdentity) -> String {
 fn control_lines(theme: &Theme, offering: &ModelCapabilities, width: usize) -> Vec<Line<'static>> {
     let mut lines = Vec::new();
     match offering.controls.as_deref() {
-        None => lines.extend(field(
-            theme,
-            "controls",
-            "unknown · the catalog does not say which it offers",
-            width,
-        )),
-        Some([]) => lines.extend(field(
-            theme,
-            "controls",
-            "none · the catalog says it offers none",
-            width,
-        )),
+        None => lines.extend(field(theme, "controls", "not reported", width)),
+        Some([]) => lines.extend(field(theme, "controls", "none", width)),
         Some(controls) => {
             for control in controls {
                 let label = control.display_name.as_deref().unwrap_or(&control.id);
@@ -2338,7 +2314,7 @@ fn control_values(control: &NativeControl) -> String {
             if *value { "on" } else { "off" }
         ),
         Some(NativeControlValue::Integer(value)) => format!("{values} · {value} by default"),
-        None => format!("{values} · no default is named"),
+        None => format!("{values} · default not reported"),
     }
 }
 
@@ -2362,7 +2338,10 @@ fn member_row(ctx: &Ctx, profile: &AgentProfile) -> Item {
     } else if open > 0 {
         ("a turn was left open".to_owned(), theme.info())
     } else if turns > 0 {
-        (format!("{turns} turn(s) here"), theme.good())
+        (
+            format!("{turns} {} here", if turns == 1 { "turn" } else { "turns" }),
+            theme.good(),
+        )
     } else if ctx.team_captured {
         ("no turn recorded".to_owned(), theme.muted())
     } else {
@@ -2372,20 +2351,23 @@ fn member_row(ctx: &Ctx, profile: &AgentProfile) -> Item {
             None => ("not in the pool".to_owned(), theme.warn()),
         }
     };
-    let identity = identity_of(ctx, profile);
-    let (label, words) = identity_row_words(identity, profile, ctx.config);
     let mut detail = field(theme, "profile", &profile.id, ctx.width);
     // A catalog read today says nothing about a turn that ran yesterday, so a captured member
-    // is read from what its own session recorded and never from the catalog as it stands now.
-    let (label, words) = if ctx.team_captured {
+    // is named from what its own session recorded and never from the catalog as it stands now.
+    let name = if ctx.team_captured {
         detail.extend(captured_identity_lines(ctx, profile));
-        (
-            captured_label(ctx, profile),
-            captured_model_row_words(ctx, profile),
-        )
+        // The model the session recorded follows the name only where the name does not already
+        // carry it, so an unknown label still shows what its turns ran with, or that none said.
+        let name = presented_name(ctx, &profile.id);
+        let model = captured_model_row_words(ctx, profile);
+        let mut spans = vec![Span::styled(name.clone(), theme.text())];
+        if !name.contains(&model) {
+            spans.push(Span::styled(format!(" · {model}"), theme.muted()));
+        }
+        Cell::spans(spans)
     } else {
         detail.extend(identity_lines(ctx, profile));
-        (label, words)
+        identity_cell(theme, identity_of(ctx, profile), profile, ctx.config)
     };
     detail.extend(field(theme, "provider", &profile.provider, ctx.width));
     detail.extend(field(
@@ -2462,8 +2444,7 @@ fn member_row(ctx: &Ctx, profile: &AgentProfile) -> Item {
                 },
                 style,
             ),
-            Cell::text(label, theme.text()),
-            Cell::text(words, theme.muted()),
+            name,
             Cell::text(profile.provider.clone(), theme.faint()),
             Cell::text(right, style),
         ],
@@ -2531,7 +2512,13 @@ fn aside_row(ctx: &Ctx, id: &str, aside: Aside) -> Item {
     ));
     let (right, style) = match aside {
         Aside::Replaced => ("no longer a member".to_owned(), theme.muted()),
-        Aside::RecordsOnly => (format!("{turns} turn(s) recorded here"), theme.info()),
+        Aside::RecordsOnly => (
+            format!(
+                "{turns} {} recorded here",
+                if turns == 1 { "turn" } else { "turns" }
+            ),
+            theme.info(),
+        ),
     };
     Item::row(
         id.to_owned(),
@@ -2634,8 +2621,13 @@ fn roster_row(ctx: &Ctx) -> Item {
             Cell::text("roster", theme.text()),
             value_cell(
                 format!(
-                    "{} member(s) · revision {}",
+                    "{} {} · revision {}",
                     state.current_members.len(),
+                    if state.current_members.len() == 1 {
+                        "member"
+                    } else {
+                        "members"
+                    },
                     state.revision
                 ),
                 theme.muted(),
@@ -2830,11 +2822,11 @@ fn exclusion_sentence(exclusion: PoolExclusion) -> &'static str {
 /// narrowest supported width. The sentence behind it belongs in the record.
 fn exclusion_word(exclusion: PoolExclusion) -> &'static str {
     match exclusion {
-        PoolExclusion::AgentDisabled => "the profile is disabled",
-        PoolExclusion::ProviderDisabled => "its provider is disabled",
-        PoolExclusion::ExecutableMissing => "its program was not found",
-        PoolExclusion::ModelUnlisted => "the model is not in the catalog",
-        PoolExclusion::NoModelsAvailable => "the catalog lists no model",
+        PoolExclusion::AgentDisabled => "profile disabled",
+        PoolExclusion::ProviderDisabled => "provider disabled",
+        PoolExclusion::ExecutableMissing => "executable not found",
+        PoolExclusion::ModelUnlisted => "model not in catalog",
+        PoolExclusion::NoModelsAvailable => "no models in catalog",
         PoolExclusion::NativeModelUnresolved => "no native model",
     }
 }
@@ -2859,12 +2851,13 @@ fn with_table(columns: &[Column], rows: Vec<Item>) -> Vec<Item> {
     items
 }
 
-const AGENT_COLUMNS: [Column; 5] = [
+/// TEAM here is the next-session preference in `Config.team`, not the membership of a loaded
+/// session, so the column names its scope.
+const AGENT_COLUMNS: [Column; 4] = [
     Column::left("AGENT").flex(),
-    Column::left("READING"),
     Column::left("PROVIDER"),
     Column::left("ENABLED"),
-    Column::left("TEAM"),
+    Column::left("NEXT TEAM"),
 ];
 const PROVIDER_COLUMNS: [Column; 4] = [
     Column::left("PROVIDER"),
@@ -2892,7 +2885,6 @@ fn agents(ctx: &Ctx) -> Page {
         .iter()
         .map(|profile| {
             let in_team = ctx.config.team.contains(&profile.id);
-            let (label, words) = identity_row_words(identity_of(ctx, profile), profile, ctx.config);
             let mut detail = field(theme, "profile", &profile.id, ctx.width);
             detail.extend(identity_lines(ctx, profile));
             detail.extend(field(theme, "provider", &profile.provider, ctx.width));
@@ -2905,13 +2897,17 @@ fn agents(ctx: &Ctx) -> Page {
             detail.extend(field(
                 theme,
                 "enabled",
-                if profile.enabled { "yes" } else { "no" },
+                if profile.enabled { "on" } else { "off" },
                 ctx.width,
             ));
             detail.extend(field(
                 theme,
-                "in team",
-                if in_team { "yes" } else { "no" },
+                "next team",
+                if in_team {
+                    "true · next-session preference"
+                } else {
+                    "false · next-session preference"
+                },
                 ctx.width,
             ));
             detail.push(Line::default());
@@ -2922,7 +2918,7 @@ fn agents(ctx: &Ctx) -> Page {
             detail.extend(paragraph(
                 theme,
                 if profile.instructions.is_empty() {
-                    "None. Press i to write them."
+                    "None. Press i to edit."
                 } else {
                     &profile.instructions
                 },
@@ -2930,17 +2926,20 @@ fn agents(ctx: &Ctx) -> Page {
             ));
             detail.push(Line::default());
             detail.push(Line::from(Span::styled(
-                "Changing the model or the instructions starts a new experience identity. Sessions already running keep the profile they captured.".to_owned(),
+                "Experience is recorded with the profile configuration in use, including its model and instructions. Sessions already running keep the profile they captured.".to_owned(),
                 theme.faint(),
             )));
             Item::row(
                 profile.id.clone(),
                 vec![
-                    Cell::text(label, theme.text()),
-                    Cell::text(words, theme.muted()),
+                    identity_cell(theme, identity_of(ctx, profile), profile, ctx.config),
                     Cell::text(profile.provider.clone(), theme.faint()),
                     Cell::spans(vec![yes_no(profile.enabled, theme)]),
-                    Cell::text(if in_team { "in team" } else { "" }, theme.accent()),
+                    if in_team {
+                        Cell::text("true", theme.accent())
+                    } else {
+                        Cell::text("false", theme.faint())
+                    },
                 ],
             )
             .with_detail(detail)
@@ -2950,7 +2949,15 @@ fn agents(ctx: &Ctx) -> Page {
     Page {
         view: View::Agents,
         title: View::Agents.title().into(),
-        subtitle: format!("{} profiles", ctx.config.agents.len()),
+        subtitle: format!(
+            "{} {}",
+            ctx.config.agents.len(),
+            if ctx.config.agents.len() == 1 {
+                "profile"
+            } else {
+                "profiles"
+            }
+        ),
         items,
         empty: nothing(
             theme,
@@ -2961,10 +2968,10 @@ fn agents(ctx: &Ctx) -> Page {
         hints: vec![
             ("m", "model"),
             ("i", "instructions"),
-            ("Space", "enable"),
-            ("t", "team"),
-            ("r", "re-read"),
-            ("R", "ask the installations"),
+            ("Space", "enable or disable"),
+            ("t", "next-session team"),
+            ("r", "reload"),
+            ("R", "scan catalogs"),
             ("Esc", "back"),
         ],
     }
@@ -3035,8 +3042,7 @@ fn providers(ctx: &Ctx) -> Page {
                     "default",
                     &match catalog.and_then(|catalog| catalog.default_model.as_deref()) {
                         Some(id) => id.to_owned(),
-                        None => "none was reported; an agent that pins no model has no name here"
-                            .to_owned(),
+                        None => "not reported".to_owned(),
                     },
                     ctx.width,
                 ));
@@ -3101,8 +3107,8 @@ fn providers(ctx: &Ctx) -> Page {
         ),
         hints: vec![
             ("Space", "enable or disable"),
-            ("r", "re-read what is stored"),
-            ("R", "ask this installation"),
+            ("r", "reload"),
+            ("R", "scan catalog"),
             ("Esc", "back"),
         ],
     }
@@ -3291,7 +3297,7 @@ fn memory(ctx: &Ctx) -> anyhow::Result<Page> {
         hints: vec![
             ("s", "search"),
             ("f", "retire the entry"),
-            ("Enter", "read"),
+            ("Enter", "inspect"),
             ("Esc", "back"),
         ],
     })
@@ -3688,7 +3694,7 @@ fn reputation(ctx: &Ctx) -> anyhow::Result<Page> {
             "An observation is recorded when a reviewer accepts or rejects a candidate. A high rate from few observations is not evidence of reliability.",
             ctx.width,
         ),
-        hints: vec![("Enter", "read the evidence"), ("Esc", "back")],
+        hints: vec![("Enter", "inspect"), ("Esc", "back")],
     })
 }
 
@@ -3788,7 +3794,7 @@ fn limits(ctx: &Ctx) -> Page {
         empty: Vec::new(),
         hints: vec![
             ("+ / -", "adjust the next run"),
-            ("Enter", "type a value, or read the record"),
+            ("Enter", "edit or inspect"),
             ("Esc", "back"),
         ],
     }
@@ -4207,7 +4213,7 @@ fn assignments(ctx: &Ctx) -> Page {
             "No assignments were recorded",
             "A session records an assignment for every turn it admits. A session that recorded none either ran before assignments were written or never reached a turn.",
         ),
-        hints: vec![("Enter", "show the record"), ("Esc", "back")],
+        hints: vec![("Enter", "inspect"), ("Esc", "back")],
     }
 }
 
@@ -5473,7 +5479,7 @@ fn decisions(ctx: &Ctx) -> Page {
             "No decisions were recorded",
             "A session appends a decision whenever it accepts a plan, reviews a candidate, accepts or rejects a task, or credits competence. A session that recorded none made no such choice, or ran before decisions were written.",
         ),
-        hints: vec![("Enter", "show the record"), ("Esc", "back")],
+        hints: vec![("Enter", "inspect"), ("Esc", "back")],
     }
 }
 

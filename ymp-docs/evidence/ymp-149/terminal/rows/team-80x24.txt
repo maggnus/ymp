@@ -1,0 +1,24 @@
+ymp  project                                                   no session  0/200
+────────────────────────────────────────────────────────────────────────────────
+ Team[7]  /team 2 for the next run · 1 eligible on t…│ SESSION
+─────────────────────────────────────────────────────│ none · the next message
+ › ◇ What membership means here  what this page is   │ turns next run   0 / 200
+                                                     │ dir …ymp149-rows/project
+   MEMBERS OF THE NEXT RUN                           │
+      AGENT         PROVIDER  STATE                  │ TOKENS                 —
+   ○  Atlas         demo      eligible               │ none · nothing spent yet
+   ○  unknown mod…  absent    executable not found   │
+                                                     │ TEAM            next run
+   HOW THE ROSTER IS BOUNDED                         │ AGENT            STATE
+      RULE          VALUE                            │ ○ Atlas          idle
+   ○  roster        none recorded                    │ ○ unknown model  idle
+   •  roster rules  up to 4                          │
+                                                     │ TASKS
+   AVAILABLE ON THIS MACHINE                         │ no task graph yet
+      MODEL         PROVIDER  STATE                  │
+   ✓  Atlas         demo      eligible               │
+   ▲  Boreal        demo      profile disabled       │
+   ▲  unknown mod…  absent    executable not found   │
+────────────────────────────────────────────────────────────────────────────────
+› Describe a task, or type / for commands.
+Ready main Space next-session team  Enter inspect  Esc back  / filter  Shift+le…

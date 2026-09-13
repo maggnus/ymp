@@ -1,0 +1,24 @@
+ymp  project                                                   no session  0/200
+────────────────────────────────────────────────────────────────────────────────
+ Agent profiles[3]  /agents               3 profiles │ SESSION
+─────────────────────────────────────────────────────│ none · the next message
+   AGENT          PROVIDER  ENABLED  NEXT TEAM       │ turns next run   0 / 200
+ › Atlas          demo      ✓ on     true            │ dir …ymp149-rows/project
+   Boreal         demo      ○ off    false           │
+   unknown model  absent    ✓ on     true            │ TOKENS                 —
+                                                     │ none · nothing spent yet
+                                                     │
+                                                     │ TEAM            next run
+                                                     │ AGENT            STATE
+                                                     │ ○ Atlas          idle
+                                                     │ ○ unknown model  idle
+                                                     │
+                                                     │ TASKS
+                                                     │ no task graph yet
+                                                     │
+                                                     │
+                                                     │
+                                                     │
+────────────────────────────────────────────────────────────────────────────────
+› Describe a task, or type / for commands.
+Ready main m model  i instructions  Space enable or disable  t next-session team

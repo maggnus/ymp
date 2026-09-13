@@ -3735,9 +3735,9 @@ fn a_truncated_record_says_the_rest_is_not_shown_anywhere() {
     // The hint must describe what Enter does, which is to open these same lines.
     let hints = app.page(100).hints.clone();
     assert!(
-        hints.iter().any(|(key, text)| *key == "Enter"
-            && *text == "show the recorded run"
-            && !text.contains("whole")),
+        hints
+            .iter()
+            .any(|(key, text)| *key == "Enter" && *text == "inspect" && !text.contains("whole")),
         "the hint promises more than Enter opens: {hints:?}"
     );
 
@@ -6197,16 +6197,16 @@ fn a_profile_with_no_native_reading_is_not_presented_as_a_named_agent() {
     for profile in ["codex", "claude", "glm"] {
         let row = left_of_key(&mut app, 65, profile);
         assert!(
-            row.contains("no native model"),
+            row.starts_with("unknown model"),
             "an unresolved profile does not say so: {row}"
         );
         let detail = detail_of_key(&mut app, 100, profile);
         assert!(
-            detail.contains("no model is set and no stored catalog names a default"),
+            detail.contains("no model is set and no stored catalog reports a default"),
             "the page does not say why no name is known:\n{detail}"
         );
         assert!(
-            detail.contains("nothing stored; this provider's own offerings have not been read"),
+            detail.contains("catalog") && detail.contains("not scanned"),
             "the reading behind the profile is not reported:\n{detail}"
         );
     }
@@ -6713,9 +6713,30 @@ fn a_scanned_model_is_shown_exactly_as_the_installation_resolved_it() {
         "the model the installation resolved is not the label: {row}"
     );
     assert!(
-        row.contains("gpt-5.6-sol") && row.contains("codex"),
-        "the identifier and the provider are not kept beside it: {row}"
+        row.contains("gpt-5.6-sol") && row.contains("codex") && !row.contains("read from"),
+        "the identifier and the provider are not kept beside it, or provenance is in the row: {row}"
     );
+    // The team flag is the next-session preference, known either way: true or false, never blank.
+    for _ in 0..2 {
+        let expected = if app.config.team.iter().any(|id| id == "codex") {
+            "true"
+        } else {
+            "false"
+        };
+        let flag = cell_of_key(&mut app, 100, "codex", "NEXT TEAM");
+        assert_eq!(
+            flag.trim(),
+            expected,
+            "the next-session team flag is not {expected}"
+        );
+        app.on_key(key(KeyCode::Char('t')), 100);
+        assert!(
+            app.notices
+                .last()
+                .is_some_and(|notice| notice.text.contains("next-session team")),
+            "the membership change does not name its scope"
+        );
+    }
     let detail = detail_of_key(&mut app, 100, "codex");
     for expected in [
         "native label",
@@ -6724,7 +6745,7 @@ fn a_scanned_model_is_shown_exactly_as_the_installation_resolved_it() {
         "Codex",
         "resolved to",
         "gpt-5.6-sol-0913",
-        "the installation, read by models.list",
+        "native scan · models.list",
         "also known as",
         "gpt-5.6",
         "a selector, not a model to send",
@@ -6774,12 +6795,12 @@ fn an_actor_whose_model_comes_from_its_execution_policy_is_still_named_natively(
         "an actor whose model comes from its policy is not named natively: {row}"
     );
     assert!(
-        !row.contains("no native model"),
+        !row.contains("unknown model"),
         "an empty profile field was read as an unresolved agent: {row}"
     );
     let detail = detail_of_key(&mut app, 100, "codex");
     assert!(
-        detail.contains("gpt-5.6-sol") && detail.contains("the installation, read by models.list"),
+        detail.contains("gpt-5.6-sol") && detail.contains("native scan · models.list"),
         "the record does not name the model and where its name came from:\n{detail}"
     );
 }
@@ -6798,11 +6819,11 @@ fn a_reading_that_is_no_longer_current_says_so_rather_than_reading_as_native() {
 
     let row = left_of_key(&mut app, 65, "codex");
     assert!(
-        row.starts_with("gpt-5.6-sol-0913") && row.contains("not read recently"),
+        row.starts_with("gpt-5.6-sol-0913") && row.contains("stale"),
         "a reading two days old is presented as current: {row}"
     );
     assert!(
-        detail_of_key(&mut app, 100, "codex").contains("which is no longer current"),
+        detail_of_key(&mut app, 100, "codex").contains("· stale"),
         "the record does not say the reading is stale"
     );
 }
@@ -6819,7 +6840,7 @@ fn a_model_no_reading_lists_is_unknown_and_never_native() {
 
     let row = left_of_key(&mut app, 65, "codex");
     assert!(
-        row.starts_with("gpt-9") && row.contains("not in the catalog"),
+        row.starts_with("gpt-9") && row.contains("not in catalog"),
         "a model nothing read is presented as a native name: {row}"
     );
     let detail = detail_of_key(&mut app, 100, "codex");
@@ -6853,12 +6874,12 @@ fn a_failed_attempt_keeps_the_previous_reading_and_says_it_failed() {
 
     let detail = detail_of_key(&mut app, 65, &provider);
     assert!(
-        detail.contains("ended as timeout") && detail.contains("is kept"),
+        detail.contains("failed: timeout") && detail.contains("keeping native scan"),
         "a failed attempt is not distinguished from a current reading:\n{detail}"
     );
     app.command("/agents", 100);
     assert!(
-        left_of_key(&mut app, 65, "codex").contains("not read recently"),
+        left_of_key(&mut app, 65, "codex").contains("stale"),
         "a retained reading after a failure is presented as current"
     );
 }
@@ -6936,10 +6957,7 @@ fn re_reading_the_catalog_is_an_action_that_asks_no_provider_anything() {
     let notice = app.notices.last().expect("the action reports what it did");
     assert!(!notice.failure, "re-reading was reported as a failure");
     assert!(
-        notice.text.contains("asks no provider anything")
-            && notice
-                .text
-                .contains("reading a provider's own offerings is R"),
+        notice.text.contains("No provider was queried") && notice.text.contains("press R to scan"),
         "the action claims more than it did, or does not point at the one that reads: {}",
         notice.text
     );
@@ -9712,12 +9730,12 @@ fn selection_stays_on_an_edited_profile_that_its_sort_moves() {
         let first = row_keys(app, width)[0].clone();
         (!app.config.agent(&first).unwrap().enabled).then_some(first)
     };
-    // N is the underlined letter of ENABLED. Sort until a disabled profile leads.
+    // E is the underlined letter of ENABLED. Sort until a disabled profile leads.
     for _ in 0..2 {
         if disabled_first(&mut app).is_some() {
             break;
         }
-        app.on_key(key(KeyCode::Char('N')), 100);
+        app.on_key(key(KeyCode::Char('E')), 100);
     }
     let profile = disabled_first(&mut app).expect("no sort puts a disabled profile first");
     app.on_key(key(KeyCode::Home), 100);

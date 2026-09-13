@@ -216,7 +216,7 @@ provider = "demo"
         tmux("resize-window", "-t", "check", "-x", "140", "-y", "45")
         time.sleep(0.2)
         command("/agents")
-        type_text("N")  # ENABLED; R is reserved, and READING uses E.
+        type_text("E")  # ENABLED; R is reserved.
         type_text("/Cygnus")
         keys("Enter", "Escape")
 

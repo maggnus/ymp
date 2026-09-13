@@ -1,0 +1,20 @@
+ymp  project                               no session  0/200
+------------------------------------------------------------
+ Agent profiles[3]  /agents                      3 profiles
+------------------------------------------------------------
+   AGENT          PROVIDER  ENABLED  NEXT TEAM
+ > Atlas          demo      + on     true
+   Boreal         demo      o off    false
+   unknown model  absent    + on     true
+
+
+
+
+
+
+
+
+
+------------------------------------------------------------
+> Describe a task, or type / for commands.
+Ready  main m model  i instructions  Space enable or disable

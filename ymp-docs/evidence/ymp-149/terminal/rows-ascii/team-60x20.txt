@@ -1,0 +1,20 @@
+ymp  project                               no session  0/200
+------------------------------------------------------------
+ Team[7]  /team 2 for the next run · 1 eligible on this mac…
+------------------------------------------------------------
+ > - What membership means here  what this page is
+
+   MEMBERS OF THE NEXT RUN
+      AGENT          PROVIDER  STATE
+   o  Atlas          demo      eligible
+   o  unknown model  absent    executable not found
+
+   HOW THE ROSTER IS BOUNDED
+      RULE          VALUE
+   o  roster        none recorded
+   -  roster rules  up to 4
+
+   AVAILABLE ON THIS MACHINE
+------------------------------------------------------------
+> Describe a task, or type / for commands.
+Ready  main Space next-session team  Enter inspect  Esc back

@@ -133,7 +133,7 @@ pub async fn run(
                         app.adopt_config(config);
                         app.status = "Ready".into();
                         app.notice(format!(
-                            "Read {read} of {} installation(s): {offerings} offering(s) stored, {} actor(s) added, {} existing actor(s) now resolved to a model the installation named. No configured name was changed, and nothing was asked of a model.",
+                            "Catalog scan: {read} of {} providers updated; entries stored: {offerings}; agents added: {}; existing agents resolved to a native model: {}. Configured names unchanged; no model was invoked.",
                             report.providers.len(),
                             report.created_agents.len(),
                             report.migrated_agents.len()
@@ -141,7 +141,7 @@ pub async fn run(
                     }
                     Ok(Err(error)) => {
                         app.status = "Ready".into();
-                        app.fail(format!("Nothing was read: {error:#}"));
+                        app.fail(format!("Catalog scan failed: {error:#}"));
                     }
                     Err(error) => {
                         app.status = "Ready".into();
