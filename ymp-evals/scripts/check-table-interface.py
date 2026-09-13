@@ -8,6 +8,7 @@ import hashlib
 import json
 import pathlib
 import re
+import sqlite3
 import subprocess
 import tempfile
 import time
@@ -51,6 +52,13 @@ provider = "demo"
     (root / "demo.log").write_text(demo.stdout + demo.stderr)
     assert demo.returncode == 0, "mock demo failed"
     session = re.search(r"^Session: (\S+)", demo.stdout, re.M).group(1)
+    with sqlite3.connect(home / "state.sqlite") as db:
+        db.execute(
+            "INSERT INTO messages(session_id,author,kind,text,created_at) VALUES(?,?,?,?,?)",
+            (session, "atlas", "execute", "\n\n".join(
+                f"Terminal detail paragraph {i}." for i in range(1, 13)),
+             "2026-09-13T00:00:00Z"),
+        )
     files = {"a-large.txt": 1024, "m-small.txt": 3, "z-medium.txt": 80}
     for name, size in files.items():
         (project / name).write_bytes(b"x" * size)
@@ -104,6 +112,13 @@ provider = "demo"
         text = capture("wide-chat")
         assert "NAVIGATE" not in text, "sidebar still contains NAVIGATE"
         passed("sidebar-without-navigation")
+        assert "Terminal detail paragraph 12." not in text, "default report was not collapsed"
+        keys("C-l")
+        wait_for(lambda s: "Terminal detail paragraph 12." in s, "detailed-expansion")
+        capture("detailed-chat")
+        keys("C-l")
+        wait_for(lambda s: "Terminal detail paragraph 12." not in s, "default-collapse")
+        passed("detailed-expands-long-agent-report")
 
         command("/files")
         wait_for(lambda s: all(name in s for name in files), "files")
@@ -155,10 +170,24 @@ provider = "demo"
             passed(f"pages-at-{width}x{height}")
 
         keys("C-p")
-        capture("narrow-palette")
+        text = capture("narrow-palette")
+        assert "Commands" in text and "Type to search commands" in text, text
         keys("Escape", "C-t")
-        capture("narrow-themes")
+        text = capture("narrow-themes")
+        assert "ember" in text and "slate" in text, text
         keys("Escape", "Escape", "Escape")
+        command("/agents")
+        type_text("m")
+        text = capture("narrow-model-prompt")
+        assert "Model for" in text and "cancel" in text, text
+        keys("Escape")
+        command("/memory")
+        keys("End")
+        type_text("f")
+        text = capture("narrow-memory-confirm")
+        assert "Confirm" in text and "Retire memory entry" in text, text
+        keys("Escape")
+        passed("narrow-choice-prompt-and-confirm-surfaces")
         after = {p.name: hashlib.sha256(p.read_bytes()).hexdigest()
                  for p in project.iterdir() if p.is_file()}
         assert before == after, "browsing changed workspace files"
