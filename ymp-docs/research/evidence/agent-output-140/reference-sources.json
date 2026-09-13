@@ -1,0 +1,58 @@
+[
+  {
+    "repo": "google-gemini/gemini-cli",
+    "commit": "9c1b0a610534d6f8120964cf2672c07807d8fc90",
+    "path": "packages/cli/src/ui/utils/MarkdownDisplay.tsx",
+    "local": "/tmp/ymp140-references/google-gemini--gemini-cli--packages--cli--src--ui--utils--MarkdownDisplay.tsx",
+    "url": "https://github.com/google-gemini/gemini-cli/blob/9c1b0a610534d6f8120964cf2672c07807d8fc90/packages/cli/src/ui/utils/MarkdownDisplay.tsx",
+    "sha256": "1d9e5a20ece94c59aa1a82354f75c0791ccc2eac70b5c2b9917bdb07a6c89e1c"
+  },
+  {
+    "repo": "google-gemini/gemini-cli",
+    "commit": "9c1b0a610534d6f8120964cf2672c07807d8fc90",
+    "path": "packages/cli/src/ui/components/messages/DiffRenderer.tsx",
+    "local": "/tmp/ymp140-references/google-gemini--gemini-cli--packages--cli--src--ui--components--messages--DiffRenderer.tsx",
+    "url": "https://github.com/google-gemini/gemini-cli/blob/9c1b0a610534d6f8120964cf2672c07807d8fc90/packages/cli/src/ui/components/messages/DiffRenderer.tsx",
+    "sha256": "e0b4970e050171bf9dcbfe3d297318ebc35261adebbe79ad64149cd7fa78022a"
+  },
+  {
+    "repo": "google-gemini/gemini-cli",
+    "commit": "9c1b0a610534d6f8120964cf2672c07807d8fc90",
+    "path": "packages/core/src/tools/tools.ts",
+    "local": "/tmp/ymp140-references/google-gemini--gemini-cli--packages--core--src--tools--tools.ts",
+    "url": "https://github.com/google-gemini/gemini-cli/blob/9c1b0a610534d6f8120964cf2672c07807d8fc90/packages/core/src/tools/tools.ts",
+    "sha256": "5ac518457b4a505ea223112299146ed3cc75d2e9a420115553e207b413ded2d9"
+  },
+  {
+    "repo": "anomalyco/opencode",
+    "commit": "95daf90670b7c039c436c85537da5fbfe2205b41",
+    "path": "packages/session-ui/src/components/markdown.tsx",
+    "local": "/tmp/ymp140-references/anomalyco--opencode--packages--session-ui--src--components--markdown.tsx",
+    "url": "https://github.com/anomalyco/opencode/blob/95daf90670b7c039c436c85537da5fbfe2205b41/packages/session-ui/src/components/markdown.tsx",
+    "sha256": "d4e0b8b6f5d031f14e07188cfca6a242a3f044830ae983925c39477666a43295"
+  },
+  {
+    "repo": "anomalyco/opencode",
+    "commit": "95daf90670b7c039c436c85537da5fbfe2205b41",
+    "path": "packages/web/src/components/share/content-markdown.tsx",
+    "local": "/tmp/ymp140-references/anomalyco--opencode--packages--web--src--components--share--content-markdown.tsx",
+    "url": "https://github.com/anomalyco/opencode/blob/95daf90670b7c039c436c85537da5fbfe2205b41/packages/web/src/components/share/content-markdown.tsx",
+    "sha256": "0dc9fea381ffd2096c19a8a858896261dabadc552bccc1324b7d5482bce96937"
+  },
+  {
+    "repo": "Aider-AI/aider",
+    "commit": "5dc9490bb35f9729ef2c95d00a19ccd30c26339c",
+    "path": "aider/io.py",
+    "local": "/tmp/ymp140-references/Aider-AI--aider--aider--io.py",
+    "url": "https://github.com/Aider-AI/aider/blob/5dc9490bb35f9729ef2c95d00a19ccd30c26339c/aider/io.py",
+    "sha256": "7f62a79c8202f2a3793410bac4c983e417fb886513b90faf0e0579d5bb7d047b"
+  },
+  {
+    "repo": "Aider-AI/aider",
+    "commit": "5dc9490bb35f9729ef2c95d00a19ccd30c26339c",
+    "path": "aider/coders/base_coder.py",
+    "local": "/tmp/ymp140-references/Aider-AI--aider--aider--coders--base_coder.py",
+    "url": "https://github.com/Aider-AI/aider/blob/5dc9490bb35f9729ef2c95d00a19ccd30c26339c/aider/coders/base_coder.py",
+    "sha256": "04a7b38c4f1d2b1684ac958f40bcd81a28b00139eae88afed59d2c970bef1ee1"
+  }
+]
