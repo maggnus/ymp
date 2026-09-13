@@ -9318,3 +9318,90 @@ fn selection_table_counts_records_sorts_values_as_figures_and_filter_typing_ends
         "the filter still takes typing after the focus left the page"
     );
 }
+
+#[test]
+fn a_paste_while_a_filter_is_typed_stays_in_the_filter_and_the_palette_ends_typing() {
+    let fixture = fixture();
+    let mut app = fixture.app();
+    app.set_view(View::Help);
+    app.on_key(key(KeyCode::Char('/')), 100);
+    type_keys(&mut app, 100, "the");
+    app.paste("me\nline");
+    assert_eq!(app.table.filter, "theme line");
+    assert!(
+        app.input.value.is_empty(),
+        "the paste reached the composer: {:?}",
+        app.input.value
+    );
+    assert!(app.table.typing && app.focus == Focus::Main && app.view == View::Help);
+
+    // With the filter kept and no longer typed, a paste goes to the composer as before.
+    app.on_key(key(KeyCode::Enter), 100);
+    app.paste("draft");
+    assert_eq!(app.input.value, "draft");
+    assert_eq!(app.focus, Focus::Composer);
+
+    // A palette command that needs an argument moves the keys to the composer and ends typing.
+    let mut app = fixture.app();
+    app.set_view(View::Help);
+    app.on_key(key(KeyCode::Char('/')), 100);
+    type_keys(&mut app, 100, "th");
+    app.on_key(control('p'), 100);
+    type_keys(&mut app, 100, "agent");
+    app.on_key(key(KeyCode::Down), 100);
+    app.on_key(key(KeyCode::Enter), 100);
+    assert_eq!(app.input.value, "/agent ");
+    assert_eq!(app.focus, Focus::Composer);
+    assert!(
+        !app.table.typing,
+        "the filter still takes typing after the palette moved the keys to the composer"
+    );
+    app.paste("codex");
+    assert_eq!(app.input.value, "/agent codex");
+}
+
+#[tokio::test]
+async fn home_wins_over_a_record_remembered_from_a_live_update() {
+    let run = mock_run("Create a greeting", |_| {}).await;
+    let mut app = run.app();
+    app.load_session(&run.session).unwrap();
+    app.active = true;
+    let mut running = app.tasks[0].clone();
+    running.state = TaskState::Running;
+    let mut second = running.clone();
+    second.id = new_id();
+    second.title = "A second task".into();
+    second.state = TaskState::Ready;
+    app.event(UiEvent::Task(running.clone()));
+    app.event(UiEvent::Task(second.clone()));
+    app.command("/tasks", 100);
+    let width = app.page_width(100);
+    // S twice sorts STATE descending: running before ready.
+    app.on_key(key(KeyCode::Char('S')), 100);
+    app.on_key(key(KeyCode::Char('S')), 100);
+    for _ in 0..20 {
+        if app.selected_item(100).unwrap().key == second.id {
+            break;
+        }
+        app.on_key(key(KeyCode::Down), 100);
+    }
+    assert_eq!(app.selected_item(100).unwrap().key, second.id);
+
+    // An event after the last frame leaves the selected record remembered, then Home arrives.
+    let mut blocked = second.clone();
+    blocked.state = TaskState::Blocked;
+    app.event(UiEvent::Task(blocked));
+    app.on_key(key(KeyCode::Home), 100);
+    let rows = row_keys(&mut app, width);
+    assert_ne!(
+        rows[0], second.id,
+        "the record leads the page, so this proves nothing"
+    );
+    assert_eq!(
+        app.selected_item(100).unwrap().key,
+        rows[0],
+        "a record remembered from the update took the selection back from Home"
+    );
+    app.on_key(key(KeyCode::End), 100);
+    assert_eq!(&app.selected_item(100).unwrap().key, rows.last().unwrap());
+}

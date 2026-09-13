@@ -3519,14 +3519,18 @@ const WHAT_LIMITS_ARE: &[&str] = &[
 ];
 
 /// A value that opens with a figure, such as `300 s` or `4 member(s)`, ordered by that figure so
-/// that 4 comes before 12. Any other value is ordered as text.
+/// that 4 comes before 12. A value recorded as unknown is ordered as unknown, after every known
+/// value in either direction. Any other value is ordered as text, including `none`, which may
+/// mean that no bound was set rather than that one is not known.
 fn value_cell(value: impl Into<String>, style: Style) -> Cell {
     let value = value.into();
+    let unknown = value == "unknown" || value.starts_with("unknown ");
     let digits: String = value.chars().take_while(char::is_ascii_digit).collect();
     let figure = digits.parse::<i128>().ok();
     let cell = Cell::text(value, style);
     match figure {
         Some(figure) => cell.sorted_by(SortKey::Number(figure)),
+        None if unknown => cell.sorted_by(SortKey::Unknown),
         None => cell,
     }
 }
@@ -6172,6 +6176,22 @@ fn proposed_actor_words(ctx: &Ctx, proposal: &BoardProposal, agent: &str) -> Str
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_value_recorded_as_unknown_sorts_as_unknown_and_none_stays_a_value() {
+        let style = Style::default();
+        assert_eq!(value_cell("300 s", style).sort, SortKey::Number(300));
+        assert_eq!(value_cell("unknown", style).sort, SortKey::Unknown);
+        assert_eq!(
+            value_cell("unknown over 3 turn(s)", style).sort,
+            SortKey::Unknown
+        );
+        assert_eq!(value_cell("none", style).sort, SortKey::Text("none".into()));
+        assert_eq!(
+            value_cell("unknown over 3 turn(s)", style).plain(),
+            "unknown over 3 turn(s)"
+        );
+    }
 
     fn painted(lines: &[Line<'static>]) -> Vec<String> {
         lines
