@@ -158,6 +158,10 @@ pub struct Markers {
     pub unknown: &'static str,
     /// A figure that can still grow, because something it counts is not finished.
     pub growing: &'static str,
+    /// Beside the title of a column sorted in ascending order.
+    pub ascending: &'static str,
+    /// Beside the title of a column sorted in descending order.
+    pub descending: &'static str,
     pub spinner: [&'static str; 4],
 }
 
@@ -181,6 +185,8 @@ pub const UNICODE: Markers = Markers {
     paused: "⏸",
     unknown: "—",
     growing: "+",
+    ascending: "↑",
+    descending: "↓",
     spinner: ["⠋", "⠙", "⠹", "⠸"],
 };
 
@@ -204,6 +210,8 @@ pub const ASCII: Markers = Markers {
     paused: "||",
     unknown: "-",
     growing: "+",
+    ascending: "^",
+    descending: "v",
     spinner: ["|", "/", "-", "\\"],
 };
 

@@ -26,6 +26,7 @@ mod prefs;
 mod provenance;
 mod sidebar;
 mod state;
+mod table;
 mod terminal;
 mod text;
 mod theme;

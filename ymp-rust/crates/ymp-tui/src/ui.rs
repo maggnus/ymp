@@ -8,11 +8,12 @@ use crate::exit;
 use crate::frame::{self, ModalRole, ModalSpec};
 use crate::sidebar;
 use crate::state::{App, Focus, Overlay, PromptTarget};
+use crate::table::{self, Cell, Column};
 use crate::text;
 use crate::theme::{self, Theme};
 use crate::transcript;
 use crate::usage;
-use crate::views::{self, ItemKind, View};
+use crate::views::{self, ItemKind, Page, View};
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::Style;
 use ratatui::text::{Line, Span};
@@ -20,6 +21,10 @@ use ratatui::Frame;
 
 /// The tallest the composer may grow before it starts scrolling.
 const COMPOSER_MAX: u16 = 5;
+
+/// Keys every page table answers, named after a page's own keys.
+const TABLE_HINTS: [(&str, &str); 3] =
+    [("/", "filter"), ("Shift+letter", "sort"), ("d", "inspect")];
 
 /// Draw the whole interface. The single entry point the event loop calls.
 pub fn render(frame: &mut Frame, app: &mut App) {
@@ -284,8 +289,18 @@ fn hints(
             ("Esc", "composer"),
         ],
         (_, Focus::Composer) => vec![("Enter", "send"), ("Tab", "focus"), ("Esc", "back")],
-        (_, Focus::Main) if !page_hints.is_empty() => page_hints.to_vec(),
-        (_, _) => vec![("Enter", "open"), ("Esc", "back"), ("Tab", "focus")],
+        (_, Focus::Main) if app.table.typing => {
+            vec![("type", "filter"), ("Enter", "keep"), ("Esc", "clear")]
+        }
+        (_, Focus::Main) => {
+            let mut hints = if page_hints.is_empty() {
+                vec![("Enter", "open"), ("Esc", "back"), ("Tab", "focus")]
+            } else {
+                page_hints.to_vec()
+            };
+            hints.extend(TABLE_HINTS);
+            hints
+        }
     }
 }
 
@@ -474,14 +489,17 @@ fn page_view(frame: &mut Frame, area: Rect, app: &mut App) {
     }
     let theme = app.theme;
     let focused = app.focus == Focus::Main;
-    // One width for the whole page: the rows, the detail pane and the empty state all land
-    // in rects of exactly this width, so nothing is wrapped wider than the rect it reaches.
+    // One width for the whole page: the tables and the empty state land in rects of exactly
+    // this width, so nothing is laid out wider than the rect it reaches.
     let inner_width = frame::page_content_width(area.width);
     // Building the page can move the selection onto the first selectable row, so the frame
     // reads the selection afterwards. Otherwise the first frame would paint a selection the
-    // keyboard has already left, and the detail of the selected row would be missing from it.
+    // keyboard has already left.
     app.page(inner_width);
     let selected = app.page_selected;
+    let filter = app.table.filter.clone();
+    let typing = app.table.typing;
+    let unfiltered = app.table.unfiltered;
 
     let split = Layout::default()
         .direction(Direction::Vertical)
@@ -492,52 +510,59 @@ fn page_view(frame: &mut Frame, area: Rect, app: &mut App) {
         ])
         .split(area);
 
-    let (title, command, subtitle, rows, detail, selected_row, empty, selectable) = {
+    let (title, command, subtitle, lines, headers, selected_line, empty, selectable, shown) = {
         let page = app.page(inner_width);
-        let mut rows: Vec<Line<'static>> = Vec::new();
-        let mut selected_row = 0usize;
-        for (index, item) in page.items.iter().enumerate() {
-            let is_selected = index == selected && item.kind == ItemKind::Row;
-            if is_selected {
-                selected_row = rows.len();
-            }
-            rows.push(item_line(
-                item,
-                inner_width as usize,
-                &theme,
-                is_selected,
-                focused,
-            ));
-        }
-        let detail = page
-            .items
-            .get(selected)
-            .filter(|item| item.kind == ItemKind::Row)
-            .map(|item| item.detail.clone())
-            .unwrap_or_default();
+        let (lines, headers, selected_line) =
+            table_lines(page, inner_width as usize, &theme, selected, focused);
         (
             page.title.clone(),
             page.view.command(),
             page.subtitle.clone(),
-            rows,
-            detail,
-            selected_row,
+            lines,
+            headers,
+            selected_line,
             page.empty.clone(),
             page.selectable(),
+            page.items
+                .iter()
+                .filter(|item| item.kind == ItemKind::Row)
+                .count(),
         )
     };
 
+    // The page's name, then the filter and how many rows are shown, as k9s writes them:
+    // `Tasks</word>[3]`.
+    let mut left = vec![
+        Span::styled(" ".to_owned(), theme.faint()),
+        Span::styled(title, theme.accent_bold()),
+    ];
+    if !filter.is_empty() {
+        left.push(Span::styled(format!("</{filter}>"), theme.accent()));
+    }
+    if unfiltered > 0 {
+        left.push(Span::styled(format!("[{shown}]"), theme.muted()));
+    }
+    left.push(Span::styled(format!("  {command}"), theme.faint()));
     frame::header(
         frame,
         split[0],
-        vec![
-            Span::styled(" ".to_owned(), theme.faint()),
-            Span::styled(title, theme.accent_bold()),
-            Span::styled(format!("  {command}"), theme.faint()),
-        ],
+        left,
         vec![Span::styled(format!("{subtitle} "), theme.muted())],
     );
-    frame::hairline_with(frame, split[1], &theme, theme.border(focused));
+    if typing {
+        frame::row(
+            frame,
+            split[1],
+            vec![
+                Span::styled(" / ".to_owned(), theme.accent_bold()),
+                Span::styled(filter.clone(), theme.text()),
+                Span::styled(" ".to_owned(), theme.selected()),
+            ],
+            frame::key_hints(&[("Enter", "keep"), ("Esc", "clear")], &theme),
+        );
+    } else {
+        frame::hairline_with(frame, split[1], &theme, theme.border(focused));
+    }
     let body = split[2];
 
     if !selectable {
@@ -547,95 +572,143 @@ fn page_view(frame: &mut Frame, area: Rect, app: &mut App) {
             width: inner_width,
             height: body.height.saturating_sub(1),
         };
-        frame::paint(frame, inset, if empty.is_empty() { rows } else { empty });
+        let shown = if !filter.trim().is_empty() && unfiltered > 0 {
+            // The filter removed every row. The page's own empty state would say there is
+            // nothing here at all, which is not what happened.
+            vec![
+                Line::from(Span::styled(
+                    format!("Nothing on this page matches /{filter}"),
+                    theme.text(),
+                )),
+                Line::from(Span::styled(
+                    "Esc clears the filter.".to_owned(),
+                    theme.faint(),
+                )),
+            ]
+        } else if empty.is_empty() {
+            lines
+        } else {
+            empty
+        };
+        frame::paint(frame, inset, shown);
         app.viewport.height = body.height as usize;
         return;
     }
 
-    let detail_height = if detail.is_empty() || body.height < 12 {
-        0
-    } else {
-        (detail.len() as u16 + 1).min(body.height / 2).max(2)
-    };
-    let list_height = body.height.saturating_sub(detail_height);
+    // The tables take the whole page. A row's full record opens in a popup.
     let list_area = Rect {
         x: body.x + 1,
         y: body.y,
-        // The marker column is the row's own indent. The width is the page width, so a row
-        // keeps the same right margin the detail pane below it has.
         width: inner_width,
-        height: list_height,
+        height: body.height,
     };
-
-    let visible = list_height as usize;
-    let mut top = app.page_top.min(rows.len().saturating_sub(1));
-    if selected_row < top {
-        top = selected_row;
-    } else if visible > 0 && selected_row >= top + visible {
-        top = selected_row + 1 - visible;
+    let visible = body.height as usize;
+    let mut top = app.page_top.min(lines.len().saturating_sub(1));
+    if selected_line < top {
+        top = selected_line;
+    } else if visible > 0 && selected_line >= top + visible {
+        top = selected_line + 1 - visible;
+    }
+    // Column titles stay on screen, as in k9s. When the titles of the table under the top line
+    // have scrolled away they are painted over that line, so the view keeps the selected row
+    // below them.
+    let covered = |top: usize| {
+        headers
+            .get(top)
+            .copied()
+            .flatten()
+            .filter(|header| *header < top)
+    };
+    if top > 0 && selected_line == top && covered(top).is_some() {
+        top -= 1;
     }
     app.page_top = top;
     app.viewport.height = visible;
-    frame::paint(
-        frame,
-        list_area,
-        rows.into_iter().skip(top).take(visible).collect(),
-    );
-
-    if detail_height > 0 {
-        let rule = Rect {
-            x: body.x,
-            y: body.y + list_height,
-            width: body.width,
-            height: 1,
-        };
-        frame::hairline(frame, rule, &theme);
-        // Two columns of indent on each side: exactly the width the page wrapped for.
-        let detail_area = Rect {
-            x: body.x + frame::PAGE_INSET,
-            y: rule.y + 1,
-            width: inner_width,
-            height: detail_height.saturating_sub(1),
-        };
-        frame::paint(frame, detail_area, detail);
+    let mut shown: Vec<Line<'static>> = lines.iter().skip(top).take(visible).cloned().collect();
+    if let (Some(header), Some(first)) = (covered(top), shown.first_mut()) {
+        *first = lines[header].clone();
     }
+    frame::paint(frame, list_area, shown);
 }
 
-fn item_line(
-    item: &views::Item,
+/// Lay out a page's tables: for each its title, its column titles and its rows.
+///
+/// Also returns, for every line, the line holding the column titles of the table it belongs to,
+/// and the line of the selected row.
+fn table_lines(
+    page: &Page,
     width: usize,
     theme: &Theme,
-    selected: bool,
+    selected: usize,
     focused: bool,
-) -> Line<'static> {
-    if item.kind == ItemKind::Heading {
-        let mut left = vec![Span::raw("  ".to_owned())];
-        left.extend(item.left.iter().cloned());
-        return text::row(width, left, Vec::new());
+) -> (Vec<Line<'static>>, Vec<Option<usize>>, usize) {
+    let mut lines: Vec<Line<'static>> = Vec::new();
+    let mut headers: Vec<Option<usize>> = Vec::new();
+    let mut selected_line = 0usize;
+    let mut table: Option<(usize, Vec<Option<usize>>)> = None;
+    let mut header: Option<usize> = None;
+    // Cells after the selection marker. The widths leave that marker its room, so a row is
+    // never wider than the page and nothing is cut at its edge.
+    let body = width.saturating_sub(table::MARKER);
+    for (index, item) in page.items.iter().enumerate() {
+        match item.kind {
+            ItemKind::Heading => {
+                if !lines.is_empty() {
+                    lines.push(Line::default());
+                    headers.push(None);
+                }
+                if !item.title.is_empty() {
+                    lines.push(Line::from(vec![
+                        Span::raw("  ".to_owned()),
+                        Span::styled(
+                            text::truncate(&item.title.to_uppercase(), body),
+                            theme.muted(),
+                        ),
+                    ]));
+                    headers.push(None);
+                }
+                let cells: Vec<&[Cell]> = page.items[index + 1..]
+                    .iter()
+                    .take_while(|row| row.kind == ItemKind::Row)
+                    .map(|row| row.cells.as_slice())
+                    .collect();
+                let widths = table::widths(&item.columns, &cells, item.sort, body);
+                header = (!item.columns.is_empty()).then_some(lines.len());
+                if header.is_some() {
+                    lines.push(table::header(
+                        &item.columns,
+                        &widths,
+                        &item.sort_keys,
+                        item.sort,
+                        theme,
+                    ));
+                    headers.push(header);
+                }
+                table = Some((index, widths));
+            }
+            ItemKind::Row => {
+                let is_selected = index == selected;
+                if is_selected {
+                    selected_line = lines.len();
+                }
+                let (columns, widths): (&[Column], &[Option<usize>]) = match &table {
+                    Some((heading, widths)) => (&page.items[*heading].columns, widths),
+                    None => (&[], &[]),
+                };
+                lines.push(table::row(
+                    columns,
+                    widths,
+                    &item.cells,
+                    width,
+                    theme,
+                    is_selected,
+                    focused,
+                ));
+                headers.push(header);
+            }
+        }
     }
-    let marker = if selected && focused {
-        theme.markers.selection
-    } else if selected {
-        theme.markers.activity
-    } else {
-        " "
-    };
-    let style: Option<Style> = (selected && focused).then(|| theme.selected());
-    let restyle = |spans: &Vec<Span<'static>>| -> Vec<Span<'static>> {
-        spans
-            .iter()
-            .map(|span| match style {
-                Some(selected) => Span::styled(span.content.clone(), selected),
-                None => span.clone(),
-            })
-            .collect()
-    };
-    let mut left = vec![Span::styled(
-        format!("{marker} "),
-        style.unwrap_or_else(|| theme.accent()),
-    )];
-    left.extend(restyle(&item.left));
-    text::row(width, left, restyle(&item.right))
+    (lines, headers, selected_line)
 }
 
 // ---------------------------------------------------------------------------

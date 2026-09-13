@@ -303,8 +303,17 @@ pub const KEYS: &[(&str, &str)] = &[
     ("Ctrl+P", "Open the command palette"),
     (
         "Esc",
-        "Close the topmost surface, then return focus to the composer",
+        "Close the topmost surface, clear a page filter, then return focus to the composer",
     ),
+    (
+        "/",
+        "Filter the rows of the open page; a leading ! keeps the others",
+    ),
+    (
+        "Shift+letter",
+        "Sort a page table by the column whose underlined letter it is",
+    ),
+    ("d", "Inspect the selected page row"),
     (
         "Up / Down",
         "Move the selection, or recall composer history",

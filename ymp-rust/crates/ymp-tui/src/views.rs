@@ -11,6 +11,7 @@
 use crate::commands::{self, Group};
 use crate::label;
 use crate::provenance::{Acceptance, Pool, Records};
+use crate::table::{Cell, Column, Sort, SortKey};
 use crate::text;
 use crate::theme::Theme;
 use crate::usage::{self, Stats};
@@ -112,9 +113,17 @@ impl View {
     pub fn reads_pool(self) -> bool {
         matches!(self, View::Team | View::Agents | View::Providers)
     }
+
+    /// Upper-case letters this page already answers, which no column may take as its sort key.
+    pub fn sort_reserved(self) -> &'static [char] {
+        match self {
+            View::Agents | View::Providers => &['R'],
+            _ => &[],
+        }
+    }
 }
 
-/// A row on a page. Headings are shown but never selected.
+/// A row on a page, or a heading that opens a table. Headings are shown but never selected.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ItemKind {
     Row,
@@ -126,37 +135,67 @@ pub struct Item {
     pub kind: ItemKind,
     /// Identifier the page actions use: an agent id, a task id, a command name.
     pub key: String,
-    pub left: Vec<Span<'static>>,
-    pub right: Vec<Span<'static>>,
+    /// A heading's title, as the page names its table. It may be empty.
+    pub title: String,
+    /// A heading's columns. The rows under it carry one cell for each.
+    pub columns: Vec<Column>,
+    /// A row's cells. A single cell under several columns is a note that spans its table.
+    pub cells: Vec<Cell>,
+    /// Everything the row stands for, read in full with Inspect.
     pub detail: Vec<Line<'static>>,
+    /// Set on a heading when the page is arranged: the order its table is in.
+    pub sort: Option<Sort>,
+    /// Set on a heading when the page is arranged: the letter that sorts by each column.
+    pub sort_keys: Vec<Option<char>>,
 }
 
 impl Item {
-    pub fn row(key: impl Into<String>, left: Vec<Span<'static>>) -> Self {
+    pub fn row(key: impl Into<String>, cells: Vec<Cell>) -> Self {
         Self {
             kind: ItemKind::Row,
             key: key.into(),
-            left,
-            right: Vec::new(),
+            title: String::new(),
+            columns: Vec::new(),
+            cells,
             detail: Vec::new(),
+            sort: None,
+            sort_keys: Vec::new(),
         }
     }
-    pub fn with_right(mut self, right: Vec<Span<'static>>) -> Self {
-        self.right = right;
-        self
+
+    /// A row that is a sentence rather than a record. It spans the table it is in.
+    pub fn note(key: impl Into<String>, spans: Vec<Span<'static>>) -> Self {
+        Self::row(key, vec![Cell::spans(spans)])
     }
+
     pub fn with_detail(mut self, detail: Vec<Line<'static>>) -> Self {
         self.detail = detail;
         self
     }
-    pub fn heading(text: impl Into<String>, theme: &Theme) -> Self {
+
+    /// A heading that opens a table with these columns.
+    pub fn table(title: impl Into<String>, columns: &[Column]) -> Self {
         Self {
             kind: ItemKind::Heading,
             key: String::new(),
-            left: vec![Span::styled(text.into().to_uppercase(), theme.muted())],
-            right: Vec::new(),
+            title: title.into(),
+            columns: columns.to_vec(),
+            cells: Vec::new(),
             detail: Vec::new(),
+            sort: None,
+            sort_keys: Vec::new(),
         }
+    }
+
+    /// What a row reads as: its cells in order, empty ones left out.
+    #[cfg(test)]
+    pub fn text(&self) -> String {
+        self.cells
+            .iter()
+            .map(Cell::plain)
+            .filter(|text| !text.trim().is_empty())
+            .collect::<Vec<_>>()
+            .join(" · ")
     }
 }
 
@@ -353,11 +392,14 @@ fn yes_no(value: bool, theme: &Theme) -> Span<'static> {
 // Pages
 // ---------------------------------------------------------------------------
 
+const COMMAND_COLUMNS: [Column; 2] = [Column::left("COMMAND"), Column::left("SUMMARY").flex()];
+const KEY_COLUMNS: [Column; 2] = [Column::left("KEY"), Column::left("ACTION").flex()];
+
 fn help(ctx: &Ctx) -> Page {
     let theme = ctx.theme;
     let mut items = Vec::new();
     for group in Group::all() {
-        items.push(Item::heading(group.title(), theme));
+        items.push(Item::table(group.title(), &COMMAND_COLUMNS));
         for command in commands::COMMANDS.iter().filter(|c| c.group == *group) {
             let mut detail = field(theme, "usage", command.usage, ctx.width);
             detail.push(Line::default());
@@ -365,22 +407,26 @@ fn help(ctx: &Ctx) -> Page {
             items.push(
                 Item::row(
                     command.name,
-                    vec![Span::styled(command.name.to_owned(), theme.accent())],
+                    vec![
+                        Cell::text(command.name, theme.accent()),
+                        Cell::text(command.summary, theme.muted()),
+                    ],
                 )
-                .with_right(vec![Span::styled(
-                    text::truncate(command.summary, ctx.width / 2),
-                    theme.muted(),
-                )])
                 .with_detail(detail),
             );
         }
     }
-    items.push(Item::heading("Keyboard", theme));
+    items.push(Item::table("Keyboard", &KEY_COLUMNS));
     for (key, description) in commands::KEYS {
         items.push(
-            Item::row(*key, vec![Span::styled((*key).to_owned(), theme.accent())])
-                .with_right(vec![Span::styled((*description).to_owned(), theme.muted())])
-                .with_detail(paragraph(theme, description, ctx.width)),
+            Item::row(
+                *key,
+                vec![
+                    Cell::text(*key, theme.accent()),
+                    Cell::text(*description, theme.muted()),
+                ],
+            )
+            .with_detail(paragraph(theme, description, ctx.width)),
         );
     }
     Page {
@@ -396,9 +442,17 @@ fn help(ctx: &Ctx) -> Page {
     }
 }
 
+const TASK_COLUMNS: [Column; 5] = [
+    Column::left(""),
+    Column::left("TITLE").flex(),
+    Column::left("STATE"),
+    Column::left("GRADE").hide(2),
+    Column::left("RESPONSIBLE").hide(1),
+];
+
 fn tasks(ctx: &Ctx) -> Page {
     let theme = ctx.theme;
-    let items = ctx
+    let rows = ctx
         .tasks
         .iter()
         .map(|task| {
@@ -499,35 +553,38 @@ fn tasks(ctx: &Ctx) -> Page {
                 theme.muted(),
             )));
             detail.extend(acceptance_lines(ctx, task));
-            let grade = ctx.records.acceptance(&task.id);
+            let grade = match ctx.records.acceptance(&task.id) {
+                Some(acceptance) => Cell::text(
+                    grade_word(&acceptance),
+                    if acceptance.confirmed() {
+                        theme.good()
+                    } else {
+                        theme.info()
+                    },
+                ),
+                None => Cell::empty(),
+            };
             Item::row(
                 task.id.clone(),
                 vec![
-                    Span::styled(format!("{marker} "), style),
-                    Span::styled(task.title.clone(), theme.text()),
+                    Cell::text(marker, style),
+                    Cell::text(text::one_line(&task.title), theme.text()),
+                    Cell::text(word, style),
+                    grade,
+                    Cell::text(
+                        responsibility_or_assignee(ctx, task, &assignee),
+                        theme.faint(),
+                    ),
                 ],
             )
-            .with_right(vec![
-                Span::styled(format!("{word}  "), style),
-                Span::styled(
-                    match &grade {
-                        Some(acceptance) => format!("{}  ", grade_word(acceptance)),
-                        None => String::new(),
-                    },
-                    match &grade {
-                        Some(acceptance) if acceptance.confirmed() => theme.good(),
-                        Some(_) => theme.info(),
-                        None => theme.muted(),
-                    },
-                ),
-                Span::styled(
-                    responsibility_or_assignee(ctx, task, &assignee),
-                    theme.faint(),
-                ),
-            ])
             .with_detail(detail)
         })
         .collect::<Vec<_>>();
+    let mut items = Vec::new();
+    if !rows.is_empty() {
+        items.push(Item::table("", &TASK_COLUMNS));
+    }
+    items.extend(rows);
     let items = board_items(ctx, items);
     let accepted = ctx
         .tasks
@@ -622,16 +679,19 @@ fn tokens(ctx: &Ctx) -> Page {
             detail.push(Line::default());
             detail.extend(hint(theme, note, prose));
         }
-        items.push(Item::heading("Session", theme));
+        items.push(Item::table("Session", &SESSION_TOKEN_COLUMNS));
         items.push(
             Item::row(
                 "session",
-                vec![Span::styled("session total".to_owned(), theme.text())],
+                vec![
+                    Cell::text("session total", theme.text()),
+                    token_cell(
+                        usage::headline(total, theme),
+                        total,
+                        usage::headline_style(total, theme),
+                    ),
+                ],
             )
-            .with_right(vec![Span::styled(
-                usage::headline(total, theme),
-                usage::headline_style(total, theme),
-            )])
             .with_detail(detail),
         );
 
@@ -639,14 +699,17 @@ fn tokens(ctx: &Ctx) -> Page {
         let mut heading = false;
         for row in rows.iter().filter(|row| !row.outside_team) {
             if !std::mem::replace(&mut heading, true) {
-                items.push(Item::heading("Agents", theme));
+                items.push(Item::table("Agents", &AGENT_TOKEN_COLUMNS));
             }
             items.push(agent_usage(ctx, row));
         }
         let mut heading = false;
         for row in rows.iter().filter(|row| row.outside_team) {
             if !std::mem::replace(&mut heading, true) {
-                items.push(Item::heading("Recorded outside the captured team", theme));
+                items.push(Item::table(
+                    "Recorded outside the captured team",
+                    &AGENT_TOKEN_COLUMNS,
+                ));
             }
             items.push(agent_usage(ctx, row));
         }
@@ -725,16 +788,38 @@ fn agent_usage(ctx: &Ctx, row: &usage::AgentUsage) -> Item {
         "Counters belong to the agent, not to the provider it runs on. Two agents that share a provider are counted apart.",
         prose,
     ));
-    let mut left = vec![Span::styled(presented_name(ctx, &row.id), theme.text())];
-    if !row.provider.is_empty() {
-        left.push(Span::styled(format!(" · {}", row.provider), theme.faint()));
-    }
-    Item::row(row.id.clone(), left)
-        .with_right(vec![Span::styled(
-            usage::agent_headline(row, theme),
-            usage::agent_headline_style(row, theme),
-        )])
-        .with_detail(detail)
+    Item::row(
+        row.id.clone(),
+        vec![
+            Cell::text(presented_name(ctx, &row.id), theme.text()),
+            Cell::text(row.provider.clone(), theme.faint()),
+            token_cell(
+                usage::agent_headline(row, theme),
+                totals,
+                usage::agent_headline_style(row, theme),
+            ),
+        ],
+    )
+    .with_detail(detail)
+}
+
+const SESSION_TOKEN_COLUMNS: [Column; 2] = [Column::left("SCOPE").flex(), Column::right("TOKENS")];
+const AGENT_TOKEN_COLUMNS: [Column; 3] = [
+    Column::left("AGENT").flex(),
+    Column::left("PROVIDER").hide(1),
+    Column::right("TOKENS"),
+];
+
+/// A token figure as its headline reads, ordered by the tokens reported. A figure nobody
+/// reported is ordered as unknown rather than as zero.
+fn token_cell(display: String, totals: Option<&UsageTotals>, style: Style) -> Cell {
+    Cell::number(
+        display,
+        totals
+            .and_then(|totals| totals.known_total())
+            .map(i128::from),
+        style,
+    )
 }
 
 /// Say what the open invocations mean, when there are any.
@@ -766,11 +851,26 @@ fn hint(theme: &Theme, body: &str, width: usize) -> Vec<Line<'static>> {
         .collect()
 }
 
+const SESSION_COLUMNS: [Column; 5] = [
+    Column::left("SESSION"),
+    Column::left("TITLE").flex(),
+    Column::left("STATUS"),
+    Column::right("TURNS").hide(2),
+    Column::left("CREATED").hide(1),
+];
+
+/// A recorded time to the minute, which is what tells two sessions apart in a list.
+fn stamp(timestamp: &str) -> String {
+    timestamp
+        .get(..16)
+        .map_or_else(|| timestamp.to_owned(), |minute| minute.replace('T', " "))
+}
+
 fn sessions(ctx: &Ctx) -> anyhow::Result<Page> {
     let theme = ctx.theme;
     let project = ctx.store.project(ctx.cwd)?;
     let sessions: Vec<Session> = ctx.store.sessions(Some(&project.id))?;
-    let items = sessions
+    let rows = sessions
         .iter()
         .map(|session| {
             let (status, style) = session_status(&session.status, theme);
@@ -827,22 +927,36 @@ fn sessions(ctx: &Ctx) -> anyhow::Result<Page> {
                 "r continues the run, which does start agents.".to_owned(),
                 theme.muted(),
             )));
-            let mut left = vec![Span::styled(
-                format!("{} ", text::short_id(&session.id)),
-                theme.faint(),
-            )];
-            left.push(Span::styled(
+            let mut title = vec![Span::styled(
                 text::one_line(&session.title),
                 if current { theme.bold() } else { theme.text() },
-            ));
+            )];
             if current {
-                left.push(Span::styled(" · loaded".to_owned(), theme.accent()));
+                title.push(Span::styled(" · loaded".to_owned(), theme.accent()));
             }
-            Item::row(session.id.clone(), left)
-                .with_right(vec![Span::styled(status, style)])
-                .with_detail(detail)
+            Item::row(
+                session.id.clone(),
+                vec![
+                    Cell::text(text::short_id(&session.id), theme.faint()),
+                    Cell::spans(title),
+                    Cell::text(status, style),
+                    Cell::number(
+                        session.turns_used.to_string(),
+                        Some(session.turns_used as i128),
+                        theme.muted(),
+                    ),
+                    Cell::text(stamp(&session.created_at), theme.faint())
+                        .sorted_by(SortKey::Text(session.created_at.clone())),
+                ],
+            )
+            .with_detail(detail)
         })
         .collect::<Vec<_>>();
+    let mut items = Vec::new();
+    if !rows.is_empty() {
+        items.push(Item::table("", &SESSION_COLUMNS));
+    }
+    items.extend(rows);
     Ok(Page {
         view: View::Sessions,
         title: View::Sessions.title().into(),
@@ -876,7 +990,7 @@ fn files(ctx: &Ctx) -> anyhow::Result<Page> {
         entries.push((metadata.is_dir(), name, metadata));
     }
     entries.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| a.1.cmp(&b.1)));
-    let items = entries
+    let rows = entries
         .iter()
         .map(|(is_dir, name, metadata)| {
             let path = ctx.cwd.join(name);
@@ -892,30 +1006,40 @@ fn files(ctx: &Ctx) -> anyhow::Result<Page> {
             }
             Item::row(
                 path.display().to_string(),
-                vec![Span::styled(
+                vec![
+                    Cell::text(
+                        if *is_dir {
+                            format!("{name}/")
+                        } else {
+                            name.clone()
+                        },
+                        if *is_dir {
+                            theme.accent()
+                        } else {
+                            theme.text()
+                        },
+                    ),
+                    Cell::text(if *is_dir { "directory" } else { "file" }, theme.faint()),
+                    // A directory has no size of its own, so it sorts after every file.
                     if *is_dir {
-                        format!("{name}/")
+                        Cell::empty()
                     } else {
-                        name.clone()
+                        Cell::number(
+                            size(metadata.len()),
+                            Some(i128::from(metadata.len())),
+                            theme.faint(),
+                        )
                     },
-                    if *is_dir {
-                        theme.accent()
-                    } else {
-                        theme.text()
-                    },
-                )],
+                ],
             )
-            .with_right(vec![Span::styled(
-                if *is_dir {
-                    "directory".to_owned()
-                } else {
-                    size(metadata.len())
-                },
-                theme.faint(),
-            )])
             .with_detail(detail)
         })
         .collect::<Vec<_>>();
+    let mut items = Vec::new();
+    if !rows.is_empty() {
+        items.push(Item::table("", &FILE_COLUMNS));
+    }
+    items.extend(rows);
     Ok(Page {
         view: View::Files,
         title: View::Files.title().into(),
@@ -930,6 +1054,12 @@ fn files(ctx: &Ctx) -> anyhow::Result<Page> {
         hints: vec![("Enter", "show the full path"), ("Esc", "back")],
     })
 }
+
+const FILE_COLUMNS: [Column; 3] = [
+    Column::left("NAME").flex(),
+    Column::left("KIND").hide(1),
+    Column::right("SIZE"),
+];
 
 fn size(bytes: u64) -> String {
     const UNITS: &[&str] = &["B", "kB", "MB", "GB"];
@@ -967,6 +1097,13 @@ const WHAT_WAS_RECORDED: &str =
      earlier content exists only where the working directory's own version control or a \
      backup already kept it.";
 
+const CHANGE_COLUMNS: [Column; 2] = [Column::left("PATH").flex(), Column::left("STATUS")];
+const OUTCOME_COLUMNS: [Column; 3] = [
+    Column::left(""),
+    Column::left("RESULT").flex(),
+    Column::left("STATE"),
+];
+
 fn changes(ctx: &Ctx) -> anyhow::Result<Page> {
     let theme = ctx.theme;
     let mut rows = Vec::new();
@@ -999,9 +1136,11 @@ fn changes(ctx: &Ctx) -> anyhow::Result<Page> {
                     ctx.width,
                 ));
                 rows.push(
-                    Item::row(path.clone(), vec![Span::styled(path.clone(), theme.text())])
-                        .with_right(vec![Span::styled(status, style)])
-                        .with_detail(detail),
+                    Item::row(
+                        path.clone(),
+                        vec![Cell::text(path, theme.text()), Cell::text(status, style)],
+                    )
+                    .with_detail(detail),
                 );
             }
         }
@@ -1023,11 +1162,14 @@ fn changes(ctx: &Ctx) -> anyhow::Result<Page> {
         items.push(recovery_row(ctx));
     }
     if !rows.is_empty() {
-        items.push(Item::heading("Recorded changes", theme));
+        items.push(Item::table("Recorded changes", &CHANGE_COLUMNS));
         items.append(&mut rows);
     }
     if !outcomes.is_empty() {
-        items.push(Item::heading("Where accepted work was recorded", theme));
+        items.push(Item::table(
+            "Where accepted work was recorded",
+            &OUTCOME_COLUMNS,
+        ));
         items.append(&mut outcomes);
     }
     Ok(Page {
@@ -1079,7 +1221,7 @@ fn recovery_row(ctx: &Ctx) -> Item {
     }
     detail.push(Line::default());
     detail.extend(recovery_lines(ctx));
-    Item::row(
+    Item::note(
         "recovery",
         vec![
             Span::styled(format!("{} ", theme.markers.notice), theme.info()),
@@ -1087,12 +1229,9 @@ fn recovery_row(ctx: &Ctx) -> Item {
                 "How this directory is used, and what cannot be put back".to_owned(),
                 theme.text(),
             ),
+            Span::styled("  direct · metadata only".to_owned(), theme.muted()),
         ],
     )
-    .with_right(vec![Span::styled(
-        "direct · metadata only".to_owned(),
-        theme.muted(),
-    )])
     .with_detail(detail)
 }
 
@@ -1165,24 +1304,18 @@ fn outcome_row(ctx: &Ctx, outcome: &ymp_core::StoredOutcome) -> Item {
     Item::row(
         outcome.result_id.clone(),
         vec![
-            Span::styled(
-                format!(
-                    "{} ",
-                    if outcome.current {
-                        theme.markers.ok
-                    } else {
-                        theme.markers.warn
-                    }
-                ),
+            Cell::text(
+                if outcome.current {
+                    theme.markers.ok
+                } else {
+                    theme.markers.warn
+                },
                 style,
             ),
-            Span::styled(
-                text::truncate(&outcome.summary, ctx.width.saturating_sub(28)),
-                theme.text(),
-            ),
+            Cell::text(text::one_line(&outcome.summary), theme.text()),
+            Cell::text(word, style),
         ],
     )
-    .with_right(vec![Span::styled(word, style)])
     .with_detail(detail)
 }
 
@@ -1199,14 +1332,11 @@ fn unreadable_outcomes_row(ctx: &Ctx, reason: &str) -> Item {
     Item::row(
         "outcome locations",
         vec![
-            Span::styled(format!("{} ", theme.markers.warn), theme.warn()),
-            Span::styled("recorded locations".to_owned(), theme.text()),
+            Cell::text(theme.markers.warn, theme.warn()),
+            Cell::text("recorded locations", theme.text()),
+            Cell::text("could not be read", theme.warn()),
         ],
     )
-    .with_right(vec![Span::styled(
-        "could not be read".to_owned(),
-        theme.warn(),
-    )])
     .with_detail(detail)
 }
 
@@ -1273,11 +1403,14 @@ fn checks(ctx: &Ctx) -> anyhow::Result<Page> {
         items.push(how_checks_run(ctx));
     }
     if !recorded.is_empty() {
-        items.push(Item::heading("Recorded runs", theme));
+        items.push(Item::table("Recorded runs", &RECORDED_CHECK_COLUMNS));
         items.extend(recorded.iter().map(|run| recorded_check(ctx, run)));
     }
     if !planned.is_empty() {
-        items.push(Item::heading("Declared, without a recorded run", theme));
+        items.push(Item::table(
+            "Declared, without a recorded run",
+            &DECLARED_CHECK_COLUMNS,
+        ));
         items.extend(
             planned
                 .iter()
@@ -1351,19 +1484,27 @@ fn how_checks_run(ctx: &Ctx) -> Item {
         }
         detail.extend(paragraph(theme, sentence, ctx.width));
     }
-    Item::row(
+    Item::note(
         "how checks run",
         vec![
             Span::styled(format!("{} ", theme.markers.notice), theme.info()),
             Span::styled("How checks run".to_owned(), theme.text()),
+            Span::styled("  read from the session log".to_owned(), theme.muted()),
         ],
     )
-    .with_right(vec![Span::styled(
-        "read from the session log".to_owned(),
-        theme.muted(),
-    )])
     .with_detail(detail)
 }
+
+const RECORDED_CHECK_COLUMNS: [Column; 3] = [
+    Column::left(""),
+    Column::left("COMMAND").flex(),
+    Column::left("OUTCOME"),
+];
+const DECLARED_CHECK_COLUMNS: [Column; 3] = [
+    Column::left(""),
+    Column::left("COMMAND").flex(),
+    Column::left("STATUS"),
+];
 
 /// Lines of recorded output shown before the rest is left to the full record.
 const OUTPUT_LINES: usize = 80;
@@ -1439,14 +1580,11 @@ fn recorded_check(ctx: &Ctx, run: &CheckRun) -> Item {
     Item::row(
         command.clone(),
         vec![
-            Span::styled(format!("{marker} "), style),
-            Span::styled(
-                text::truncate(&command, ctx.width.saturating_sub(24)),
-                theme.text(),
-            ),
+            Cell::text(marker, style),
+            Cell::text(text::one_line(&command), theme.text()),
+            Cell::text(word, style),
         ],
     )
-    .with_right(vec![Span::styled(word.to_owned(), style)])
     .with_detail(detail)
 }
 
@@ -1464,17 +1602,11 @@ fn declared_check(ctx: &Ctx, command: &str, tasks: &[String]) -> Item {
     Item::row(
         command.to_owned(),
         vec![
-            Span::styled(format!("{} ", theme.markers.idle), theme.faint()),
-            Span::styled(
-                text::truncate(command, ctx.width.saturating_sub(24)),
-                theme.muted(),
-            ),
+            Cell::text(theme.markers.idle, theme.faint()),
+            Cell::text(text::one_line(command), theme.muted()),
+            Cell::text("no recorded run", theme.faint()),
         ],
     )
-    .with_right(vec![Span::styled(
-        "no recorded run".to_owned(),
-        theme.faint(),
-    )])
     .with_detail(detail)
 }
 
@@ -1485,6 +1617,30 @@ const WHAT_MEMBERSHIP_MEANS: &[&str] = &[
     "What a session captured stays as captured. An agent that worked in it keeps its place in that record after it leaves the pool, and a profile edited afterwards does not change how the finished session reads.",
     "A role lasts as long as the assignment that created it. Planning, executing and reviewing are what an agent is doing in a turn, never a rank and never a standing permission.",
     "Eligibility below is about this machine: the profile is enabled, its provider is enabled, and the provider's program was found on PATH. Model lists come from the configuration, not from asking a provider. Whether an account may run a model is the installation's own business, and ymp reads no credential to build this page.",
+];
+
+const MEMBER_COLUMNS: [Column; 5] = [
+    Column::left(""),
+    Column::left("AGENT").flex(),
+    Column::left("READING").hide(2),
+    Column::left("PROVIDER").hide(1),
+    Column::left("STATE"),
+];
+const ASIDE_COLUMNS: [Column; 3] = [
+    Column::left(""),
+    Column::left("AGENT").flex(),
+    Column::left("STATE"),
+];
+const ROSTER_COLUMNS: [Column; 3] = [
+    Column::left(""),
+    Column::left("RULE").flex(),
+    Column::left("VALUE"),
+];
+const POOL_COLUMNS: [Column; 4] = [
+    Column::left(""),
+    Column::left("MODEL").flex(),
+    Column::left("PROVIDER"),
+    Column::left("STATE"),
 ];
 
 fn team(ctx: &Ctx) -> Page {
@@ -1502,19 +1658,22 @@ fn team(ctx: &Ctx) -> Page {
     let (current, replaced): (Vec<&AgentProfile>, Vec<&AgentProfile>) = members
         .iter()
         .partition(|profile| ctx.records.in_roster(&profile.id) != Some(false));
-    items.push(Item::heading(
+    items.push(Item::table(
         if ctx.team_captured {
             "Members of this session"
         } else {
             "Members of the next run"
         },
-        theme,
+        &MEMBER_COLUMNS,
     ));
     for profile in &current {
         items.push(member_row(ctx, profile));
     }
     if !replaced.is_empty() {
-        items.push(Item::heading("Captured here, no longer a member", theme));
+        items.push(Item::table(
+            "Captured here, no longer a member",
+            &ASIDE_COLUMNS,
+        ));
         for profile in &replaced {
             items.push(aside_row(ctx, &profile.id, Aside::Replaced));
         }
@@ -1526,15 +1685,15 @@ fn team(ctx: &Ctx) -> Page {
         .filter(|id| !members.iter().any(|member| &member.id == id))
         .collect();
     if !recorded_only.is_empty() {
-        items.push(Item::heading("Worked here, not in this list", theme));
+        items.push(Item::table("Worked here, not in this list", &ASIDE_COLUMNS));
         for id in &recorded_only {
             items.push(aside_row(ctx, id, Aside::RecordsOnly));
         }
     }
-    items.push(Item::heading("How the roster is bounded", theme));
+    items.push(Item::table("How the roster is bounded", &ROSTER_COLUMNS));
     items.push(roster_row(ctx));
     items.push(roster_rules_row(ctx));
-    items.push(Item::heading("Available on this machine", theme));
+    items.push(Item::table("Available on this machine", &POOL_COLUMNS));
     if ctx.pool.agents().is_empty() {
         items.push(pool_unavailable_row(ctx));
     } else {
@@ -2105,25 +2264,22 @@ fn member_row(ctx: &Ctx, profile: &AgentProfile) -> Item {
     Item::row(
         profile.id.clone(),
         vec![
-            Span::styled(
-                format!(
-                    "{} ",
-                    if open > 0 {
-                        theme.markers.busy
-                    } else if turns > 0 {
-                        theme.markers.ok
-                    } else {
-                        theme.markers.idle
-                    }
-                ),
+            Cell::text(
+                if open > 0 {
+                    theme.markers.busy
+                } else if turns > 0 {
+                    theme.markers.ok
+                } else {
+                    theme.markers.idle
+                },
                 style,
             ),
-            Span::styled(label, theme.text()),
-            Span::styled(format!(" · {words}"), theme.muted()),
-            Span::styled(format!(" · {}", profile.provider), theme.faint()),
+            Cell::text(label, theme.text()),
+            Cell::text(words, theme.muted()),
+            Cell::text(profile.provider.clone(), theme.faint()),
+            Cell::text(right, style),
         ],
     )
-    .with_right(vec![Span::styled(right, style)])
     .with_detail(detail)
 }
 
@@ -2192,20 +2348,17 @@ fn aside_row(ctx: &Ctx, id: &str, aside: Aside) -> Item {
     Item::row(
         id.to_owned(),
         vec![
-            Span::styled(
-                format!(
-                    "{} ",
-                    match aside {
-                        Aside::Replaced => theme.markers.notice,
-                        Aside::RecordsOnly => theme.markers.activity,
-                    }
-                ),
+            Cell::text(
+                match aside {
+                    Aside::Replaced => theme.markers.notice,
+                    Aside::RecordsOnly => theme.markers.activity,
+                },
                 style,
             ),
-            Span::styled(presented_name(ctx, id), theme.text()),
+            Cell::text(presented_name(ctx, id), theme.text()),
+            Cell::text(right, style),
         ],
     )
-    .with_right(vec![Span::styled(right, style)])
     .with_detail(detail)
 }
 
@@ -2230,14 +2383,11 @@ fn roster_row(ctx: &Ctx) -> Item {
         return Item::row(
             "roster".to_owned(),
             vec![
-                Span::styled(format!("{} ", theme.markers.idle), theme.faint()),
-                Span::styled("roster".to_owned(), theme.muted()),
+                Cell::text(theme.markers.idle, theme.faint()),
+                Cell::text("roster", theme.muted()),
+                Cell::text("none recorded", theme.faint()),
             ],
         )
-        .with_right(vec![Span::styled(
-            "none recorded".to_owned(),
-            theme.faint(),
-        )])
         .with_detail(detail);
     };
     let mut detail = field(
@@ -2292,18 +2442,18 @@ fn roster_row(ctx: &Ctx) -> Item {
     Item::row(
         "roster".to_owned(),
         vec![
-            Span::styled(format!("{} ", theme.markers.ok), theme.good()),
-            Span::styled("roster".to_owned(), theme.text()),
+            Cell::text(theme.markers.ok, theme.good()),
+            Cell::text("roster", theme.text()),
+            Cell::text(
+                format!(
+                    "{} member(s) · revision {}",
+                    state.current_members.len(),
+                    state.revision
+                ),
+                theme.muted(),
+            ),
         ],
     )
-    .with_right(vec![Span::styled(
-        format!(
-            "{} member(s) · revision {}",
-            state.current_members.len(),
-            state.revision
-        ),
-        theme.muted(),
-    )])
     .with_detail(detail)
 }
 
@@ -2364,11 +2514,11 @@ fn roster_rules_row(ctx: &Ctx) -> Item {
     Item::row(
         "roster rules".to_owned(),
         vec![
-            Span::styled(format!("{} ", theme.markers.bullet), theme.faint()),
-            Span::styled("roster rules".to_owned(), theme.text()),
+            Cell::text(theme.markers.bullet, theme.faint()),
+            Cell::text("roster rules", theme.text()),
+            Cell::text(size, theme.muted()),
         ],
     )
-    .with_right(vec![Span::styled(size, theme.muted())])
     .with_detail(detail)
 }
 
@@ -2398,35 +2548,33 @@ fn pool_row(ctx: &Ctx, agent: &PoolAgent) -> Item {
         "Eligibility says the program is installed and enabled here. It says nothing about authentication, quota or whether a model will accept the turn: only the installation can answer that, and it is asked when a turn runs.",
         ctx.width,
     ));
+    let style = if eligible { theme.good() } else { theme.warn() };
     Item::row(
         agent.profile.id.clone(),
         vec![
-            Span::styled(
-                format!(
-                    "{} ",
-                    if eligible {
-                        theme.markers.ok
-                    } else {
-                        theme.markers.warn
-                    }
-                ),
-                if eligible { theme.good() } else { theme.warn() },
+            Cell::text(
+                if eligible {
+                    theme.markers.ok
+                } else {
+                    theme.markers.warn
+                },
+                style,
             ),
-            Span::styled(
+            Cell::text(
                 label::offering(&agent.identity).unwrap_or_else(|| label::UNKNOWN_MODEL.to_owned()),
                 theme.muted(),
             ),
-            Span::styled(format!(" · {}", agent.profile.provider), theme.faint()),
+            Cell::text(agent.profile.provider.clone(), theme.faint()),
+            Cell::text(
+                if eligible {
+                    "eligible"
+                } else {
+                    exclusion_word(agent.exclusions[0])
+                },
+                style,
+            ),
         ],
     )
-    .with_right(vec![Span::styled(
-        if eligible {
-            "eligible".to_owned()
-        } else {
-            exclusion_word(agent.exclusions[0]).to_owned()
-        },
-        if eligible { theme.good() } else { theme.warn() },
-    )])
     .with_detail(detail)
 }
 
@@ -2452,11 +2600,12 @@ fn pool_unavailable_row(ctx: &Ctx) -> Item {
     Item::row(
         "pool",
         vec![
-            Span::styled(format!("{} ", theme.markers.warn), theme.warn()),
-            Span::styled("Nothing was inspected".to_owned(), theme.text()),
+            Cell::text(theme.markers.warn, theme.warn()),
+            Cell::text("Nothing was inspected", theme.text()),
+            Cell::empty(),
+            Cell::text("no pool read", theme.muted()),
         ],
     )
-    .with_right(vec![Span::styled("no pool read".to_owned(), theme.muted())])
     .with_detail(detail)
 }
 
@@ -2511,6 +2660,42 @@ fn model_status_words(agent: &PoolAgent) -> &'static str {
     }
 }
 
+/// Rows under one untitled table, or nothing when there are no rows, so an empty page shows its
+/// empty state rather than column titles over nothing.
+fn with_table(columns: &[Column], rows: Vec<Item>) -> Vec<Item> {
+    if rows.is_empty() {
+        return rows;
+    }
+    let mut items = vec![Item::table("", columns)];
+    items.extend(rows);
+    items
+}
+
+const AGENT_COLUMNS: [Column; 5] = [
+    Column::left("AGENT").flex(),
+    Column::left("READING"),
+    Column::left("PROVIDER"),
+    Column::left("ENABLED"),
+    Column::left("TEAM"),
+];
+const PROVIDER_COLUMNS: [Column; 4] = [
+    Column::left("PROVIDER"),
+    Column::left("COMMAND"),
+    Column::left("EXECUTABLE").flex(),
+    Column::left("ENABLED"),
+];
+const MEMORY_COLUMNS: [Column; 3] = [
+    Column::left("TITLE").flex(),
+    Column::left("STATE"),
+    Column::left("SCOPE"),
+];
+const REPUTATION_COLUMNS: [Column; 4] = [
+    Column::left("AGENT"),
+    Column::left("COMPETENCE").flex(),
+    Column::left("OUTCOME"),
+    Column::left("EVIDENCE"),
+];
+
 fn agents(ctx: &Ctx) -> Page {
     let theme = ctx.theme;
     let items = ctx
@@ -2563,21 +2748,17 @@ fn agents(ctx: &Ctx) -> Page {
             Item::row(
                 profile.id.clone(),
                 vec![
-                    Span::styled(label, theme.text()),
-                    Span::styled(format!(" · {words}"), theme.muted()),
-                    Span::styled(format!(" · {}", profile.provider), theme.faint()),
+                    Cell::text(label, theme.text()),
+                    Cell::text(words, theme.muted()),
+                    Cell::text(profile.provider.clone(), theme.faint()),
+                    Cell::spans(vec![yes_no(profile.enabled, theme)]),
+                    Cell::text(if in_team { "in team" } else { "" }, theme.accent()),
                 ],
             )
-            .with_right(vec![
-                yes_no(profile.enabled, theme),
-                Span::styled(
-                    if in_team { "  in team".to_owned() } else { String::new() },
-                    theme.accent(),
-                ),
-            ])
             .with_detail(detail)
         })
         .collect::<Vec<_>>();
+    let items = with_table(&AGENT_COLUMNS, items);
     Page {
         view: View::Agents,
         title: View::Agents.title().into(),
@@ -2698,28 +2879,27 @@ fn providers(ctx: &Ctx) -> Page {
                 Item::row(
                     provider.id.clone(),
                     vec![
-                        Span::styled(provider.id.clone(), theme.text()),
-                        Span::styled(format!("  {}", provider.command), theme.faint()),
+                        Cell::text(provider.id.clone(), theme.text()),
+                        Cell::text(provider.command.clone(), theme.faint()),
+                        Cell::text(
+                            match (found, health.is_some_and(|health| health.available)) {
+                                (true, _) => format!("{} on PATH", theme.markers.ok),
+                                (false, true) => format!("{} in process", theme.markers.ok),
+                                (false, false) => format!("{} not found", theme.markers.warn),
+                            },
+                            if found || health.is_some_and(|health| health.available) {
+                                theme.good()
+                            } else {
+                                theme.warn()
+                            },
+                        ),
+                        Cell::spans(vec![yes_no(provider.enabled, theme)]),
                     ],
                 )
-                .with_right(vec![
-                    Span::styled(
-                        match (found, health.is_some_and(|health| health.available)) {
-                            (true, _) => format!("{} on PATH  ", theme.markers.ok),
-                            (false, true) => format!("{} in process  ", theme.markers.ok),
-                            (false, false) => format!("{} not found  ", theme.markers.warn),
-                        },
-                        if found || health.is_some_and(|health| health.available) {
-                            theme.good()
-                        } else {
-                            theme.warn()
-                        },
-                    ),
-                    yes_no(provider.enabled, theme),
-                ])
                 .with_detail(detail)
             })
             .collect::<Vec<_>>();
+    let items = with_table(&PROVIDER_COLUMNS, items);
     Page {
         view: View::Providers,
         title: View::Providers.title().into(),
@@ -2800,6 +2980,7 @@ fn memory(ctx: &Ctx) -> anyhow::Result<Page> {
         "What current, superseded and corrected mean here",
         WHAT_RETAINED_KNOWLEDGE_IS,
     )];
+    items.push(Item::table("", &MEMORY_COLUMNS));
     items.extend(
         entries
             .iter()
@@ -2861,19 +3042,19 @@ fn memory(ctx: &Ctx) -> anyhow::Result<Page> {
                 let (state, style) = entry_state(ctx, entry, standing, offered);
                 Item::row(
                     entry.id.clone(),
-                    vec![Span::styled(entry.title.clone(), theme.text())],
+                    vec![
+                        Cell::text(text::one_line(&entry.title), theme.text()),
+                        Cell::text(state, style),
+                        Cell::text(
+                            scope_name,
+                            if scope_name == "global" {
+                                theme.accent()
+                            } else {
+                                theme.faint()
+                            },
+                        ),
+                    ],
                 )
-                .with_right(vec![
-                    Span::styled(format!("{state}  "), style),
-                    Span::styled(
-                        scope_name.to_owned(),
-                        if scope_name == "global" {
-                            theme.accent()
-                        } else {
-                            theme.faint()
-                        },
-                    ),
-                ])
                 .with_detail(detail)
             })
             .collect::<Vec<_>>(),
@@ -2918,7 +3099,7 @@ fn memory(ctx: &Ctx) -> anyhow::Result<Page> {
             lines
         },
         hints: vec![
-            ("/", "search"),
+            ("s", "search"),
             ("f", "retire the entry"),
             ("Enter", "read"),
             ("Esc", "back"),
@@ -3218,6 +3399,9 @@ fn reputation(ctx: &Ctx) -> anyhow::Result<Page> {
         "What an observation is, and what counts toward selection",
         WHAT_AN_OBSERVATION_IS,
     )];
+    if !observations.is_empty() {
+        items.push(Item::table("", &REPUTATION_COLUMNS));
+    }
     items.extend(
         observations
             .iter()
@@ -3280,24 +3464,22 @@ fn reputation(ctx: &Ctx) -> anyhow::Result<Page> {
                 Item::row(
                     observation.id.clone(),
                     vec![
-                        Span::styled(observation.agent_name.clone(), theme.text()),
-                        Span::styled(
-                            format!(" · {} / {}", observation.competence, observation.difficulty),
+                        Cell::text(observation.agent_name.clone(), theme.text()),
+                        Cell::text(
+                            format!("{} / {}", observation.competence, observation.difficulty),
                             theme.faint(),
+                        ),
+                        Cell::text(verdict, style),
+                        Cell::text(
+                            confirmation_tag(observation.confirmation),
+                            if observation.confirmation == ConfirmationStatus::Confirmed {
+                                theme.good()
+                            } else {
+                                theme.muted()
+                            },
                         ),
                     ],
                 )
-                .with_right(vec![
-                    Span::styled(format!("{verdict}  "), style),
-                    Span::styled(
-                        confirmation_tag(observation.confirmation).to_owned(),
-                        if observation.confirmation == ConfirmationStatus::Confirmed {
-                            theme.good()
-                        } else {
-                            theme.muted()
-                        },
-                    ),
-                ])
                 .with_detail(detail)
             })
             .collect::<Vec<Item>>(),
@@ -3329,6 +3511,8 @@ const WHAT_LIMITS_ARE: &[&str] = &[
     "Where a count is incomplete, a session follows the policy it captured: stop admitting under its ceiling, or go on admitting against what was reported. Going on does not complete the count, so what is left under the ceiling is then a reported remainder and not a known one.",
 ];
 
+const LIMIT_COLUMNS: [Column; 2] = [Column::left("LIMIT").flex(), Column::left("VALUE")];
+
 fn limits(ctx: &Ctx) -> Page {
     let theme = ctx.theme;
     let mut items = vec![about_row(
@@ -3337,9 +3521,9 @@ fn limits(ctx: &Ctx) -> Page {
         "What a limit is, and which run it applies to",
         WHAT_LIMITS_ARE,
     )];
-    items.push(Item::heading("This session, as captured", theme));
+    items.push(Item::table("This session, as captured", &LIMIT_COLUMNS));
     items.extend(captured_limit_rows(ctx));
-    items.push(Item::heading("The next run", theme));
+    items.push(Item::table("The next run", &LIMIT_COLUMNS));
     let limits = &ctx.config.limits;
     for (key, value, description) in [
         (
@@ -3371,9 +3555,14 @@ fn limits(ctx: &Ctx) -> Page {
             ctx.width,
         ));
         items.push(
-            Item::row(key, vec![Span::styled(key.to_owned(), theme.text())])
-                .with_right(vec![Span::styled(value, theme.accent())])
-                .with_detail(detail),
+            Item::row(
+                key,
+                vec![
+                    Cell::text(key, theme.text()),
+                    Cell::text(value, theme.accent()),
+                ],
+            )
+            .with_detail(detail),
         );
     }
     Page {
@@ -3429,17 +3618,14 @@ fn captured_limit_rows(ctx: &Ctx) -> Vec<Item> {
             detail.push(Line::default());
             detail.extend(paragraph(theme, error, ctx.width));
         }
-        return vec![Item::row(
+        return vec![Item::note(
             "captured:none",
             vec![
                 Span::styled(format!("{} ", theme.markers.idle), theme.muted()),
                 Span::styled(headline.to_owned(), theme.text()),
+                Span::styled("  nothing captured".to_owned(), theme.muted()),
             ],
         )
-        .with_right(vec![Span::styled(
-            "nothing captured".to_owned(),
-            theme.muted(),
-        )])
         .with_detail(detail)];
     };
     let used = ctx
@@ -3540,9 +3726,11 @@ fn captured_row(ctx: &Ctx, key: &str, label: &str, value: &str, description: &st
     ));
     Item::row(
         key.to_owned(),
-        vec![Span::styled(label.to_owned(), theme.text())],
+        vec![
+            Cell::text(label, theme.text()),
+            Cell::text(value, theme.body()),
+        ],
     )
-    .with_right(vec![Span::styled(value.to_owned(), theme.body())])
     .with_detail(detail)
 }
 
@@ -3756,7 +3944,6 @@ const HOW_WORK_IS_ASSIGNED: &[&str] = &[
 ];
 
 fn assignments(ctx: &Ctx) -> Page {
-    let theme = ctx.theme;
     let records = ctx.records;
     let mut items = vec![about_row(
         ctx,
@@ -3774,16 +3961,16 @@ fn assignments(ctx: &Ctx) -> Page {
     if !running.is_empty() {
         // A record with no end is a turn in flight only while a run is active in this
         // window. Otherwise it is a turn that was left open, which is not the same thing.
-        items.push(Item::heading(
+        items.push(Item::table(
             if ctx.live { "Running now" } else { "Left open" },
-            theme,
+            &ASSIGNMENT_COLUMNS,
         ));
         for assignment in &running {
             items.push(assignment_row(ctx, assignment, ctx.live));
         }
     }
     if !earlier.is_empty() {
-        items.push(Item::heading("Recorded earlier", theme));
+        items.push(Item::table("Recorded earlier", &ASSIGNMENT_COLUMNS));
         for assignment in &earlier {
             items.push(assignment_row(ctx, assignment, false));
         }
@@ -3988,14 +4175,24 @@ fn assignment_row(ctx: &Ctx, assignment: &AssignmentRecord, live: bool) -> Item 
     Item::row(
         text::short_id(&assignment.id),
         vec![
-            Span::styled(format!("{marker} "), style),
-            Span::styled(name, theme.text()),
-            Span::styled(format!(" · {}", assignment.purpose), theme.faint()),
+            Cell::text(marker, style),
+            Cell::text(name, theme.text()),
+            Cell::text(assignment.purpose.to_string(), theme.faint()),
+            Cell::text(word, style),
+            Cell::text(stamp(&assignment.started_at), theme.faint())
+                .sorted_by(SortKey::Text(assignment.started_at.clone())),
         ],
     )
-    .with_right(vec![Span::styled(word.to_owned(), style)])
     .with_detail(detail)
 }
+
+const ASSIGNMENT_COLUMNS: [Column; 5] = [
+    Column::left(""),
+    Column::left("AGENT").flex(),
+    Column::left("PURPOSE"),
+    Column::left("STATE"),
+    Column::left("STARTED").hide(1),
+];
 
 /// The token allowance a turn was admitted with, and where it came from.
 ///
@@ -4522,16 +4719,22 @@ fn proposal_row(ctx: &Ctx, proposal: &BoardProposal) -> Item {
     Item::row(
         proposal.id.clone(),
         vec![
-            Span::styled(format!("{} ", theme.markers.activity), style),
-            Span::styled(short, theme.text()),
+            Cell::text(theme.markers.activity, style),
+            Cell::text(short, theme.text()),
+            Cell::text(outcome, style),
+            Cell::text(author, theme.faint()),
         ],
     )
-    .with_right(vec![
-        Span::styled(format!("{outcome}  "), style),
-        Span::styled(author, theme.faint()),
-    ])
     .with_detail(detail)
 }
+
+const PLAN_COLUMNS: [Column; 2] = [Column::left("PLAN").flex(), Column::left("STATE")];
+const PROPOSAL_COLUMNS: [Column; 4] = [
+    Column::left(""),
+    Column::left("CHANGE").flex(),
+    Column::left("OUTCOME"),
+    Column::left("ASKED BY").hide(1),
+];
 
 /// The decision a proposal received, or the fact that it has not received one.
 fn board_decision_lines(ctx: &Ctx, proposal: &BoardProposal) -> Vec<Line<'static>> {
@@ -4700,13 +4903,15 @@ fn board_items(ctx: &Ctx, mut items: Vec<Item>) -> Vec<Item> {
     let theme = ctx.theme;
     let proposals = ctx.records.proposals();
     if let Some(error) = &ctx.records.board_unreadable {
-        items.push(Item::heading("the plan", theme));
+        items.push(Item::table("the plan", &PLAN_COLUMNS));
         items.push(
             Item::row(
                 "board-unreadable",
-                vec![Span::styled("the plan could not be read".to_owned(), theme.bad())],
+                vec![
+                    Cell::text("the plan could not be read", theme.bad()),
+                    Cell::text("unavailable", theme.bad()),
+                ],
             )
-            .with_right(vec![Span::styled("unavailable".to_owned(), theme.bad())])
             .with_detail(paragraph(
                 theme,
                 &format!(
@@ -4721,7 +4926,10 @@ fn board_items(ctx: &Ctx, mut items: Vec<Item>) -> Vec<Item> {
     if proposals.is_empty() {
         return items;
     }
-    items.push(Item::heading("proposals to change this plan", theme));
+    items.push(Item::table(
+        "proposals to change this plan",
+        &PROPOSAL_COLUMNS,
+    ));
     for proposal in proposals {
         items.push(proposal_row(ctx, proposal));
     }
@@ -5035,6 +5243,9 @@ fn decisions(ctx: &Ctx) -> Page {
         .iter()
         .filter(|decision| records.describe(decision).confirmed())
         .count();
+    if !all.is_empty() {
+        items.push(Item::table("", &DECISION_COLUMNS));
+    }
     for decision in all {
         items.push(decision_row(ctx, decision));
     }
@@ -5341,14 +5552,24 @@ fn decision_row(ctx: &Ctx, decision: &DecisionRecord) -> Item {
     Item::row(
         text::short_id(&decision.id),
         vec![
-            Span::styled(format!("{marker} "), style),
-            Span::styled(decision_kind(&decision.kind), theme.text()),
-            Span::styled(format!(" · {actor}"), theme.faint()),
+            Cell::text(marker, style),
+            Cell::text(decision_kind(&decision.kind), theme.text()),
+            Cell::text(actor, theme.faint()),
+            Cell::text(outcome_word, right_style),
+            Cell::text(stamp(&decision.created_at), theme.faint())
+                .sorted_by(SortKey::Text(decision.created_at.clone())),
         ],
     )
-    .with_right(vec![Span::styled(outcome_word, right_style)])
     .with_detail(detail)
 }
+
+const DECISION_COLUMNS: [Column; 5] = [
+    Column::left(""),
+    Column::left("KIND").flex(),
+    Column::left("ACTOR"),
+    Column::left("OUTCOME"),
+    Column::left("RECORDED").hide(1),
+];
 
 /// The name of a decision's actor, from the assignment and invocation the decision links.
 fn decision_actor(ctx: &Ctx, decision: &DecisionRecord, agent: &str) -> String {
@@ -5806,17 +6027,14 @@ fn about_row(ctx: &Ctx, key: &str, title: &str, sentences: &[&str]) -> Item {
             ctx.width,
         ));
     }
-    Item::row(
+    Item::note(
         key.to_owned(),
         vec![
             Span::styled(format!("{} ", theme.markers.notice), theme.info()),
             Span::styled(title.to_owned(), theme.text()),
+            Span::styled("  what this page is".to_owned(), theme.muted()),
         ],
     )
-    .with_right(vec![Span::styled(
-        "what this page is".to_owned(),
-        theme.muted(),
-    )])
     .with_detail(detail)
 }
 
