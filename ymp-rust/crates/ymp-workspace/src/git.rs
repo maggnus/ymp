@@ -327,7 +327,7 @@ fn resolve_base(
                 .unwrap_or(&name)
                 .to_owned();
             let notice = (requested.is_none() && branch.is_some_and(|branch| name == format!("refs/heads/{branch}")) && !matches!(label.as_str(), "main" | "master"))
-                .then(|| "No independent base branch was identified; comparing this branch with itself. Choose a base to compare another reference.".to_owned());
+                .then(|| "No independent base branch was identified; comparing this branch with itself.".to_owned());
             return Ok(ResolvedBase {
                 label: Some(label),
                 oid: Some(commit.id()),

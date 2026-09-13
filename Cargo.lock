@@ -2469,7 +2469,7 @@ checksum = "1ebf944e87a7c253233ad6766e082e3cd714b5d03812acc24c318f549614536e"
 
 [[package]]
 name = "ymp-cli"
-version = "0.4.5"
+version = "0.4.6"
 dependencies = [
  "anyhow",
  "clap",
@@ -2487,7 +2487,7 @@ dependencies = [
 
 [[package]]
 name = "ymp-core"
-version = "0.4.5"
+version = "0.4.6"
 dependencies = [
  "anyhow",
  "chrono",
@@ -2504,7 +2504,7 @@ dependencies = [
 
 [[package]]
 name = "ymp-eval-driver"
-version = "0.4.5"
+version = "0.4.6"
 dependencies = [
  "anyhow",
  "chrono",
@@ -2524,7 +2524,7 @@ dependencies = [
 
 [[package]]
 name = "ymp-providers"
-version = "0.4.5"
+version = "0.4.6"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -2540,7 +2540,7 @@ dependencies = [
 
 [[package]]
 name = "ymp-runtime"
-version = "0.4.5"
+version = "0.4.6"
 dependencies = [
  "anyhow",
  "chrono",
@@ -2559,7 +2559,7 @@ dependencies = [
 
 [[package]]
 name = "ymp-storage"
-version = "0.4.5"
+version = "0.4.6"
 dependencies = [
  "anyhow",
  "chrono",
@@ -2574,7 +2574,7 @@ dependencies = [
 
 [[package]]
 name = "ymp-tui"
-version = "0.4.5"
+version = "0.4.6"
 dependencies = [
  "anyhow",
  "crossterm",
@@ -2599,7 +2599,7 @@ dependencies = [
 
 [[package]]
 name = "ymp-workspace"
-version = "0.4.5"
+version = "0.4.6"
 dependencies = [
  "anyhow",
  "git2",
