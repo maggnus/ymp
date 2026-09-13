@@ -100,3 +100,28 @@ test("captured native loop allowance reaches the physical SDK transport", async 
   assert.ok(argv.includes("--max-turns"));
   assert.equal(argv[argv.indexOf("--max-turns") + 1], "2");
 });
+
+test("ordinary SDK hosts report applied main effort through native hooks", async () => {
+  for (const prompt of ["hook-effort:xhigh", "hook-stop:xhigh"]) {
+    const { response, events } = await run({}, "run", { prompt });
+    assert.equal(response.result?.text, "done", JSON.stringify(response));
+    assert.ok(events.some(e => e.params?.reported?.effort === "xhigh"));
+    assert.equal(events.some(e => e.method === "tool" && e.params?.name === "Read"), prompt.startsWith("hook-effort"));
+  }
+});
+
+test("hook-reported effort downgrade fails a fixed request", async () => {
+  const { response, events, wire } = await run({ model: "opus", effort: "max" }, "run", { prompt: "hook-effort:high" });
+  assert.match(response.error?.message ?? "", /different effort/);
+  assert.ok(events.some(e => e.params?.reported?.effort === "high"));
+  assert.ok(wire.some(q => q.type === "control_response" && q.response?.request_id === "fixture-hook" && q.response?.response?.continue === false));
+  assert.ok(!events.some(e => e.method === "tool"));
+});
+
+test("native child model and effort never replace the parent observations", async () => {
+  const { response, events } = await run({ model: "opus", effort: "max" }, "run", { prompt: "hook-child:high" });
+  assert.equal(response.result?.text, "done", JSON.stringify(response));
+  assert.ok(events.some(e => e.params?.reported?.model === "claude-opus-5"));
+  assert.ok(!events.some(e => e.params?.reported?.model === "other-child-model" || e.params?.reported?.effort === "high"));
+  assert.ok(!events.some(e => e.method === "tool"));
+});

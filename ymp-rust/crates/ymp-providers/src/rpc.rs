@@ -197,6 +197,10 @@ impl RpcProcess {
                 if let Some(t) = v.pointer("/params/text").and_then(Value::as_str) {
                     let _ = events.send(ProviderEvent::Delta(t.into()));
                 }
+            } else if method == "tool" {
+                if let Some(name) = v.pointer("/params/name").and_then(Value::as_str) {
+                    let _ = events.send(ProviderEvent::Tool(name.into()));
+                }
             } else if method == "session" {
                 if let Some(t) = v.pointer("/params/id").and_then(Value::as_str) {
                     let _ = events.send(ProviderEvent::Session(t.into()));

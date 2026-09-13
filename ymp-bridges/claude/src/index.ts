@@ -2,7 +2,8 @@ import { createInterface } from "node:readline";
 import { nativeSettings, validateSettings, validateReportedModel, modelCatalog, type Settings } from "./settings.js";
 import { nativeResourceOptions } from "./resources.js";
 import { UsageTracker } from "./usage.js";
-import { query, type Options, type Query, type SDKUserMessage } from "@anthropic-ai/claude-agent-sdk";
+import { EffortObserver } from "./effort.js";
+import { query, type Options, type Query, type SDKUserMessage, type HookCallback } from "@anthropic-ai/claude-agent-sdk";
 
 interface Request {
   id: number;
@@ -59,6 +60,19 @@ async function execute(request: Request): Promise<void> {
     },
     stderr: () => {},
   };
+  const effort = new EffortObserver(options.effort, level => {
+    send({ method: "execution", params: { reported: { model: null, effort: level, permission_mode: null } } });
+  });
+  // These public SDK hooks expose the applied level on ordinary SDK hosts, whose
+  // init message may omit it. They do not release a prompt or replace native policy.
+  const beforeTool: HookCallback = async input => {
+    const output = await effort.hook(input);
+    if (output.continue !== false && !input.agent_id && input.hook_event_name === "PreToolUse") {
+      send({ method: "tool", params: { name: input.tool_name } });
+    }
+    return output;
+  };
+  options.hooks = { PreToolUse: [{ hooks: [beforeTool] }], Stop: [{ hooks: [effort.hook] }] };
   let result: { text: string; session_id: string; usage: unknown } | undefined;
   const accounting = new UsageTracker();
   // Initialize metadata before releasing a user message. supportedModels()
@@ -85,6 +99,7 @@ async function execute(request: Request): Promise<void> {
     for await (const event of active) {
       const usage = accounting.ingest(event);
       if (usage) send({ method: "usage", params: usage });
+      effort.check();
       if (event.type === "system" && event.subtype === "init") {
         send({ method: "session", params: { id: event.session_id } });
         send({ method: "execution", params: {
@@ -96,7 +111,7 @@ async function execute(request: Request): Promise<void> {
         validateReportedModel(options.model, event.model, models);
         if (options.effort && event.effort != null && options.effort !== event.effort) throw new Error("Claude reported a different effort than requested");
       }
-      if (event.type === "assistant" && event.message.model) {
+      if (event.type === "assistant" && !event.parent_tool_use_id && event.message.model) {
         send({ method: "execution", params: { reported: { model: event.message.model, effort: null, permission_mode: null } } });
         validateReportedModel(options.model, event.message.model, models);
       }
