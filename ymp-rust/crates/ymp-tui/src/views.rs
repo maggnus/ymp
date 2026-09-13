@@ -280,20 +280,34 @@ fn page(view: View, subtitle: &str, items: Vec<Item>, _ctx: &Ctx) -> Page {
 // Shared building blocks
 // ---------------------------------------------------------------------------
 
+/// The widest label that shares a line with its value, and the gap between the two.
+const LABEL_COLUMN: usize = 16;
+const LABEL_GAP: usize = 2;
+
 fn field(theme: &Theme, label: &str, value: &str, width: usize) -> Vec<Line<'static>> {
-    // A label longer than the usual column pushes its value right, so the value is wrapped to
-    // the room actually left beside it rather than running past the width.
-    let label_width = 14usize.max(text::width(label)).min(width.saturating_sub(4));
-    let room = width.saturating_sub(label_width + 1).max(8);
+    // Every value of a record starts in one column, so the record reads as two aligned
+    // columns. A label too long for its column takes a line of its own above the value
+    // rather than pushing that value out of line. The column narrows on a narrow surface.
+    let column = LABEL_COLUMN.min(width / 3);
+    let indent = column + LABEL_GAP;
+    let room = width.saturating_sub(indent).max(1);
+    let pieces = text::wrap(&text::sanitize(value), room);
     let mut lines = Vec::new();
-    for (index, piece) in text::wrap(&text::sanitize(value), room)
-        .into_iter()
-        .enumerate()
-    {
-        let head = if index == 0 {
-            format!("{label:<label_width$} ")
+    let own_line = text::width(label) > column;
+    if own_line {
+        lines.push(Line::from(Span::styled(
+            text::truncate(label, width),
+            theme.muted(),
+        )));
+        if pieces.iter().all(|piece| piece.is_empty()) {
+            return lines;
+        }
+    }
+    for (index, piece) in pieces.into_iter().enumerate() {
+        let head = if index == 0 && !own_line {
+            format!("{label:<indent$}")
         } else {
-            " ".repeat(label_width + 1)
+            " ".repeat(indent)
         };
         lines.push(Line::from(vec![
             Span::styled(head, theme.muted()),
@@ -5786,4 +5800,57 @@ fn presented_name(ctx: &Ctx, id: &str) -> String {
 fn actor_name(config: &Config, pool: &Pool, records: &Records, id: &str) -> String {
     let pooled = pool.agent(id).map(|agent| &agent.identity);
     label::agent(id, records.trace.as_ref(), pooled, config)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn painted(lines: &[Line<'static>]) -> Vec<String> {
+        lines
+            .iter()
+            .map(|line| {
+                line.spans
+                    .iter()
+                    .map(|span| span.content.as_ref())
+                    .collect()
+            })
+            .collect()
+    }
+
+    #[test]
+    fn every_value_of_a_record_starts_in_one_column() {
+        let theme = crate::theme::resolved(crate::theme::DEFAULT_THEME, crate::theme::UNICODE);
+        let mut lines = field(&theme, "state", "accepted", 60);
+        lines.extend(field(&theme, "declared access", "may write", 60));
+        lines.extend(field(&theme, "final reviewer kept free", "yes", 60));
+        lines.extend(field(&theme, "chosen in the picker as", "", 60));
+        assert_eq!(
+            painted(&lines),
+            [
+                format!("{:<18}accepted", "state"),
+                format!("{:<18}may write", "declared access"),
+                "final reviewer kept free".to_owned(),
+                format!("{:<18}yes", ""),
+                "chosen in the picker as".to_owned(),
+            ]
+        );
+    }
+
+    #[test]
+    fn a_narrow_record_keeps_its_lines_inside_the_width() {
+        let theme = crate::theme::resolved(crate::theme::DEFAULT_THEME, crate::theme::UNICODE);
+        let rows = painted(&field(
+            &theme,
+            "responsibility",
+            "nobody holds this task; the runtime picks an executor at the next work boundary",
+            24,
+        ));
+        assert_eq!(rows[0], "responsibility");
+        assert!(
+            rows[1..].iter().all(|row| row.starts_with(&" ".repeat(10))),
+            "{rows:#?}"
+        );
+        assert!(rows.iter().all(|row| text::width(row) <= 24), "{rows:#?}");
+    }
 }

@@ -297,6 +297,59 @@ fn typing_a_command_offers_completions_and_tab_accepts_one() {
 }
 
 #[test]
+fn command_lists_align_their_summaries_and_keep_text_off_the_border() {
+    let fixture = fixture();
+    // The column each of the first commands' summaries starts in, on the row that lists it.
+    let columns = |rows: &[String]| -> Vec<usize> {
+        crate::commands::COMMANDS
+            .iter()
+            .take(4)
+            .map(|command| {
+                let head: String = command.summary.chars().take(12).collect();
+                let row = rows
+                    .iter()
+                    .find(|row| row.contains('│') && row.contains(&format!(" {} ", command.name)))
+                    .unwrap_or_else(|| {
+                        panic!("{} is not listed:\n{}", command.name, rows.join("\n"))
+                    });
+                let at = row
+                    .find(&head)
+                    .unwrap_or_else(|| panic!("{} lost its summary:\n{row}", command.name));
+                row[..at].chars().count()
+            })
+            .collect()
+    };
+
+    let mut app = fixture.app();
+    typed(&mut app, "/");
+    let rows = screen_rows(&mut app, 120, 40);
+    let inline = columns(&rows);
+    assert!(
+        inline.windows(2).all(|pair| pair[0] == pair[1]),
+        "completion summaries start in different columns: {inline:?}"
+    );
+    assert!(
+        rows.iter().any(|row| row.contains("│ › /chat")),
+        "the completion list runs into its border:\n{}",
+        rows.join("\n")
+    );
+
+    let mut app = fixture.app();
+    app.on_key(control('p'), 120);
+    let rows = screen_rows(&mut app, 120, 40);
+    let palette = columns(&rows);
+    assert!(
+        palette.windows(2).all(|pair| pair[0] == pair[1]),
+        "palette summaries start in different columns: {palette:?}"
+    );
+    assert!(
+        rows.iter().any(|row| row.contains("│ › /chat")),
+        "the palette runs into its border:\n{}",
+        rows.join("\n")
+    );
+}
+
+#[test]
 fn tab_cycles_one_focus_owner_and_esc_walks_back_to_the_composer() {
     let fixture = fixture();
     let mut app = fixture.app();
@@ -2897,20 +2950,21 @@ fn main_prose(app: &mut App, width: u16, height: u16) -> String {
 }
 
 /// What the floating read-only surface says, as one line. It is centred and 86 columns
-/// wide, or the terminal less four, and its border takes the first and the last column.
+/// wide, or the terminal less four, and its border and a cell of padding take the first two
+/// and the last two columns.
 fn modal_prose(app: &mut App, width: u16, height: u16) -> String {
     let surface = 86u16.min(width.saturating_sub(4)).max(12);
-    let left = (width.saturating_sub(surface) / 2 + 1) as usize;
+    let left = (width.saturating_sub(surface) / 2 + 2) as usize;
     column_prose(&screen_rows(app, width, height), left, inspect_room(width))
 }
 
 /// Columns the read-only inspect surface has for its body: it is 86 columns wide, or the
-/// terminal less four, and its own frame takes one column on each side.
+/// terminal less four, and its frame and padding take two columns on each side.
 fn inspect_room(total: u16) -> usize {
     86u16
         .min(total.saturating_sub(4))
-        .saturating_sub(2)
-        .max(8)
+        .max(12)
+        .saturating_sub(4)
         .into()
 }
 

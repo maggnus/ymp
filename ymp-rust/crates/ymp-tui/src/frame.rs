@@ -105,10 +105,19 @@ pub fn inspect_width(total: u16) -> u16 {
         .max(MODAL_MIN_WIDTH)
 }
 
-/// Columns that surface has for its body: its border takes one cell on each side. Lines
-/// built for anything wider are cut when they are painted.
+/// Columns that surface has for its body: its border and a cell of padding take two cells on
+/// each side. Lines built for anything wider are cut when they are painted.
 pub fn inspect_content_width(total: u16) -> u16 {
-    inspect_width(total).saturating_sub(2)
+    modal_content_width(inspect_width(total))
+}
+
+/// Cells a floating surface keeps across its width for its border and for a cell of padding
+/// inside the border on each side.
+pub const MODAL_CHROME: u16 = 4;
+
+/// Columns a floating surface `width` cells wide has for its body.
+pub fn modal_content_width(width: u16) -> u16 {
+    width.saturating_sub(MODAL_CHROME)
 }
 
 /// Sidebar width for a terminal `total` cells wide. Zero means no sidebar fits.
@@ -246,14 +255,49 @@ pub fn dim(frame: &mut Frame, area: Rect, theme: &Theme) {
     }
 }
 
-/// Draw a floating surface. Returns the inner rect so a caller can place a cursor in it.
+/// The inside of a bordered surface less a cell of padding on each side, so text never
+/// touches the border.
+pub fn padded(inner: Rect) -> Rect {
+    if inner.width <= 2 {
+        return inner;
+    }
+    Rect {
+        x: inner.x + 1,
+        width: inner.width - 2,
+        ..inner
+    }
+}
+
+/// Blank a margin one cell wide around a floating surface, within `bounds`, so the text
+/// underneath never runs up against its border.
+pub fn clear_around(frame: &mut Frame, rect: Rect, bounds: Rect, theme: &Theme) {
+    let left = rect.x.saturating_sub(1).max(bounds.x);
+    let top = rect.y.saturating_sub(1).max(bounds.y);
+    let right = rect.right().saturating_add(1).min(bounds.right());
+    let bottom = rect.bottom().saturating_add(1).min(bounds.bottom());
+    if right <= left || bottom <= top {
+        return;
+    }
+    let margin = Rect {
+        x: left,
+        y: top,
+        width: right - left,
+        height: bottom - top,
+    };
+    frame.render_widget(Clear, margin);
+    frame.render_widget(Block::default().style(theme.base()), margin);
+}
+
+/// Draw a floating surface. Returns the rect its body is painted in, inside the border and the
+/// padding, so a caller can place a cursor in it.
 pub fn render_modal(frame: &mut Frame, area: Rect, spec: &ModalSpec, theme: &Theme) -> Rect {
     dim(frame, area, theme);
     let width = spec
         .width
         .min(area.width.saturating_sub(2))
         .max(MODAL_MIN_WIDTH);
-    let footer_height = u16::from(!spec.footer.is_empty());
+    // The keys sit a blank row below the body, so they never read as its last line.
+    let footer_height: u16 = if spec.footer.is_empty() { 0 } else { 2 };
     let max_body = area.height.saturating_sub(4 + footer_height).max(1) as usize;
     let total = spec.body.len();
     let scroll = spec.scroll.min(total.saturating_sub(1));
@@ -271,6 +315,7 @@ pub fn render_modal(frame: &mut Frame, area: Rect, spec: &ModalSpec, theme: &The
         width,
         height: height.min(area.height),
     };
+    clear_around(frame, rect, area, theme);
     frame.render_widget(Clear, rect);
     let border = match spec.role {
         ModalRole::Choice => theme.accent(),
@@ -310,15 +355,19 @@ pub fn render_modal(frame: &mut Frame, area: Rect, spec: &ModalSpec, theme: &The
             .right_aligned(),
         );
     }
-    let inner = block.inner(rect);
+    let inner = padded(block.inner(rect));
     frame.render_widget(block, rect);
-    if footer_height == 1 && inner.height > 0 {
+    if footer_height > 0 && inner.height > footer_height {
         let split = Layout::default()
             .direction(Direction::Vertical)
-            .constraints([Constraint::Min(0), Constraint::Length(1)])
+            .constraints([
+                Constraint::Min(0),
+                Constraint::Length(1),
+                Constraint::Length(1),
+            ])
             .split(inner);
         paint(frame, split[0], visible);
-        row(frame, split[1], key_hints(&spec.footer, theme), Vec::new());
+        row(frame, split[2], key_hints(&spec.footer, theme), Vec::new());
         return split[0];
     }
     paint(frame, inner, visible);
