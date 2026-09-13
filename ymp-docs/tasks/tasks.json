@@ -3910,7 +3910,10 @@
         "Allow explicit owner additions, removals and replacements within the same session while work is active. Record versioned team-policy decisions, distinguish starting preferences from active membership, and resolve active responsibilities before conflicting reassignment.",
         "Automatic changes respect the current owner-approved constraints. Explicit owner team changes can revise pinned membership; changing team membership does not silently enlarge resource budgets or erase consumed usage.",
         "Reuse current allocation, assignment, access, storage and UI boundaries. Delegate UI to Claude Code high, sequence conflicting edits and perform independent acceptance with meaningful failure controls and required checks.",
-        "Define and verify behavior for single/multiple failures, restart, unavailable final reviewer, negative versus malformed review, unknown usage and owner changes during active work. Keep actual provider availability and uncertain writes explicit; do not infer rollback."
+        "Define and verify behavior for single/multiple failures, restart, unavailable final reviewer, negative versus malformed review, unknown usage and owner changes during active work. Keep actual provider availability and uncertain writes explicit; do not infer rollback.",
+        "Implement recovery and team-control choices through existing typed strategy interfaces where applicable; identify and justify only the missing replacement boundary. Keep shared runtime constraints, accounting, authority and acceptance enforcement outside replaceable algorithms.",
+        "For a newly introduced replacement point, prove materially different strategies through the same consumer and acceptance conditions, recording strategy identity/version/configuration and actual decisions. Reuse existing substitution evidence; do not redesign unrelated subsystems.",
+        "Treat strategy selection as a possible team UI attribute, not an approved placement. Keep session/team persistence and live strategy-switch semantics explicit; model-assisted strategies must use ordinary admitted and recorded invocations."
       ],
       "evidence": [],
       "history": [
@@ -3918,11 +3921,16 @@
           "at": "2026-09-13T14:36:59.818804+00:00",
           "status": "planned",
           "note": "Owner approved recovery implementation and live team changes, then asked to explain current team behavior before starting. Recorded authorization without dispatching implementation. Current source confirms heuristic allocation, separate membership/concurrency caps and preference-only TUI membership editing. Resource-budget amendment is not implied by team-edit authorization."
+        },
+        {
+          "at": "2026-09-13T14:46:35.102081+00:00",
+          "status": "planned",
+          "note": "Owner clarified the research method: implement common interfaces to compare team-scaling and decision strategies while retaining the runtime. Parent confirmed existing AllocationPolicy/ResourceAllocationPolicy and narrower BoardProposalPolicy/ConfirmationChecker scope. A bounded background researcher assesses minimal missing boundaries; UI placement as a team attribute remains open. No recovery or strategy source implementation was dispatched."
         }
       ]
     }
   ],
-  "updated_at": "2026-09-13T14:36:59.818804+00:00",
+  "updated_at": "2026-09-13T14:46:35.102081+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",

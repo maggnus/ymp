@@ -36,4 +36,45 @@ Contract tests exercise at least the built-in implementation and a deliberately 
 
 Comparisons record implementation IDs/versions, configuration, workload, resources and confirmation coverage. The same evaluation scenarios can then compare strategies without changing their expected result to fit a strategy. Scripted replacements establish protocol behavior; claims about quality or efficiency still require the separately authorized comparative experiments.
 
+## Research through alternative strategies
+
+Owner clarification, 2026-09-13: team scaling and decision algorithms should be
+investigated by implementing shared interfaces and comparing strategies, without
+repeatedly rewriting the execution kernel. Whether the UI presents strategy
+selection as a team attribute remains an open product choice.
+
+Reuse the existing `AllocationPolicy`, `ResourceAllocationPolicy` and other
+subsystem contracts. `BoardProposalPolicy` currently orders pending proposals;
+it is not a replaceable implementation of the complete session workflow.
+`ConfirmationChecker` executes checks; it does not independently control
+acceptance. Phase transitions and provider-failure exits still include behavior
+inside the engine. Recovery work under YMP-146 must identify its actual missing
+replacement boundary and avoid adding a generic duplicate policy interface.
+
+Proposed extensions should receive typed events and versioned state, then return
+bounded proposed actions with their basis. Runtime validation, atomic admission,
+resource accounting, owner constraints, active-write coordination and acceptance
+evidence remain shared. A strategy requiring model reasoning must obtain an
+ordinary admitted, recorded invocation; a synchronous proposal method is not
+permission for hidden inference or unaccounted provider calls.
+
+Record the selected strategy identity, version, explicit configuration and the
+effective policy revision alongside the decisions it influences. A later strategy
+change must not relabel earlier decisions or silently alter an active assignment.
+The session-versus-team configuration placement needs a concrete contract before
+UI implementation; the owner has not selected that placement yet.
+
+Prove each newly introduced replacement point through two materially different
+implementations using the same consumer and acceptance conditions. Compare actual
+decisions, confirmed outcomes, elapsed time, resource use, recovery attempts and
+unresolved work. Replaying recorded input compares decisions on that input;
+complete executions are still needed to evaluate their downstream effects.
+Existing successful substitution evidence should be reused. Do not require a new
+alternative implementation for every already-proven interface as part of YMP-146.
+
+Compiled implementations inside the standalone executable remain the initial
+mechanism. Register and configure alternatives when they exist; dynamic loading,
+an external plugin runtime and broad policy-framework redesign are not implied
+by this research direction.
+
 YMP-122 implements the first common execution interface. The owning tasks above implement their respective interfaces, and YMP-121 verifies their integrated contracts. This document records the requirement and responsibility split; it is not evidence that every extension point already exists.

@@ -1,6 +1,6 @@
 # Delivery plan and progress
 
-Updated: 2026-09-13 14:36 UTC.
+Updated: 2026-09-13 14:46 UTC.
 
 [Approved intent](../../intent.md) · [Task details and evidence](README.md) · [Canonical register](tasks.json)
 
@@ -142,8 +142,8 @@ Deferred and post-MVP work:
 
 | Time (UTC) | Task | State | Update |
 | --- | --- | --- | --- |
+| 2026-09-13 14:46 | [YMP-146](README.md#ymp-146) | `[ ]` | Owner clarified the research method: implement common interfaces to compare team-scaling and decision strategies while retaining the runtime. Parent confirmed existing AllocationPolicy/ResourceAllocationPolicy and narrower BoardProposalPolicy/ConfirmationChecker scope. A bounded background researcher assesses minimal missing boundaries; UI placement as a team attribute remains open. No recovery or strategy source implementation was dispatched. |
 | 2026-09-13 14:36 | [YMP-144](README.md#ymp-144) | `[x]` | Owner approved implementation and live team changes; follow-up recorded as YMP-146. Parent current-team inspection clarified that SessionPolicy.eligible_pool is initial evidence, while effective eligibility is rebuilt from engine configuration under captured team constraints; it is not itself an immutable allowed-list enforcement path. Original diagnostic conclusions remain valid. |
-| 2026-09-13 14:36 | [YMP-146](README.md#ymp-146) | `[ ]` | Owner approved recovery implementation and live team changes, then asked to explain current team behavior before starting. Recorded authorization without dispatching implementation. Current source confirms heuristic allocation, separate membership/concurrency caps and preference-only TUI membership editing. Resource-budget amendment is not implied by team-edit authorization. |
 | 2026-09-13 14:19 | [YMP-145](README.md#ymp-145) | `[~]` | Confirmed installed command is 0.4.6 at main 4e68c55. Shared frame::render_modal already derives height from full body; GitChoice text::row inserts unstyled inter-column padding. Requested the specific shrinking popup while preparing an isolated background UI assignment. No product fix is accepted yet. |
 | 2026-09-13 14:04 | [YMP-141](README.md#ymp-141) | `[x]` | Installed 0.4.6 accepted after independent source/terminal verification. macOS ARM64 and Linux ARM64 each pass fmt, strict Clippy and 576 tests (2 ignored). Both platforms pass Git9+9, popup9+9, files12 and output2 terminal cases; macOS also tables19 and exit5. Installed command repeats Git9 and popups9 successfully. Embedded Git works with empty app PATH; Linux artifact is static, macOS uses only OS libraries. Previous executable backed up; ARM64 artifacts retained. Providers/runtimes remain the explicit exception; no x86_64 runtime claim. |
 | 2026-09-13 14:04 | [YMP-143](README.md#ymp-143) | `[x]` | Installed 0.4.6 accepted after independent source/terminal verification. macOS ARM64 and Linux ARM64 each pass fmt, strict Clippy and 576 tests (2 ignored). Both platforms pass Git9+9, popup9+9, files12 and output2 terminal cases; macOS also tables19 and exit5. Installed command repeats Git9 and popups9 successfully. Embedded Git works with empty app PATH; Linux artifact is static, macOS uses only OS libraries. Previous executable backed up; ARM64 artifacts retained. Providers/runtimes remain the explicit exception; no x86_64 runtime claim. |
