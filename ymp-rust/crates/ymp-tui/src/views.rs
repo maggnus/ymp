@@ -5883,14 +5883,21 @@ fn record_name(
     }) else {
         return label::UNKNOWN_MODEL.to_owned();
     };
-    let turn = invocation
-        .and_then(|id| {
-            records
-                .invocations()
-                .iter()
-                .find(|turn| turn.id == id && turn.assignment_id == assignment.id)
-        })
-        .or_else(|| records.last_invocation(&assignment.id));
+    let turns = records.invocations_of(&assignment.id);
+    let turn = match invocation {
+        // An exact reference binds to that invocation or to nothing: one that names no call of
+        // this assignment is not evidence about another call.
+        Some(id) => match turns.iter().find(|turn| turn.id == id) {
+            Some(turn) => Some(*turn),
+            None => return label::UNKNOWN_MODEL.to_owned(),
+        },
+        // Without one, a call is used only where the assignment made exactly one. Otherwise the
+        // label rests on what the assignment captured, and no call lends it a reported effort.
+        None => match turns.as_slice() {
+            [only] => Some(*only),
+            _ => None,
+        },
+    };
     label::assignment(assignment, turn)
 }
 

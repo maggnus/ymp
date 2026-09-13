@@ -5678,6 +5678,79 @@ async fn an_old_unlinked_record_stays_unknown_after_a_known_native_turn_of_its_a
 }
 
 #[test]
+fn a_record_binds_only_to_the_exact_invocation_it_names() {
+    let fixture = fixture();
+    let config = native_label_config();
+    let session = native_label_session(&fixture, &config);
+    let first = native_turn(
+        &fixture,
+        &session,
+        "transport-one",
+        captured("Latest release", "glm-5.2", None),
+        (Some("glm-5.2"), Some("low")),
+    );
+    let mut app = app_with(&fixture, config);
+    app.load_session(&session).unwrap();
+    app.command("/decisions", 100);
+    let trace = app.records.trace.as_mut().expect("the records were read");
+    let recorded = trace
+        .invocations
+        .iter()
+        .find(|turn| turn.id == first)
+        .expect("the fixture recorded its turn")
+        .clone();
+    let assignment = recorded.assignment_id.clone();
+    // A later call of the same assignment that reported another effort.
+    trace.invocations.push(ymp_core::InvocationRecord {
+        id: "later-call".into(),
+        reported: ymp_core::ExecutionSettings {
+            effort: Some("max".into()),
+            ..recorded.reported.clone()
+        },
+        ..recorded
+    });
+    let decision = |id: &str, invocation: Option<&str>| ymp_core::DecisionRecord {
+        id: id.into(),
+        session_id: session.clone(),
+        kind: "review".into(),
+        actor: Some("transport-one".into()),
+        reason: "fixture".into(),
+        outcome: None,
+        links: ymp_core::RecordLinks {
+            assignment_id: Some(assignment.clone()),
+            invocation_id: invocation.map(str::to_owned),
+            ..Default::default()
+        },
+        created_at: ymp_core::now(),
+    };
+    trace.decisions.push(decision("exact-call", Some(&first)));
+    trace
+        .decisions
+        .push(decision("missing-call", Some("not-recorded")));
+    trace.decisions.push(decision("no-call-named", None));
+
+    let row = |app: &mut App, id: &str| left_of_key(app, 100, &text::short_id(id));
+    let exact = row(&mut app, "exact-call");
+    assert!(
+        exact.ends_with(" · glm-5.2 low"),
+        "a record is not named by the invocation it names exactly: {exact}"
+    );
+    // An exact reference that names no recorded call does not fall back to another call.
+    let missing = row(&mut app, "missing-call");
+    assert!(
+        missing.ends_with(&format!(" · {}", crate::label::UNKNOWN_MODEL)),
+        "an invalid invocation reference was bound to another call: {missing}"
+    );
+    // The assignment made two calls and the record names neither: the label rests on what the
+    // assignment captured, with no effort borrowed from either call.
+    let ambiguous = row(&mut app, "no-call-named");
+    assert!(
+        ambiguous.ends_with(" · glm-5.2"),
+        "an assignment-only reference chose one of several calls: {ambiguous}"
+    );
+}
+
+#[test]
 fn a_saved_session_names_its_team_by_its_records_and_not_by_the_profiles_it_captured() {
     // A captured profile carries a configured caption and an alias. Neither is a model a turn
     // recorded, and what kind its provider is configured as now says nothing about the session.
