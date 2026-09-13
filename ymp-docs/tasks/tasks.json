@@ -3969,7 +3969,8 @@
       "evidence": [
         "ymp-docs/architecture/session-recovery-contract.md",
         "ymp-docs/evidence/ymp-146/acceptance-round1.md",
-        "ymp-docs/evidence/ymp-146/independent-recovery/manifest.json"
+        "ymp-docs/evidence/ymp-146/independent-recovery/manifest.json",
+        "ymp-docs/evidence/ymp-146/acceptance-round2.md"
       ],
       "history": [
         {
@@ -4041,6 +4042,11 @@
           "at": "2026-09-13T17:32:58.861465+00:00",
           "status": "in_progress",
           "note": "Correctionfork deliveredcfdceff..1dff2cb(source58c7957), clean tree,610tests2ignored,31recoverycontrols andrestoredfile-statefalsifier. Started boundedR1/R2authority andR3/R4executable re-reviews. Parent separately found applicability concern: new local_effect_scope is absent in all defaultnativeadapters and genuinepre146records, so safe scriptedpositive may not unblock originalnativewrite_allcase. Reviewers must distinguish primitivecorrectness from productrecovery and assess a distinct freshread-onlyhandoff preserving historicaluncertainty; no guardwaiver or silentacceptance."
+        },
+        {
+          "at": "2026-09-13T18:21:15.570068+00:00",
+          "status": "in_progress",
+          "note": "R4 independently accepted. R3 returned for Completed plus MalformedResponse being rejected despite sufficient scope evidence, and for native applicability: all normal adapters and genuine legacy records lack the new scope declaration. Parent added a narrow explicit fresh read-only saved-plan review action, preserving old uncertainty and requiring a separate ordinary continuation; no global effect waiver or automatic production. Same correction fork resumes. Remaining authority review is pinned to an immutable 1dff2cb snapshot. No acceptance, installation or live-session action."
         }
       ]
     },
@@ -4272,7 +4278,7 @@
       ]
     }
   ],
-  "updated_at": "2026-09-13T17:36:56.656873+00:00",
+  "updated_at": "2026-09-13T18:21:15.570068+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",

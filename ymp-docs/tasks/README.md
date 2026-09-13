@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-13 17:36 UTC.
+Updated: 2026-09-13 18:21 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -86,7 +86,7 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-143](#ymp-143) | P1 | Provide a separate /git changes view modeled on Paseo | 2026-09-13 14:04 |
 | `[x]` | [YMP-144](#ymp-144) | P1 | Research recovery of sessions after one or more agent failures | 2026-09-13 14:36 |
 | `[x]` | [YMP-145](#ymp-145) | P1 | Unify full-row popup selection and verify stable scrolling geometry | 2026-09-13 16:31 |
-| `[~]` | [YMP-146](#ymp-146) | P0 | Recover interrupted session stages and let the owner change the active team | 2026-09-13 17:32 |
+| `[~]` | [YMP-146](#ymp-146) | P0 | Recover interrupted session stages and let the owner change the active team | 2026-09-13 18:21 |
 | `[x]` | [YMP-147](#ymp-147) | P1 | Translate product goals into a focused comparative trial program | 2026-09-13 15:38 |
 | `[=]` | [YMP-148](#ymp-148) | P1 | Make session coordination replaceable through a typed strategy contract | 2026-09-13 16:13 |
 | `[~]` | [YMP-149](#ymp-149) | P1 | Use concise professional terminology throughout the interface | 2026-09-13 17:36 |
@@ -2198,9 +2198,9 @@ Recover interrupted session stages and let the owner change the active team
 
 **State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P0
 
-**Last update (UTC):** 2026-09-13 17:32
+**Last update (UTC):** 2026-09-13 18:21
 
-**Current reason:** Correctionfork deliveredcfdceff..1dff2cb(source58c7957), clean tree,610tests2ignored,31recoverycontrols andrestoredfile-statefalsifier. Started boundedR1/R2authority andR3/R4executable re-reviews. Parent separately found applicability concern: new local_effect_scope is absent in all defaultnativeadapters and genuinepre146records, so safe scriptedpositive may not unblock originalnativewrite_allcase. Reviewers must distinguish primitivecorrectness from productrecovery and assess a distinct freshread-onlyhandoff preserving historicaluncertainty; no guardwaiver or silentacceptance.
+**Current reason:** R4 independently accepted. R3 returned for Completed plus MalformedResponse being rejected despite sufficient scope evidence, and for native applicability: all normal adapters and genuine legacy records lack the new scope declaration. Parent added a narrow explicit fresh read-only saved-plan review action, preserving old uncertainty and requiring a separate ordinary continuation; no global effect waiver or automatic production. Same correction fork resumes. Remaining authority review is pinned to an immutable 1dff2cb snapshot. No acceptance, installation or live-session action.
 
 **Owner:** Background backend author and Claude Code claude-opus-5 high UI author; maintainer owns contracts and acceptance
 
@@ -2227,6 +2227,7 @@ Saved proposals cannot resume at failed pre-task review, provider failures do no
 - ymp-docs/architecture/session-recovery-contract.md
 - ymp-docs/evidence/ymp-146/acceptance-round1.md
 - ymp-docs/evidence/ymp-146/independent-recovery/manifest.json
+- ymp-docs/evidence/ymp-146/acceptance-round2.md
 
 ## YMP-147
 
