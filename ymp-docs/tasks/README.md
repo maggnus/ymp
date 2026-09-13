@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-13 16:00 UTC.
+Updated: 2026-09-13 16:07 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -14,7 +14,7 @@ A planned task is not implemented functionality. Completed research and planning
 | design | 2 | 2 |
 | documentation | 4 | 4 |
 | experiment | 0 | 4 |
-| implementation | 35 | 41 |
+| implementation | 35 | 42 |
 | maintenance | 1 | 1 |
 | research | 10 | 10 |
 | verification | 2 | 2 |
@@ -85,10 +85,11 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-142](#ymp-142) | P1 | Assess ratatui-code-editor for opening files inside ymp | 2026-09-13 11:52 |
 | `[x]` | [YMP-143](#ymp-143) | P1 | Provide a separate /git changes view modeled on Paseo | 2026-09-13 14:04 |
 | `[x]` | [YMP-144](#ymp-144) | P1 | Research recovery of sessions after one or more agent failures | 2026-09-13 14:36 |
-| `[~]` | [YMP-145](#ymp-145) | P1 | Unify full-row popup selection and verify stable scrolling geometry | 2026-09-13 14:19 |
+| `[~]` | [YMP-145](#ymp-145) | P1 | Unify full-row popup selection and verify stable scrolling geometry | 2026-09-13 16:07 |
 | `[~]` | [YMP-146](#ymp-146) | P0 | Recover interrupted session stages and let the owner change the active team | 2026-09-13 16:00 |
 | `[x]` | [YMP-147](#ymp-147) | P1 | Translate product goals into a focused comparative trial program | 2026-09-13 15:38 |
 | `[=]` | [YMP-148](#ymp-148) | P1 | Expose replaceable coordination on /team and separate the agent catalog | 2026-09-13 16:00 |
+| `[=]` | [YMP-149](#ymp-149) | P1 | Use concise professional terminology throughout the interface | 2026-09-13 16:07 |
 
 ## YMP-001
 
@@ -2162,9 +2163,9 @@ Unify full-row popup selection and verify stable scrolling geometry
 
 **State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P1
 
-**Last update (UTC):** 2026-09-13 14:19
+**Last update (UTC):** 2026-09-13 16:07
 
-**Current reason:** Confirmed installed command is 0.4.6 at main 4e68c55. Shared frame::render_modal already derives height from full body; GitChoice text::row inserts unstyled inter-column padding. Requested the specific shrinking popup while preparing an isolated background UI assignment. No product fix is accepted yet.
+**Current reason:** Author completed35786ec on fix/ymp145-popup-component: shared full-row selection, meaningful before/after cell checks, fmt/clippy and579 tests with2 ignored. Shrinking was not reproduced on installed0.4.6 or candidate in terminal9+9 cases. Independent acceptance now being assigned; author results are not yet parent acceptance or installation.
 
 **Owner:** Background Claude Code claude-opus-5 high; maintainer owns scope, integration and independent acceptance
 
@@ -2281,6 +2282,38 @@ Allocation and resource interfaces exist, but whole-session interaction remains 
 **Evidence:**
 
 - ymp-docs/architecture/team-and-agent-surfaces.md
+
+## YMP-149
+
+Use concise professional terminology throughout the interface
+
+**State:** `[=]` (planned) · **Type:** implementation · **Priority:** P1
+
+**Last update (UTC):** 2026-09-13 16:07
+
+**Current reason:** Needs YMP-145
+
+**Owner:** Claude Code claude-opus-5 high; maintainer owns language contract and independent acceptance
+
+**Authorization:** Owner explicitly requested reviewing and cleaning all interface terminology, removing verbose implementation explanations from primary rows. Examples: omit read from the installation and display team membership as true/false. Owner also accepted the separate agent-catalog/team responsibilities.
+
+**Depends on:** [YMP-145](#ymp-145)
+
+Primary rows currently include provenance prose and ambiguous membership values. Terminology needs a consistent interface-wide review without losing meaningful states or changing stored evidence.
+
+**Latest progress note:** Parent verified the supplied phrase in identity_row_words and ambiguous Config.team-derived in team/blank values. Read-only interface audit is being assigned while145 is independently reviewed; UI implementation waits for the shared component acceptance. No language changes are installed yet.
+
+**Acceptance criteria:**
+
+- Audit pages, tables, sidebar, overlays, palette/help, notices, errors and empty states; record a compact glossary, actual coverage and retained diagnostic detail.
+- Remove verbose provenance narration from primary agent rows while preserving source/method/time in details. Render known membership as true/false with the correct selected-session or next-run scope; preserve unknown states.
+- Use concise professional English and stable domain terms. Preserve native identifiers/controls, actionable errors, acceptance versus confirmation, keyboard behavior and immutable user/agent source messages.
+- Implement UI edits through Claude Code high after YMP-145 acceptance, reuse shared helpers, update existing checks without weakening behavior and verify terminal readability plus required Rust checks. Do not add label-mirroring tests or new dependencies.
+- Keep P0 recovery and YMP-148 coordination/catalog semantics separate; no generic policy settings, scope-changing runtime work or false installed-completion claims.
+
+**Evidence:**
+
+- ymp-docs/guides/ui-language.md
 
 ## Intent coverage
 

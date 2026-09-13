@@ -3895,6 +3895,11 @@
           "at": "2026-09-13T14:19:41.539430+00:00",
           "status": "in_progress",
           "note": "Confirmed installed command is 0.4.6 at main 4e68c55. Shared frame::render_modal already derives height from full body; GitChoice text::row inserts unstyled inter-column padding. Requested the specific shrinking popup while preparing an isolated background UI assignment. No product fix is accepted yet."
+        },
+        {
+          "at": "2026-09-13T16:07:28.802206+00:00",
+          "status": "in_progress",
+          "note": "Author completed35786ec on fix/ymp145-popup-component: shared full-row selection, meaningful before/after cell checks, fmt/clippy and579 tests with2 ignored. Shrinking was not reproduced on installed0.4.6 or candidate in terminal9+9 cases. Independent acceptance now being assigned; author results are not yet parent acceptance or installation."
         }
       ]
     },
@@ -4027,9 +4032,39 @@
           "note": "Recorded owner /team-only policy placement and separate catalog/team responsibility. Parent verified full pool duplication and common toggle_membership Config.team mutation in both current views. Follow-up is queued behind popup/recovery work; no coordination strategy or new UI is implemented by this specification."
         }
       ]
+    },
+    {
+      "id": "YMP-149",
+      "title": "Use concise professional terminology throughout the interface",
+      "type": "implementation",
+      "priority": "P1",
+      "status": "planned",
+      "owner": "Claude Code claude-opus-5 high; maintainer owns language contract and independent acceptance",
+      "authorization": "Owner explicitly requested reviewing and cleaning all interface terminology, removing verbose implementation explanations from primary rows. Examples: omit read from the installation and display team membership as true/false. Owner also accepted the separate agent-catalog/team responsibilities.",
+      "depends_on": [
+        "YMP-145"
+      ],
+      "reason": "Primary rows currently include provenance prose and ambiguous membership values. Terminology needs a consistent interface-wide review without losing meaningful states or changing stored evidence.",
+      "acceptance": [
+        "Audit pages, tables, sidebar, overlays, palette/help, notices, errors and empty states; record a compact glossary, actual coverage and retained diagnostic detail.",
+        "Remove verbose provenance narration from primary agent rows while preserving source/method/time in details. Render known membership as true/false with the correct selected-session or next-run scope; preserve unknown states.",
+        "Use concise professional English and stable domain terms. Preserve native identifiers/controls, actionable errors, acceptance versus confirmation, keyboard behavior and immutable user/agent source messages.",
+        "Implement UI edits through Claude Code high after YMP-145 acceptance, reuse shared helpers, update existing checks without weakening behavior and verify terminal readability plus required Rust checks. Do not add label-mirroring tests or new dependencies.",
+        "Keep P0 recovery and YMP-148 coordination/catalog semantics separate; no generic policy settings, scope-changing runtime work or false installed-completion claims."
+      ],
+      "evidence": [
+        "ymp-docs/guides/ui-language.md"
+      ],
+      "history": [
+        {
+          "at": "2026-09-13T16:07:28.802206+00:00",
+          "status": "planned",
+          "note": "Parent verified the supplied phrase in identity_row_words and ambiguous Config.team-derived in team/blank values. Read-only interface audit is being assigned while145 is independently reviewed; UI implementation waits for the shared component acceptance. No language changes are installed yet."
+        }
+      ]
     }
   ],
-  "updated_at": "2026-09-13T16:00:44.572147+00:00",
+  "updated_at": "2026-09-13T16:07:28.802206+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",

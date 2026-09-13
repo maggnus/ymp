@@ -3,6 +3,8 @@
 The executable is named `ymp`. Application-owned data lives in `~/.ymp2`.
 All project documentation, code comments, UI strings, and examples are in English.
 
+The owner requires concise professional UI terminology (2026-09-14). Keep provenance explanations such as "read from the installation" in details, not primary rows. Display known team-membership flags as true/false with explicit session scope; never turn unknown state into false or confuse starting preferences with current membership. Preserve exact native identifiers, meaningful error causes and the distinction between acceptance and confirmation. Follow ymp-docs/guides/ui-language.md.
+
 The owner-approved intent.md is the authoritative product definition. Preserve it unless the owner explicitly requests a revision; it remains in Russian and derived documentation remains in English. Keep terminology, policy and task priorities aligned with its recorded digest in ymp-docs/tasks/tasks.json.
 
 On 2026-09-12 the owner approved the final intent and requested tasks and a work plan. ymp-docs/tasks/plan.md now replaces the earlier product-definition pause; follow task dependencies, scope and acceptance criteria. YMP-010 records product approval, while YMP-116 specifies executable contracts. Agents have no permanent hierarchy: roles and permissions last for one assignment. The trusted runtime commits assignments, grants and final acceptance. An independently accepted result without confirmation stays unconfirmed and does not increase reputation. Terms are defined in ymp-docs/product/entities.md and the detailed policy in ymp-docs/architecture/team-and-effort-policy.md. Historical reviews and unproven optimization proposals do not override approved intent.

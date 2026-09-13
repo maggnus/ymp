@@ -1,6 +1,6 @@
 # Delivery plan and progress
 
-Updated: 2026-09-13 16:00 UTC.
+Updated: 2026-09-13 16:07 UTC.
 
 [Approved intent](../../intent.md) · [Task details and evidence](README.md) · [Canonical register](tasks.json)
 
@@ -33,7 +33,7 @@ A planned task automatically shows `[=]` while prerequisites remain unfinished a
 ## Current work and owner questions
 
 - `[+]` [YMP-130](README.md#ymp-130) — Show active agent work during headless session runs (2026-09-13 00:54). Read-only diagnosis: poker checks passed at 2026-09-13T00:52:09Z; the following claude-opus-5 review invocation was active. Earlier attempts were cancelled. No active run was stopped or restarted by this investigation.
-- `[~]` [YMP-145](README.md#ymp-145) — Unify full-row popup selection and verify stable scrolling geometry (2026-09-13 14:19). Confirmed installed command is 0.4.6 at main 4e68c55. Shared frame::render_modal already derives height from full body; GitChoice text::row inserts unstyled inter-column padding. Requested the specific shrinking popup while preparing an isolated background UI assignment. No product fix is accepted yet.
+- `[~]` [YMP-145](README.md#ymp-145) — Unify full-row popup selection and verify stable scrolling geometry (2026-09-13 16:07). Author completed35786ec on fix/ymp145-popup-component: shared full-row selection, meaningful before/after cell checks, fmt/clippy and579 tests with2 ignored. Shrinking was not reproduced on installed0.4.6 or candidate in terminal9+9 cases. Independent acceptance now being assigned; author results are not yet parent acceptance or installation.
 - `[~]` [YMP-146](README.md#ymp-146) — Recover interrupted session stages and let the owner change the active team (2026-09-13 16:00). Owner selected /team-only strategy controls and identified /agents duplication. Recorded concrete follow-up as148; scope clarification does not alter the P0 recovery/backend work or restart the executing fork.
 
 ## Ready next
@@ -143,11 +143,11 @@ Deferred and post-MVP work:
 
 | Time (UTC) | Task | State | Update |
 | --- | --- | --- | --- |
+| 2026-09-13 16:07 | [YMP-145](README.md#ymp-145) | `[~]` | Author completed35786ec on fix/ymp145-popup-component: shared full-row selection, meaningful before/after cell checks, fmt/clippy and579 tests with2 ignored. Shrinking was not reproduced on installed0.4.6 or candidate in terminal9+9 cases. Independent acceptance now being assigned; author results are not yet parent acceptance or installation. |
+| 2026-09-13 16:07 | [YMP-149](README.md#ymp-149) | `[=]` | Parent verified the supplied phrase in identity_row_words and ambiguous Config.team-derived in team/blank values. Read-only interface audit is being assigned while145 is independently reviewed; UI implementation waits for the shared component acceptance. No language changes are installed yet. |
 | 2026-09-13 16:00 | [YMP-146](README.md#ymp-146) | `[~]` | Owner selected /team-only strategy controls and identified /agents duplication. Recorded concrete follow-up as148; scope clarification does not alter the P0 recovery/backend work or restart the executing fork. |
 | 2026-09-13 16:00 | [YMP-148](README.md#ymp-148) | `[=]` | Recorded owner /team-only policy placement and separate catalog/team responsibility. Parent verified full pool duplication and common toggle_membership Config.team mutation in both current views. Follow-up is queued behind popup/recovery work; no coordination strategy or new UI is implemented by this specification. |
 | 2026-09-13 15:38 | [YMP-201](README.md#ymp-201) | `[=]` | Owner requested a product-led trial proposal. YMP-147 prepares updated goal-linked design: materialize four diagnostic tasks, calibration, then a proposed three-treatment/two-repetition pilot (24 outcome attempts). Existing historical numeric quotas are not reused or approved; selected native model/settings, resource envelope and complete fixtures remain necessary before live execution. Current stage is offline preparation/design, not a started experiment. |
-| 2026-09-13 15:38 | [YMP-147](README.md#ymp-147) | `[x]` | Maintainer reviewed intent, value proposition, existing trusted driver/validators and paused201–203 protocols. Recorded goal-linked metrics, four diagnostic task structures, 24 proposed full outcome attempts across three treatments, held-out/negative controls, actual-resource accounting and a single later goal-directed coordination candidate. Corrected an obsolete active-document claim that concurrency was still take(1). This is completed product design only; fixtures, strategy implementation and live experiments are not claimed. |
-| 2026-09-13 14:36 | [YMP-144](README.md#ymp-144) | `[x]` | Owner approved implementation and live team changes; follow-up recorded as YMP-146. Parent current-team inspection clarified that SessionPolicy.eligible_pool is initial evidence, while effective eligibility is rebuilt from engine configuration under captured team constraints; it is not itself an immutable allowed-list enforcement path. Original diagnostic conclusions remain valid. |
 
 ## Maintenance
 
