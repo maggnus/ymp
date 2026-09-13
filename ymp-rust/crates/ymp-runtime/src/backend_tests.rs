@@ -56,6 +56,11 @@ mod backend_contract_tests {
             self.identity.clone()
         }
 
+        fn workspace_access(&self, request: &TurnRequest) -> WorkspaceAccess {
+            // This fixture writes only during execute; review responses have no I/O.
+            if request.purpose == "execute" { WorkspaceAccess::WriteAll } else { WorkspaceAccess::ReadAll }
+        }
+
         fn execute(
             &self,
             req: TurnRequest,

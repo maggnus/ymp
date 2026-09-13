@@ -30,3 +30,6 @@ pub use board::*;
 
 mod attribution;
 pub use attribution::*;
+
+mod recovery;
+pub use recovery::*;

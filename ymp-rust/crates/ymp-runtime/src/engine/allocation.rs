@@ -620,6 +620,16 @@ impl Engine {
             reason: reason.clone(),
             outcome: None,
             links: RecordLinks {
+                policy_chain: self
+                    .allocation_origin
+                    .iter()
+                    .cloned()
+                    .chain(std::iter::once(PolicyProvenance {
+                        implementation: self.allocation_identity.clone(),
+                        configuration: Value::Null,
+                        originating_record_ids: vec![],
+                    }))
+                    .collect(),
                 allocation: Some(Box::new(AllocationDecision {
                     implementation: self.allocation_identity.clone(),
                     input,
@@ -678,6 +688,16 @@ impl Engine {
                     reason: error.to_string(),
                     outcome: None,
                     links: RecordLinks {
+                        policy_chain: self
+                            .allocation_origin
+                            .iter()
+                            .cloned()
+                            .chain(std::iter::once(PolicyProvenance {
+                                implementation: self.allocation_identity.clone(),
+                                configuration: Value::Null,
+                                originating_record_ids: vec![],
+                            }))
+                            .collect(),
                         allocation: Some(Box::new(AllocationDecision {
                             implementation: self.allocation_identity.clone(),
                             input,

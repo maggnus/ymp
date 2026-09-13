@@ -145,6 +145,7 @@ pub struct AssignmentRecord {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ContextKind {
+    RecoveryStage,
     KnowledgeCorrection,
     Message,
     Memory,
@@ -241,6 +242,12 @@ pub struct PlanVersion {
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RecordLinks {
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub policy_chain: Vec<crate::PolicyProvenance>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub recovery: Option<Box<crate::RecoveryDecision>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub failure: Option<crate::InvocationFailure>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub knowledge_correction: Option<crate::KnowledgeCorrectionCommit>,
     #[serde(default)]

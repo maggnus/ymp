@@ -240,6 +240,39 @@ fn validate_plan_version(
             existing == Some(version),
             "Plan proposal content or producer differs from the recorded version"
         );
+        if decision.kind == "plan_review" {
+            let reviewer: AssignmentRecord = record(
+                db,
+                "assignments",
+                decision
+                    .links
+                    .assignment_id
+                    .as_ref()
+                    .context("Plan review assignment missing")?,
+            )?;
+            let review_call: InvocationRecord = record(
+                db,
+                "invocations",
+                decision
+                    .links
+                    .invocation_id
+                    .as_ref()
+                    .context("Plan review invocation missing")?,
+            )?;
+            ensure!(
+                reviewer.agent_id != producer.agent_id
+                    && reviewer.purpose == "review_plan"
+                    && review_call.state == InvocationState::Completed,
+                "self_review: plan review requires a completed independent invocation"
+            );
+            ensure!(
+                !records::<DecisionRecord>(db, "decisions", &decision.session_id)?
+                    .iter()
+                    .any(|d| d.kind == "plan_review"
+                        && d.links.plan_proposal.as_ref() == Some(version)),
+                "plan_review: verdict already recorded; objections require revision"
+            );
+        }
         if decision.kind == "plan_committed" {
             for id in &decision.links.review_ids {
                 let review: DecisionRecord = record(db, "decisions", id)?;
@@ -512,6 +545,7 @@ impl Store {
             tx.commit()?;
             return Err(denial.into());
         }
+        super::recovery::bind_admission(&tx, assignment, invocation)?;
         let next_turn =
             super::usage::invocation_count(&tx, &assignment.session_id, session.turns_used as u64)?
                 .checked_add(1)
@@ -747,6 +781,28 @@ impl Store {
             .as_ref()
             .context("Plan commitment requires the reviewed proposal version")?;
         version.plan.validate()?;
+        ensure!(
+            records::<Task>(&tx, "tasks", &value.session_id)?.is_empty(),
+            "stale_plan: a task graph already exists"
+        );
+        let history = records::<DecisionRecord>(&tx, "decisions", &value.session_id)?;
+        ensure!(
+            !history
+                .iter()
+                .filter_map(|d| d.links.plan_proposal.as_ref())
+                .any(|p| p.proposal_id == version.proposal_id && p.revision > version.revision),
+            "stale_plan: a newer proposal exists"
+        );
+        ensure!(
+            value
+                .links
+                .review_ids
+                .iter()
+                .any(|id| history.iter().any(|d| &d.id == id
+                    && d.kind == "plan_review"
+                    && matches!(d.outcome, Some(DecisionOutcome::Accepted { .. })))),
+            "plan_review: an independent accepted review is required"
+        );
         ensure!(
             tasks.len() == version.plan.tasks.len(),
             "Committed task count differs from the reviewed plan"

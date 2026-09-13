@@ -7,6 +7,7 @@ mod confirmation_tests;
 mod contract_ingress_tests;
 #[cfg(test)]
 mod knowledge_tests;
+mod recovery;
 mod workspace_access;
 use crate::mcp::TeamServer;
 use crate::{
@@ -65,6 +66,7 @@ pub struct Engine {
     backend_identity: ExecutionBackendIdentity,
     allocation_policy: Arc<dyn crate::AllocationPolicy>,
     allocation_identity: ExecutionBackendIdentity,
+    allocation_origin: Option<PolicyProvenance>,
     resource_policy: Arc<dyn crate::ResourceAllocationPolicy>,
     resource_identity: ExecutionBackendIdentity,
     workspace_policy: Arc<dyn crate::WorkspaceAccessPolicy>,
@@ -72,6 +74,10 @@ pub struct Engine {
     workspace_parent: Option<String>,
     board_policy: Arc<dyn crate::BoardProposalPolicy>,
     board_identity: ExecutionBackendIdentity,
+    recovery_policy: Arc<dyn crate::RecoveryPolicy>,
+    recovery_identity: ExecutionBackendIdentity,
+    recovery_configuration: Value,
+    recovery_binding: Option<(String, u64)>,
 }
 #[derive(Clone)]
 struct RunContext {
@@ -157,6 +163,14 @@ impl Engine {
             bridge,
             executable: std::env::current_exe()?,
             use_memory: true,
+            recovery_policy: Arc::new(crate::BoundedRecoveryPolicy::default()),
+            recovery_identity: crate::RecoveryPolicy::identity(
+                &crate::BoundedRecoveryPolicy::default(),
+            ),
+            recovery_configuration: crate::RecoveryPolicy::configuration(
+                &crate::BoundedRecoveryPolicy::default(),
+            ),
+            recovery_binding: None,
             adaptive: true,
             workspace_policy: Arc::new(crate::DirectWorkspaceAccessPolicy),
             workspace_policy_identity: crate::WorkspaceAccessPolicy::identity(
@@ -178,6 +192,7 @@ impl Engine {
             backend_identity: NativeExecutionBackend.identity(),
             allocation_policy: Arc::new(crate::BoundedAllocationPolicy),
             allocation_identity: crate::AllocationPolicy::identity(&crate::BoundedAllocationPolicy),
+            allocation_origin: None,
             resource_policy: Arc::new(crate::BoundedResourcePolicy),
             resource_identity: crate::ResourceAllocationPolicy::identity(
                 &crate::BoundedResourcePolicy,
@@ -769,6 +784,11 @@ impl Engine {
             Err(error) => {
                 let state = if self.cancel.is_cancelled()
                     || error.downcast_ref::<BudgetDenial>().is_some()
+                    || self
+                        .store
+                        .recovery_stages(&session.id)?
+                        .iter()
+                        .any(|s| s.status == RecoveryStatus::Paused)
                     || ctx.turns.load(Ordering::SeqCst) >= ctx.limits.turns
                 {
                     "paused"
@@ -882,6 +902,11 @@ impl Engine {
                 Err(error)
                     if error.is::<ymp_providers::NativeOutputLimit>()
                         && review
+                        && self.last_failure_is_read_only(
+                            &ctx.session.id,
+                            &agent.id,
+                            purpose,
+                        )?
                         && !self.cancel.is_cancelled() =>
                 {
                     if attempt == attempts {
@@ -1231,6 +1256,15 @@ impl Engine {
                 included_chars: None,
             });
         }
+        if let Some((id, revision)) = &self.recovery_binding {
+            context.push(ContextReference {
+                kind: ContextKind::RecoveryStage,
+                id: id.clone(),
+                session_id: Some(ctx.session.id.clone()),
+                digest: Some(revision.to_string()),
+                included_chars: None,
+            });
+        }
         let mut assignment = AssignmentRecord {
             token_reservation: None,
             agent_identity: Some(identity),
@@ -1534,6 +1568,31 @@ impl Engine {
                 })
             }
             Err(e) => {
+                let (class, native_code) = ymp_providers::classify_failure(&e);
+                self.store.record_decision(&DecisionRecord {
+                    id: new_id(),
+                    session_id: ctx.session.id.clone(),
+                    kind: "invocation_failure".into(),
+                    actor: Some(agent.id.clone()),
+                    reason: format!("Invocation ended with {class:?}; no verdict was produced"),
+                    outcome: None,
+                    links: RecordLinks {
+                        assignment_id: Some(assignment.id.clone()),
+                        invocation_id: Some(invocation.id.clone()),
+                        failure: Some(InvocationFailure {
+                            class,
+                            native_code,
+                            assignment_id: assignment.id.clone(),
+                            invocation_id: invocation.id.clone(),
+                            agent_id: agent.id.clone(),
+                            provider_id: provider.id.clone(),
+                            effective_access: access.access().effective_access.clone(),
+                            termination: TerminationEvidence::BackendEnded,
+                        }),
+                        ..Default::default()
+                    },
+                    created_at: now(),
+                })?;
                 self.store.event(
                     &ctx.session.id,
                     "turn_failed",
@@ -2034,93 +2093,124 @@ impl Engine {
     }
 
     async fn plan(&self, ctx: &RunContext, prompt: &str) -> Result<Vec<Task>> {
-        self.status("Collecting independent proposals");
-        let instruction=format!("Analyze this request and inspect the workspace without changing files:\n{prompt}\nPropose a concise plan with at most 8 independently checkable tasks. Include explicit shell acceptance checks where possible; do not weaken existing tests. Return ONLY JSON: {{\"summary\":\"...\",\"tasks\":[{{\"title\":\"...\",\"description\":\"...\",\"competence\":\"implementation\",\"access\":\"write\",\"difficulty\":\"standard\",\"dependencies\":[],\"checks\":[\"command\"]}}]}}. Dependencies are zero-based task indexes. Competences: analysis, planning, implementation, verification, synthesis. Each task declares access as read_only or write independently of competence. Use read_only for returning findings in the response; use write for producing or changing files, including analysis and synthesis artifacts. Omitted access conservatively means write. Difficulties: simple, standard, complex. Keep simple requests to one task.");
-        let mut work = JoinSet::new();
-        // A bounded initial sample leaves startup room for independent review
-        // and revision. Membership is not a mandate to solicit every member.
-        let difficulty = if prompt.len() > 1000 || prompt.to_lowercase().contains("complex") {
-            "complex"
-        } else {
-            "standard"
-        };
-        let initial = if difficulty == "complex" { 2 } else { 1 };
-        let initial = initial.min(ctx.limits.parallel).min(
-            ctx.limits
-                .resources
-                .as_ref()
-                .map_or(1, |r| r.startup_invocations.saturating_sub(1) as usize),
-        );
-        let mut planners = Vec::new();
-        for _ in 0..initial {
-            let candidates = self
-                .current_team(&ctx.session.id)?
-                .into_iter()
-                .filter(|a| !planners.iter().any(|p: &AgentProfile| p.id == a.id))
-                .collect::<Vec<_>>();
-            if candidates.is_empty() {
-                break;
-            }
-            planners.push(self.choose(
-                ctx,
-                &candidates,
-                "planning",
-                difficulty,
-                "bounded initial planning",
-                "plan",
-                None,
-            )?);
-        }
-        for agent in &planners {
-            let e = self.clone();
-            let c = ctx.clone();
-            let a = agent.clone();
-            let p = instruction.clone();
-            work.spawn(async move {
-                let r = e
-                    .ask_scoped(&c, &a, &c.workspace.directory, "plan", &p, true, None)
-                    .await;
-                (a, r)
-            });
-        }
+        let trace = self.store.trace(&ctx.session.id)?;
         let mut proposals = Vec::new();
-        while let Some(result) = work.join_next().await {
-            let (agent, result) = result?;
-            match result.and_then(|response| self.record_plan_proposal(ctx, &agent, response, None))
+        for decision in trace.decisions.iter().filter(|d| d.kind == "plan_proposed") {
+            let proposal = decision
+                .links
+                .plan_proposal
+                .as_ref()
+                .context("Missing recorded proposal")?;
+            if trace
+                .decisions
+                .iter()
+                .filter_map(|d| d.links.plan_proposal.as_ref())
+                .any(|p| p.proposal_id == proposal.proposal_id && p.revision > proposal.revision)
             {
-                Ok(proposal) => proposals.push((agent, proposal)),
-                Err(e) => {
-                    self.post(
-                        &ctx.session.id,
-                        "ymp",
-                        "notice",
-                        &format!("Plan proposal unavailable: {e}"),
-                    )?;
+                continue;
+            }
+            let author = trace
+                .session
+                .team
+                .iter()
+                .find(|a| Some(&a.id) == decision.actor.as_ref())
+                .context("Saved plan author missing from history")?;
+            proposals.push((author.clone(), proposal.clone()));
+        }
+        let restored = !proposals.is_empty();
+        if !restored {
+            self.status("Collecting independent proposals");
+            let instruction=format!("Analyze this request and inspect the workspace without changing files:\n{prompt}\nPropose a concise plan with at most 8 independently checkable tasks. Include explicit shell acceptance checks where possible; do not weaken existing tests. Return ONLY JSON: {{\"summary\":\"...\",\"tasks\":[{{\"title\":\"...\",\"description\":\"...\",\"competence\":\"implementation\",\"access\":\"write\",\"difficulty\":\"standard\",\"dependencies\":[],\"checks\":[\"command\"]}}]}}. Dependencies are zero-based task indexes. Competences: analysis, planning, implementation, verification, synthesis. Each task declares access as read_only or write independently of competence. Use read_only for returning findings in the response; use write for producing or changing files, including analysis and synthesis artifacts. Omitted access conservatively means write. Difficulties: simple, standard, complex. Keep simple requests to one task.");
+            let mut work = JoinSet::new();
+            // A bounded initial sample leaves startup room for independent review
+            // and revision. Membership is not a mandate to solicit every member.
+            let difficulty = if prompt.len() > 1000 || prompt.to_lowercase().contains("complex") {
+                "complex"
+            } else {
+                "standard"
+            };
+            let initial = if difficulty == "complex" { 2 } else { 1 };
+            let initial = initial.min(ctx.limits.parallel).min(
+                ctx.limits
+                    .resources
+                    .as_ref()
+                    .map_or(1, |r| r.startup_invocations.saturating_sub(1) as usize),
+            );
+            let mut planners = Vec::new();
+            for _ in 0..initial {
+                let candidates = self
+                    .current_team(&ctx.session.id)?
+                    .into_iter()
+                    .filter(|a| !planners.iter().any(|p: &AgentProfile| p.id == a.id))
+                    .collect::<Vec<_>>();
+                if candidates.is_empty() {
+                    break;
+                }
+                planners.push(self.choose(
+                    ctx,
+                    &candidates,
+                    "planning",
+                    difficulty,
+                    "bounded initial planning",
+                    "plan",
+                    None,
+                )?);
+            }
+            for agent in &planners {
+                let e = self.clone();
+                let c = ctx.clone();
+                let a = agent.clone();
+                let p = instruction.clone();
+                work.spawn(async move {
+                    let r = e
+                        .ask_scoped(&c, &a, &c.workspace.directory, "plan", &p, true, None)
+                        .await;
+                    (a, r)
+                });
+            }
+            while let Some(result) = work.join_next().await {
+                let (agent, result) = result?;
+                match result
+                    .and_then(|response| self.record_plan_proposal(ctx, &agent, response, None))
+                {
+                    Ok(proposal) => proposals.push((agent, proposal)),
+                    Err(e) => {
+                        self.post(
+                            &ctx.session.id,
+                            "ymp",
+                            "notice",
+                            &format!("Plan proposal unavailable: {e}"),
+                        )?;
+                    }
                 }
             }
-        }
-        if proposals.is_empty() {
-            if let Some(denial) = self
-                .store
-                .session_budget(&ctx.session.id)?
-                .and_then(|b| b.last_denial)
-            {
-                return Err(denial.into());
+            if proposals.is_empty() {
+                if let Some(denial) = self
+                    .store
+                    .session_budget(&ctx.session.id)?
+                    .and_then(|b| b.last_denial)
+                {
+                    return Err(denial.into());
+                }
+                bail!("No valid plan was produced");
             }
-            bail!("No valid plan was produced");
         }
         let mut selected = None;
         while !proposals.is_empty() {
             let candidates = proposals.iter().map(|(a, _)| a.clone()).collect::<Vec<_>>();
-            let author = self.choose(
-                ctx,
-                &candidates,
-                "planning",
-                "standard",
-                "plan selection",
-                "plan",
-                None,
-            )?;
+            let author = if restored {
+                candidates[0].clone()
+            } else {
+                self.choose(
+                    ctx,
+                    &candidates,
+                    "planning",
+                    "standard",
+                    "plan selection",
+                    "plan",
+                    None,
+                )?
+            };
             let index = proposals
                 .iter()
                 .position(|(a, _)| a.id == author.id)
@@ -2132,46 +2222,16 @@ impl Engine {
                 .filter(|a| a.id != author.id)
                 .cloned()
                 .collect::<Vec<_>>();
-            let reviewer = self.choose(
-                ctx,
-                &peers,
-                "verification",
-                "standard",
-                "plan review",
-                "review_plan",
-                None,
-            )?;
             let mut accepted_review = None;
-            for attempt in 0..ctx.limits.attempts {
-                let review_prompt = format!("Review this proposed plan against the user's request. Check completeness, meaningful acceptance checks, dependencies, and unnecessary work.\nRequest: {prompt}\nPlan: {}\nReturn ONLY JSON {{\"approved\":true|false,\"reason\":\"specific justification\"}}.", serde_json::to_string(&proposal.plan)?);
-                let response = self
-                    .ask_scoped(
-                        ctx,
-                        &reviewer,
-                        &ctx.workspace.directory,
-                        "review_plan",
-                        &review_prompt,
-                        true,
-                        None,
-                    )
+            for _ in proposal.revision..=ctx.limits.attempts {
+                let (response, review, review_id) = self
+                    .review_saved_plan(ctx, prompt, &proposal, &peers)
                     .await?;
-                let review: Review = parse_response(&response.text)?;
-                let review_id = self.record_review(
-                    ctx,
-                    &reviewer.id,
-                    &response,
-                    &review,
-                    RecordLinks {
-                        plan_proposal: Some(proposal.clone()),
-                        ..Default::default()
-                    },
-                    "plan_review",
-                )?;
                 if review.approved {
                     accepted_review = Some((response, review_id, review.reason));
                     break;
                 }
-                if attempt + 1 < ctx.limits.attempts {
+                if proposal.revision < ctx.limits.attempts {
                     let response = self.ask_scoped(ctx, &author, &ctx.workspace.directory, "plan", &format!("Revise your plan to address this independent review: {}. Return the same JSON plan schema. Original request: {prompt}", review.reason), true, None).await?;
                     proposal = self.record_plan_proposal(
                         ctx,

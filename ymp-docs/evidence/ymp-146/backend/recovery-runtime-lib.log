@@ -1,0 +1,139 @@
+   Compiling ymp-core v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-recovery-backend/ymp-rust/crates/ymp-core)
+   Compiling ymp-providers v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-recovery-backend/ymp-rust/crates/ymp-providers)
+   Compiling ymp-workspace v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-recovery-backend/ymp-rust/crates/ymp-workspace)
+   Compiling ymp-storage v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-recovery-backend/ymp-rust/crates/ymp-storage)
+   Compiling ymp-runtime v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-recovery-backend/ymp-rust/crates/ymp-runtime)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 5.84s
+     Running unittests src/lib.rs (target/debug/deps/ymp_runtime-8bff37fae2c49ffb)
+
+running 112 tests
+test engine::confirmation_tests::confirmation_failed_applicable_assertion_overrides_every_approving_agent ... ok
+test engine::confirmation_tests::confirmation_pinned_validator_captures_actual_process_and_data ... ok
+test engine::confirmation_tests::confirmation_storage_rejects_forged_result_review_and_credit_links ... ok
+test engine::contract_ingress_tests::configured_invalid_contract_sets_leave_no_partial_session ... ok
+test engine::confirmation_tests::confirmation_alternative_executor_cannot_bypass_runtime_evidence_guards ... ok
+test engine::confirmation_tests::confirmation_final_review_excludes_all_aggregate_producers ... ok
+test engine::confirmation_tests::confirmation_stale_artifact_requires_a_new_attempt_and_new_review ... ok
+test engine::confirmation_tests::confirmation_final_phase_and_review_outcome_are_bound_to_the_invocation ... ok
+test engine::confirmation_tests::confirmation_success_is_attributed_once_and_survives_narration_failure ... ok
+test engine::confirmation_tests::confirmation_external_data_is_resolved_from_actual_supplied_bytes ... ok
+test engine::contract_ingress_tests::configured_missing_and_ambiguous_plan_targets_are_rejected_including_revisions ... ok
+test engine::confirmation_tests::confirmation_coverage_and_agreement_do_not_imply_quality ... ok
+test engine::contract_ingress_tests::configured_resume_revalidates_saved_plan_bindings_before_production_or_review ... ok
+test engine::contract_ingress_tests::configured_resume_preserves_capture_and_rejects_replacement_before_invocation ... ok
+test engine::knowledge_tests::knowledge_outcomes_retain_captured_location_after_project_relocation ... ok
+test engine::knowledge_tests::knowledge_intermediate_survives_sibling_failure_and_reaches_later_session ... ok
+test engine::contract_ingress_tests::configured_requirements_reach_planning_revisions_without_reference_or_verifier_bytes ... ok
+test engine::tests::aborted_execution_is_interrupted_and_never_submitted_as_a_result ... ok
+test engine::tests::allocation_contract_tests::allocation_contradictions_and_unavailable_pins_never_invoke ... ok
+test engine::knowledge_tests::knowledge_partial_confirmation_preserves_candidates_without_activation ... ok
+test engine::knowledge_tests::knowledge_policy_failure_preserves_accepted_project_fact ... ok
+test engine::contract_ingress_tests::configured_input_and_verifier_drift_on_resume_is_not_recaptured_or_confirmed ... ok
+test engine::knowledge_tests::knowledge_scope_source_drift_and_retirement_are_resolved_by_runtime ... ok
+test engine::tests::a_follow_up_question_keeps_context_without_reexecuting_the_task ... ok
+test engine::knowledge_tests::knowledge_policy_substitution_cannot_forge_sources_activation_or_context_limits ... ok
+test engine::contract_ingress_tests::configured_changes_during_production_or_review_do_not_create_credit ... ok
+test engine::tests::allocation_contract_tests::allocation_resource_substitution_cannot_override_runtime_ceilings ... ok
+test engine::tests::allocation_contract_tests::allocation_availability_refresh_blocks_grants_and_active_responsibilities_cannot_depart ... ok
+test engine::tests::allocation_contract_tests::allocation_fixed_size_one_replaces_identity_for_independent_review ... ok
+test engine::tests::allocation_contract_tests::allocation_failed_check_reconsiders_evidence_without_automatic_effort_escalation ... ok
+test engine::tests::allocation_contract_tests::allocation_fixed_size_replacement_preserves_history_and_rejects_retired_admission ... ok
+test engine::tests::allocation_contract_tests::allocation_infeasible_final_review_is_explicit_even_for_a_dishonest_policy ... ok
+test engine::tests::accepting_without_confirmation_never_awards_reputation ... ok
+test engine::tests::allocation_contract_tests::allocation_policy_substitution_reaches_native_settings_without_a_universal_effort_ladder ... ok
+test engine::tests::allocation_contract_tests::allocation_policy_cannot_override_captured_effort_pins ... ok
+test engine::tests::backend_contract_tests::backend_public_engine_admission_precedes_script_execution ... ok
+test engine::tests::allocation_contract_tests::allocation_resource_substitution_changes_actual_controls_with_the_same_admission_ledger ... ok
+test engine::tests::allocation_contract_tests::allocation_two_task_fixed_roster_keeps_final_review_feasible ... ok
+test engine::tests::allocation_contract_tests::allocation_dynamic_ceiling_and_fixed_roster_are_distinct ... ok
+test engine::tests::allocation_startup_is_bounded_and_never_requires_pool_bids ... ok
+test engine::tests::backend_contract_tests::backend_public_engine_executes_a_distinct_workflow_and_records_actual_identity ... ok
+test engine::tests::backend_contract_tests::native_output_limit_never_automatically_retries_a_writer ... ok
+test engine::tests::backend_contract_tests::backend_public_engine_redacts_nested_capability_errors ... ok
+test engine::tests::backend_contract_tests::backend_public_engine_cancels_a_noncooperative_future ... ok
+test engine::tests::backend_contract_tests::backend_public_engine_stops_result_overflow_and_drains_usage ... ok
+test engine::tests::backend_contract_tests::backend_public_engine_stops_stream_overflow_and_drains_usage ... ok
+test engine::tests::allocation_contract_tests::allocation_verified_experience_changes_native_choice_but_unconfirmed_claims_do_not ... ok
+test engine::tests::assignment_settings_isolate_changes_and_preserve_known_default_and_explicit_continuations ... ok
+test engine::tests::budget_context_limit_rejects_before_native_work_without_spending_invocations ... ok
+test engine::tests::backend_contract_tests::backend_identity_scopes_continuations_and_competence_in_both_directions ... ok
+test engine::tests::budget_native_output_stop_reaches_trace_with_actual_usage ... ok
+test engine::tests::backend_contract_tests::tool_activity_names_the_actor_by_id_and_never_by_its_caption ... ok
+test engine::tests::backend_contract_tests::visible_follow_up_answer_keeps_its_origin_after_decoding ... ok
+test engine::tests::budget_resume_preserves_unknown_usage_stop_and_captured_limits ... FAILED
+test engine::tests::budget_public_resume_preserves_legacy_spend_with_missing_or_sparse_rows ... ok
+test engine::tests::cancellation_preserves_session_without_rewarding_failure ... ok
+test engine::tests::cancellation_retains_reported_tokens ... ok
+test engine::tests::backend_contract_tests::native_review_limit_respects_cancellation_partial_usage_and_token_ceiling ... ok
+test engine::tests::backend_contract_tests::native_review_retry_cannot_exceed_remaining_invocations ... ok
+test engine::tests::backend_contract_tests::native_review_limit_recovers_without_replaying_the_writer ... ok
+test engine::tests::budget_minimum_startup_allowance_keeps_plan_review_possible ... ok
+test engine::tests::backend_contract_tests::native_review_limit_does_not_retry_unrelated_or_runtime_stops ... ok
+test engine::tests::budget_all_purposes_share_usage_and_timeout_controls ... ok
+test engine::tests::budget_startup_does_not_invoke_every_team_member ... ok
+test engine::tests::captured_pins_reject_conflicting_overrides_before_invocation_and_survive_config_edits ... ok
+test engine::tests::disabled_memory_records_no_query_or_included_sources ... ok
+test engine::tests::backend_contract_tests::backend_public_engine_times_out_a_noncooperative_future ... ok
+test engine::confirmation_tests::confirmation_delivery_rechecks_files_after_normal_and_failed_narration ... ok
+test engine::tests::joint_engine_budget_stops_never_leave_unaccounted_or_active_grants ... ok
+test engine::tests::competence_lookup_and_updates_share_the_original_execution_configuration ... ok
+test engine::tests::memory_retrieval_uses_task_content_and_records_bounded_sources ... ok
+test engine::tests::failed_final_checks_do_not_restore_a_previously_completed_session ... ok
+test engine::tests::every_planner_invocation_has_a_production_decision ... ok
+test engine::tests::failing_check_overrules_an_approving_reviewer ... ok
+test engine::tests::cancellation_during_learning_or_synthesis_still_pauses_the_session ... ok
+test engine::tests::knowledge_agreement_never_activates_general_claims ... ok
+test mcp::socket::tests::closing_an_old_binding_preserves_a_replacement_listener ... ok
+test mcp::socket::tests::failed_bind_does_not_unlink_the_existing_listener ... ok
+test mcp::socket::tests::long_addresses_use_separate_private_aliases_and_keep_metadata ... ok
+test mcp::socket::tests::short_address_needs_no_alias_and_releases_its_socket ... ok
+test mcp::tests::board_proposals_cannot_self_grant_or_commit_runtime_state ... ok
+test mcp::tests::competing_runtime_admissions_commit_one_assignment ... ok
+test mcp::tests::concurrent_replayed_request_has_only_one_effect ... ok
+test mcp::tests::concurrent_revocation_cannot_commit_an_operation_after_the_terminal_event ... ok
+test mcp::tests::cross_assignment_and_session_arguments_are_rejected ... ok
+test mcp::tests::duplicate_claims_wrong_scope_and_failed_admission_leave_no_grants_or_events ... ok
+test mcp::tests::explicit_server_admission_rejects_historical_ordinals_before_issuing_capabilities ... ok
+test engine::tests::synthesis_failure_preserves_accepted_results_and_usage ... ok
+test mcp::tests::fresh_assignment_rotates_scope_without_discarding_native_context ... ok
+test mcp::tests::grant_event_rolls_back_when_later_invocation_insert_fails ... ok
+test engine::tests::memory_retrieval_follows_latest_user_request_and_preserves_global_scope ... ok
+test mcp::tests::joint_budget_denial_creates_no_grant_or_live_capability_across_connections ... ok
+test mcp::tests::memory_proposal_records_bound_origin_without_activation ... ok
+test mcp::tests::restart_does_not_restore_credentials_from_native_context ... ok
+test mcp::tests::same_token_is_rejected_by_another_session_server ... ok
+test mcp::tests::scoped_internal_memory_inspection_preserves_applicability_and_confirmation ... ok
+test mcp::tests::server_drop_ends_grants_and_restart_requires_fresh_admission ... ok
+test mcp::tests::joint_terminal_and_restart_release_reservations_and_reject_capabilities ... ok
+test mcp::tests::task_reassignment_revokes_the_previous_attempt_in_the_same_commit ... ok
+test mcp::tests::terminal_assignment_credentials_reject_completion_failure_and_cancellation ... ok
+test public_mcp::tests::published_tool_schemas_match_discovery ... ok
+test workspace_access::tests::scoped_resources_reject_path_aliases_and_conflict_by_components ... ok
+test engine::tests::interrupted_execution_is_inspected_then_resumed_without_failure_credit ... ok
+test engine::tests::turn_exhaustion_only_preserves_completion_after_final_review ... ok
+test engine::tests::team_produces_verified_artifact_memory_and_durable_session ... ok
+test engine::tests::revised_plan_commit_identifies_the_new_producer_and_rejected_predecessor ... ok
+test mcp::tests::internal_memory_search_projects_large_rows_with_versions_and_continuation ... ok
+test engine::tests::provenance_uses_task_id_and_captured_limits_across_resume ... ok
+test engine::tests::usage_updates_are_live_and_final_snapshots_are_not_lost ... ok
+test engine::tests::optional_learning_failure_keeps_the_accepted_result ... ok
+test public_mcp::tests::identified_start_is_insert_only_and_retains_spend ... ok
+test engine::tests::failures_before_final_acceptance_never_use_narration_fallback ... ok
+
+failures:
+
+---- engine::tests::budget_resume_preserves_unknown_usage_stop_and_captured_limits stdout ----
+
+thread 'engine::tests::budget_resume_preserves_unknown_usage_stop_and_captured_limits' panicked at ymp-rust/crates/ymp-runtime/src/budget_tests.rs:15:5:
+assertion `left == right` failed
+  left: "blocked"
+ right: "paused"
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    engine::tests::budget_resume_preserves_unknown_usage_stop_and_captured_limits
+
+test result: FAILED. 111 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.30s
+
+error: test failed, to rerun pass `-p ymp-runtime --lib`
