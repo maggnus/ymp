@@ -1,0 +1,29 @@
+[
+  {
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--offline",
+      "--manifest-path",
+      "ymp-docs/evidence/ymp-146/rework/round2/probe/Cargo.toml",
+      "--test",
+      "inspection",
+      "--",
+      "--nocapture"
+    ],
+    "exit_code": 0
+  },
+  {
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "ymp-runtime",
+      "--test",
+      "session_recovery",
+      "inspection_rework::"
+    ],
+    "exit_code": 0
+  }
+]

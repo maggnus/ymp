@@ -58,14 +58,7 @@ fn effects(
     failures.iter().map(|failure| {
         ensure!(stage.failures.contains(failure) && failure.termination == TerminationEvidence::BackendEnded,
             "uncertain_effects: backend termination is unverified");
-        let invocation: InvocationRecord = provenance::record(db, "invocations", &failure.invocation_id)?;
-        let assignment: AssignmentRecord = provenance::record(db, "assignments", &failure.assignment_id)?;
-        ensure!(invocation.session_id == stage.session_id && assignment.session_id == stage.session_id
-            && invocation.assignment_id == assignment.id && assignment.agent_id == failure.agent_id
-            && assignment.provider_id == failure.provider_id
-            && matches!(invocation.state, InvocationState::Failed | InvocationState::Cancelled)
-            && assignment.state == invocation.state && assignment.ended_at.is_some(),
-            "uncertain_effects: foreign or nonterminal execution evidence");
+        let (assignment, invocation) = terminal_failure(db, stage, failure)?;
         let ended_at = invocation.ended_at.clone().context("uncertain_effects: missing termination record")?;
         let access_record = decisions.iter().find(|d| d.kind == "workspace_access_admitted"
             && d.links.assignment_id.as_ref() == Some(&assignment.id)
@@ -85,6 +78,65 @@ fn effects(
         ensure!(total_bytes <= 16 * 1024 * 1024, "inspection_evidence: snapshots exceed 16 MiB");
         Ok(InspectedInvocationEffects { failure: failure.clone(), access_record_id: access_record.id.clone(), ended_at, files })
     }).collect()
+}
+
+/// A completed malformed response is terminal, but a valid verdict is never a
+/// failed review. Require the exact runtime classification and its original binding.
+pub(super) fn terminal_failure(
+    db: &Connection,
+    stage: &RecoveryStage,
+    failure: &InvocationFailure,
+) -> Result<(AssignmentRecord, InvocationRecord)> {
+    let invocation: InvocationRecord =
+        provenance::record(db, "invocations", &failure.invocation_id)?;
+    let assignment: AssignmentRecord =
+        provenance::record(db, "assignments", &failure.assignment_id)?;
+    let decisions = provenance::records::<DecisionRecord>(db, "decisions", &stage.session_id)?;
+    let malformed = invocation.state == InvocationState::Completed
+        && failure.class == FailureClass::MalformedResponse
+        && decisions.iter().any(|d| {
+            d.kind
+                == if stage.purpose == "plan" {
+                    "malformed_plan"
+                } else {
+                    "malformed_review"
+                }
+                && d.links.failure.as_ref() == Some(failure)
+                && d.links.assignment_id.as_ref() == Some(&assignment.id)
+                && d.links.invocation_id.as_ref() == Some(&invocation.id)
+                && (stage.purpose == "plan"
+                    || (d.links.plan_proposal == stage.plan
+                        && d.links.result == stage.result
+                        && d.links.task == stage.task))
+        });
+    ensure!(
+        invocation.session_id == stage.session_id
+            && assignment.session_id == stage.session_id
+            && invocation.assignment_id == assignment.id
+            && assignment.agent_id == failure.agent_id
+            && assignment.provider_id == failure.provider_id
+            && assignment.purpose == stage.purpose
+            && (matches!(
+                invocation.state,
+                InvocationState::Failed | InvocationState::Cancelled
+            ) || malformed)
+            && assignment.state == invocation.state
+            && assignment.ended_at.is_some()
+            && invocation.ended_at.is_some()
+            && failure.termination == TerminationEvidence::BackendEnded,
+        "uncertain_effects: foreign, nonterminal or unclassified completed execution evidence"
+    );
+    ensure!(
+        !decisions
+            .iter()
+            .any(|d| d.links.invocation_id.as_ref() == Some(&invocation.id)
+                && matches!(
+                    d.outcome,
+                    Some(DecisionOutcome::Accepted { .. } | DecisionOutcome::Rejected)
+                )),
+        "existing_verdict: a completed verdict cannot be treated as malformed"
+    );
+    Ok((assignment, invocation))
 }
 
 pub(super) fn replay_safe(db: &Connection, stage: &RecoveryStage) -> Result<bool> {

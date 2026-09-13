@@ -557,3 +557,140 @@ async fn r3_inspection_commit_rejects_changed_data_and_racing_owner_pause() -> R
     }
     Ok(())
 }
+
+#[tokio::test]
+async fn r3_completed_malformed_response_with_exact_failure_can_be_inspected() -> Result<()> {
+    let temp = tempfile::tempdir()?;
+    let path = temp.path().join("work");
+    std::fs::create_dir(&path)?;
+    let store = Store::open(&temp.path().join("state"))?;
+    let failing = Arc::new(Script {
+        failure_purpose: "review_plan",
+        gate: None,
+        mode: Mode::Malformed,
+        writes: false,
+        failures: AtomicUsize::new(1),
+        calls: Mutex::new(vec![]),
+    });
+    let initial = engine(store.clone(), failing.clone())
+        .with_execution_backend(Arc::new(LocalEffectBackend {
+            script: failing,
+            declare_scope: true,
+        }))?
+        .run(&path, "Inspect", None)
+        .await?;
+    let stage = store
+        .recovery_stages(&initial.session.id)?
+        .into_iter()
+        .find(|s| s.purpose == "review_plan")
+        .unwrap();
+    assert_eq!(stage.failures.len(), 1);
+    assert_eq!(stage.failures[0].class, FailureClass::MalformedResponse);
+    assert_eq!(
+        store
+            .invocation(&stage.session_id, &stage.failures[0].invocation_id)?
+            .state,
+        InvocationState::Completed
+    );
+    let script = Arc::new(Script {
+        failure_purpose: "never",
+        gate: None,
+        mode: Mode::Unknown,
+        writes: false,
+        failures: AtomicUsize::new(0),
+        calls: Mutex::new(vec![]),
+    });
+    let engine = engine(store.clone(), script.clone());
+    let receipt = engine
+        .inspect_recovery(&RecoveryInspectionCommand {
+            session_id: stage.session_id.clone(),
+            stage_id: stage.id.clone(),
+            expected_revision: stage.revision,
+            command_id: new_id(),
+        })
+        .await?;
+    assert_eq!(script.calls.lock().unwrap().len(), 1);
+    engine.control_recovery(&RecoveryControlCommand {
+        session_id: stage.session_id.clone(),
+        stage_id: stage.id.clone(),
+        expected_revision: receipt.resulting_revision,
+        command_id: new_id(),
+        action: RecoveryControl::Continue,
+    })?;
+    assert_eq!(
+        engine
+            .run(&path, "", Some(&stage.session_id))
+            .await?
+            .session
+            .status,
+        "completed"
+    );
+    assert_eq!(
+        engine
+            .recovery_stages(&stage.session_id)?
+            .into_iter()
+            .find(|s| s.id == stage.id)
+            .unwrap()
+            .failures,
+        stage.failures
+    );
+    assert!(!script
+        .calls
+        .lock()
+        .unwrap()
+        .iter()
+        .any(|r| r.purpose == "plan"));
+    Ok(())
+}
+
+#[tokio::test]
+async fn r3_valid_positive_and_negative_completed_reviews_are_not_malformed() -> Result<()> {
+    for negative in [false, true] {
+        let temp = tempfile::tempdir()?;
+        let path = temp.path().join("work");
+        std::fs::create_dir(&path)?;
+        let store = Store::open(&temp.path().join("state"))?;
+        let script = Arc::new(Script {
+            failure_purpose: "review_plan",
+            gate: None,
+            mode: Mode::Negative,
+            writes: false,
+            failures: AtomicUsize::new(usize::from(negative)),
+            calls: Mutex::new(vec![]),
+        });
+        let engine = engine(store.clone(), script.clone());
+        let result = engine.run(&path, "Inspect", None).await?;
+        let before = script.calls.lock().unwrap().len();
+        let trace = store.trace(&result.session.id)?;
+        let verdict = trace
+            .decisions
+            .iter()
+            .find(|d| d.kind == "plan_review")
+            .unwrap();
+        assert_eq!(
+            matches!(verdict.outcome, Some(DecisionOutcome::Rejected)),
+            negative
+        );
+        let stage = engine
+            .recovery_stages(&result.session.id)?
+            .into_iter()
+            .find(|s| s.plan == verdict.links.plan_proposal)
+            .unwrap();
+        assert!(stage.failures.is_empty());
+        assert!(engine
+            .inspect_recovery(&RecoveryInspectionCommand {
+                session_id: stage.session_id,
+                stage_id: stage.id,
+                expected_revision: stage.revision,
+                command_id: new_id()
+            })
+            .await
+            .is_err());
+        assert_eq!(script.calls.lock().unwrap().len(), before);
+        assert_eq!(
+            serde_json::to_value(store.decisions(&result.session.id)?)?,
+            serde_json::to_value(trace.decisions)?
+        );
+    }
+    Ok(())
+}

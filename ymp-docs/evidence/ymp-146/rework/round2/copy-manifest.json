@@ -1,0 +1,12 @@
+{
+  "original_sha256": {
+    "review-result.json": "f621f5721f822798c3c334bcec33d7d5f97551d5e9293ddced2fcfce60f3cb6d",
+    "scoped-inspection.log": "5b22c1572b4562c4d97573107a7d2f7ce26cc62188818756e8870d686c7aa66d",
+    "scoped-true.json": "b1ff9c5a4c1b7094709aa55d11c9adee5aaf12db3845780acb0f2e14cbd5e748",
+    "scoped-false.json": "c9c86510440f389276315f4602e58d75a2c104d7219c5360a1afcd9eb9695b84",
+    "probe/tests/inspection.rs": "61739b24079ad19441105d6c09bb631d702712a932aeaf413a8ca7e76ce6d891",
+    "probe/Cargo.toml": "218314cda72129bc2438d801029e17f75bcf33e76810b7030ca4eee93b6c6089",
+    "probe/Cargo.lock": "edcec7a7e7d6c11bfaf68ba1d729b120b0b440b6233506ebc07b239386eab31d"
+  },
+  "candidate_changes": "Only output/temp path literals redirected; dependency paths already name this isolated workspace; assertions unchanged"
+}

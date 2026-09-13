@@ -1,0 +1,30 @@
+   Compiling ymp-storage v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-review-findings/ymp-rust/crates/ymp-storage)
+   Compiling ymp-runtime v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-review-findings/ymp-rust/crates/ymp-runtime)
+   Compiling ymp146-recovery-rereview-probe v0.0.0 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-review-findings/ymp-docs/evidence/ymp-146/rework/round2/probe)
+warning: variants `Transient`, `Auth`, and `Negative` are never constructed
+  --> tests/inspection.rs:18:5
+   |
+16 | enum Mode {
+   |      ---- variants in this enum
+17 |     Unknown,
+18 |     Transient,
+   |     ^^^^^^^^^
+19 |     Auth,
+   |     ^^^^
+20 |     Negative,
+   |     ^^^^^^^^
+   |
+   = note: `Mode` has a derived impl for the trait `Clone`, but this is intentionally ignored during dead code analysis
+   = note: `#[warn(dead_code)]` on by default
+
+warning: `ymp146-recovery-rereview-probe` (test "inspection") generated 1 warning
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.85s
+     Running tests/inspection.rs (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-recovery-backend/target/debug/deps/inspection-0201caf94ce95609)
+
+running 2 tests
+SCOPED malformed=true invocation=Completed class=MalformedResponse termination=BackendEnded inspection=Ok(RecoveryInspectionReceipt { command: RecoveryInspectionCommand { session_id: "5a6aa754-a3cb-4b57-87ed-d29927f5e02c", stage_id: "plan-review-e0336119-befb-4618-9ed9-2d61e9f3bbdc-1", expected_revision: 7, command_id: "bc42cee8-b717-4526-9d53-3069e670cb7a" }, inspection_id: "8e8a56ee-588d-42dd-b85f-54a331ec3432", resulting_revision: 8 })
+SCOPED malformed=false invocation=Failed class=Unknown termination=BackendEnded inspection=Ok(RecoveryInspectionReceipt { command: RecoveryInspectionCommand { session_id: "e00cd730-fb85-4c38-ad76-598bc11ed501", stage_id: "plan-review-ff97fa4a-201a-4ef8-a569-659a663d32c7-1", expected_revision: 6, command_id: "91003646-bcd2-44f5-bc07-7dd05178a377" }, inspection_id: "53f36679-1e36-4396-931e-5cbd9d9c524e", resulting_revision: 7 })
+test scoped_completed_malformed_review_can_be_inspected ... ok
+test scoped_failed_invocation_positive_control ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.49s
