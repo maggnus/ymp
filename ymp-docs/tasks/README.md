@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-13 16:07 UTC.
+Updated: 2026-09-13 16:13 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -14,7 +14,7 @@ A planned task is not implemented functionality. Completed research and planning
 | design | 2 | 2 |
 | documentation | 4 | 4 |
 | experiment | 0 | 4 |
-| implementation | 35 | 42 |
+| implementation | 35 | 44 |
 | maintenance | 1 | 1 |
 | research | 10 | 10 |
 | verification | 2 | 2 |
@@ -40,7 +40,7 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-107](#ymp-107) | P1 | Expose recorded checks and factual recovery limits | 2026-09-12 12:55 |
 | `[=]` | [YMP-108](#ymp-108) | P2 | Evaluate an optional usage estimate with explicit price provenance | 2026-09-12 09:35 |
 | `[x]` | [YMP-111](#ymp-111) | P0 | Apply native models and reasoning settings per assignment | 2026-09-12 12:18 |
-| `[=]` | [YMP-201](#ymp-201) | P2 | Calibrate and run the paired solo/team pilot | 2026-09-13 15:38 |
+| `[=]` | [YMP-201](#ymp-201) | P2 | Calibrate and run the paired solo/team pilot | 2026-09-13 16:13 |
 | `[=]` | [YMP-202](#ymp-202) | P1 | Test memory and adaptive assignment on held-out tasks | 2026-09-12 09:35 |
 | `[=]` | [YMP-203](#ymp-203) | P1 | Test effort, reduced preparation and low-effort ensembles separately | 2026-09-12 09:35 |
 | `[=]` | [YMP-204](#ymp-204) | P1 | Evaluate a project-scoped prior-outcome router | 2026-09-12 09:35 |
@@ -86,10 +86,12 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-143](#ymp-143) | P1 | Provide a separate /git changes view modeled on Paseo | 2026-09-13 14:04 |
 | `[x]` | [YMP-144](#ymp-144) | P1 | Research recovery of sessions after one or more agent failures | 2026-09-13 14:36 |
 | `[~]` | [YMP-145](#ymp-145) | P1 | Unify full-row popup selection and verify stable scrolling geometry | 2026-09-13 16:07 |
-| `[~]` | [YMP-146](#ymp-146) | P0 | Recover interrupted session stages and let the owner change the active team | 2026-09-13 16:00 |
+| `[~]` | [YMP-146](#ymp-146) | P0 | Recover interrupted session stages and let the owner change the active team | 2026-09-13 16:13 |
 | `[x]` | [YMP-147](#ymp-147) | P1 | Translate product goals into a focused comparative trial program | 2026-09-13 15:38 |
-| `[=]` | [YMP-148](#ymp-148) | P1 | Expose replaceable coordination on /team and separate the agent catalog | 2026-09-13 16:00 |
+| `[=]` | [YMP-148](#ymp-148) | P1 | Make session coordination replaceable through a typed strategy contract | 2026-09-13 16:13 |
 | `[=]` | [YMP-149](#ymp-149) | P1 | Use concise professional terminology throughout the interface | 2026-09-13 16:07 |
+| `[=]` | [YMP-150](#ymp-150) | P1 | Make /team the session control page and separate the /agents catalog | 2026-09-13 16:13 |
+| `[=]` | [YMP-151](#ymp-151) | P1 | Prepare reproducible offline comparisons of coordination strategies | 2026-09-13 16:13 |
 
 ## YMP-001
 
@@ -631,15 +633,15 @@ Calibrate and run the paired solo/team pilot
 
 **State:** `[=]` (paused) · **Type:** experiment · **Priority:** P2
 
-**Last update (UTC):** 2026-09-13 15:38
+**Last update (UTC):** 2026-09-13 16:13
 
-**Current reason:** Owner requested a product-led trial proposal. YMP-147 prepares updated goal-linked design: materialize four diagnostic tasks, calibration, then a proposed three-treatment/two-repetition pilot (24 outcome attempts). Existing historical numeric quotas are not reused or approved; selected native model/settings, resource envelope and complete fixtures remain necessary before live execution. Current stage is offline preparation/design, not a started experiment.
+**Current reason:** Concrete offline prerequisite151 now owns the comparison package; native pilot remains unstarted and requires explicit quota. Earlier unapproved budget text retained here for history: Proposed only: calibration 4 attempts, 500,000 observed raw tokens each / 2,000,000 total; subsequent pilot 40 attempts / at most 20,000,000 total, separately approved. One active attempt, 20 minutes each, 80 ymp invocations each, 180 seconds per invocation; no application-level retries. In-flight overshoot requires a documented policy before approval.
 
 **Owner:** Experiment lead
 
 **Authorization:** Explicit owner approval and the recorded quota envelope are required before model experiments.
 
-**Depends on:** [YMP-121](#ymp-121)
+**Depends on:** [YMP-121](#ymp-121), [YMP-151](#ymp-151)
 
 The central team-advantage claim has no controlled result. The initial candidate class includes software, data, documents, planning, and deliberately trivial controls.
 
@@ -648,7 +650,7 @@ The central team-advantage claim has no controlled result. The initial candidate
 - Obtain explicit approval for the selected model, effective settings, budget unit and ceiling; calibration does not authorize the pilot.
 - Materialize and freeze representative universal fixtures and result-specific external acceptance criteria from the delivery plan before live runs; accepted-but-unconfirmed outcomes are reported separately.
 - Compare a strong native solo agent with its full allowance, aggregate-budget-matched independent attempts and a cooperating team; include output selection, verification and failures, and randomize treatment order.
-- Report paired outcomes and uncertainty without treating twenty cases as proof of a small noninferiority margin.
+- Report paired task-level outcomes and uncertainty; small pilots and repeated runs of the same task do not establish a small noninferiority margin.
 - Report cache composition and any separately versioned estimate; no GLM whole-run equal-cost claim while its usage is last-request-only.
 
 **Evidence:**
@@ -657,7 +659,7 @@ The central team-advantage claim has no controlled result. The initial candidate
 - [Delivery plan](plan.md)
 - ymp-docs/research/goal-driven-trials.md
 
-**Quota:** Proposed only: calibration 4 attempts, 500,000 observed raw tokens each / 2,000,000 total; subsequent pilot 40 attempts / at most 20,000,000 total, separately approved. One active attempt, 20 minutes each, 80 ymp invocations each, 180 seconds per invocation; no application-level retries. In-flight overshoot requires a documented policy before approval.
+**Quota:** No quota allocated. Historical two-treatment ceilings are superseded as a current proposal. Prepare separately authorized calibration and the proposed four-task/three-treatment/two-repetition pilot (24 complete outcome attempts); resolve model/settings, resource unit, per-attempt/aggregate ceilings and overshoot handling before approval.
 
 ## YMP-202
 
@@ -2193,9 +2195,9 @@ Recover interrupted session stages and let the owner change the active team
 
 **State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P0
 
-**Last update (UTC):** 2026-09-13 16:00
+**Last update (UTC):** 2026-09-13 16:13
 
-**Current reason:** Owner selected /team-only strategy controls and identified /agents duplication. Recorded concrete follow-up as148; scope clarification does not alter the P0 recovery/backend work or restart the executing fork.
+**Current reason:** The /team/policy work is now a concrete pool:148 coordination backend,150 team UI,151 offline comparisons, followed by existing201 native pilot. This planning split does not change or delay the running P0 recovery fork.
 
 **Owner:** Background backend author and Claude Code claude-opus-5 high UI author; maintainer owns contracts and acceptance
 
@@ -2215,7 +2217,7 @@ Saved proposals cannot resume at failed pre-task review, provider failures do no
 - Define and verify behavior for single/multiple failures, restart, unavailable final reviewer, negative versus malformed review, unknown usage and owner changes during active work. Keep actual provider availability and uncertain writes explicit; do not infer rollback.
 - Implement recovery and team-control choices through existing typed strategy interfaces where applicable; identify and justify only the missing replacement boundary. Keep shared runtime constraints, accounting, authority and acceptance enforcement outside replaceable algorithms.
 - For a newly introduced replacement point, prove materially different strategies through the same consumer and acceptance conditions, recording strategy identity/version/configuration and actual decisions. Reuse existing substitution evidence; do not redesign unrelated subsystems.
-- Strategy selection belongs only on /team in the separate YMP-148 follow-up. Preserve session-level policy revision and actual strategy provenance; do not expand this P0 backend recovery assignment into the selector UI or whole coordination strategy.
+- Strategy selection belongs only on /team through backend YMP-148 and UI YMP-150. Preserve session-level policy revision and actual strategy provenance; do not expand this P0 backend recovery assignment into the selector UI or whole coordination strategy.
 
 **Evidence:**
 
@@ -2252,36 +2254,37 @@ Recent discussion concentrated on interchangeable policies while the five produc
 
 ## YMP-148
 
-Expose replaceable coordination on /team and separate the agent catalog
+Make session coordination replaceable through a typed strategy contract
 
 **State:** `[=]` (planned) · **Type:** implementation · **Priority:** P1
 
-**Last update (UTC):** 2026-09-13 16:00
+**Last update (UTC):** 2026-09-13 16:13
 
-**Current reason:** Needs YMP-145, YMP-146
+**Current reason:** Needs YMP-146
 
-**Owner:** Backend strategy author and Claude Code claude-opus-5 high UI author; maintainer owns contracts and independent acceptance
+**Owner:** Background backend fork; maintainer owns product contract and independent acceptance
 
 **Authorization:** Owner accepted the CoordinationPolicy interface direction and explicitly limited policy selection to /team and the discussed policies, then identified duplication between /agents and /team. No policy controls in /settings or a separate strategies page are requested.
 
-**Depends on:** [YMP-145](#ymp-145), [YMP-146](#ymp-146)
+**Depends on:** [YMP-146](#ymp-146)
 
 Allocation and resource interfaces exist, but whole-session interaction remains partly hardcoded. Current team view repeats the full pool, and both agent/team membership actions edit starting preferences rather than live session membership.
 
-**Latest progress note:** Recorded owner /team-only policy placement and separate catalog/team responsibility. Parent verified full pool duplication and common toggle_membership Config.team mutation in both current views. Follow-up is queued behind popup/recovery work; no coordination strategy or new UI is implemented by this specification.
+**Latest progress note:** Owner requested preserving the /team and policy discussion as a concrete task pool. Split the former broad148 into backend148, UI150 and offline comparison151, linked to existing live experiment201. No duplicate umbrella delivery count and no implementation completion claim; explicit recovery146 remains first.
 
 **Acceptance criteria:**
 
-- Provide a typed replaceable coordination boundary for next work, temporary responsibilities, information sharing and review/disagreement flow, reusing existing allocation/resource interfaces and runtime enforcement. Establish materially different behavior through the real consumer and common acceptance rules; do not claim a board-order substitution replaces all coordination.
-- Place available coordination, allocation and resource strategy selection only on /team; persist the effective versioned configuration on the session. No /settings default selector, separate strategy page, recovery mode selector or universal policy parameterization.
-- Make /team own current-session participants, responsibilities, live add/remove/replace and pending changes through the accepted backend command API. Clearly distinguish the next-session draft when no session is selected, and preserve active assignments and historical attribution when strategies change.
-- Keep /agents as native catalog/capability/profile configuration. Remove the repeated full catalog from /team in favor of an add-member chooser using the same source/components; remove duplicate preference-only membership mutations or route shortcuts into the single team flow.
-- Display only real registered implementations with concise behavior descriptions. Keep native identities, capability discovery, mandatory acceptance and resource constraints intact.
-- Delegate UI to Claude Code high after dependent work is accepted, prove current-session versus next-run semantics and strategy effects with meaningful failing controls, perform required checks and independent terminal verification. Do not delay P0 recovery or claim live comparative quality without an authorized experiment.
+- Extract actual session coordination into a typed policy receiving goal/acceptance conditions, events, versioned work/board/stage state, participants, evidence and resources. It proposes work, temporary roles, information sharing and review/revision/continuation decisions; runtime authority and acceptance remain unchanged.
+- Retain existing allocation/resource/recovery boundaries. Preserve the current workflow as the default and prove materially different bounded coordination through real dispatch with the same runtime checks, rather than changing labels or only board-proposal ordering.
+- Apply claimed information-sharing scope consistently to prompts, board/tool access and native continuation; report shared-artifact or backend limitations and never claim blind independence without evidence.
+- Expose real registered strategy descriptions and typed versioned session-selection APIs for coordination, allocation and resources. Preserve active assignments, historical identities/configuration and saved stages across switching, stale requests and restart.
+- Keep model-assisted consultation within admitted recorded assignments; no hidden inference, mutable policy Store or bypass of owner/resource/independent-review constraints. Use compiled implementations without new runtime dependencies or universal parameterization.
+- Run meaningful failing controls, actual consumer/substitution tests, required Rust checks and independent acceptance. UI and experiment package implementation are separately tracked as150 and151; P0 recovery is not delayed.
 
 **Evidence:**
 
 - ymp-docs/architecture/team-and-agent-surfaces.md
+- ymp-docs/architecture/coordination-delivery.md
 
 ## YMP-149
 
@@ -2314,6 +2317,73 @@ Primary rows currently include provenance prose and ambiguous membership values.
 **Evidence:**
 
 - ymp-docs/guides/ui-language.md
+
+## YMP-150
+
+Make /team the session control page and separate the /agents catalog
+
+**State:** `[=]` (planned) · **Type:** implementation · **Priority:** P1
+
+**Last update (UTC):** 2026-09-13 16:13
+
+**Current reason:** Needs YMP-148, YMP-149
+
+**Owner:** Claude Code claude-opus-5 high; maintainer owns integration and independent acceptance
+
+**Authorization:** Implements the owner-approved /team-only policy placement and accepted catalog/team separation, extracted from the original YMP-148 scope.
+
+**Depends on:** [YMP-148](#ymp-148), [YMP-149](#ymp-149)
+
+Current /team repeats the full catalog, and membership actions mutate next-run preferences. The owner needs actual session controls and only the discussed policy choices.
+
+**Latest progress note:** Extracted the already-approved UI scope from148. Queued after strategy APIs148 and language149, with recovery146 transitively first. No new UI fork or source changes launched by this planning update.
+
+**Acceptance criteria:**
+
+- Use the accepted runtime APIs for current-session add/remove/replace and pending departures, displaying temporary responsibilities and actual state. Clearly identify a next-session draft when no session is selected.
+- Expose real available coordination, allocation and resource implementations only in /team, with concise descriptions, session-level versioned selection and visible pending application. Do not add /settings defaults, a separate strategy page, recovery selection or generic parameter forms.
+- Keep /agents as native availability/capability/profile configuration; remove the permanently duplicated full pool from /team and reuse the catalog in its add-member chooser. Eliminate duplicate preference-only team mutations.
+- Preserve actual native identities, current/historical scope, active assignments, unknown states and source messages. Apply the accepted concise UI terminology, including true/false for known membership.
+- Verify actual strategy and membership effects through the shared consumer, current versus next-session behavior, stale/pending selections, small terminals and Unicode/ASCII. Run required checks, independent review and terminal verification before integration.
+
+**Evidence:**
+
+- ymp-docs/architecture/team-and-agent-surfaces.md
+- ymp-docs/architecture/coordination-delivery.md
+
+## YMP-151
+
+Prepare reproducible offline comparisons of coordination strategies
+
+**State:** `[=]` (planned) · **Type:** implementation · **Priority:** P1
+
+**Last update (UTC):** 2026-09-13 16:13
+
+**Current reason:** Needs YMP-148
+
+**Owner:** Background evaluation fork; maintainer owns hypotheses and independent acceptance
+
+**Authorization:** Owner explicitly requested an interface enabling targeted experiments and asked to formalize the discussion into tasks. Offline preparation is authorized; native comparative runs remain under the separately budgeted YMP-201.
+
+**Depends on:** [YMP-148](#ymp-148), [YMP-147](#ymp-147)
+
+Policy substitution must support goal-oriented comparisons through the actual runtime, with concrete fixtures and unbiased independent outcome checks.
+
+**Latest progress note:** Separated offline experiment preparation from the paused native pilot201. May proceed in parallel with UI150 after148 acceptance because writes are isolated. Task outcomes are fixture/runner capability, not proof of team superiority.
+
+**Acceptance criteria:**
+
+- Materialize four diagnostic task structures with separate calibration/held-out inputs and discriminating external acceptance checks, reusing existing universal fixtures/validators and preserving software/non-software scope.
+- Select implementations through the same registry/API as /team. Record immutable input/event versions, policy identity/configuration/state, decision chains, random seed where applicable, actual calls, information exposure, resource coverage, elapsed time, interventions and outcome artifacts.
+- Compare multiple policies on identical immutable snapshots before applying either; exercise full scripted executions separately and prove the alternate implementation changes actual work while retaining runtime safeguards.
+- Prepare strong-native-solo, budget-matched independent-attempt and cooperating-team treatment manifests with the same external acceptance criteria. Do not weaken production independent acceptance to implement the solo evaluation treatment.
+- Preserve failures, false acceptance, unknown usage and unconfirmed results in exports; include recovery and simple/sequential-work controls. Do not infer measured model quality, cost advantage or statistical power from scripted outcomes.
+- Provide a concrete reproducible preparation command and native quota-sheet template for201; run offline/required code checks and independent review only. No real-provider inference, inherited quota or public experiment UI is authorized here.
+
+**Evidence:**
+
+- ymp-docs/research/goal-driven-trials.md
+- ymp-docs/architecture/coordination-delivery.md
 
 ## Intent coverage
 

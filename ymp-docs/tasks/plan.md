@@ -1,6 +1,6 @@
 # Delivery plan and progress
 
-Updated: 2026-09-13 16:07 UTC.
+Updated: 2026-09-13 16:13 UTC.
 
 [Approved intent](../../intent.md) · [Task details and evidence](README.md) · [Canonical register](tasks.json)
 
@@ -34,7 +34,7 @@ A planned task automatically shows `[=]` while prerequisites remain unfinished a
 
 - `[+]` [YMP-130](README.md#ymp-130) — Show active agent work during headless session runs (2026-09-13 00:54). Read-only diagnosis: poker checks passed at 2026-09-13T00:52:09Z; the following claude-opus-5 review invocation was active. Earlier attempts were cancelled. No active run was stopped or restarted by this investigation.
 - `[~]` [YMP-145](README.md#ymp-145) — Unify full-row popup selection and verify stable scrolling geometry (2026-09-13 16:07). Author completed35786ec on fix/ymp145-popup-component: shared full-row selection, meaningful before/after cell checks, fmt/clippy and579 tests with2 ignored. Shrinking was not reproduced on installed0.4.6 or candidate in terminal9+9 cases. Independent acceptance now being assigned; author results are not yet parent acceptance or installation.
-- `[~]` [YMP-146](README.md#ymp-146) — Recover interrupted session stages and let the owner change the active team (2026-09-13 16:00). Owner selected /team-only strategy controls and identified /agents duplication. Recorded concrete follow-up as148; scope clarification does not alter the P0 recovery/backend work or restart the executing fork.
+- `[~]` [YMP-146](README.md#ymp-146) — Recover interrupted session stages and let the owner change the active team (2026-09-13 16:13). The /team/policy work is now a concrete pool:148 coordination backend,150 team UI,151 offline comparisons, followed by existing201 native pilot. This planning split does not change or delay the running P0 recovery fork.
 
 ## Ready next
 
@@ -132,7 +132,7 @@ Approved intent and delivery baseline: 5/5 complete. [YMP-010](README.md#ymp-010
 
 Deferred and post-MVP work:
 - `[=]` [YMP-108](README.md#ymp-108) — Evaluate an optional usage estimate with explicit price provenance. Optional currency estimates are outside the first delivery; raw usage and coverage remain required.
-- `[=]` [YMP-201](README.md#ymp-201) — Calibrate and run the paired solo/team pilot. Owner requested a product-led trial proposal. YMP-147 prepares updated goal-linked design: materialize four diagnostic tasks, calibration, then a proposed three-treatment/two-repetition pilot (24 outcome attempts). Existing historical numeric quotas are not reused or approved; selected native model/settings, resource envelope and complete fixtures remain necessary before live execution. Current stage is offline preparation/design, not a started experiment.
+- `[=]` [YMP-201](README.md#ymp-201) — Calibrate and run the paired solo/team pilot. Concrete offline prerequisite151 now owns the comparison package; native pilot remains unstarted and requires explicit quota. Earlier unapproved budget text retained here for history: Proposed only: calibration 4 attempts, 500,000 observed raw tokens each / 2,000,000 total; subsequent pilot 40 attempts / at most 20,000,000 total, separately approved. One active attempt, 20 minutes each, 80 ymp invocations each, 180 seconds per invocation; no application-level retries. In-flight overshoot requires a documented policy before approval.
 - `[=]` [YMP-202](README.md#ymp-202) — Test memory and adaptive assignment on held-out tasks. Experience-effect comparisons follow the initial pilot and require their own quota.
 - `[=]` [YMP-203](README.md#ymp-203) — Test effort, reduced preparation and low-effort ensembles separately. Specific effort and coordination comparisons follow the initial pilot; no universal policy is assumed.
 - `[=]` [YMP-204](README.md#ymp-204) — Evaluate a project-scoped prior-outcome router. A dedicated outcome-reuse router is optional; ordinary knowledge reuse is covered by core delivery.
@@ -143,11 +143,11 @@ Deferred and post-MVP work:
 
 | Time (UTC) | Task | State | Update |
 | --- | --- | --- | --- |
-| 2026-09-13 16:07 | [YMP-145](README.md#ymp-145) | `[~]` | Author completed35786ec on fix/ymp145-popup-component: shared full-row selection, meaningful before/after cell checks, fmt/clippy and579 tests with2 ignored. Shrinking was not reproduced on installed0.4.6 or candidate in terminal9+9 cases. Independent acceptance now being assigned; author results are not yet parent acceptance or installation. |
-| 2026-09-13 16:07 | [YMP-149](README.md#ymp-149) | `[=]` | Parent verified the supplied phrase in identity_row_words and ambiguous Config.team-derived in team/blank values. Read-only interface audit is being assigned while145 is independently reviewed; UI implementation waits for the shared component acceptance. No language changes are installed yet. |
-| 2026-09-13 16:00 | [YMP-146](README.md#ymp-146) | `[~]` | Owner selected /team-only strategy controls and identified /agents duplication. Recorded concrete follow-up as148; scope clarification does not alter the P0 recovery/backend work or restart the executing fork. |
-| 2026-09-13 16:00 | [YMP-148](README.md#ymp-148) | `[=]` | Recorded owner /team-only policy placement and separate catalog/team responsibility. Parent verified full pool duplication and common toggle_membership Config.team mutation in both current views. Follow-up is queued behind popup/recovery work; no coordination strategy or new UI is implemented by this specification. |
-| 2026-09-13 15:38 | [YMP-201](README.md#ymp-201) | `[=]` | Owner requested a product-led trial proposal. YMP-147 prepares updated goal-linked design: materialize four diagnostic tasks, calibration, then a proposed three-treatment/two-repetition pilot (24 outcome attempts). Existing historical numeric quotas are not reused or approved; selected native model/settings, resource envelope and complete fixtures remain necessary before live execution. Current stage is offline preparation/design, not a started experiment. |
+| 2026-09-13 16:13 | [YMP-201](README.md#ymp-201) | `[=]` | Concrete offline prerequisite151 now owns the comparison package; native pilot remains unstarted and requires explicit quota. Earlier unapproved budget text retained here for history: Proposed only: calibration 4 attempts, 500,000 observed raw tokens each / 2,000,000 total; subsequent pilot 40 attempts / at most 20,000,000 total, separately approved. One active attempt, 20 minutes each, 80 ymp invocations each, 180 seconds per invocation; no application-level retries. In-flight overshoot requires a documented policy before approval. |
+| 2026-09-13 16:13 | [YMP-146](README.md#ymp-146) | `[~]` | The /team/policy work is now a concrete pool:148 coordination backend,150 team UI,151 offline comparisons, followed by existing201 native pilot. This planning split does not change or delay the running P0 recovery fork. |
+| 2026-09-13 16:13 | [YMP-148](README.md#ymp-148) | `[=]` | Owner requested preserving the /team and policy discussion as a concrete task pool. Split the former broad148 into backend148, UI150 and offline comparison151, linked to existing live experiment201. No duplicate umbrella delivery count and no implementation completion claim; explicit recovery146 remains first. |
+| 2026-09-13 16:13 | [YMP-150](README.md#ymp-150) | `[=]` | Extracted the already-approved UI scope from148. Queued after strategy APIs148 and language149, with recovery146 transitively first. No new UI fork or source changes launched by this planning update. |
+| 2026-09-13 16:13 | [YMP-151](README.md#ymp-151) | `[=]` | Separated offline experiment preparation from the paused native pilot201. May proceed in parallel with UI150 after148 acceptance because writes are isolated. Task outcomes are fixture/runner capability, not proof of team superiority. |
 
 ## Maintenance
 
