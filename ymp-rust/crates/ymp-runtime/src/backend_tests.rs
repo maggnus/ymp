@@ -373,6 +373,23 @@ mod backend_contract_tests {
     }
 
     #[tokio::test]
+    async fn visible_follow_up_answer_keeps_its_origin_after_decoding() {
+        let mut fixture = RunFixture::new("", false);
+        let script = ScriptedBackend::new("example.answer-origin", "1", Behavior::Script);
+        fixture.engine = fixture.engine.with_execution_backend(script).unwrap();
+        let session = fixture.run().await.session;
+        fixture.engine.follow_up(&fixture.project, "What is the sum?", &session.id).await.unwrap();
+        let trace = fixture.store.trace(&session.id).unwrap();
+        let messages = fixture.store.messages(&session.id, 0, 1000).unwrap();
+        let answer = messages.iter().rev().find(|m| m.kind == "answer").unwrap();
+        let raw = messages.iter().rev().find(|m| m.kind == "conversation").unwrap();
+        let answer_origin = trace.message_attribution(answer).expect("Decoded answer lost its invocation origin");
+        assert_eq!(answer_origin.invocation_id, trace.message_attribution(raw).unwrap().invocation_id);
+        assert_eq!(answer_origin.agent_id, answer.author);
+        assert_eq!(answer.text, "The series sum is 55.");
+    }
+
+    #[tokio::test]
     async fn backend_public_engine_stops_stream_overflow_and_drains_usage() {
         assert_output_stop(Behavior::StreamOverflow).await;
     }

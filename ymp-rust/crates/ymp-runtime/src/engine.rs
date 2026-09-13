@@ -530,19 +530,21 @@ impl Engine {
         )?;
         let instruction = format!("Continue the SAME conversation. The user now says: {prompt}\nOriginal request: {original}\nSession status: {}\nPrevious outcome: {previous_summary}\nCurrent task records: {}\nOriginal source directory: {}\nWorking directory: {}\nFiles present: {}\nA question such as where a file is located requires an answer using this context, not a new execution. If a prior run was blocked before implementation, clearly say the requested file was not created and explain the recorded cause. Do not repeat the original task or repair it merely because the user asks about it. Return ONLY JSON {{\"action\":\"answer\",\"answer\":\"direct factual answer, with absolute paths when relevant\"}}. For a clarification or steering of this SAME task, return {{\"action\":\"steer\",\"answer\":\"acknowledge the recorded clarification or change\"}}; preserve the current session and task history. Only if the new message explicitly requests a DISTINCT user task, return {{\"action\":\"task\",\"task\":\"self-contained requested change incorporating relevant prior context\"}}. This turn is read-only.",session.status,serde_json::to_string(&tasks)?,project.path.display(),workspace.directory.display(),serde_json::to_string(&file_paths)?);
         let response = self
-            .ask(
+            .ask_scoped(
                 &ctx,
                 &agent,
                 &workspace.directory,
                 "conversation",
                 &instruction,
                 true,
+                None,
             )
             .await;
         session.team = self.store.session(&session.id)?.team;
         session.turns_used = ctx.turns.load(Ordering::SeqCst);
         self.store.save_session(&session)?;
-        let decision: Value = parse_response(&response?)?;
+        let response = response?;
+        let decision: Value = parse_response(&response.text)?;
         match decision["action"].as_str() {
             Some("answer") | Some("steer") => {
                 let answer = decision["answer"]
@@ -550,7 +552,13 @@ impl Engine {
                     .filter(|s| !s.trim().is_empty())
                     .context("Missing follow-up answer")?
                     .to_owned();
-                self.post(&session.id, &agent.id, "answer", &answer)?;
+                let message = self.store.invocation_message(
+                    &session.id,
+                    &response.invocation_id,
+                    "answer",
+                    &answer,
+                )?;
+                let _ = self.events.send(UiEvent::Message(message));
                 let _ = self.events.send(UiEvent::Finished {
                     session_id: session.id.clone(),
                     status: session.status.clone(),
