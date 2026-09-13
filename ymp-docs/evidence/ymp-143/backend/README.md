@@ -38,3 +38,10 @@ retained. The standard `checkout: moving from ... to ...` reflog format is resto
 through `@{-1}`. Branch occupancy is rechecked after the target reference lock is acquired.
 Eleven backend tests pass after these corrections. No filesystem transaction or protection
 against arbitrary external writers is claimed.
+
+## Conflicted and detached repositories
+
+An additional fixture covers detached HEAD and a real in-library merge conflict. The previous
+index-combined diff reduced the conflicted file to a mode-only patch. Uncommitted inspection
+now compares HEAD directly to the worktree when the index contains conflicts; conflict markers
+and status remain visible, and branch switching is refused. Twelve backend fixtures pass.

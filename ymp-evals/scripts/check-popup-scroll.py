@@ -10,9 +10,9 @@ import time
 import uuid
 
 
-def rectangle(screen):
+def rectangle(screen, heading="read only"):
     rows = screen.splitlines()
-    top = next(i for i, row in enumerate(rows) if "read only" in row)
+    top = next(i for i, row in enumerate(rows) if heading in row)
     row = rows[top]
     left, right = row.find("┌"), row.rfind("┐")
     if left < 0:
@@ -77,16 +77,24 @@ provider = "demo"
             tmux("send-keys", "-t", "check", value); time.sleep(.12)
     def capture(name):
         value = screen(); (root / (name + ".txt")).write_text(value); return value
-    def measure(name, last_marker=None):
-        first = capture(name + "-home"); initial = rectangle(first)
-        keys("End"); end = capture(name + "-end"); final = rectangle(end)
+    def measure(name, last_marker=None, heading="read only"):
+        first = capture(name + "-home"); initial = rectangle(first, heading)
+        intermediate = []
+        if heading == "Commands":
+            tmux("send-keys", "-t", "check", "-N", "128", "Down"); time.sleep(.25)
+        elif heading == "Colour theme":
+            for _ in range(17):
+                keys("Down"); intermediate.append(rectangle(screen(), heading))
+        else:
+            keys("End")
+        end = capture(name + "-end"); final = rectangle(end, heading)
         if last_marker:
             assert last_marker in end, "last line cannot be reached"
-        keys("Up"); up = rectangle(capture(name + "-up"))
-        keys("Down", "Down"); down = rectangle(capture(name + "-down"))
-        stable = initial == final == up == down
+        keys("Up"); up = rectangle(capture(name + "-up"), heading)
+        keys("Down", "Down"); down = rectangle(capture(name + "-down"), heading)
+        stable = initial == final == up == down and all(rect == initial for rect in intermediate)
         report["cases"].append({"case": name, "initial": initial, "end": final,
-                                "up": up, "down": down, "stable": stable})
+                                "up": up, "down": down, "intermediate": intermediate, "stable": stable})
         if not args.baseline:
             assert stable, f"{name} resized or moved during scrolling"
     def select(name):
@@ -115,6 +123,16 @@ provider = "demo"
         keys("Escape"); select("a-short.rs"); keys("Enter"); wait("short_marker")
         measure("short-file-preview", "short_marker")
         keys("Escape", "d"); wait("read only"); measure("file-inspect")
+        keys("Escape", "Escape", "Escape", "C-p"); wait("Commands")
+        measure("command-palette", heading="Commands")
+        keys("Escape", "C-t"); wait("Colour theme")
+        measure("theme-chooser", heading="Colour theme")
+        keys("Escape")
+        tmux("resize-window", "-t", "check", "-x", "60", "-y", "18"); time.sleep(.2)
+        keys("C-p"); wait("Commands")
+        measure("narrow-command-palette", heading="Commands")
+        keys("Escape", "C-t"); wait("Colour theme")
+        measure("narrow-theme-chooser", heading="Colour theme")
         assert before == {p.name: hashlib.sha256(p.read_bytes()).hexdigest()
                           for p in project.iterdir() if p.is_file()}, "viewing changed project files"
         if args.baseline:

@@ -3689,6 +3689,11 @@
           "at": "2026-09-13T11:58:18.731985+00:00",
           "status": "in_progress",
           "note": "Owner said to begin. Existing Claude Code high author resumes popup correction and owns /git UI; parent implements native-Git async backend without new crates and owns independent verification. /files remains read-only. Commit creation/undo and editor integration are excluded. Initial branch switching refuses dirty state and active runs rather than automatically stashing."
+        },
+        {
+          "at": "2026-09-13T13:18:56.088401+00:00",
+          "status": "in_progress",
+          "note": "Popup fixes871a95b and af44e65 are integrated, covering scrolling content and overflowing choice lists. Parent terminal controls reproduce five old shrinking cases and verify stable fixed previews in Unicode/ASCII; broader palette/theme terminal checks are prepared. Final frozen-source platform checks and installation remain."
         }
       ]
     },
@@ -3799,11 +3804,16 @@
           "at": "2026-09-13T12:03:57.265858+00:00",
           "status": "in_progress",
           "note": "Owner excludes local-tool dependencies. The previously proposed native-Git CLI backend is superseded before any backend implementation. Parent selected git2 with vendored libgit2 and disabled network features as one embedded backend for status/diff/branches/worktrees; UI API stays typed and asynchronous. Paseo itself calls an external git executable, so only its behavior is reused."
+        },
+        {
+          "at": "2026-09-13T13:18:56.088401+00:00",
+          "status": "in_progress",
+          "note": "Embedded git2 backend and /git UI are integrated; Linux static musl binary and macOS build succeed without external libgit2/zlib. Linux real-terminal9-case probe passes with empty app PATH and no Git CLI in the fixture helper. Review corrections cover reference locks, standard checkout reflog, occupancy recheck and actual conflict patches;12 backend fixtures pass. Final UI choice geometry fix integrated; source is being frozen for final platform checks and installation. Providers/runtimes remain the explicit single-binary exception."
         }
       ]
     }
   ],
-  "updated_at": "2026-09-13T12:03:57.265858+00:00",
+  "updated_at": "2026-09-13T13:18:56.088401+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",

@@ -390,7 +390,13 @@ fn differences<'a>(
     }
     let mut delta = match comparison {
         Comparison::Uncommitted => {
-            repo.diff_tree_to_workdir_with_index(head_tree.as_ref(), Some(&mut options))?
+            if repo.index()?.has_conflicts() {
+                // Merging index deltas into the worktree diff can reduce an unmerged file to
+                // a mode-only change. Compare HEAD directly with its actual conflict text.
+                repo.diff_tree_to_workdir(head_tree.as_ref(), Some(&mut options))?
+            } else {
+                repo.diff_tree_to_workdir_with_index(head_tree.as_ref(), Some(&mut options))?
+            }
         }
         Comparison::Committed => {
             options.include_untracked(false);

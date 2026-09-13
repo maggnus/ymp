@@ -417,3 +417,62 @@ async fn checkout_records_the_standard_previous_branch_reflog() {
     let (_, previous) = repo.revparse_ext("@{-1}").unwrap();
     assert_eq!(previous.unwrap().name().unwrap(), "refs/heads/main");
 }
+
+#[tokio::test]
+async fn detached_head_and_conflicted_worktrees_report_their_actual_state() {
+    let detached = Fixture::new();
+    let initial = detached.initial();
+    detached
+        .repo()
+        .set_head_detached(Oid::from_str(&initial).unwrap())
+        .unwrap();
+    let snapshot = inspect(detached.root(), None, None).await.unwrap();
+    assert_eq!(snapshot.branch, None);
+    assert_eq!(snapshot.head.as_deref(), Some(initial.as_str()));
+    switch_branch(detached.root(), "main", Some(&initial))
+        .await
+        .unwrap();
+
+    let f = Fixture::new();
+    let base = f.initial();
+    let repo = f.repo();
+    let base_commit = repo.find_commit(Oid::from_str(&base).unwrap()).unwrap();
+    repo.branch("other", &base_commit, false).unwrap();
+    f.write("code.rs", "fn ours() {}\n");
+    f.stage("code.rs");
+    let ours = f.commit();
+    switch_branch(f.root(), "other", Some(&ours)).await.unwrap();
+    f.write("code.rs", "fn theirs() {}\n");
+    f.stage("code.rs");
+    let theirs = f.commit();
+    switch_branch(f.root(), "main", Some(&theirs))
+        .await
+        .unwrap();
+    let annotated = repo
+        .find_annotated_commit(Oid::from_str(&theirs).unwrap())
+        .unwrap();
+    repo.merge(&[&annotated], None, None).unwrap();
+    assert!(repo.index().unwrap().has_conflicts());
+    let snapshot = inspect(f.root(), None, None).await.unwrap();
+    assert!(snapshot.dirty);
+    let conflict = snapshot
+        .files
+        .iter()
+        .find(|c| c.path == Path::new("code.rs"))
+        .unwrap();
+    assert_eq!(conflict.status, "U");
+    let shown = diff(&snapshot, conflict).await.unwrap();
+    assert!(
+        shown.text.contains("<<<<<<<")
+            || shown
+                .notice
+                .as_deref()
+                .is_some_and(|n| n.to_lowercase().contains("conflict")),
+        "{shown:?}"
+    );
+    let before = fs::read(f.root().join("code.rs")).unwrap();
+    assert!(switch_branch(f.root(), "other", snapshot.head.as_deref())
+        .await
+        .is_err());
+    assert_eq!(fs::read(f.root().join("code.rs")).unwrap(), before);
+}

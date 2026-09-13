@@ -1,0 +1,22 @@
+   Compiling ymp-workspace v0.4.6 (/Users/maggnus/Code/ymp2/ymp-rust/crates/ymp-workspace)
+    Finished `test` profile [unoptimized] target(s) in 2.12s
+     Running unittests src/lib.rs (target/debug/deps/ymp_workspace-53dce03cf1c40400)
+
+running 1 test
+test git::tests::detached_head_and_conflicted_worktrees_report_their_actual_state ... FAILED
+
+failures:
+
+---- git::tests::detached_head_and_conflicted_worktrees_report_their_actual_state stdout ----
+
+thread 'git::tests::detached_head_and_conflicted_worktrees_report_their_actual_state' panicked at ymp-rust/crates/ymp-workspace/src/git_tests.rs:465:5:
+Diff { text: "diff --git a/code.rs b/code.rs\nold mode 0\nnew mode 100644\n", notice: None }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    git::tests::detached_head_and_conflicted_worktrees_report_their_actual_state
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 26 filtered out; finished in 0.06s
+
+error: test failed, to rerun pass `-p ymp-workspace --lib`

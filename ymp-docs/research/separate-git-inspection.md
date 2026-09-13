@@ -1,7 +1,8 @@
 # Separate /git changes view
 
-Owner direction recorded on 2026-09-13. This is research and a future task definition, not
-implemented functionality. The current research-only restriction remains in effect.
+Owner direction recorded on 2026-09-13. This document preserves the research and feature scope.
+The owner subsequently authorized implementation; delivery is tracked in YMP-143 and the
+[implementation contract](../architecture/git-view.md).
 
 `/files` stays a filesystem navigator with the existing highlighted read-only preview.
 Editing and ratatui-code-editor integration remain deferred. `/git` is a separate command and
@@ -59,7 +60,8 @@ selector. Creating or undoing commits is not part of this request.
 
 The first proposal does not import every Paseo action: push, pull, PR, merge, archive, discard,
 automatic commit-message generation and undo-commit are not implied by adopting its view.
-No branch switch, stash, commit or other mutation is being implemented or executed now.
+The implemented scope includes explicit guarded branch checkout; stash, commit creation, undo
+and remote operations remain excluded.
 
 ## Existing foundation and remaining checks
 
@@ -68,7 +70,7 @@ Current `repository.rs` detects Git markers but does not collect status/history.
 `/files` already opens bounded read-only previews with syntax highlighting on Enter.
 
 Native read-only probes on local Git 2.50.1 established porcelain-v2 status and NUL-delimited
-worktree listing support. No asynchronous Git view exists in ymp yet. Implementation acceptance
+worktree listing support. The asynchronous Git view is implemented and undergoing final acceptance. Acceptance
 will require fixtures for staged/unstaged changes, untracked/deleted/renamed files, conflicts,
 unborn/detached HEAD, unusual paths and linked worktrees, plus UI/refresh/selection checks.
 
