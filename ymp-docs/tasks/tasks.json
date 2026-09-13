@@ -3246,6 +3246,11 @@
           "at": "2026-09-13T05:18:13.386367+00:00",
           "status": "in_progress",
           "note": "Owner changed future Claude Code launches from max to high. The current author and reviewer were already running at max; subsequent assignments, including review follow-ups, must use claude-opus-5 high. Historical execution settings remain accurate."
+        },
+        {
+          "at": "2026-09-13T05:34:21.043583+00:00",
+          "status": "in_progress",
+          "note": "Author committed 44b6a08 for historical record labels. Parent review found an explicit-invalid-invocation fallback that could still borrow another call; a narrow correction is requested. Shared effort-label change YMP-135 and the table primitives/page conversion continue on the combined base. Native execution and stored history are unchanged."
         }
       ]
     },
@@ -3330,7 +3335,7 @@
       ]
     }
   ],
-  "updated_at": "2026-09-13T05:29:46.846004+00:00",
+  "updated_at": "2026-09-13T05:34:21.043583+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",
