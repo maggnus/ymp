@@ -55,11 +55,13 @@ impl SessionTrace {
             return None;
         }
         let mut found: Option<AgentAttribution> = None;
-        for event in self
-            .history
-            .iter()
-            .filter(|e| e.session_id == message.session_id)
-        {
+        for event in self.history.iter().filter(|e| {
+            e.session_id == message.session_id
+                && e.data
+                    .get("message_seq")
+                    .and_then(serde_json::Value::as_i64)
+                    == Some(message.seq)
+        }) {
             let origin = if event.kind == "message_invocation" {
                 serde_json::from_value::<MessageOrigin>(event.data.clone()).ok()
             } else if event.kind == "provenance" {
