@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-13 16:25 UTC.
+Updated: 2026-09-13 16:28 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -86,7 +86,7 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-143](#ymp-143) | P1 | Provide a separate /git changes view modeled on Paseo | 2026-09-13 14:04 |
 | `[x]` | [YMP-144](#ymp-144) | P1 | Research recovery of sessions after one or more agent failures | 2026-09-13 14:36 |
 | `[~]` | [YMP-145](#ymp-145) | P1 | Unify full-row popup selection and verify stable scrolling geometry | 2026-09-13 16:25 |
-| `[~]` | [YMP-146](#ymp-146) | P0 | Recover interrupted session stages and let the owner change the active team | 2026-09-13 16:13 |
+| `[~]` | [YMP-146](#ymp-146) | P0 | Recover interrupted session stages and let the owner change the active team | 2026-09-13 16:28 |
 | `[x]` | [YMP-147](#ymp-147) | P1 | Translate product goals into a focused comparative trial program | 2026-09-13 15:38 |
 | `[=]` | [YMP-148](#ymp-148) | P1 | Make session coordination replaceable through a typed strategy contract | 2026-09-13 16:13 |
 | `[=]` | [YMP-149](#ymp-149) | P1 | Use concise professional terminology throughout the interface | 2026-09-13 16:21 |
@@ -2196,9 +2196,9 @@ Recover interrupted session stages and let the owner change the active team
 
 **State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P0
 
-**Last update (UTC):** 2026-09-13 16:13
+**Last update (UTC):** 2026-09-13 16:28
 
-**Current reason:** The /team/policy work is now a concrete pool:148 coordination backend,150 team UI,151 offline comparisons, followed by existing201 native pilot. This planning split does not change or delay the running P0 recovery fork.
+**Current reason:** Backend author delivered immutable15f7c22..cfdceff(commits51b8bd9,cfdceff), clean tree,596tests2ignored and source-bound fmt/clippy evidence. P0 independent review split between52111c72 recovery/public-consumer checks and332e0b99 source authority/admission races; only recovery reviewer owns Cargo. Explicitly checking reachable recovery for pre146saved-plan records and actual execution failures, not just new waiting labels. Backend remains unaccepted/uninstalled; no comparative experiment or live3223session action.
 
 **Owner:** Background backend author and Claude Code claude-opus-5 high UI author; maintainer owns contracts and acceptance
 

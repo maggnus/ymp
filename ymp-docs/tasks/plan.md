@@ -1,6 +1,6 @@
 # Delivery plan and progress
 
-Updated: 2026-09-13 16:25 UTC.
+Updated: 2026-09-13 16:28 UTC.
 
 [Approved intent](../../intent.md) · [Task details and evidence](README.md) · [Canonical register](tasks.json)
 
@@ -34,7 +34,7 @@ A planned task automatically shows `[=]` while prerequisites remain unfinished a
 
 - `[+]` [YMP-130](README.md#ymp-130) — Show active agent work during headless session runs (2026-09-13 00:54). Read-only diagnosis: poker checks passed at 2026-09-13T00:52:09Z; the following claude-opus-5 review invocation was active. Earlier attempts were cancelled. No active run was stopped or restarted by this investigation.
 - `[~]` [YMP-145](README.md#ymp-145) — Unify full-row popup selection and verify stable scrolling geometry (2026-09-13 16:25). Independent Opus review and parent source inspection accept35786ec product code conditionally on two README corrections: NO_COLOR is marker-only, and the existing60x8 palette hides its selected command. Independent terminal observer detects baseline gaps and confirms candidate full rows in dark/light,9geometry cases and small60x9/44x10positions. Renewed shrinking remains unobserved, not claimed fixed. Author instructed to make docs-only correction and remove the exact reviewer-generated pyc before integration.
-- `[~]` [YMP-146](README.md#ymp-146) — Recover interrupted session stages and let the owner change the active team (2026-09-13 16:13). The /team/policy work is now a concrete pool:148 coordination backend,150 team UI,151 offline comparisons, followed by existing201 native pilot. This planning split does not change or delay the running P0 recovery fork.
+- `[~]` [YMP-146](README.md#ymp-146) — Recover interrupted session stages and let the owner change the active team (2026-09-13 16:28). Backend author delivered immutable15f7c22..cfdceff(commits51b8bd9,cfdceff), clean tree,596tests2ignored and source-bound fmt/clippy evidence. P0 independent review split between52111c72 recovery/public-consumer checks and332e0b99 source authority/admission races; only recovery reviewer owns Cargo. Explicitly checking reachable recovery for pre146saved-plan records and actual execution failures, not just new waiting labels. Backend remains unaccepted/uninstalled; no comparative experiment or live3223session action.
 - `[+]` [YMP-152](README.md#ymp-152) — Keep the selected palette command visible in very short terminals (2026-09-13 16:25). Independent reviewer found this in both35786ecand0.4.6using50navigation steps at60x8;60x9and44x10retain selection. Original captures are in /tmp/ymp145-independent-review. Source diagnosis is modal_body_rows(8,true)=2while search+separator take2rows. No fix or new implementation fork started.
 
 ## Ready next
@@ -144,11 +144,11 @@ Deferred and post-MVP work:
 
 | Time (UTC) | Task | State | Update |
 | --- | --- | --- | --- |
+| 2026-09-13 16:28 | [YMP-146](README.md#ymp-146) | `[~]` | Backend author delivered immutable15f7c22..cfdceff(commits51b8bd9,cfdceff), clean tree,596tests2ignored and source-bound fmt/clippy evidence. P0 independent review split between52111c72 recovery/public-consumer checks and332e0b99 source authority/admission races; only recovery reviewer owns Cargo. Explicitly checking reachable recovery for pre146saved-plan records and actual execution failures, not just new waiting labels. Backend remains unaccepted/uninstalled; no comparative experiment or live3223session action. |
 | 2026-09-13 16:25 | [YMP-145](README.md#ymp-145) | `[~]` | Independent Opus review and parent source inspection accept35786ec product code conditionally on two README corrections: NO_COLOR is marker-only, and the existing60x8 palette hides its selected command. Independent terminal observer detects baseline gaps and confirms candidate full rows in dark/light,9geometry cases and small60x9/44x10positions. Renewed shrinking remains unobserved, not claimed fixed. Author instructed to make docs-only correction and remove the exact reviewer-generated pyc before integration. |
 | 2026-09-13 16:25 | [YMP-152](README.md#ymp-152) | `[+]` | Independent reviewer found this in both35786ecand0.4.6using50navigation steps at60x8;60x9and44x10retain selection. Original captures are in /tmp/ymp145-independent-review. Source diagnosis is modal_body_rows(8,true)=2while search+separator take2rows. No fix or new implementation fork started. |
 | 2026-09-13 16:21 | [YMP-149](README.md#ymp-149) | `[=]` | Read-only terminology inventory completed, including table/filter/sort hints, generated strings and human-readable CLI. Maintainer accepted scoped corrections and rejected replacing READING with another metadata column, conflating pool/catalog, inventing profile-version events, using unconfirmed for missing native settings or broad branding changes. Durable audit recorded; implementation remains sequenced after independent145acceptance, with no wording tests/install claim. |
 | 2026-09-13 16:17 | [YMP-201](README.md#ymp-201) | `[=]` | Owner explicitly required marking comparative trials as subject to owner approval. The experiment remains paused; no automatic start after preparation/dependency completion. Obtain separate approval of the concrete protocol, configurations and resource envelope before calibration or measured comparative runs. |
-| 2026-09-13 16:17 | [YMP-202](README.md#ymp-202) | `[=]` | Owner explicitly required marking comparative trials as subject to owner approval. The experiment remains paused; no automatic start after preparation/dependency completion. Obtain separate approval of the concrete protocol, configurations and resource envelope before calibration or measured comparative runs. |
 
 ## Maintenance
 
