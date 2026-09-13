@@ -46,11 +46,17 @@ This comparison design does not authorize paid provider experiments. The prior [
 ## Architectural consequences to evaluate
 
 - The system needs a bounded way to choose execution width, model and effort together. An Oracle would be one optional source of advice in that process, charged to the same budget.
-- Useful concurrent work must be possible when dependencies and resources permit it. The current take(1) ready-task limit prevents this; YMP-115 records the implementation gap.
+- Useful concurrent work must be possible when dependencies and resources permit it. YMP-115 implemented bounded concurrent work and actual access coordination; a speed advantage under native provider and filesystem constraints remains to be measured.
 - Starting a session must not require a consultation with every available agent. Activation, context construction and native internal loops all need explicit resource control.
 - Shared evidence and independently checked results must survive an individual failure. Reassignment must preserve completed work, total spend and unresolved side-effect uncertainty.
 - Verified knowledge and execution observations must remain usable across providers and later sessions, with applicability and correction. More stored messages alone do not establish improvement.
 
 The runtime's authority and the temporary scope of agent roles are fixed by the approved intent. Methods using a temporary planner, peer proposals or several independent approaches are assessed within that boundary. Representative workflows, executable-contract design and implementation order are now recorded in the [delivery plan](../tasks/plan.md).
+
+The [goal-driven trial proposal](../research/goal-driven-trials.md) updates the next
+product comparisons after the owner's 2026-09-13 direction. It prioritizes
+recoverability, three-treatment baseline measurements and one goal-directed
+coordination candidate; implementation substitution alone establishes no product
+advantage. Public policy selectors are not a prerequisite for these trials.
 
 Tracked in [YMP-010](../tasks/README.md#ymp-010). The [research findings](../research/research-program-findings.md) remain historical evidence with stated limits.

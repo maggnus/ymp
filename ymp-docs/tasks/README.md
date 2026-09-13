@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-13 15:08 UTC.
+Updated: 2026-09-13 15:38 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -11,7 +11,7 @@ A planned task is not implemented functionality. Completed research and planning
 | Type | Completed | Total |
 | --- | ---: | ---: |
 | decision | 1 | 2 |
-| design | 1 | 1 |
+| design | 2 | 2 |
 | documentation | 4 | 4 |
 | experiment | 0 | 4 |
 | implementation | 35 | 40 |
@@ -40,7 +40,7 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-107](#ymp-107) | P1 | Expose recorded checks and factual recovery limits | 2026-09-12 12:55 |
 | `[=]` | [YMP-108](#ymp-108) | P2 | Evaluate an optional usage estimate with explicit price provenance | 2026-09-12 09:35 |
 | `[x]` | [YMP-111](#ymp-111) | P0 | Apply native models and reasoning settings per assignment | 2026-09-12 12:18 |
-| `[=]` | [YMP-201](#ymp-201) | P2 | Calibrate and run the paired solo/team pilot | 2026-09-12 09:35 |
+| `[=]` | [YMP-201](#ymp-201) | P2 | Calibrate and run the paired solo/team pilot | 2026-09-13 15:38 |
 | `[=]` | [YMP-202](#ymp-202) | P1 | Test memory and adaptive assignment on held-out tasks | 2026-09-12 09:35 |
 | `[=]` | [YMP-203](#ymp-203) | P1 | Test effort, reduced preparation and low-effort ensembles separately | 2026-09-12 09:35 |
 | `[=]` | [YMP-204](#ymp-204) | P1 | Evaluate a project-scoped prior-outcome router | 2026-09-12 09:35 |
@@ -86,7 +86,8 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-143](#ymp-143) | P1 | Provide a separate /git changes view modeled on Paseo | 2026-09-13 14:04 |
 | `[x]` | [YMP-144](#ymp-144) | P1 | Research recovery of sessions after one or more agent failures | 2026-09-13 14:36 |
 | `[~]` | [YMP-145](#ymp-145) | P1 | Unify full-row popup selection and verify stable scrolling geometry | 2026-09-13 14:19 |
-| `[~]` | [YMP-146](#ymp-146) | P0 | Recover interrupted session stages and let the owner change the active team | 2026-09-13 15:08 |
+| `[~]` | [YMP-146](#ymp-146) | P0 | Recover interrupted session stages and let the owner change the active team | 2026-09-13 15:38 |
+| `[x]` | [YMP-147](#ymp-147) | P1 | Translate product goals into a focused comparative trial program | 2026-09-13 15:38 |
 
 ## YMP-001
 
@@ -628,9 +629,9 @@ Calibrate and run the paired solo/team pilot
 
 **State:** `[=]` (paused) · **Type:** experiment · **Priority:** P2
 
-**Last update (UTC):** 2026-09-12 09:35
+**Last update (UTC):** 2026-09-13 15:38
 
-**Current reason:** Comparative runs wait for integrated delivery and an explicitly authorized quota proposal.
+**Current reason:** Owner requested a product-led trial proposal. YMP-147 prepares updated goal-linked design: materialize four diagnostic tasks, calibration, then a proposed three-treatment/two-repetition pilot (24 outcome attempts). Existing historical numeric quotas are not reused or approved; selected native model/settings, resource envelope and complete fixtures remain necessary before live execution. Current stage is offline preparation/design, not a started experiment.
 
 **Owner:** Experiment lead
 
@@ -652,6 +653,7 @@ The central team-advantage claim has no controlled result. The initial candidate
 
 - [Evaluation protocol](../research/experiment-protocol.md)
 - [Delivery plan](plan.md)
+- ymp-docs/research/goal-driven-trials.md
 
 **Quota:** Proposed only: calibration 4 attempts, 500,000 observed raw tokens each / 2,000,000 total; subsequent pilot 40 attempts / at most 20,000,000 total, separately approved. One active attempt, 20 minutes each, 80 ymp invocations each, 180 seconds per invocation; no application-level retries. In-flight overshoot requires a documented policy before approval.
 
@@ -2189,9 +2191,9 @@ Recover interrupted session stages and let the owner change the active team
 
 **State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P0
 
-**Last update (UTC):** 2026-09-13 15:08
+**Last update (UTC):** 2026-09-13 15:38
 
-**Current reason:** Owner cautioned against parameterizing every Policy. Clarified interface substitution versus algorithm parameters versus public settings; universal policy configuration/UI is excluded. Backend fork instructed to retain P0 recovery first and record only actual strategy parameters, with no invented configuration for parameterless implementations.
+**Current reason:** Product discussion identifies agent interaction and temporary role selection as the important experimental behavior, not a public recovery-policy switch. P0 failure recovery remains unchanged; broader goal-directed coordination trials are separated in147/201 so they do not delay the executing backend fork.
 
 **Owner:** Background backend author and Claude Code claude-opus-5 high UI author; maintainer owns contracts and acceptance
 
@@ -2216,6 +2218,35 @@ Saved proposals cannot resume at failed pre-task review, provider failures do no
 **Evidence:**
 
 - ymp-docs/architecture/session-recovery-contract.md
+
+## YMP-147
+
+Translate product goals into a focused comparative trial program
+
+**State:** `[x]` (done) · **Type:** design · **Priority:** P1
+
+**Last update (UTC):** 2026-09-13 15:38
+
+**Current reason:** Maintainer reviewed intent, value proposition, existing trusted driver/validators and paused201–203 protocols. Recorded goal-linked metrics, four diagnostic task structures, 24 proposed full outcome attempts across three treatments, held-out/negative controls, actual-resource accounting and a single later goal-directed coordination candidate. Corrected an obsolete active-document claim that concurrency was still take(1). This is completed product design only; fixtures, strategy implementation and live experiments are not claimed.
+
+**Owner:** Maintainer owns product hypothesis, comparison design and follow-up scope
+
+**Authorization:** Owner explicitly requested proactive product judgment grounded in existing goals and a concrete proposal for targeted trials. This authorizes preparation and design, not live provider expenditure or a new public policy-selector feature.
+
+**Depends on:** [YMP-121](#ymp-121)
+
+Recent discussion concentrated on interchangeable policies while the five product goals still lack controlled performance evidence. Existing experiment and fixture work must be reused and tied to concrete hypotheses.
+
+**Acceptance criteria:**
+
+- Read authoritative intent and current evaluation artifacts, distinguish accepted runtime evidence from unmeasured product claims, and preserve the universal product scope.
+- Map each product goal to measurable outcomes and counterchecks, propose concrete diagnostic task structures and strong solo/independent-attempt/cooperating-team controls.
+- Define a bounded preparation and trial sequence, one goal-directed coordination candidate, separate experience experiments and explicit unknowns; preserve P0 recovery and avoid universal configuration scope.
+- Record the proposal and update existing experiment tracking without claiming executable fixtures, live-run results or quota authorization.
+
+**Evidence:**
+
+- ymp-docs/research/goal-driven-trials.md
 
 ## Intent coverage
 

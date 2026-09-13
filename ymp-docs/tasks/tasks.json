@@ -960,7 +960,8 @@
       ],
       "evidence": [
         "[Evaluation protocol](../research/experiment-protocol.md)",
-        "[Delivery plan](plan.md)"
+        "[Delivery plan](plan.md)",
+        "ymp-docs/research/goal-driven-trials.md"
       ],
       "budget": "Proposed only: calibration 4 attempts, 500,000 observed raw tokens each / 2,000,000 total; subsequent pilot 40 attempts / at most 20,000,000 total, separately approved. One active attempt, 20 minutes each, 80 ymp invocations each, 180 seconds per invocation; no application-level retries. In-flight overshoot requires a documented policy before approval.",
       "history": [
@@ -988,6 +989,11 @@
           "at": "2026-09-12T09:35:05.248513+00:00",
           "status": "paused",
           "note": "Comparative runs wait for integrated delivery and an explicitly authorized quota proposal."
+        },
+        {
+          "at": "2026-09-13T15:38:57.314453+00:00",
+          "status": "paused",
+          "note": "Owner requested a product-led trial proposal. YMP-147 prepares updated goal-linked design: materialize four diagnostic tasks, calibration, then a proposed three-treatment/two-repetition pilot (24 outcome attempts). Existing historical numeric quotas are not reused or approved; selected native model/settings, resource envelope and complete fixtures remain necessary before live execution. Current stage is offline preparation/design, not a started experiment."
         }
       ]
     },
@@ -3948,11 +3954,45 @@
           "at": "2026-09-13T15:08:36.617645+00:00",
           "status": "in_progress",
           "note": "Owner cautioned against parameterizing every Policy. Clarified interface substitution versus algorithm parameters versus public settings; universal policy configuration/UI is excluded. Backend fork instructed to retain P0 recovery first and record only actual strategy parameters, with no invented configuration for parameterless implementations."
+        },
+        {
+          "at": "2026-09-13T15:38:57.314453+00:00",
+          "status": "in_progress",
+          "note": "Product discussion identifies agent interaction and temporary role selection as the important experimental behavior, not a public recovery-policy switch. P0 failure recovery remains unchanged; broader goal-directed coordination trials are separated in147/201 so they do not delay the executing backend fork."
+        }
+      ]
+    },
+    {
+      "id": "YMP-147",
+      "title": "Translate product goals into a focused comparative trial program",
+      "type": "design",
+      "priority": "P1",
+      "status": "done",
+      "owner": "Maintainer owns product hypothesis, comparison design and follow-up scope",
+      "authorization": "Owner explicitly requested proactive product judgment grounded in existing goals and a concrete proposal for targeted trials. This authorizes preparation and design, not live provider expenditure or a new public policy-selector feature.",
+      "depends_on": [
+        "YMP-121"
+      ],
+      "reason": "Recent discussion concentrated on interchangeable policies while the five product goals still lack controlled performance evidence. Existing experiment and fixture work must be reused and tied to concrete hypotheses.",
+      "acceptance": [
+        "Read authoritative intent and current evaluation artifacts, distinguish accepted runtime evidence from unmeasured product claims, and preserve the universal product scope.",
+        "Map each product goal to measurable outcomes and counterchecks, propose concrete diagnostic task structures and strong solo/independent-attempt/cooperating-team controls.",
+        "Define a bounded preparation and trial sequence, one goal-directed coordination candidate, separate experience experiments and explicit unknowns; preserve P0 recovery and avoid universal configuration scope.",
+        "Record the proposal and update existing experiment tracking without claiming executable fixtures, live-run results or quota authorization."
+      ],
+      "evidence": [
+        "ymp-docs/research/goal-driven-trials.md"
+      ],
+      "history": [
+        {
+          "at": "2026-09-13T15:38:57.314453+00:00",
+          "status": "done",
+          "note": "Maintainer reviewed intent, value proposition, existing trusted driver/validators and paused201–203 protocols. Recorded goal-linked metrics, four diagnostic task structures, 24 proposed full outcome attempts across three treatments, held-out/negative controls, actual-resource accounting and a single later goal-directed coordination candidate. Corrected an obsolete active-document claim that concurrency was still take(1). This is completed product design only; fixtures, strategy implementation and live experiments are not claimed."
         }
       ]
     }
   ],
-  "updated_at": "2026-09-13T15:08:36.617645+00:00",
+  "updated_at": "2026-09-13T15:38:57.314453+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",

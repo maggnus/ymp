@@ -1,6 +1,6 @@
 # Delivery plan and progress
 
-Updated: 2026-09-13 15:08 UTC.
+Updated: 2026-09-13 15:38 UTC.
 
 [Approved intent](../../intent.md) · [Task details and evidence](README.md) · [Canonical register](tasks.json)
 
@@ -34,7 +34,7 @@ A planned task automatically shows `[=]` while prerequisites remain unfinished a
 
 - `[+]` [YMP-130](README.md#ymp-130) — Show active agent work during headless session runs (2026-09-13 00:54). Read-only diagnosis: poker checks passed at 2026-09-13T00:52:09Z; the following claude-opus-5 review invocation was active. Earlier attempts were cancelled. No active run was stopped or restarted by this investigation.
 - `[~]` [YMP-145](README.md#ymp-145) — Unify full-row popup selection and verify stable scrolling geometry (2026-09-13 14:19). Confirmed installed command is 0.4.6 at main 4e68c55. Shared frame::render_modal already derives height from full body; GitChoice text::row inserts unstyled inter-column padding. Requested the specific shrinking popup while preparing an isolated background UI assignment. No product fix is accepted yet.
-- `[~]` [YMP-146](README.md#ymp-146) — Recover interrupted session stages and let the owner change the active team (2026-09-13 15:08). Owner cautioned against parameterizing every Policy. Clarified interface substitution versus algorithm parameters versus public settings; universal policy configuration/UI is excluded. Backend fork instructed to retain P0 recovery first and record only actual strategy parameters, with no invented configuration for parameterless implementations.
+- `[~]` [YMP-146](README.md#ymp-146) — Recover interrupted session stages and let the owner change the active team (2026-09-13 15:38). Product discussion identifies agent interaction and temporary role selection as the important experimental behavior, not a public recovery-policy switch. P0 failure recovery remains unchanged; broader goal-directed coordination trials are separated in147/201 so they do not delay the executing backend fork.
 
 ## Ready next
 
@@ -132,7 +132,7 @@ Approved intent and delivery baseline: 5/5 complete. [YMP-010](README.md#ymp-010
 
 Deferred and post-MVP work:
 - `[=]` [YMP-108](README.md#ymp-108) — Evaluate an optional usage estimate with explicit price provenance. Optional currency estimates are outside the first delivery; raw usage and coverage remain required.
-- `[=]` [YMP-201](README.md#ymp-201) — Calibrate and run the paired solo/team pilot. Comparative runs wait for integrated delivery and an explicitly authorized quota proposal.
+- `[=]` [YMP-201](README.md#ymp-201) — Calibrate and run the paired solo/team pilot. Owner requested a product-led trial proposal. YMP-147 prepares updated goal-linked design: materialize four diagnostic tasks, calibration, then a proposed three-treatment/two-repetition pilot (24 outcome attempts). Existing historical numeric quotas are not reused or approved; selected native model/settings, resource envelope and complete fixtures remain necessary before live execution. Current stage is offline preparation/design, not a started experiment.
 - `[=]` [YMP-202](README.md#ymp-202) — Test memory and adaptive assignment on held-out tasks. Experience-effect comparisons follow the initial pilot and require their own quota.
 - `[=]` [YMP-203](README.md#ymp-203) — Test effort, reduced preparation and low-effort ensembles separately. Specific effort and coordination comparisons follow the initial pilot; no universal policy is assumed.
 - `[=]` [YMP-204](README.md#ymp-204) — Evaluate a project-scoped prior-outcome router. A dedicated outcome-reuse router is optional; ordinary knowledge reuse is covered by core delivery.
@@ -143,11 +143,11 @@ Deferred and post-MVP work:
 
 | Time (UTC) | Task | State | Update |
 | --- | --- | --- | --- |
-| 2026-09-13 15:08 | [YMP-146](README.md#ymp-146) | `[~]` | Owner cautioned against parameterizing every Policy. Clarified interface substitution versus algorithm parameters versus public settings; universal policy configuration/UI is excluded. Backend fork instructed to retain P0 recovery first and record only actual strategy parameters, with no invented configuration for parameterless implementations. |
+| 2026-09-13 15:38 | [YMP-201](README.md#ymp-201) | `[=]` | Owner requested a product-led trial proposal. YMP-147 prepares updated goal-linked design: materialize four diagnostic tasks, calibration, then a proposed three-treatment/two-repetition pilot (24 outcome attempts). Existing historical numeric quotas are not reused or approved; selected native model/settings, resource envelope and complete fixtures remain necessary before live execution. Current stage is offline preparation/design, not a started experiment. |
+| 2026-09-13 15:38 | [YMP-146](README.md#ymp-146) | `[~]` | Product discussion identifies agent interaction and temporary role selection as the important experimental behavior, not a public recovery-policy switch. P0 failure recovery remains unchanged; broader goal-directed coordination trials are separated in147/201 so they do not delay the executing backend fork. |
+| 2026-09-13 15:38 | [YMP-147](README.md#ymp-147) | `[x]` | Maintainer reviewed intent, value proposition, existing trusted driver/validators and paused201–203 protocols. Recorded goal-linked metrics, four diagnostic task structures, 24 proposed full outcome attempts across three treatments, held-out/negative controls, actual-resource accounting and a single later goal-directed coordination candidate. Corrected an obsolete active-document claim that concurrency was still take(1). This is completed product design only; fixtures, strategy implementation and live experiments are not claimed. |
 | 2026-09-13 14:36 | [YMP-144](README.md#ymp-144) | `[x]` | Owner approved implementation and live team changes; follow-up recorded as YMP-146. Parent current-team inspection clarified that SessionPolicy.eligible_pool is initial evidence, while effective eligibility is rebuilt from engine configuration under captured team constraints; it is not itself an immutable allowed-list enforcement path. Original diagnostic conclusions remain valid. |
 | 2026-09-13 14:19 | [YMP-145](README.md#ymp-145) | `[~]` | Confirmed installed command is 0.4.6 at main 4e68c55. Shared frame::render_modal already derives height from full body; GitChoice text::row inserts unstyled inter-column padding. Requested the specific shrinking popup while preparing an isolated background UI assignment. No product fix is accepted yet. |
-| 2026-09-13 14:04 | [YMP-141](README.md#ymp-141) | `[x]` | Installed 0.4.6 accepted after independent source/terminal verification. macOS ARM64 and Linux ARM64 each pass fmt, strict Clippy and 576 tests (2 ignored). Both platforms pass Git9+9, popup9+9, files12 and output2 terminal cases; macOS also tables19 and exit5. Installed command repeats Git9 and popups9 successfully. Embedded Git works with empty app PATH; Linux artifact is static, macOS uses only OS libraries. Previous executable backed up; ARM64 artifacts retained. Providers/runtimes remain the explicit exception; no x86_64 runtime claim. |
-| 2026-09-13 14:04 | [YMP-143](README.md#ymp-143) | `[x]` | Installed 0.4.6 accepted after independent source/terminal verification. macOS ARM64 and Linux ARM64 each pass fmt, strict Clippy and 576 tests (2 ignored). Both platforms pass Git9+9, popup9+9, files12 and output2 terminal cases; macOS also tables19 and exit5. Installed command repeats Git9 and popups9 successfully. Embedded Git works with empty app PATH; Linux artifact is static, macOS uses only OS libraries. Previous executable backed up; ARM64 artifacts retained. Providers/runtimes remain the explicit exception; no x86_64 runtime claim. |
 
 ## Maintenance
 
