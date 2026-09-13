@@ -1,0 +1,219 @@
+control: tests from 6d72b31, frame.rs and ui.rs from b01ffe7
+M  ymp-rust/crates/ymp-tui/src/frame.rs
+M  ymp-rust/crates/ymp-tui/src/ui.rs
+   Compiling ymp-tui v0.4.2 (/private/tmp/ymp131-double-ctrl-c/ymp-rust/crates/ymp-tui)
+    Finished `test` profile [unoptimized] target(s) in 2.50s
+     Running unittests src/lib.rs (/tmp/ymp129-review-limit/target/debug/deps/ymp_tui-cbec3e105ef4fde0)
+
+running 4 tests
+test tests::a_floating_surface_leaves_the_rules_around_the_body_intact ... ok
+test tests::a_floating_surface_keeps_the_sidebar_rule_whole_outside_itself ... FAILED
+test tests::the_palette_keeps_its_selection_in_view_on_a_short_terminal ... FAILED
+test tests::the_theme_chooser_keeps_its_selection_in_view_on_a_short_terminal ... FAILED
+
+failures:
+
+---- tests::a_floating_surface_keeps_the_sidebar_rule_whole_outside_itself stdout ----
+
+thread 'tests::a_floating_surface_keeps_the_sidebar_rule_whole_outside_itself' panicked at ymp-rust/crates/ymp-tui/src/tests.rs:444:5:
+the theme chooser at 120x36 cut the sidebar rule on rows [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20] and the rules on rows []:
+ymp  .tmpXxvLJa  /var/folders/cw/7pn8sb3x6bj69g7j2d8f_ss00000gn/T/.tmpXxvLJa                   no session  0 / 200 turns
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+                                                                                         │ SESSION                      
+  A team of local agents, working in this directory.                                     │ none · the next message open 
+                                                                                         │ turns next run       0 / 200 
+  working directory               /var/folders/cw/7pn8sb3x6bj69g7j2d8f_ss0000…           │ dir …_ss00000gn/T/.tmpXxvLJa 
+  how it is used                                        directly, no copy kept           │                              
+  team                                                                                     TOKENS                     — 
+  theme                        ┌ Colour theme ────────────────────────── saved on Enter ┐  none · nothing spent yet     
+                               │ › Ember     dark                                       │                               
+  Describe a task and press En │   Warm amber on black. The default ymp palette.        │  TEAM                next run 
+  itself.                      │   Slate     dark                                       │  ○ unknown model         idle 
+  ymp records a path and a has │   Paper     light                                      │  ○ unknown model         idle 
+  put a file back. /diff state │   Contrast  high contrast                              │                               
+  Ctrl+P opens the command pal │   Terminal  terminal palette                           │  TASKS                        
+  Every page opens with its co │                                                        │  no task graph yet            
+  read-only; none of them star │ The whole interface previews as you move.              │                               
+                               │                                                        │                               
+                               │ Up/Down preview  Enter keep  Esc cancel                │                               
+                               └────────────────────────────────────────────────────────┘                               
+                                                                                                                        
+                                                                                         │                              
+                                                                                         │                              
+                                                                                         │                              
+                                                                                         │                              
+                                                                                         │                              
+                                                                                         │                              
+                                                                                         │                              
+                                                                                         │                              
+                                                                                         │                              
+                                                                                         │                              
+                                                                                         │                              
+                                                                                         │                              
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+› Describe a task, or type / for commands.                                                                              
+Ready                                                                    composer Enter send  Ctrl+P commands  Tab focus
+
+the palette at 134x36 cut the sidebar rule on rows [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23] and the rules on rows []:
+ymp  .tmpXxvLJa  /var/folders/cw/7pn8sb3x6bj69g7j2d8f_ss00000gn/T/.tmpXxvLJa                                 no session  0 / 200 turns
+──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+                                                                                                       │ SESSION                      
+  A team of local agents, working in this directory.                                                   │ none · the next message open 
+                                                                                                       │ turns next run       0 / 200 
+  working directory        /va                                                                           dir …_ss00000gn/T/.tmpXxvLJa 
+  how it is used               ┌ Commands ────────────────────────────────────────────────── 25 of 25 ┐                               
+  team                         │ › Type to search commands                                            │  TOKENS                     — 
+  theme                        │ ──────────────────────────────────────────────────────────────────── │  none · nothing spent yet     
+                               │ › /chat         Return to the conversation.                          │                               
+  Describe a task and press En │   /new          Start an unrelated task. The next prompt opens a ne… │  TEAM                next run 
+  ymp records a path and a has │   /details      Toggle full attributed agent messages instead of co… │  ○ unknown model         idle 
+  /diff states what a run reco │   /help         Command reference and keyboard map.                  │  ○ unknown model         idle 
+  Ctrl+P opens the command pal │   /tasks        Task graph, assignments and outcomes for the curren… │                               
+  Every page opens with its co │   /usage        Token statistics for the loaded session, agent by a… │  TASKS                        
+  of them start an agent.      │   /sessions     Saved sessions for this project. Opening one only r… │  no task graph yet            
+                               │   /files        Files in the working directory.                      │                               
+                               │   /diff         Files created, modified or deleted during the loade… │                               
+                               │   /checks       Commands ymp ran itself for the loaded session, and… │                               
+                               │ ▼ 15 more                                                            │                               
+                               │                                                                      │                               
+                               │ Enter run  Up/Down select  Esc close                                 │                               
+                               └──────────────────────────────────────────────────────────────────────┘                               
+                                                                                                                                      
+                                                                                                       │                              
+                                                                                                       │                              
+                                                                                                       │                              
+                                                                                                       │                              
+                                                                                                       │                              
+                                                                                                       │                              
+                                                                                                       │                              
+                                                                                                       │                              
+                                                                                                       │                              
+──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+› Describe a task, or type / for commands.                                                                                            
+Ready                                                                                  composer Enter send  Ctrl+P commands  Tab focus
+
+the palette at 120x36 cut the sidebar rule on rows [5, 23] and the rules on rows []:
+ymp  .tmpXxvLJa  /var/folders/cw/7pn8sb3x6bj69g7j2d8f_ss00000gn/T/.tmpXxvLJa                   no session  0 / 200 turns
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+                                                                                         │ SESSION                      
+  A team of local agents, working in this directory.                                     │ none · the next message open 
+                                                                                         │ turns next run       0 / 200 
+  working directory                                                                              ss00000gn/T/.tmpXxvLJa 
+  how it is used        ┌ Commands ────────────────────────────────────────────────── 25 of 25 ┐                        
+  team                  │ › Type to search commands                                            │                      — 
+  theme                 │ ──────────────────────────────────────────────────────────────────── │  nothing spent yet     
+                        │ › /chat         Return to the conversation.                          │                        
+  Describe a task and p │   /new          Start an unrelated task. The next prompt opens a ne… │               next run 
+  itself.               │   /details      Toggle full attributed agent messages instead of co… │ own model         idle 
+  ymp records a path an │   /help         Command reference and keyboard map.                  │ own model         idle 
+  put a file back. /dif │   /tasks        Task graph, assignments and outcomes for the curren… │                        
+  Ctrl+P opens the comm │   /usage        Token statistics for the loaded session, agent by a… │                        
+  Every page opens with │   /sessions     Saved sessions for this project. Opening one only r… │ k graph yet            
+  read-only; none of th │   /files        Files in the working directory.                      │                        
+                        │   /diff         Files created, modified or deleted during the loade… │                        
+                        │   /checks       Commands ymp ran itself for the loaded session, and… │                        
+                        │ ▼ 15 more                                                            │                        
+                        │                                                                      │                        
+                        │ Enter run  Up/Down select  Esc close                                 │                        
+                        └──────────────────────────────────────────────────────────────────────┘                        
+                                                                                                                        
+                                                                                         │                              
+                                                                                         │                              
+                                                                                         │                              
+                                                                                         │                              
+                                                                                         │                              
+                                                                                         │                              
+                                                                                         │                              
+                                                                                         │                              
+                                                                                         │                              
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+› Describe a task, or type / for commands.                                                                              
+Ready                                                                    composer Enter send  Ctrl+P commands  Tab focus
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- tests::the_palette_keeps_its_selection_in_view_on_a_short_terminal stdout ----
+
+thread 'tests::the_palette_keeps_its_selection_in_view_on_a_short_terminal' panicked at ymp-rust/crates/ymp-tui/src/tests.rs:505:5:
+["› /tasks "] out of view at 40x12 after 4 moves:
+ym┌ Commands ────────────── 25 of 25 ┐00
+──│ › Type to search commands        │──
+  │ ──────────────────────────────── │  
+  │   /chat         Return to the c… │  
+  │   /new          Start an unrela… │  
+  │   /details      Toggle full att… │  
+  │   /help         Command referen… │  
+  │                                  │  
+  │ Enter run  Up/Down select  Esc   │  
+──└────────────────────────── 7 more ┘──
+› Describe a task, or type / for command
+Ready composer Enter send  Ctrl+P comma…
+
+["› /diff "] out of view at 80x16 after 8 moves:
+ymp ┌ Commands ────────────────────────────────────────────────── 25 of 25 ┐/200
+────│ › Type to search commands                                            │────
+    │ ──────────────────────────────────────────────────────────────────── │    
+  D │   /chat         Return to the conversation.                          │ e  
+  a │   /new          Start an unrelated task. The next prompt opens a ne… │ 00 
+  y │   /details      Toggle full attributed agent messages instead of co… │ 0Y 
+  n │   /help         Command reference and keyboard map.                  │    
+  b │   /tasks        Task graph, assignments and outcomes for the curren… │  — 
+  C │   /usage        Token statistics for the loaded session, agent by a… │ et 
+  t │   /sessions     Saved sessions for this project. Opening one only r… │    
+  E │   /files        Files in the working directory.                      │ un 
+  / │                                                                      │    
+  n │ Enter run  Up/Down select  Esc close                                 │    
+────└────────────────────────────────────────────────────────────── 3 more ┘────
+› Describe a task, or type / for commands.                                      
+Ready                            composer Enter send  Ctrl+P commands  Tab focus
+
+["› /details "] out of view at 80x10 after 2 moves:
+ymp ┌ Commands ────────────────────────────────────────────────── 25 of 25 ┐/200
+────│ › Type to search commands                                            │────
+  C │ ──────────────────────────────────────────────────────────────────── │    
+  t │   /chat         Return to the conversation.                          │ e  
+  E │   /new          Start an unrelated task. The next prompt opens a ne… │ 00 
+  / │                                                                      │ 0Y 
+  n │ Enter run  Up/Down select  Esc close                                 │    
+────└────────────────────────────────────────────────────────────── 9 more ┘────
+› Describe a task, or type / for commands.                                      
+Ready                            composer Enter send  Ctrl+P commands  Tab focus
+
+---- tests::the_theme_chooser_keeps_its_selection_in_view_on_a_short_terminal stdout ----
+
+thread 'tests::the_theme_chooser_keeps_its_selection_in_view_on_a_short_terminal' panicked at ymp-rust/crates/ymp-tui/src/tests.rs:533:5:
+["› Terminal"] out of view at 80x10 after 4 moves:
+ymp  .tmpKD┌ Colour theme ────────────────────────── saved on Enter ┐sion  0/200
+───────────│   Ember     dark                                       │───────────
+  Ctrl+P o │   Slate     dark                                       │           
+  the colo │   Paper     light                                      │  message  
+  Every pa │   Contrast  high contrast                              │   0 / 200 
+  /tasks,  │                                                        │ tmpKDiOcz 
+  none of  │ Up/Down preview  Enter keep  Esc cancel                │           
+───────────└──────────────────────────────────────────────── 5 more ┘───────────
+› Describe a task, or type / for commands.                                      
+Ready                            composer Enter send  Ctrl+P commands  Tab focus
+
+
+failures:
+    tests::a_floating_surface_keeps_the_sidebar_rule_whole_outside_itself
+    tests::the_palette_keeps_its_selection_in_view_on_a_short_terminal
+    tests::the_theme_chooser_keeps_its_selection_in_view_on_a_short_terminal
+
+test result: FAILED. 1 passed; 3 failed; 0 ignored; 0 measured; 173 filtered out; finished in 0.05s
+
+error: test failed, to rerun pass `-p ymp-tui --lib`
+control_exit=101
+restored: status=[]
+   Compiling ymp-tui v0.4.2 (/private/tmp/ymp131-double-ctrl-c/ymp-rust/crates/ymp-tui)
+    Finished `test` profile [unoptimized] target(s) in 2.43s
+     Running unittests src/lib.rs (/tmp/ymp129-review-limit/target/debug/deps/ymp_tui-cbec3e105ef4fde0)
+
+running 4 tests
+test tests::a_floating_surface_leaves_the_rules_around_the_body_intact ... ok
+test tests::a_floating_surface_keeps_the_sidebar_rule_whole_outside_itself ... ok
+test tests::the_theme_chooser_keeps_its_selection_in_view_on_a_short_terminal ... ok
+test tests::the_palette_keeps_its_selection_in_view_on_a_short_terminal ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 173 filtered out; finished in 0.10s
+
+restored_exit=0

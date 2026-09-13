@@ -1,0 +1,4 @@
+    Checking ymp-tui v0.4.2 (/private/tmp/ymp131-double-ctrl-c/ymp-rust/crates/ymp-tui)
+    Finished `dev` profile [unoptimized] target(s) in 1.65s
+clippy_exit=0
+/dev/disk3s1   460Gi   436Gi   2.1Gi   100%    5.2M   22M   19%   /System/Volumes/Data

@@ -3304,6 +3304,11 @@
           "at": "2026-09-13T05:19:56.576963+00:00",
           "status": "in_progress",
           "note": "Independent review accepts navigation, Detailed, exit and attribution behavior but requests preserving the sidebar divider around modals (R1) and correcting stale README text (R2). README corrected. Claude Opus 5 high is implementing R1 and the short-terminal selection issue O1 in an isolated branch; final integration and verification follow."
+        },
+        {
+          "at": "2026-09-13T05:36:53.423279+00:00",
+          "status": "in_progress",
+          "note": "Integrated all sidebar, Detailed and floating-surface corrections, including R1 9a88591 and short-terminal selection fix O1 6d72b31. Parent reviewed the narrow fixes; author controls fail before and pass after, with 176 TUI tests passing and one ignored. README R2 is fixed. Final combined workspace/terminal checks and installation remain with the table release."
         }
       ]
     },
@@ -3335,7 +3340,7 @@
       ]
     }
   ],
-  "updated_at": "2026-09-13T05:34:21.043583+00:00",
+  "updated_at": "2026-09-13T05:36:53.423279+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",
