@@ -41,7 +41,8 @@ in diagnostic details if needed.
 ## Integration boundary
 
 Use Engine::team_control, owner_team_command, recovery_stages, control_recovery,
-review_saved_plan_fresh, current_files_context and continue_with_current_files.
+review_saved_plan_fresh, inspect_recovery, current_files_context and
+continue_with_current_files.
 The second-round API documentation takes precedence over obsolete descriptions
 in the initial backend API. Do not fabricate Store records or add provider-facing
 owner commands. Stable IDs, revisions and exact command payloads remain bound to
@@ -76,3 +77,25 @@ checks cover normal/small sizes and Unicode/ASCII with the accepted popup layout
 Reuse existing tests and shared components. Required Rust checks and independent
 UI/terminal acceptance follow implementation. No real owner session, native model
 trial, installation or strategy-selector completion is implied.
+
+## Implementation clarifications after the UI mapping
+
+Effect inspection is an included action, not a permanently disabled placeholder.
+Its existing RecoveryInspectionCommand needs only session/stage/revision/command
+IDs; Engine chooses an admissible inspector and validates actual scope evidence.
+When evidence is insufficient, retain the specific refusal and offer only the
+other supported actions. A missing name in an earlier API list was not a scope
+restriction or permission to omit this consumer.
+
+The UI may use existing read-only Store access to obtain team initialization and
+owner-exclusion state when necessary. It must not manufacture or amend those
+records. Candidate filtering is presentation only; the backend remains responsible
+for final independence and effective access. Do not duplicate all admission rules
+in the TUI or infer permission from an error string. For untyped errors, report
+the cause and refresh the read model; use available typed state to decide actions.
+A session with no initialized team displays that condition without silently
+falling back to editing preferences for the loaded session.
+
+Proposed key letters and new overlay variants in the read-only mapping are
+implementation options. Reuse existing controls where they suffice, reserve
+conflicting sort keys, and do not make users memorize a new command vocabulary.
