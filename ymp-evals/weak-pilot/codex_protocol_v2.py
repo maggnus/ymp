@@ -41,7 +41,7 @@ def main():
             continue
         result = {}
         if method == "config/read":
-            result = {"config": {"mcp_servers": {"synthetic_unused": {"enabled": True}}}}
+            result = {"config": {"mcp_servers": {("invalid;server" if scenario.get("fault") == "broken-envelope" else "synthetic_unused"): {"enabled": True}}}}
         elif method == "model/list":
             result = {"data": [{"model": model, "isDefault": model == "fixture-weak",
                                 "supportedReasoningEfforts": [{"reasoningEffort": "low"}]}
@@ -56,13 +56,31 @@ def main():
             thread = params.get("threadId", thread)
             result = {"thread": {"id": thread}, "model": params["model"], "reasoningEffort": "low",
                       "permissions": params["permissions"]}
+            if scenario.get("fault") == "missing-reported":
+                result.pop("model"); result.pop("reasoningEffort")
+            if scenario.get("fault") == "contradictory-reported":
+                result["reasoningEffort"] = "high"
         elif method == "turn/start":
             assert params["effort"] == "low" and cwd is not None
             result = {"turn": {"id": str(uuid.uuid4())}}
         send({"jsonrpc": "2.0", "id": request["id"], "result": result})
         if method != "turn/start":
             continue
+        if scenario.get("fault") == "slow-complete" and args.purpose == "pilot_candidate":
+            time.sleep(2)
         text = respond(scenario, args.purpose, cwd, params["input"][0]["text"])
+        if args.purpose in ("execute", "pilot_candidate"):
+            if scenario.get("fault") == "wrong-answer":
+                target = cwd / ("windows.py" if scenario["task"] == "repair" else "totals.csv")
+                if scenario["task"] == "repair":
+                    target.write_text("def normalize_windows(windows): return []\ndef total_duration(windows): return 0\n")
+                else:
+                    rows = target.read_text().splitlines(); rows[-1] = rows[-1].rsplit(",", 2)[0] + ",999999,1"
+                    target.write_text("\n".join(rows) + "\n")
+            if scenario.get("fault") == "missing-deliverable":
+                (cwd / ("windows.py" if scenario["task"] == "repair" else "totals.csv")).unlink()
+        if args.purpose == "final_review" and scenario.get("fault") == "negative-final-review":
+            text = json.dumps({"approved": False, "reason": "Ordinary negative task verdict; complete accounting"})
         turn = result["turn"]["id"]
         counts = {"inputTokens": 80, "outputTokens": 20, "cachedInputTokens": 30,
                   "reasoningOutputTokens": 10}
@@ -84,7 +102,7 @@ def respond(scenario, purpose, cwd, prompt):
     private = Path(scenario["fixture_root"]) / scenario["variant"] / scenario["task"] / "private"
     outputs = ["windows.py"] if scenario["task"] == "repair" else ["totals.csv", "exceptions.csv"]
     tasks = [("Deliver artifact", outputs)]
-    if scenario["cooperation_tasks"] == 2:
+    if scenario["cooperation_tasks"] == 2 and scenario.get("fault") != "underused-roster":
         # A second actual assignment preserves another public property; no renamed producer.
         tasks = [("Deliver artifact", outputs), ("Inspect public contract", ["public-inspection.txt"])]
     if purpose == "plan":

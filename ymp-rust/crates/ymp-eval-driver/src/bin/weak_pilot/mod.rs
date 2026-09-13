@@ -1,6 +1,7 @@
 pub mod consumer;
 mod consumer_engine;
 mod fixture;
+mod measurement;
 mod proofs;
 mod raw;
 

@@ -1,15 +1,11 @@
 //! One captured cooperation condition through the existing production Engine.
-use super::write_json;
+use super::{measurement, write_json};
 use anyhow::{ensure, Context, Result};
 use serde_json::{json, Value};
-use std::{
-    collections::{BTreeMap, BTreeSet},
-    path::Path,
-    sync::Arc,
-};
+use std::{collections::BTreeSet, path::Path, sync::Arc};
 use tokio::{sync::mpsc, time::Instant};
 use tokio_util::sync::CancellationToken;
-use ymp_core::{new_id, now, Config, DecisionOutcome, SessionTrace, UiEvent, UnknownUsagePolicy};
+use ymp_core::{new_id, now, Config, UiEvent, UnknownUsagePolicy};
 use ymp_providers::ExecutionBackend;
 use ymp_runtime::Engine;
 use ymp_storage::Store;
@@ -94,7 +90,7 @@ pub async fn run_with_work(
     let store = Store::open(&metadata)?;
     let (events, mut received) = mpsc::unbounded_channel();
     let cancel = CancellationToken::new();
-    let mut engine = Engine::new(store.clone(), config, events, cancel.clone())?
+    let mut engine = Engine::new(store.clone(), config.clone(), events, cancel.clone())?
         .with_execution_backend(backend)?;
     engine.use_memory = false;
     engine.adaptive = false;
@@ -165,7 +161,7 @@ pub async fn run_with_work(
                 "external_group_deadline: cancellation requested for the whole condition".into()
             })
         });
-    let mut summary = inspect(trace.as_ref());
+    let mut summary = measurement::inspect(trace.as_ref(), &config);
     summary["session_id"] = json!(session_id);
     summary["status"] = json!(runtime_status.as_deref().unwrap_or(if deadline_exceeded {
         "interrupted"
@@ -188,134 +184,6 @@ pub async fn run_with_work(
     // Runtime failures are retained outcomes. Returning their summary must never
     // be interpreted as acceptance or permission to retry the condition.
     Ok(summary)
-}
-
-fn inspect(trace: Option<&SessionTrace>) -> Value {
-    let mut captured = BTreeSet::new();
-    let mut invoked = BTreeSet::new();
-    let mut producers = BTreeSet::new();
-    let mut reviewers = BTreeSet::new();
-    let mut contexts = BTreeMap::new();
-    let mut deviations = Vec::new();
-    let mut acceptance = Value::Null;
-    let mut confirmation = Value::Null;
-    if let Some(trace) = trace {
-        captured.extend(
-            trace
-                .policy
-                .as_ref()
-                .map(|policy| &policy.captured_team)
-                .unwrap_or(&trace.session.team)
-                .iter()
-                .map(|agent| agent.id.clone()),
-        );
-        for invocation in &trace.invocations {
-            let Some(assignment) = trace
-                .assignments
-                .iter()
-                .find(|a| a.id == invocation.assignment_id)
-            else {
-                deviations.push(
-                    json!({"code":"missing_originating_assignment","invocation_id":invocation.id}),
-                );
-                continue;
-            };
-            invoked.insert(assignment.agent_id.clone());
-            if assignment.purpose == "execute" {
-                producers.insert(assignment.agent_id.clone());
-            }
-            if assignment.purpose == "final_review" {
-                reviewers.insert(assignment.agent_id.clone());
-            }
-            if let Some(context) = &invocation.native_session_id {
-                if let Some(previous) =
-                    contexts.insert(context.clone(), assignment.agent_id.clone())
-                {
-                    if previous != assignment.agent_id {
-                        deviations.push(json!({"code":"context_shared_across_actors","context_id":context,"agent_ids":[previous,assignment.agent_id]}));
-                    }
-                }
-            } else {
-                deviations.push(json!({"code":"native_context_unobserved","invocation_id":invocation.id,"agent_id":assignment.agent_id}));
-            }
-            if invocation.ended_at.is_none() {
-                deviations.push(
-                    json!({"code":"terminal_accounting_unclosed","invocation_id":invocation.id}),
-                );
-            }
-            if invocation.sent.model != invocation.requested.model
-                || invocation.sent.effort != invocation.requested.effort
-            {
-                deviations.push(json!({"code":"sent_settings_unconfirmed_or_changed","invocation_id":invocation.id}));
-            }
-            if invocation.reported.model != invocation.requested.model
-                || invocation.reported.effort != invocation.requested.effort
-            {
-                deviations.push(json!({"code":"reported_settings_unconfirmed_or_changed","invocation_id":invocation.id}));
-            }
-        }
-        for invocation in &trace.invocations {
-            if let Some(resumed) = &invocation.resumed_from {
-                let actor = trace
-                    .assignments
-                    .iter()
-                    .find(|a| a.id == invocation.assignment_id)
-                    .map(|a| &a.agent_id);
-                if contexts.get(resumed) != actor {
-                    deviations.push(json!({"code":"continuation_owner_unconfirmed_or_changed","invocation_id":invocation.id,"resumed_context_id":resumed}));
-                }
-            }
-        }
-        for decision in trace
-            .decisions
-            .iter()
-            .filter(|d| ["final_accepted", "final_rejected"].contains(&d.kind.as_str()))
-        {
-            match &decision.outcome {
-                Some(DecisionOutcome::Accepted {
-                    confirmation: grade,
-                }) => {
-                    acceptance = json!("accepted");
-                    confirmation = json!(grade);
-                }
-                Some(DecisionOutcome::Rejected) => {
-                    acceptance = json!("rejected");
-                    confirmation = Value::Null;
-                }
-                None => {}
-            }
-        }
-        if trace.usage.total.is_partial() {
-            deviations.push(json!({"code":"incomplete_native_usage"}));
-        }
-    } else {
-        deviations.push(json!({"code":"session_trace_unavailable"}));
-    }
-    let unused = captured.difference(&invoked).cloned().collect::<Vec<_>>();
-    if !unused.is_empty() {
-        deviations.push(json!({"code":"underused_roster","agent_ids":unused}));
-    }
-    let extra = invoked.difference(&captured).cloned().collect::<Vec<_>>();
-    if !extra.is_empty() {
-        deviations.push(json!({"code":"actors_outside_captured_roster","agent_ids":extra}));
-    }
-    if !captured.is_empty() && producers.len() >= captured.len() {
-        deviations.push(json!({"code":"no_independent_final_reviewer_remaining"}));
-    }
-    let self_review = producers
-        .intersection(&reviewers)
-        .cloned()
-        .collect::<Vec<_>>();
-    if !self_review.is_empty() {
-        deviations.push(json!({"code":"final_reviewer_also_produced","agent_ids":self_review}));
-    }
-    json!({
-        "captured_agent_ids":captured,"invoked_agent_ids":invoked,"actual_participant_count":invoked.len(),
-        "producer_ids":producers,"final_reviewer_ids":reviewers,"native_context_owners":contexts,
-        "usage":trace.map(|t| &t.usage),"budget":trace.and_then(|t| t.budget.as_ref()),
-        "runtime_acceptance":acceptance,"runtime_confirmation":confirmation,
-        "protocol_deviations":deviations
-    })
 }
 
 fn ui_event(event: UiEvent) -> Value {

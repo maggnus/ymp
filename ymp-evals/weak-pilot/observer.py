@@ -18,6 +18,12 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
+EXECUTION_SPEC = importlib.util.spec_from_file_location("restricted_python", ROOT / "restricted_python.py")
+restricted_python = importlib.util.module_from_spec(EXECUTION_SPEC)
+EXECUTION_SPEC.loader.exec_module(restricted_python)
+PROBE_SPEC = importlib.util.spec_from_file_location("repair_probe", ROOT / "repair_probe.py")
+repair_probe = importlib.util.module_from_spec(PROBE_SPEC)
+PROBE_SPEC.loader.exec_module(repair_probe)
 SPEC = importlib.util.spec_from_file_location("universal", ROOT.parent / "validators/universal.py")
 universal = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(universal)
@@ -131,12 +137,26 @@ def reconcile_expected(task_source):
 def repair_checks(variant, artifact):
     cases = read_json(fixture("repair", variant) / "private/cases.json")
     calls = [{"function": case["function"], "args": case["args"]} for case in cases]
-    result = subprocess.run(
-        [sys.executable, "-I", "-B", str(ROOT / "repair_probe.py"), str(artifact)],
-        input=json.dumps(calls), text=True, capture_output=True, timeout=5, cwd=artifact.parent)
-    require(result.returncode == 0, f"Python evaluation failed: {result.stderr[-1000:]}")
-    actual = universal.parse_json(result.stdout)
-    require(isinstance(actual, list) and len(actual) == len(cases), "missing Python observations")
+    try:
+        result = restricted_python.run(
+            repair_probe.PROBE_SOURCE.encode(), {"windows.py": artifact.read_bytes()},
+            args=("windows.py",), input_text=json.dumps(calls), timeout=5)
+    except restricted_python.RestrictedExecutionError as error:
+        if error.kind == "timeout" and error.process_terminated:
+            return [{"criterion_id": "candidate_execution", "passed": False,
+                     "candidate_error": "timeout", "process_terminated": True}]
+        raise
+    if result.returncode != 0:
+        return [{"criterion_id": "candidate_execution", "passed": False,
+                 "candidate_error": "nonzero_exit", "exit_code": result.returncode,
+                 "stderr": result.stderr[-1000:]}]
+    try:
+        actual = universal.parse_json(result.stdout)
+    except ValueError:
+        actual = None
+    if not isinstance(actual, list) or len(actual) != len(cases):
+        return [{"criterion_id": "candidate_execution", "passed": False,
+                 "candidate_error": "missing_python_observations"}]
     checks = []
     for case, observation in zip(cases, actual):
         expected = {"value": case.get("expected"), "error": case.get("error"), "unchanged": True,
@@ -188,6 +208,7 @@ def matrix(seed):
     }
     proposal["observer_sha256"] = {str(path.relative_to(ROOT.parent)): digest(path) for path in
                                    [ROOT / "observer.py", ROOT / "repair_probe.py", ROOT / "public_select.py",
+                                    ROOT / "restricted_python.py",
                                     ROOT / "manifest.template.json", ROOT.parent / "validators/universal.py"]}
     for task in TASKS:
         order = list(CONDITIONS)
@@ -223,6 +244,10 @@ def main():
             result = matrix(args.seed)
         print(json.dumps(result, indent=2, allow_nan=False))
         return 1 if result.get("objective_success") is False else 0
+    except restricted_python.RestrictedExecutionError as error:
+        print(json.dumps({"validator_passed": False, "measurement_valid": False,
+                          "execution_status": error.kind, "error": str(error)}))
+        return 2
     except (OSError, ValueError, KeyError, TypeError, AttributeError, csv.Error, subprocess.TimeoutExpired) as error:
         print(json.dumps({"validator_passed": False, "error": str(error)}))
         return 1

@@ -1,0 +1,17 @@
+{
+  "command": [
+    "/opt/homebrew/opt/python@3.14/bin/python3.14",
+    "-B",
+    "/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp201-weak-pilot/ymp-evals/weak-pilot/public_select.py",
+    "--task",
+    "repair",
+    "--public-check",
+    "/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp201-weak-pilot/ymp-evals/weak-pilot/fixtures/preparation/repair/visible/public_test.py",
+    "/tmp/ymp201-consumer-review/selection-canary/candidate1",
+    "/tmp/ymp201-consumer-review/selection-canary/candidate2"
+  ],
+  "exit": 0,
+  "private_canary_read_by_submitted_code": true,
+  "selected": 2,
+  "marker_sha256": "3ae3bf57dd97386260c8681951f23ec27a6183312e38122cf0a82273a342bb8c"
+}

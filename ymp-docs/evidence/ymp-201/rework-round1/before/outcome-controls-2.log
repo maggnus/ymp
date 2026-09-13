@@ -1,0 +1,9 @@
+{"case": "control", "exit": 0, "complete": true, "calibration_allows_pilot": true, "interpretable": true, "objective_success": true, "second_status": "completed", "active_fixture_pids": []}
+{"case": "wrong-answer", "exit": 0, "complete": true, "calibration_allows_pilot": false, "interpretable": true, "objective_success": false, "second_status": "completed", "active_fixture_pids": []}
+{"case": "missing-deliverable", "exit": 1, "complete": false, "calibration_allows_pilot": false, "interpretable": false, "objective_success": false, "second_status": "not_started", "active_fixture_pids": []}
+{"case": "engine-negative", "exit": 1, "complete": false, "calibration_allows_pilot": false, "interpretable": false, "objective_success": true, "second_status": "not_started", "active_fixture_pids": []}
+{"case": "known-budget", "exit": 1, "complete": false, "calibration_allows_pilot": false, "interpretable": false, "objective_success": true, "second_status": "not_started", "active_fixture_pids": []}
+{"case": "known-deadline", "exit": 1, "complete": false, "calibration_allows_pilot": false, "interpretable": false, "objective_success": false, "second_status": "not_started", "active_fixture_pids": []}
+{"case": "unknown-usage", "exit": 1, "complete": false, "calibration_allows_pilot": false, "interpretable": false, "objective_success": true, "second_status": "not_started", "active_fixture_pids": []}
+{"case": "provider-error", "exit": 1, "complete": false, "calibration_allows_pilot": false, "interpretable": false, "objective_success": true, "second_status": "not_started", "active_fixture_pids": []}
+{"case": "broken-envelope", "exit": 1, "complete": false, "calibration_allows_pilot": false, "interpretable": false, "objective_success": false, "second_status": "not_started", "active_fixture_pids": []}

@@ -623,12 +623,17 @@ impl Group {
     pub fn save_trace(&self) -> Result<Value> {
         let trace = self.store.trace(&self.session.id)?;
         write_json(&self.directory.join("trace.json"), &trace)?;
-        let summary = json!({
-            "session_id":self.session.id,"usage":trace.usage,"budget":trace.budget,
-            "external_call_cap":self.max_calls,
-            "evaluation":trace.policy.as_ref().and_then(|policy| policy.evaluation.as_ref()),
-            "accounting_closed":trace.usage.total.open_calls == 0 && trace.invocations.iter().all(|i| i.ended_at.is_some())
-        });
+        let mut summary = super::measurement::inspect(Some(&trace), &self.config);
+        summary["session_id"] = json!(self.session.id);
+        summary["external_call_cap"] = json!(self.max_calls);
+        summary["evaluation"] = json!(trace
+            .policy
+            .as_ref()
+            .and_then(|policy| policy.evaluation.as_ref()));
+        summary["accounting_closed"] = json!(
+            trace.usage.total.open_calls == 0
+                && trace.invocations.iter().all(|i| i.ended_at.is_some())
+        );
         write_json(&self.directory.join("summary.json"), &summary)?;
         Ok(summary)
     }

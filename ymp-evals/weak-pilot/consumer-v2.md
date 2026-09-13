@@ -33,17 +33,24 @@ also deny prior scripted/calibration outputs and live application data, with the
 native, more-specific current-workspace grant verified by a parent-deny canary.
 Only its own current working directory
 receives the original read/write access. Native state/authentication is still
-managed by the provider host; model commands cannot read it. The public-only
-selector, staging and sealing share the condition's absolute deadline. External
+managed by the provider host; model commands cannot read it. Public tests, final Python scoring and direct repair-probe calls use the same
+macOS sandbox-exec boundary. Candidate processes see only copied public tests or
+function names/arguments and their own copied files, not expected answers, other
+candidates, protected files, parent-directory contents or inherited credentials.
+The public-only selector, staging and sealing share the condition's absolute deadline. External
 scoring occurs only after freezing and has its own short deterministic timeout.
 
 All emitted ProviderEvents are retained with stream, actor and native context
 bindings. Store usage snapshots replace prior snapshots; cache/reasoning are not
 added twice. Errors, cancellation and incomplete usage retain their journals.
-An uninterpretable condition stops further native admission for the phase; remaining
-cells are explicitly recorded as `not_started`. Hidden scores do not choose an
-independent candidate or trigger repair. A failed quality check remains a scored
-outcome; preparation must satisfy the declared continuation rule before pilot use.
+Measurement validity and task outcome are separate. Wrong answers, missing
+artifacts, negative Engine review, fully accounted budget refusal, underused
+rosters and a post-invocation deadline remain measured outcomes; later conditions
+continue. Unknown/partial usage, contradictory controls, a broken execution
+boundary, unexpected actors or unverified termination stop the phase. Only those
+invalid measurements leave later cells `not_started`. Calibration continuation
+uses measurement validity, never universal answer correctness. Hidden scores do
+not choose an independent candidate or authorize repair.
 
 ## Verified native controls and the narrow adapter
 
@@ -95,15 +102,20 @@ These commands spend no model quota and do not approve anything. Actual commands
 require an out-of-band owner authorization record supplied by the parent:
 
 ```sh
-target/debug/ymp-weak-pilot native --manifest /tmp/ymp201-calibration.json --approval /absolute/owner-approval.json
-target/debug/ymp-weak-pilot native --manifest /tmp/ymp201-pilot.json --approval /absolute/owner-approval.json --calibration-report /tmp/ymp201-calibration-controller/run.json
+target/debug/ymp-weak-pilot native --manifest /tmp/ymp201-calibration.json --approval /absolute/calibration-approval.json
+target/debug/ymp-weak-pilot native --manifest /tmp/ymp201-pilot.json --approval /absolute/pilot-approval.json --calibration-report /tmp/ymp201-calibration-controller/run.json
 ```
 
-Approval schema: `schema_version: 1`, `authority: owner`, a nonempty actual
-`reference` and `approved_at`, and `manifest_sha256`, an array of the exact approved
-manifest digests. It is an operator input outside all solving workspaces, never
-agent metadata. No completed approval file is included. Absence or digest
-mismatch refuses before starting a provider. The conditional pilot additionally
+Approval schema: `schema_version: 2`, `authority: owner`, a nonempty actual
+`reference` and `approved_at`, exact `phase`, `scope: one_phase_once`, and one
+`manifest_sha256` string. Each record covers one bounded phase once. It is an
+operator input outside solving workspaces, never agent metadata. After validation
+and approval, an atomic durable marker is created in the manifest's private
+`approval_ledger` before outputs or providers start. Output cleanup never removes
+that marker or renews authority; failed and interrupted phases keep it too.
+The default ledger is `~/.local/state/ymp201/phase-approvals`, outside disposable
+outputs. It is not created by proposal generation or scripted runs. No completed
+approval is included. Absence, mismatch or an existing marker refuses native work. The conditional pilot additionally
 requires the completed native calibration report bound to its frozen prerequisite.
 A scripted report cannot satisfy that condition.
 
@@ -123,17 +135,21 @@ workflow to the former 12,000-token/120-second preparation example.
 
 | Phase | Outcomes | Per-outcome observed tokens | Outer invocations | Whole condition / one turn |
 | --- | --- | --- | --- | --- |
-| Preparation calibration | 6 | 80,000 | 12 | 480 s / 120 s |
-| Conditional measured pilot | 12 | 160,000 | 16 | 900 s / 180 s |
+| Preparation calibration | 6 | 80,000 | 12 | 480 s / actual remaining condition time |
+| Conditional measured pilot | 12 | 160,000 | 16 | 900 s / actual remaining condition time |
 
 Calibration runs both solo models on both **preparation** tasks, then cooperation-2
 and cooperation-3 on preparation repair. It verifies real accounting, context/
-participant binding, task completion and available budget headroom before the
+participant binding, reliable outcome capture and available budget headroom before the
 measured variant is exposed. Independent orchestration uses already-checked raw
 turns and deterministic selection; it does not add a separate calibration catalog.
 
 Every condition shares one allowance, one application attempt, scheduling ceiling
-two, and fixed low. Conflicting writes still serialize. Native internal turn and
+two, and fixed low. Solo receives one complete native tool loop with the actual
+remaining condition time. Independent attempts run in frozen ordinal order under
+one absolute deadline; later attempts receive only its remainder. The config's
+per-turn timeout equals the whole-condition ceiling, with the precise outer
+deadline authoritative for raw and Engine calls alike. Conflicting writes still serialize. Native internal turn and
 retry counts are not equated to outer invocation counts. The raw Store retains
 one unused protected review slot and one protected token; the external call and
 observed-token ceilings remain shared. Cooperation's final reviewer is included
@@ -147,8 +163,27 @@ the threshold before cancellation; the owner must approve this form of limit.
 Currency cost remains unknown until supported native/pricing observations exist.
 
 No automatic allowance increase or model-effort change is permitted. Unknown or
-partial usage, timeout, identity/permission mismatch, or incomplete participation
-stops the phase and prevents conditional pilot execution. A failing calibration
-artifact also prevents the pilot; it does not authorize tuning against measured
-answers. The parent reviews the actual calibration observations and preserves all
+partial usage, contradictory identity/permission settings, broken measurement or
+unverified process termination stops the phase. Missing reported model/effort
+remains null with incomplete metadata identically in every condition. Requested
+and sent values must match the frozen configuration; contradicting reported
+values invalidate it. Underused rosters remain requested/actual observations,
+not a claim that all configured agents worked. Ordinary unsuccessful calibration
+artifacts do not prevent the pilot or authorize tuning against measured answers. The parent reviews the actual calibration observations and preserves all
 failed/interrupted cells. Any revised settings require a new frozen proposal.
+
+
+## Other resource units
+
+The 128,000/32,000 context-character bounds apply to assignment prompt/instructions;
+the visible task bundles are only 1,752–4,061 characters. The common 64,000-character
+per-call limit covers visible output, not total input/output usage or reasoning.
+Its aggregate visible-text allowance is not claimed equal between one and several
+calls. Per-invocation token reservations are admission allowances, not a cap on a
+started native loop: a fully accounted call may exceed its reservation while the
+shared observed-token ceiling remains active. The protocol tests exercise that
+case. `native_max_turns=16` is retained configuration data, not a proved Codex
+internal-request cap. None of these values are inferred from synthetic token costs.
+
+The current correction and preserved review controls are documented in
+[rework evidence](../../ymp-docs/evidence/ymp-201/rework-round1/README.md).

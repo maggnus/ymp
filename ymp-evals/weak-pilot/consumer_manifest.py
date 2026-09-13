@@ -15,6 +15,7 @@ import uuid
 from datetime import datetime, timezone
 
 from native_controls_probe import CONTROLS
+import restricted_python
 
 ROOT = Path(__file__).resolve().parents[2]
 CONDITIONS = ["strong-solo", "weak-solo", "independent-2", "independent-3", "cooperation-2", "cooperation-3"]
@@ -26,12 +27,12 @@ def sha(path):
 
 def generate(runner, output, workspaces, phase, seed=2010914, prerequisite=None):
     scripted = phase == "protocol-e2e"
-    evidence = ROOT / "ymp-docs/evidence/ymp-201/consumer-v2/native-envelope-mcp-fixed-probe.json"
+    evidence = ROOT / "ymp-docs/evidence/ymp-201/rework-round1/native-envelope-final.json"
     codex = ROOT / "ymp-evals/weak-pilot/codex_protocol_v2.py" if scripted else Path(shutil.which("codex")).resolve()
     models = {"weak": "fixture-weak" if scripted else "gpt-5.6-luna", "strong": "fixture-strong" if scripted else "gpt-6-astra"}
     calibration = phase == "preparation-calibration"
-    calls, seconds, turn, tokens, reservation = (8, 90, 10, 10000, 1000) if scripted else (
-        (12, 480, 120, 80000, 6000) if calibration else (16, 900, 180, 160000, 10000))
+    calls, seconds, turn, tokens, reservation = (8, 90, 90, 10000, 1000) if scripted else (
+        (12, 480, 480, 80000, 6000) if calibration else (16, 900, 900, 160000, 10000))
     resources = {"unknown_usage": "stop", "startup_invocations": 2, "required_review_invocations": 1,
                  "max_context_chars": 128000, "startup_context_chars": 32000, "max_output_chars": 64000,
                  "native_max_turns": 16, "observed_tokens": tokens, "invocation_tokens": reservation,
@@ -81,12 +82,16 @@ def generate(runner, output, workspaces, phase, seed=2010914, prerequisite=None)
     return {"schema_version": 2, "execution_kind": "protocol-fixture" if scripted else "native", "phase": phase,
             "source_revision": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip(),
             "repository": str(ROOT), "output": str(Path(output).resolve()), "workspace_root": str(Path(workspaces).resolve()),
-            "runner_sha256": sha(runner), "python": str(Path(sys.executable).resolve()), "codex": str(codex), "codex_sha256": sha(codex),
+            "runner_sha256": sha(runner), "python": str(Path(sys.executable).resolve()), "python_sha256": sha(sys.executable),
+            "candidate_execution": restricted_python.identity(), "codex": str(codex), "codex_sha256": sha(codex),
             "native_home": str(Path(os.environ.get("CODEX_HOME", Path.home() / ".codex")).resolve()),
             "protected_roots": sorted({str(Path.home().resolve()), str(Path("/tmp").resolve()), str(Path(tempfile.gettempdir()).resolve())}),
             "controls": CONTROLS, "control_evidence": str(evidence), "control_evidence_sha256": sha(evidence) if evidence.exists() else "",
             "config": config, "catalog": catalog, "weak_model": models["weak"], "strong_model": models["strong"],
             "max_invocations": calls, "group_seconds": seconds, "seed": seed,
+            "time_rule": "remaining_condition_deadline", "independent_schedule": "ordinal_serial_shared_deadline",
+            "approval_scope": "one_phase_once",
+            "approval_ledger": str((Path(output).resolve().parent / "test-approval-ledger") if scripted else (Path.home() / ".local/state/ymp201/phase-approvals").resolve()),
             "task_prompt": "Read REQUIREMENTS.md in the selected directory and deliver the requested files. Use only the permitted tools and visible files in this directory.",
             "frozen_files": frozen, "prerequisite_manifest_sha256": prerequisite, "attempts": attempts}
 

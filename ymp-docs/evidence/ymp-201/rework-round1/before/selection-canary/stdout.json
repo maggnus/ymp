@@ -1,0 +1,30 @@
+{
+  "selection_rule": "first-public-pass-else-first-v1",
+  "selected_participant_ordinal": 2,
+  "public_check_sha256": "c6cb4f332e7272f9bcccc360689d1d23dc544996f6dbae2a68b4a28fbba7b3a5",
+  "observations": [
+    {
+      "participant_ordinal": 1,
+      "public_passed": false,
+      "files_sha256": {
+        "windows.py": "f09052fdcf2b04e2e861bee64ecf49711b2e06da6404678a731271592531019e"
+      },
+      "error": null,
+      "exit_code": 1,
+      "stdout": "",
+      "stderr": "Traceback (most recent call last):\n  File \"/private/var/folders/cw/7pn8sb3x6bj69g7j2d8f_ss00000gn/T/ymp-pilot-public-vyfoahfo/public_test.py\", line 3, in <module>\n    from windows import normalize_windows, total_duration\n  File \"/private/var/folders/cw/7pn8sb3x6bj69g7j2d8f_ss00000gn/T/ymp-pilot-public-vyfoahfo/windows.py\", line 2, in <module>\n    raise RuntimeError(Path('/tmp/ymp201-consumer-review/selection-canary/private/synthetic-hidden.txt').read_text())\nRuntimeError: SYNTHETIC-HIDDEN-CANARY-201\n"
+    },
+    {
+      "participant_ordinal": 2,
+      "public_passed": true,
+      "files_sha256": {
+        "windows.py": "c16acff50ba7c4e4047b9bda01735a90b079872dfa663902a2b6ac4dfb3e1bad"
+      },
+      "error": null,
+      "exit_code": 0,
+      "stdout": "public examples passed\n",
+      "stderr": ""
+    }
+  ],
+  "model_invocations": 0
+}

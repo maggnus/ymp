@@ -15,6 +15,11 @@ struct Args {
 
 #[derive(Subcommand)]
 enum Command {
+    #[command(name = "_supervise", hide = true)]
+    Supervise {
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        argv: Vec<std::ffi::OsString>,
+    },
     /// Exercise injected providers, real storage admission, and the current Engine.
     OfflineProof {
         #[arg(long)]
@@ -44,6 +49,7 @@ enum Command {
 #[tokio::main]
 async fn main() -> Result<()> {
     match Args::parse().command {
+        Command::Supervise { argv } => ymp_providers::supervisor::run(argv).await,
         Command::OfflineProof { output } => {
             let output = weak_pilot::fresh_output(&output)?;
             let report = weak_pilot::prove(&output).await?;

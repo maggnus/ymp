@@ -142,13 +142,19 @@ fn approval_kind_and_source_drift_fail_before_any_provider() {
 
 #[test]
 fn unknown_usage_and_deadline_stop_the_same_consumer_without_losing_observations() {
-    for fault in ["unknown-usage", "pending", "provider-error"] {
+    for fault in [
+        "unknown-usage",
+        "pending",
+        "provider-error",
+        "broken-envelope",
+        "contradictory-reported",
+    ] {
         let temp = tempfile::tempdir().unwrap();
         let root = temp.path().canonicalize().unwrap();
         let mut spec = manifest(&root);
         spec["attempts"] = json!([{"id":"first","condition":"weak-solo","task":"reconcile","variant":"preparation","blind_id":"00000000000000000000000000000001","fixture_fault":fault},{"id":"second","condition":"weak-solo","task":"repair","variant":"preparation","blind_id":"00000000000000000000000000000002"}]);
         if fault == "pending" {
-            spec["group_seconds"] = json!(2);
+            set_seconds(&mut spec, 2);
         }
         let result = launch(&root, &spec, "scripted");
         assert!(!result.status.success(), "{fault}");
@@ -161,9 +167,143 @@ fn unknown_usage_and_deadline_stop_the_same_consumer_without_losing_observations
         )
         .unwrap();
         assert_eq!(trace["invocations"].as_array().unwrap().len(), 1);
-        if fault != "unknown-usage" {
+        if ["pending", "provider-error"].contains(&fault) {
             assert_eq!(trace["usage"]["total"]["counts"]["input"], 80);
             assert_eq!(trace["usage"]["total"]["counts"]["output"], 20);
         }
+    }
+}
+
+fn set_seconds(spec: &mut Value, seconds: u64) {
+    spec["group_seconds"] = json!(seconds);
+    spec["config"]["limits"]["turn_timeout_secs"] = json!(seconds);
+}
+
+fn paired(root: &Path, condition: &str, fault: &str) -> Value {
+    let mut spec = manifest(root);
+    spec["attempts"] = json!([
+        {"id":"first","condition":condition,"task":"reconcile","variant":"preparation","blind_id":"00000000000000000000000000000001","fixture_fault":fault},
+        {"id":"second","condition":"weak-solo","task":"repair","variant":"preparation","blind_id":"00000000000000000000000000000002"}]);
+    spec
+}
+
+#[test]
+fn ordinary_negative_results_do_not_gate_calibration_or_later_conditions() {
+    for (condition, fault) in [
+        ("weak-solo", "wrong-answer"),
+        ("weak-solo", "missing-deliverable"),
+        ("cooperation-2", "negative-final-review"),
+        ("independent-2", "known-budget"),
+        ("weak-solo", "deadline-after-completed"),
+        ("cooperation-3", "underused-roster"),
+    ] {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path().canonicalize().unwrap();
+        let mut spec = paired(&root, condition, fault);
+        if fault == "known-budget" {
+            spec["config"]["limits"]["resources"]["observed_tokens"] = json!(110);
+            spec["config"]["limits"]["resources"]["invocation_tokens"] = json!(60);
+            spec["config"]["limits"]["resources"]["review_reserve_tokens"] = json!(60);
+        }
+        if fault == "deadline-after-completed" {
+            set_seconds(&mut spec, 4);
+        }
+        let result = launch(&root, &spec, "scripted");
+        let report: Value =
+            serde_json::from_slice(&fs::read(root.join("controller/run.json")).unwrap()).unwrap();
+        assert!(
+            result.status.success(),
+            "{fault}: {}\n{report}",
+            String::from_utf8_lossy(&result.stderr)
+        );
+        let first = &report["outcomes"][0];
+        assert_eq!(first["measurement_valid"], true, "{fault}: {first}");
+        assert_eq!(
+            report["outcomes"][1]["status"], "completed",
+            "{fault}: {report}"
+        );
+        assert_eq!(report["calibration_allows_pilot"], true, "{fault}");
+        if fault == "underused-roster" {
+            assert_eq!(first["runtime"]["requested_participant_count"], 3);
+            assert_eq!(first["runtime"]["actual_participant_count"], 2);
+        } else {
+            assert_eq!(first["task_outcome"], "unsuccessful", "{fault}: {first}");
+        }
+        if fault == "wrong-answer" {
+            assert_eq!(first["objective_success"], false);
+        }
+        if fault == "known-budget" {
+            assert_eq!(first["runtime"]["usage"]["total"]["counts"]["input"], 80);
+            assert_eq!(first["runtime"]["actual_participant_count"], 1);
+        }
+    }
+}
+
+#[test]
+fn optional_reported_settings_follow_the_same_rule_in_all_conditions() {
+    let temp = tempfile::tempdir().unwrap();
+    let root = temp.path().canonicalize().unwrap();
+    let mut spec = manifest(&root);
+    for row in spec["attempts"].as_array_mut().unwrap() {
+        row["fixture_fault"] = json!("missing-reported");
+    }
+    let result = launch(&root, &spec, "scripted");
+    assert!(
+        result.status.success(),
+        "{}",
+        String::from_utf8_lossy(&result.stderr)
+    );
+    let report: Value =
+        serde_json::from_slice(&fs::read(root.join("controller/run.json")).unwrap()).unwrap();
+    for row in report["outcomes"].as_array().unwrap() {
+        assert_eq!(row["measurement_valid"], true, "{row}");
+        assert_eq!(row["metadata_complete"], false);
+        for record in row["runtime"]["settings_observations"].as_array().unwrap() {
+            assert!(record["reported"]["model"].is_null());
+            assert!(record["reported"]["effort"].is_null());
+            assert_eq!(record["requested"]["effort"], "low");
+            assert_eq!(record["sent"]["effort"], "low");
+        }
+    }
+}
+
+#[test]
+fn solo_uses_whole_remaining_time_and_independent_members_do_not_reset_it() {
+    for condition in ["weak-solo", "independent-2"] {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path().canonicalize().unwrap();
+        let mut spec = paired(&root, condition, "slow-complete");
+        set_seconds(&mut spec, 12);
+        spec["config"]["limits"]["resources"]["invocation_tokens"] = json!(40);
+        let result = launch(&root, &spec, "scripted");
+        assert!(
+            result.status.success(),
+            "{}",
+            String::from_utf8_lossy(&result.stderr)
+        );
+        let trace: Value = serde_json::from_slice(
+            &fs::read(root.join("controller/first/group/trace.json")).unwrap(),
+        )
+        .unwrap();
+        let assignments = trace["assignments"].as_array().unwrap();
+        assert!(assignments[0]["timeout_secs"].as_u64().unwrap() > 1);
+        assert_eq!(
+            assignments.len(),
+            if condition == "weak-solo" { 1 } else { 2 }
+        );
+        if assignments.len() == 2 {
+            assert!(
+                assignments[1]["timeout_secs"].as_u64().unwrap()
+                    < assignments[0]["timeout_secs"].as_u64().unwrap()
+            );
+        }
+        assert!(trace["usage"]["total"]["counts"]["input"].as_u64().unwrap() > 40);
+        let mut invalid = spec.clone();
+        invalid["config"]["limits"]["turn_timeout_secs"] = json!(1);
+        invalid["output"] = json!(root.join("invalid-controller"));
+        invalid["workspace_root"] = json!(root.join("invalid-work"));
+        let refused = launch(&root, &invalid, "scripted");
+        assert!(!refused.status.success());
+        assert!(!root.join("invalid-controller").exists());
     }
 }

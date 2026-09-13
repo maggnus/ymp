@@ -1,9 +1,17 @@
-"""Run submitted Python in a separate process; expected answers stay outside it.
+"""Run submitted Python within the shared restricted execution boundary.
 
-This is process separation, not a security sandbox. Only reviewed synthetic
-controls are executed during preparation. Never put this file in solving context.
+The trusted observer copies PROBE_SOURCE and candidate bytes into restricted_python;
+the process receives only function names/arguments, never expected answers.
+The direct CLI uses that same boundary. Never put this file in solving context.
 """
 
+import importlib.util
+import json
+from pathlib import Path
+import sys
+
+
+PROBE_SOURCE = r'''
 import copy
 import importlib.util
 import json
@@ -37,3 +45,27 @@ def main():
 
 if __name__ == "__main__":
     main()
+'''
+
+
+def main():
+    spec = importlib.util.spec_from_file_location("restricted_python", Path(__file__).with_name("restricted_python.py"))
+    restricted = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(restricted)
+    try:
+        # Even a direct probe invocation cannot pass expected answers onward.
+        calls = [{"function": call["function"], "args": call["args"]} for call in json.load(sys.stdin)]
+        result = restricted.run(PROBE_SOURCE.encode(), {"windows.py": Path(sys.argv[1]).read_bytes()},
+                                args=("windows.py",), input_text=json.dumps(calls), timeout=5)
+        sys.stdout.write(result.stdout)
+        sys.stderr.write(result.stderr)
+        return result.returncode
+    except restricted.RestrictedExecutionError as error:
+        valid = error.kind == "timeout" and error.process_terminated
+        print(json.dumps({"candidate_error": error.kind, "measurement_valid": valid,
+                          "process_terminated": error.process_terminated}))
+        return 1 if valid else 2
+
+
+if __name__ == "__main__":
+    sys.exit(main())
