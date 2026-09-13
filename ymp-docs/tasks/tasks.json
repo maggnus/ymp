@@ -4100,6 +4100,11 @@
           "at": "2026-09-13T19:40:32.913275+00:00",
           "status": "in_progress",
           "note": "Both independent reviews accepted 743543f. Executable review passed 49 checks, including actual same-session completion and nonzero/unknown historical usage; parent retained hash-verified controls and integrated all 13 backend commits through c28f501 without conflicts. Backend files match accepted source and UI/CLI/evals remain accepted149. A single combined-source fmt/Clippy/workspace sequence is delegated to 52111c72; minimal Claude UI integration remains required. Installed executable is still 0.4.6, and no real session or model trial ran."
+        },
+        {
+          "at": "2026-09-13T19:45:44.298403+00:00",
+          "status": "in_progress",
+          "note": "Claude read-only UI mapping completed. Parent clarified that the existing inspect_recovery API is included, not a permanently disabled placeholder, and allowed existing read-only team metadata without authority duplication. Launched Claude Code claude-opus-5 high via Paseo CLI as c206255b-f322-42f4-b842-8a21de3a8b05 in feat/ymp146-recovery-ui from 211f314. Implementation covers current-session membership and usable recovery, one current-files confirmation followed by ordinary resume, responsive jobs and meaningful terminal tests. Backend/product policies and YMP-154 remain separate; main combined-source checks continue independently."
         }
       ]
     },
@@ -4400,7 +4405,7 @@
       ]
     }
   ],
-  "updated_at": "2026-09-13T19:40:32.913275+00:00",
+  "updated_at": "2026-09-13T19:45:44.298403+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",
