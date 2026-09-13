@@ -202,3 +202,13 @@ provide a goal, acceptance conditions and limits. Experimental implementation
 selection belongs in the research configuration until a meaningful user-facing
 choice has been established. This proposal preserves all five approved goals;
 it does not narrow the universal product to its initial trial cases.
+
+## Owner-directed first pilot (2026-09-14)
+
+The owner now requests a small direct comparison of two or three weaker agents
+with one stronger solo agent, with scientific grounding. YMP-201 is preparing
+[this narrowed pilot](../research/weak-agent-pilot.md), reusing the existing runner
+where adequate; it no longer depends on completing all of YMP-148/YMP-151.
+The earlier broad protocol remains historical, and concrete native settings and
+quota approval are still required before measured calls. YMP-202--204 remain
+paused. This scheduling change does not delay the executing P0 recovery fork.

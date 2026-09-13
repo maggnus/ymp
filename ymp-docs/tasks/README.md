@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-13 18:44 UTC.
+Updated: 2026-09-13 18:49 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -14,7 +14,7 @@ A planned task is not implemented functionality. Completed research and planning
 | design | 2 | 2 |
 | documentation | 4 | 4 |
 | experiment | 0 | 4 |
-| implementation | 37 | 45 |
+| implementation | 37 | 46 |
 | maintenance | 1 | 1 |
 | research | 10 | 10 |
 | verification | 2 | 2 |
@@ -40,7 +40,7 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-107](#ymp-107) | P1 | Expose recorded checks and factual recovery limits | 2026-09-12 12:55 |
 | `[=]` | [YMP-108](#ymp-108) | P2 | Evaluate an optional usage estimate with explicit price provenance | 2026-09-12 09:35 |
 | `[x]` | [YMP-111](#ymp-111) | P0 | Apply native models and reasoning settings per assignment | 2026-09-12 12:18 |
-| `[=]` | [YMP-201](#ymp-201) | P2 | Calibrate and run the paired solo/team pilot | 2026-09-13 16:17 |
+| `[~]` | [YMP-201](#ymp-201) | P2 | Test whether two or three weaker agents can match a stronger solo agent | 2026-09-13 18:49 |
 | `[=]` | [YMP-202](#ymp-202) | P1 | Test memory and adaptive assignment on held-out tasks | 2026-09-13 16:17 |
 | `[=]` | [YMP-203](#ymp-203) | P1 | Test effort, reduced preparation and low-effort ensembles separately | 2026-09-13 16:17 |
 | `[=]` | [YMP-204](#ymp-204) | P1 | Evaluate a project-scoped prior-outcome router | 2026-09-13 16:17 |
@@ -94,6 +94,7 @@ A planned task is not implemented functionality. Completed research and planning
 | `[=]` | [YMP-151](#ymp-151) | P1 | Prepare reproducible offline comparisons of coordination strategies | 2026-09-13 16:17 |
 | `[+]` | [YMP-152](#ymp-152) | P2 | Keep the selected palette command visible in very short terminals | 2026-09-13 16:25 |
 | `[x]` | [YMP-153](#ymp-153) | P0 | Decide explicit owner continuation from current files after unverified effects | 2026-09-13 18:42 |
+| `[=]` | [YMP-154](#ymp-154) | P1 | Show substantially more slash-command suggestions when terminal space permits | 2026-09-13 18:49 |
 
 ## YMP-001
 
@@ -631,37 +632,39 @@ Native reasoning controls support YMP selection under user constraints. Effort b
 
 ## YMP-201
 
-Calibrate and run the paired solo/team pilot
+Test whether two or three weaker agents can match a stronger solo agent
 
-**State:** `[=]` (paused) · **Type:** experiment · **Priority:** P2
+**State:** `[~]` (in_progress) · **Type:** experiment · **Priority:** P2
 
-**Last update (UTC):** 2026-09-13 16:17
+**Last update (UTC):** 2026-09-13 18:49
 
-**Current reason:** Owner explicitly required marking comparative trials as subject to owner approval. The experiment remains paused; no automatic start after preparation/dependency completion. Obtain separate approval of the concrete protocol, configurations and resource envelope before calibration or measured comparative runs.
+**Current reason:** Owner requested a simple real trial of two/three weak agents versus a strong solo and scientific grounding. Narrowed the first study instead of waiting for the full YMP-148/151 framework. Existing native runner/identity/accounting readiness is under bounded read-only review; parent prepared the mechanism, countercontrols and primary literature. Concrete models/settings and quota still require the earlier specified approval. No native trial or measured result yet.
 
 **Owner:** Experiment lead
 
-**Authorization:** Explicit separate owner approval is required before comparative trials, including calibration. Approval must identify the protocol, treatment configurations and resource envelope. Completion of dependencies, preparation work or general implementation approval does not authorize these experiments. No current comparative-trial approval is recorded.
+**Authorization:** On 2026-09-14 the owner explicitly requested a simple weak-agent comparative run and scientific grounding. Preparation and bounded readiness research start now. The earlier requirement to approve concrete native settings and the resource envelope remains; no numeric quota has yet been selected. This does not authorize the broader YMP-202--204 studies.
 
-**Depends on:** [YMP-121](#ymp-121), [YMP-151](#ymp-151)
+**Depends on:** [YMP-121](#ymp-121), [YMP-147](#ymp-147)
 
-The central team-advantage claim has no controlled result. The initial candidate class includes software, data, documents, planning, and deliberately trivial controls.
+The owner prioritizes a small direct test of capability compensation through two or three weak participants. Current evidence neither establishes this for ymp nor proves impossibility.
 
 **Acceptance criteria:**
 
-- Obtain explicit approval for the selected model, effective settings, budget unit and ceiling; calibration does not authorize the pilot.
-- Materialize and freeze representative universal fixtures and result-specific external acceptance criteria from the delivery plan before live runs; accepted-but-unconfirmed outcomes are reported separately.
-- Compare a strong native solo agent with its full allowance, aggregate-budget-matched independent attempts and a cooperating team; include output selection, verification and failures, and randomize treatment order.
-- Report paired task-level outcomes and uncertainty; small pilots and repeated runs of the same task do not establish a small noninferiority margin.
-- Report cache composition and any separately versioned estimate; no GLM whole-run equal-cost claim while its usage is last-request-only.
+- Freeze a small runnable protocol, exact native models/settings, independently checkable task inputs and total resource/stop rules, then obtain the concrete approval required by the owner before native execution.
+- Include strong solo and weak solo controls, two/three interacting weak participants and aggregate-budget-matched isolated attempts with charged selection. Do not use a strong hidden coordinator or scorer to solve team work.
+- Use actual native contexts and honest agent identities. Attribute a result to ymp only when the real runtime executes it without weakening production authority or independent acceptance. A separate mechanism study is labeled separately.
+- Record external artifact correctness, accepted versus confirmed state, failures, complete agent-attributed usage, cache composition, elapsed time, interventions and uncertainty. Randomize order and keep held-out evaluator data outside solving contexts.
+- Ground the mechanism and alternatives in primary scientific sources. A small pilot can show a constructive example or failure of the tested protocol; it cannot prove general equivalence or universal impossibility.
+- Finish with actual run artifacts and a scoped conclusion, or a concrete unresolved execution/authorization condition. Preparation documents and scripted checks are not measured model-performance results.
 
 **Evidence:**
 
 - [Evaluation protocol](../research/experiment-protocol.md)
 - [Delivery plan](plan.md)
 - ymp-docs/research/goal-driven-trials.md
+- ymp-docs/research/weak-agent-pilot.md
 
-**Quota:** No quota allocated. Historical two-treatment ceilings are superseded as a current proposal. Prepare separately authorized calibration and the proposed four-task/three-treatment/two-repetition pilot (24 complete outcome attempts); resolve model/settings, resource unit, per-attempt/aggregate ceilings and overshoot handling before approval.
+**Quota:** No concrete quota allocated yet. Prepare a small two-task/six-condition diagnostic matrix (12 outcome attempts) using discovered native model IDs, minimal supported effort, complete aggregate accounting and enforceable admission/stop rules. Replace this proposal with the concrete reviewed execution sheet before requesting the remaining quota approval.
 
 ## YMP-202
 
@@ -2453,6 +2456,37 @@ Fresh read-only review can recover a saved proposal, but current records cannot 
 **Evidence:**
 
 - ymp-docs/product/recovery-owner-decision.md
+
+## YMP-154
+
+Show substantially more slash-command suggestions when terminal space permits
+
+**State:** `[=]` (planned) · **Type:** implementation · **Priority:** P1
+
+**Last update (UTC):** 2026-09-13 18:49
+
+**Current reason:** Needs YMP-146
+
+**Owner:** Claude Code claude-opus-5 high; maintainer owns sequencing and acceptance
+
+**Authorization:** Owner requested this as a Claude follow-up after the current work is finished, on 2026-09-14.
+
+**Depends on:** [YMP-146](#ymp-146), [YMP-149](#ymp-149)
+
+Inline slash-command completion currently has a six-row limit even in a tall terminal. The owner wants a substantially longer visible list.
+
+**Latest progress note:** Owner requested a much longer visible slash-command list as the next Claude UI task after current work. Source confirms COMPLETION_ROWS=6 and PALETTE_ROWS=10; increasing only the constant can hide completion in shorter terminals. Recorded adaptive-height acceptance and sequencing; implementation is not started.
+
+**Acceptance criteria:**
+
+- Increase the visible inline slash-command list substantially on normal/tall terminals, deriving height from the actual space above the composer instead of merely raising a fixed limit that suppresses the whole popup. Set and demonstrate the chosen target; 16--20 rows where they fit is the initial design direction.
+- Preserve the composer, full-row selection, keyboard navigation, filtering, selected-item visibility and stable geometry while scrolling to the end. Smaller terminals display the rows that fit without an out-of-bounds popup or disappearance caused by the larger target.
+- Use existing modal/list layout helpers, inspect the separate command palette for consistency without adding unrelated UI features, and perform meaningful terminal checks plus required Rust checks and independent acceptance.
+- Delegate implementation to Claude Code claude-opus-5 high after YMP-146 is complete. The existing 60x8 palette issue remains YMP-152 unless its handling is explicitly consolidated during scheduling.
+
+**Evidence:**
+
+- Pending.
 
 ## Intent coverage
 

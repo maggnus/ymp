@@ -21,7 +21,7 @@ part of the separately authorized engineering work.
 | YMP-148 | Replaceable CoordinationPolicy and versioned strategy selection API | YMP-146 | Backend fork with independent review |
 | YMP-150 | `/team` strategy/membership controls and distinct `/agents` catalog | YMP-148, YMP-149 | Claude Code claude-opus-5 high |
 | YMP-151 | Reproducible comparison fixtures, runner integration and result export | YMP-148, YMP-147 | Evaluation implementation fork with independent review |
-| YMP-201 | Calibrated, explicitly budgeted native comparisons | YMP-121, YMP-151; separate quota authorization | Experiment execution after preparation |
+| YMP-201 | Owner-directed small weak-team versus strong-solo pilot | YMP-121, YMP-147; concrete settings and quota approval | Existing-runner preparation, then bounded native execution |
 
 YMP-149 remains the concise-language pass after the accepted YMP-145 popup
 component. YMP-150 consumes that wording and component baseline. After YMP-148,
@@ -114,3 +114,13 @@ selector, scripted test result and native product advantage as the same outcome.
 
 The task register is authoritative for status. This decomposition replaces the
 previous broad YMP-148 scope; it does not add a second implementation of its work.
+
+## Owner-directed first pilot (2026-09-14)
+
+The owner now requests a small direct comparison of two or three weaker agents
+with one stronger solo agent, with scientific grounding. YMP-201 is preparing
+[this narrowed pilot](../research/weak-agent-pilot.md), reusing the existing runner
+where adequate; it no longer depends on completing all of YMP-148/YMP-151.
+The earlier broad protocol remains historical, and concrete native settings and
+quota approval are still required before measured calls. YMP-202--204 remain
+paused. This scheduling change does not delay the executing P0 recovery fork.
