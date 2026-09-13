@@ -1012,6 +1012,11 @@
           "at": "2026-09-13T18:49:42.166240+00:00",
           "status": "in_progress",
           "note": "Owner requested a simple real trial of two/three weak agents versus a strong solo and scientific grounding. Narrowed the first study instead of waiting for the full YMP-148/151 framework. Existing native runner/identity/accounting readiness is under bounded read-only review; parent prepared the mechanism, countercontrols and primary literature. Concrete models/settings and quota still require the earlier specified approval. No native trial or measured result yet."
+        },
+        {
+          "at": "2026-09-13T18:51:24.768225+00:00",
+          "status": "in_progress",
+          "note": "Dispatched bounded read-only native-runner/identity/accounting research to 52111c72 and isolated fixture/evaluator preparation to bfa857e3-0a54-48e3-bbd8-7e2f717a4843 in eval/ymp201-weak-pilot from 399ecc2. Preparation writes only evaluation files/evidence; native inference remains prohibited until the concrete reviewed settings and allowance are approved. The P0 recovery author remains independent."
         }
       ]
     },
@@ -4366,7 +4371,7 @@
       ]
     }
   ],
-  "updated_at": "2026-09-13T18:49:42.166240+00:00",
+  "updated_at": "2026-09-13T18:51:24.768225+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",
