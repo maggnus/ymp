@@ -2,13 +2,13 @@ ymp  project  <output>/project                                                  
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
  Agent profiles</absent>[1]  /agents                                                          3 profiles │ SESSION
 ─────────────────────────────────────────────────────────────────────────────────────────────────────────│ none · the next message opens on
-   AGENT          PROVIDER  ENABLED  NEXT TEAM                                                           │ turns next run           0 / 200
+   AGENT          PROVIDER  ENABLED  PREFERRED                                                           │ turns next run           0 / 200
  › unknown model  absent    ✓ on     false                                                               │ dir …ate<output>/project
                                                                                                          │
                                                                                                          │ TOKENS                         —
                                                                                                          │ none · nothing spent yet
                                                                                                          │
-                                                                                                         │ TEAM                    next run
+                                                                                                         │ TEAM         preferred · enabled
                                                                                                          │ AGENT    STATE
                                                                                                          │ ○ Atlas  idle
                                                                                                          │
@@ -37,4 +37,4 @@ ymp  project  <output>/project                                                  
                                                                                                          │
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 › Describe a task, or type / for commands.
-Ready main m model  i instructions  Space enable or disable  t next-session team  r reload  R scan catalogs  Esc back  / filter  Shift+lett…
+Ready main m model  i instructions  Space enable or disable  t toggle preferred  r reload  R scan catalogs  Esc back  / filter  Shift+letter

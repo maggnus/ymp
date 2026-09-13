@@ -1,0 +1,7 @@
+     Running unittests src/lib.rs (<target>/debug/deps/ymp_tui-540ba625889d0a28)
+test tests::a_captured_member_shows_what_its_turns_ran_with_before_what_its_profile_said ... FAILED
+thread 'tests::a_captured_member_shows_what_its_turns_ran_with_before_what_its_profile_said' panicked at ymp-rust/crates/ymp-tui/src/tests.rs:7167:5:
+two models that share a prefix were collapsed into one: ● · gpt-5.6-sol-0913 · mock · a turn was left open
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 270 filtered out; finished in 0.66s
+error: test failed, to rerun pass `-p ymp-tui --lib`
+exit 101 (before the exact comparison)

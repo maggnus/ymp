@@ -1,0 +1,3 @@
+     Running unittests src/lib.rs (<target>/debug/deps/ymp_tui-540ba625889d0a28)
+test tests::a_captured_member_shows_what_its_turns_ran_with_before_what_its_profile_said ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 270 filtered out; finished in 0.64s

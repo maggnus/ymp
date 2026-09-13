@@ -1898,7 +1898,7 @@ impl App {
         self.edit_config(move |config| {
             if config.team.contains(&id) {
                 config.team.retain(|member| member != &id);
-                return Ok(format!("{id} removed from the next-session team."));
+                return Ok(format!("{id} is no longer preferred."));
             }
             let profile = config.agent(&id)?.clone();
             if let Some(provider) = config
@@ -1912,7 +1912,7 @@ impl App {
                 agent.enabled = true;
             }
             config.team.push(id.clone());
-            Ok(format!("{id} added to the next-session team."))
+            Ok(format!("{id} is now preferred."))
         });
     }
 
@@ -2737,8 +2737,8 @@ impl App {
                         let member = self.config.team.contains(&id);
                         if adding == member {
                             self.notice(format!(
-                                "{id} is already {} the next-session team.",
-                                if member { "in" } else { "not in" }
+                                "{id} is already {}.",
+                                if member { "preferred" } else { "not preferred" }
                             ));
                         } else {
                             self.toggle_membership(&id);

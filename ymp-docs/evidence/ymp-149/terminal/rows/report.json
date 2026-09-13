@@ -12,6 +12,10 @@
       "passed": true
     },
     {
+      "case": "140x40-sidebar-names-enabled-preferences",
+      "passed": true
+    },
+    {
       "case": "140x40-agents-flags-read",
       "flags": {
         "atlas": "true",
@@ -37,6 +41,10 @@
     },
     {
       "case": "100x30-agents-no-in-team",
+      "passed": true
+    },
+    {
+      "case": "100x30-sidebar-names-enabled-preferences",
       "passed": true
     },
     {
@@ -116,11 +124,11 @@
       "passed": true
     },
     {
-      "case": "inspect-source-catalog-scope",
+      "case": "inspect-source-catalog-preference",
       "passed": true
     },
     {
-      "case": "toggle-flips-next-session-preference",
+      "case": "toggle-flips-preference",
       "passed": true
     },
     {

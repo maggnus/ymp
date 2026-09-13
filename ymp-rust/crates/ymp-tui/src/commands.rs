@@ -186,7 +186,7 @@ pub const COMMANDS: &[Command] = &[
     Command {
         name: "/team",
         usage: "/team [add ID | remove ID]",
-        summary: "Next-session team membership.",
+        summary: "Agents preferred when a session selects its team.",
         group: Group::Team,
         args: Args::Optional,
     },

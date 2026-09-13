@@ -1849,7 +1849,7 @@ fn team(ctx: &Ctx) -> Page {
         if ctx.team_captured {
             "Members of this session"
         } else {
-            "Members of the next run"
+            "Preferred agents, enabled"
         },
         &MEMBER_COLUMNS,
     ));
@@ -1910,10 +1910,10 @@ fn team(ctx: &Ctx) -> Page {
             ),
             (true, true, None) => format!("{} captured by this session", members.len()),
             (false, _, Some(eligible)) => format!(
-                "{} for the next run · {eligible} eligible on this machine",
+                "{} preferred and enabled · {eligible} eligible on this machine",
                 members.len()
             ),
-            (false, _, None) => format!("{} for the next run", members.len()),
+            (false, _, None) => format!("{} preferred and enabled", members.len()),
         },
         items,
         empty: nothing(
@@ -1923,7 +1923,7 @@ fn team(ctx: &Ctx) -> Page {
             ctx.width,
         ),
         hints: vec![
-            ("Space", "next-session team"),
+            ("Space", "toggle preferred"),
             ("Enter", "inspect"),
             ("Esc", "back"),
         ],
@@ -2145,7 +2145,12 @@ fn identity_cell(
     config: &Config,
 ) -> Cell {
     let (label, qualifier) = match identity {
-        None => (label::profile(profile, config), Some("unavailable")),
+        // The pool snapshot holds no identity for it: the data is missing, which says nothing
+        // about whether its provider works.
+        None => (
+            label::profile(profile, config),
+            Some("metadata unavailable"),
+        ),
         Some(identity) => (
             label::offering(identity).unwrap_or_else(|| label::UNKNOWN_MODEL.to_owned()),
             match identity.status {
@@ -2318,7 +2323,7 @@ fn control_values(control: &NativeControl) -> String {
     }
 }
 
-/// One member of the team a session captured, or of the team the next run would use.
+/// One member of the team a session captured, or an enabled preferred agent without a session.
 fn member_row(ctx: &Ctx, profile: &AgentProfile) -> Item {
     let theme = ctx.theme;
     let records = ctx.records;
@@ -2356,12 +2361,13 @@ fn member_row(ctx: &Ctx, profile: &AgentProfile) -> Item {
     // is named from what its own session recorded and never from the catalog as it stands now.
     let name = if ctx.team_captured {
         detail.extend(captured_identity_lines(ctx, profile));
-        // The model the session recorded follows the name only where the name does not already
-        // carry it, so an unknown label still shows what its turns ran with, or that none said.
+        // The model the session recorded follows the name unless it is exactly the model the
+        // name already is, so an unknown label still shows what its turns ran with, or that none
+        // said, and two identifiers that merely share a prefix both stay visible.
         let name = presented_name(ctx, &profile.id);
         let model = captured_model_row_words(ctx, profile);
         let mut spans = vec![Span::styled(name.clone(), theme.text())];
-        if !name.contains(&model) {
+        if name != model {
             spans.push(Span::styled(format!(" · {model}"), theme.muted()));
         }
         Cell::spans(spans)
@@ -2460,7 +2466,7 @@ fn membership_words(ctx: &Ctx) -> String {
             state.revision
         ),
         (true, None) => "captured by this session, which recorded no roster of its own".into(),
-        (false, _) => "the configuration as it stands now".into(),
+        (false, _) => "preferred in the configuration · not a fixed roster".into(),
     }
 }
 
@@ -2544,7 +2550,7 @@ fn roster_row(ctx: &Ctx) -> Item {
         let mut detail = paragraph(
             theme,
             match ctx.session {
-                None => "No session is loaded, so there is no roster to read. The list above is the team the next run would form from the configuration as it stands now.",
+                None => "No session is loaded, so there is no roster to read. The list above shows the enabled agents the configuration prefers. A new session prefers them when it selects its team, within eligibility and the roster rules; they are not a fixed roster.",
                 Some(_) => "This session recorded no roster of its own, so every identity it captured is presented as a member. A run that resumes it would form one and record it.",
             },
             ctx.width,
@@ -2851,13 +2857,14 @@ fn with_table(columns: &[Column], rows: Vec<Item>) -> Vec<Item> {
     items
 }
 
-/// TEAM here is the next-session preference in `Config.team`, not the membership of a loaded
-/// session, so the column names its scope.
+/// PREFERRED is the starting selection preference in `Config.team`: team selection ranks those
+/// agents first among the eligible. It is neither a loaded session's membership nor a roster a
+/// later session is guaranteed to form.
 const AGENT_COLUMNS: [Column; 4] = [
     Column::left("AGENT").flex(),
     Column::left("PROVIDER"),
     Column::left("ENABLED"),
-    Column::left("NEXT TEAM"),
+    Column::left("PREFERRED"),
 ];
 const PROVIDER_COLUMNS: [Column; 4] = [
     Column::left("PROVIDER"),
@@ -2902,11 +2909,11 @@ fn agents(ctx: &Ctx) -> Page {
             ));
             detail.extend(field(
                 theme,
-                "next team",
+                "preferred",
                 if in_team {
-                    "true · next-session preference"
+                    "true · starting selection preference, not guaranteed membership"
                 } else {
-                    "false · next-session preference"
+                    "false · starting selection preference, not an exclusion"
                 },
                 ctx.width,
             ));
@@ -2969,7 +2976,7 @@ fn agents(ctx: &Ctx) -> Page {
             ("m", "model"),
             ("i", "instructions"),
             ("Space", "enable or disable"),
-            ("t", "next-session team"),
+            ("t", "toggle preferred"),
             ("r", "reload"),
             ("R", "scan catalogs"),
             ("Esc", "back"),

@@ -2,7 +2,7 @@ ymp  project                               no session  0/200
 ------------------------------------------------------------
  Agent profiles[3]  /agents                      3 profiles
 ------------------------------------------------------------
-   AGENT          PROVIDER  ENABLED  NEXT TEAM
+   AGENT          PROVIDER  ENABLED  PREFERRED
  > Atlas          demo      + on     true
    Boreal         demo      o off    false
    unknown model  absent    + on     true

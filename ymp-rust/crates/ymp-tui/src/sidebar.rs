@@ -317,14 +317,26 @@ fn team(app: &App, width: usize) -> Section {
     let mut lines = vec![text::row(
         width,
         vec![Span::styled("TEAM".to_owned(), theme.muted())],
+        // Without a session this lists `Config::members`: the preferred agents whose profile and
+        // provider are enabled. A preference is not a roster a session is guaranteed to form.
         vec![Span::styled(
-            if captured { "this session" } else { "next run" }.to_owned(),
+            if captured {
+                "this session"
+            } else {
+                "preferred · enabled"
+            }
+            .to_owned(),
             theme.faint(),
         )],
     )];
     if members.is_empty() {
         lines.push(Line::from(Span::styled(
-            "empty · /team add ID".to_owned(),
+            if captured {
+                "empty · /team add ID"
+            } else {
+                "none · /team add ID"
+            }
+            .to_owned(),
             theme.faint(),
         )));
         return Section {

@@ -1,14 +1,14 @@
 ymp  project                                                   no session  0/200
 ────────────────────────────────────────────────────────────────────────────────
- Team[7]  /team 2 for the next run · 1 eligible on t…│ SESSION
+ Team[7]  /team 2 preferred and enabled · 1 eligible…│ SESSION
 ─────────────────────────────────────────────────────│ none · the next message
  › ◇ What membership means here  what this page is   │ turns next run   0 / 200
                                                      │ dir …ymp149-rows/project
-   MEMBERS OF THE NEXT RUN                           │
+   PREFERRED AGENTS, ENABLED                         │
       AGENT         PROVIDER  STATE                  │ TOKENS                 —
    ○  Atlas         demo      eligible               │ none · nothing spent yet
    ○  unknown mod…  absent    executable not found   │
-                                                     │ TEAM            next run
+                                                     │ TEAM preferred · enabled
    HOW THE ROSTER IS BOUNDED                         │ AGENT            STATE
       RULE          VALUE                            │ ○ Atlas          idle
    ○  roster        none recorded                    │ ○ unknown model  idle
@@ -21,4 +21,4 @@ ymp  project                                                   no session  0/200
    ▲  unknown mod…  absent    executable not found   │
 ────────────────────────────────────────────────────────────────────────────────
 › Describe a task, or type / for commands.
-Ready main Space next-session team  Enter inspect  Esc back  / filter  Shift+le…
+Ready main Space toggle preferred  Enter inspect  Esc back  / filter  Shift+let…

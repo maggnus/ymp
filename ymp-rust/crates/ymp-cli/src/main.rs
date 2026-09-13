@@ -178,7 +178,12 @@ async fn entry() -> Result<()> {
         )
         .await?;
         eprintln!(
-            "Catalog scan: providers scanned: {}; entries stored: {}; agents added: {}; existing agents resolved to a native model: {}. Configured names unchanged. Run `ymp catalog` for details.",
+            "Catalog scan: {} of {} providers updated; catalog entries: {}; agents added: {}; existing agents resolved to a native model: {}. Configured names unchanged. Run `ymp catalog` for details.",
+            report
+                .providers
+                .iter()
+                .filter(|provider| provider.status == "updated")
+                .count(),
             report.providers.len(),
             report.providers.iter().map(|p| p.model_count).sum::<usize>(),
             report.created_agents.len(),

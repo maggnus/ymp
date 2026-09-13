@@ -442,7 +442,7 @@ fn welcome_lines(app: &App, width: usize) -> Vec<Line<'static>> {
     let theme = &app.theme;
     let members = app.config.members();
     let team = if members.is_empty() {
-        "none configured · /team add ID".to_owned()
+        "none enabled · /team add ID".to_owned()
     } else {
         members
             .iter()
@@ -453,7 +453,7 @@ fn welcome_lines(app: &App, width: usize) -> Vec<Line<'static>> {
     let facts = [
         ("working directory", app.cwd.display().to_string()),
         ("how it is used", "directly, no copy kept".to_owned()),
-        ("team", team),
+        ("preferred agents", team),
         ("theme", theme.name.to_owned()),
     ];
     let mut lines = vec![

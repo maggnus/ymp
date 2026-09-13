@@ -133,7 +133,7 @@ pub async fn run(
                         app.adopt_config(config);
                         app.status = "Ready".into();
                         app.notice(format!(
-                            "Catalog scan: {read} of {} providers updated; entries stored: {offerings}; agents added: {}; existing agents resolved to a native model: {}. Configured names unchanged; no model was invoked.",
+                            "Catalog scan: {read} of {} providers updated; catalog entries: {offerings}; agents added: {}; existing agents resolved to a native model: {}. Configured names unchanged; no model was invoked.",
                             report.providers.len(),
                             report.created_agents.len(),
                             report.migrated_agents.len()

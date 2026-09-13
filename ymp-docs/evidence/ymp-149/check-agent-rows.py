@@ -2,18 +2,19 @@
 
 Usage: check-agent-rows.py BINARY --output DIR [--ascii]
 
-The configuration has an enabled mock profile in the next-session team, a disabled profile outside
-it, and a profile whose provider executable does not exist. No provider is asked anything: the
+The configuration prefers (Config.team) an enabled mock profile and a profile whose provider
+executable does not exist; a disabled profile is not preferred. No provider is asked anything: the
 configuration file already exists, so ymp starts without a catalog scan, and pages only read the
 local pool. Every capture is written to DIR; the report is DIR/report.json.
 
 Assertions, at each size:
   R1 no primary row or heading carries READING or `read from the installation`;
-  R2 /agents shows NEXT TEAM where the table has room for it, with true for the member and false
-     for the non-members, never `in team`;
+  R2 /agents shows PREFERRED where the table has room for it, true for preferred profiles and
+     false for the other, never `in team`; without a session the sidebar says `preferred · enabled`
+     (at sizes with a sidebar);
   R3 /team names concise refusal causes: `profile disabled` or `executable not found`;
-  R4 Inspect of a profile shows the `source` and `catalog` fields and the scoped
-     `next team` flag (widest size only, where Inspect is read in full);
+  R4 Inspect of a profile shows the `source` field, `catalog not scanned` and the `preferred` flag
+     described as a starting selection preference (widest size only, where Inspect is read in full);
   R5 `t` on /agents flips the flag on the page and in config.toml, and a second `t` restores it.
 """
 import argparse
@@ -119,19 +120,19 @@ def team_flags():
 
 
 def flag(text, needle):
-    """The NEXT TEAM cell of the agents row whose cells left of it contain `needle`, or None.
+    """The PREFERRED cell of the agents row whose cells left of it contain `needle`, or None.
 
     Only lines below the header are read, and only the columns of the page, so a sidebar that
     names the same member on the same line cannot answer for the table.
     """
     lines = text.splitlines()
-    header = next((i for i, line in enumerate(lines) if "NEXT TEAM" in line), None)
+    header = next((i for i, line in enumerate(lines) if "PREFERRED" in line), None)
     if header is None:
         return None
-    column = lines[header].index("NEXT TEAM")
+    column = lines[header].index("PREFERRED")
     for line in lines[header + 1:]:
         if needle in line[:column]:
-            return line[column:column + len("NEXT TEAM")].strip()
+            return line[column:column + len("PREFERRED")].strip()
     return None
 
 
@@ -151,7 +152,9 @@ try:
         agents = capture(f"agents-{size}")
         check(f"{size}-agents-no-reading", "READING" not in agents and "read from the installation" not in agents, agents)
         check(f"{size}-agents-no-in-team", "in team" not in agents, agents)
-        if "NEXT TEAM" in agents:
+        if width >= 100:
+            check(f"{size}-sidebar-names-enabled-preferences", "preferred · enabled" in agents, agents)
+        if "PREFERRED" in agents:
             # atlas and cygnus are in Config.team, boreal is not. cygnus has no native model, so
             # its row is found by its provider rather than by a name it does not carry.
             flags = {"atlas": flag(agents, "Atlas"), "boreal": flag(agents, "Boreal"), "cygnus": flag(agents, "absent")}
@@ -161,7 +164,7 @@ try:
                   agents)
         else:
             report["cases"].append({"case": f"{size}-agents-next-team-column", "passed": None,
-                                    "note": "column not visible at this width"})
+                                    "note": "PREFERRED column not visible at this width"})
 
         command("/team")
         wait_for(lambda s: "Team" in "\n".join(s.splitlines()[:5]), "team-" + size)
@@ -175,15 +178,18 @@ try:
     tmux("resize-window", "-t", "check", "-x", "140", "-y", "40")
     time.sleep(0.3)
     command("/agents")
-    wait_for(lambda s: "NEXT TEAM" in s, "agents-inspect")
+    wait_for(lambda s: "PREFERRED" in s, "agents-inspect")
     type_text("/absent")
     keys("Enter")
     keys("Enter")
-    inspect = wait_for(lambda s: "next-session preference" in s, "inspect-cygnus")
+    inspect = wait_for(lambda s: "starting selection preference" in s, "inspect-cygnus")
     inspect = capture("inspect-cygnus")
-    check("inspect-source-catalog-scope",
-          all(word in inspect for word in ["cygnus", "source", "catalog", "not scanned", "next team",
-                                           "true · next-session preference"]),
+    fields = [" ".join(line.strip("│| ").split()) for line in inspect.splitlines()]
+    check("inspect-source-catalog-preference",
+          any(line.startswith("profile cygnus") for line in fields)
+          and any(line.startswith("source ") for line in fields)
+          and any(line.startswith("catalog not scanned") for line in fields)
+          and any(line.startswith("preferred true · starting selection preference") for line in fields),
           inspect)
     keys("Escape")
     time.sleep(0.2)
@@ -194,7 +200,7 @@ try:
     toggled = wait_for(lambda s: flag(s, "absent") == "false", "toggle-flag")
     toggled = capture("toggle-cygnus")
     after = team_flags()
-    check("toggle-flips-next-session-preference",
+    check("toggle-flips-preference",
           "cygnus" in before and "cygnus" not in after and flag(toggled, "absent") == "false",
           toggled + "\n" + json.dumps({"before": before, "after": after}))
     keys("t")

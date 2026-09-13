@@ -1,5 +1,5 @@
 {
-  "binary": "<debug-ymp>",
+  "binary": "<target>/debug/ymp",
   "ascii": false,
   "native_inference": false,
   "cases": [

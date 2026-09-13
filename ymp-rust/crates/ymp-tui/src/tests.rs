@@ -2793,13 +2793,13 @@ fn the_sidebar_shows_the_team_the_session_captured_not_the_edited_configuration(
         rows.join("\n")
     );
 
-    // With no session loaded, the sidebar describes the next run instead.
+    // With no session loaded, the sidebar lists the enabled preferred agents and says so.
     app.command("/new", 100);
     let (members, captured) = app.active_team();
     assert!(!captured);
     assert_eq!(members.len(), 1);
     let rendered = draw(&mut app, 120, 30);
-    assert!(rendered.contains("next run"), "{rendered}");
+    assert!(rendered.contains("preferred · enabled"), "{rendered}");
 }
 
 #[test]
@@ -6205,9 +6205,18 @@ fn a_profile_with_no_native_reading_is_not_presented_as_a_named_agent() {
             detail.contains("no model is set and no stored catalog reports a default"),
             "the page does not say why no name is known:\n{detail}"
         );
+        // The field itself, read line by line: its label is `catalog` and its value `not scanned`.
+        let fields = {
+            let page = app.page(100);
+            let item = page.items.iter().find(|item| item.key == profile).unwrap();
+            lines_text(&item.detail)
+        };
         assert!(
-            detail.contains("catalog") && detail.contains("not scanned"),
-            "the reading behind the profile is not reported:\n{detail}"
+            fields
+                .lines()
+                .any(|line| line.split_whitespace().collect::<Vec<_>>()
+                    == ["catalog", "not", "scanned"]),
+            "the catalog field does not report that no scan is stored:\n{fields}"
         );
     }
     // The pool itself refuses them for the same reason, and the team page says which.
@@ -6242,7 +6251,7 @@ fn the_whole_window_names_a_member_by_what_the_installation_returned() {
     );
     let team_line = rendered
         .lines()
-        .find(|line| line.contains("team "))
+        .find(|line| line.contains("preferred agents "))
         .unwrap_or_default()
         .to_owned();
     assert!(
@@ -6716,25 +6725,26 @@ fn a_scanned_model_is_shown_exactly_as_the_installation_resolved_it() {
         row.contains("gpt-5.6-sol") && row.contains("codex") && !row.contains("read from"),
         "the identifier and the provider are not kept beside it, or provenance is in the row: {row}"
     );
-    // The team flag is the next-session preference, known either way: true or false, never blank.
+    // The flag is the starting selection preference in Config.team, known either way: true or
+    // false, never blank.
     for _ in 0..2 {
         let expected = if app.config.team.iter().any(|id| id == "codex") {
             "true"
         } else {
             "false"
         };
-        let flag = cell_of_key(&mut app, 100, "codex", "NEXT TEAM");
+        let flag = cell_of_key(&mut app, 100, "codex", "PREFERRED");
         assert_eq!(
             flag.trim(),
             expected,
-            "the next-session team flag is not {expected}"
+            "the preference flag is not {expected}"
         );
         app.on_key(key(KeyCode::Char('t')), 100);
         assert!(
-            app.notices
-                .last()
-                .is_some_and(|notice| notice.text.contains("next-session team")),
-            "the membership change does not name its scope"
+            app.notices.last().is_some_and(
+                |notice| notice.text.contains("preferred") && !notice.text.contains("team")
+            ),
+            "the change is not reported as a preference"
         );
     }
     let detail = detail_of_key(&mut app, 100, "codex");
@@ -7129,6 +7139,44 @@ async fn a_captured_member_shows_what_its_turns_ran_with_before_what_its_profile
     assert!(
         !row.contains("a-model-the-profile-named"),
         "a profile field outranked the recorded turns: {row}"
+    );
+
+    // The installation reported a longer identifier than the one the captured identity asked for.
+    // The two share a prefix and are still two models, so the row keeps both rather than taking
+    // one for the other.
+    {
+        let trace = app.records.trace.as_mut().unwrap();
+        let recorded = trace
+            .assignments
+            .iter_mut()
+            .rev()
+            .find(|assignment| assignment.agent_id == agent)
+            .unwrap();
+        recorded.agent_identity = Some(ymp_core::AgentIdentity {
+            name: "gpt-5.6-sol".into(),
+            configured_name: "gpt-5.6-sol".into(),
+            model: Some("gpt-5.6-sol".into()),
+            effort: None,
+            resolved_model: None,
+            source: None,
+            status: ymp_core::AgentIdentityStatus::Native,
+        });
+        let id = recorded.id.clone();
+        trace
+            .invocations
+            .iter_mut()
+            .rev()
+            .find(|invocation| invocation.assignment_id == id)
+            .unwrap()
+            .reported
+            .model = Some("gpt-5.6-sol-0913".into());
+    }
+    // A width the page was not built at, so the edited records are the ones it reads.
+    let row = left_of_key(&mut app, 66, &agent);
+    let parts = row.split(" · ").collect::<Vec<_>>();
+    assert!(
+        parts.contains(&"gpt-5.6-sol-0913") && parts.contains(&"gpt-5.6-sol"),
+        "two models that share a prefix were collapsed into one: {row}"
     );
 }
 
