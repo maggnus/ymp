@@ -1,0 +1,14 @@
+   Compiling clap_derive v4.6.4
+   Compiling clap v4.6.6
+   Compiling ymp-eval-driver v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-review-findings/ymp-rust/crates/ymp-eval-driver)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 4.67s
+     Running unittests src/main.rs (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-recovery-backend/target/debug/deps/ymp_eval_driver-49181d4065533dfa)
+
+running 1 test
+
+thread 'export::tests::location_projection_preserves_extra_answers_outcomes_and_query_results' has overflowed its stack
+fatal runtime error: stack overflow, aborting
+error: test failed, to rerun pass `-p ymp-eval-driver --bin ymp-eval-driver`
+
+Caused by:
+  process didn't exit successfully: `/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-recovery-backend/target/debug/deps/ymp_eval_driver-49181d4065533dfa location_projection_preserves_extra_answers_outcomes_and_query_results --nocapture` (signal: 6, SIGABRT: process abort signal)

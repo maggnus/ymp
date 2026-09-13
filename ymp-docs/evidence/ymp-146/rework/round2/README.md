@@ -98,8 +98,13 @@ focused sequence passed. No successful suite was repeated for documentation edit
 
 ## Final verification and limits
 
-The required fmt, strict Clippy and workspace-test sequence follows this complete
-source. Results will be recorded separately. No real provider inference, user
+The first final sequence passed fmt and strict Clippy but workspace tests exited
+**101** at the existing location-export control with a stack overflow. The exact
+focused test reproduced it. The full fresh-review proposal had enlarged every
+cloned Engine/async frame; sharing that immutable command via Arc fixes the
+regression. The unchanged test then passed without increasing the stack limit.
+Logs and source hashes are in `export-stack-before.json`/`export-stack-after.json`.
+The required final sequence is repeated only after this source correction. No real provider inference, user
 home/session access, integration, installation, UI, dependency or release change
 is included. Linux and actual native process/external-effect guarantees remain
 unverified. Parent owns independent final acceptance and UI/integration.

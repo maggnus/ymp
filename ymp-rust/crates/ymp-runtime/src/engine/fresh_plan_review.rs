@@ -74,7 +74,7 @@ impl Engine {
         )?;
         let mut engine = self.clone();
         engine.require_recovery_read_only = true;
-        engine.fresh_plan_review_binding = Some(command.clone());
+        engine.fresh_plan_review_binding = Some(Arc::new(command.clone()));
         let prompt = format!("Perform a NEW independent read-only review of this exact saved proposal against the captured request. This is not a replay of the prior invocation. Its historical effects remain UNKNOWN; do not certify them, assume the workspace is unchanged, or execute any production task. Review the immutable proposal only and retain any objections.\nRequest: {}\nProposal/version: {}\nPrior failed invocation IDs: {}\nReturn ONLY JSON {{\"approved\":true|false,\"reason\":\"specific plan-review findings\"}}.", policy.goal, serde_json::to_string(&command.proposal)?, serde_json::to_string(&stage.failures.iter().map(|f| &f.invocation_id).collect::<Vec<_>>())?);
         let response = engine
             .ask_scoped_once(

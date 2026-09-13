@@ -85,7 +85,8 @@ pub struct Engine {
     recovery_binding: Option<(String, u64)>,
     recovery_inspection_binding: Option<RecoveryInspectionCommand>,
     require_recovery_read_only: bool,
-    fresh_plan_review_binding: Option<FreshPlanReviewCommand>,
+    // Keep the full immutable proposal out of every cloned Engine/async frame.
+    fresh_plan_review_binding: Option<Arc<FreshPlanReviewCommand>>,
 }
 #[derive(Clone)]
 struct RunContext {

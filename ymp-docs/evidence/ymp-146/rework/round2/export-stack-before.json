@@ -1,0 +1,14 @@
+{
+  "command": [
+    "cargo",
+    "test",
+    "-p",
+    "ymp-eval-driver",
+    "--bin",
+    "ymp-eval-driver",
+    "location_projection_preserves_extra_answers_outcomes_and_query_results",
+    "--",
+    "--nocapture"
+  ],
+  "exit_code": 101
+}
