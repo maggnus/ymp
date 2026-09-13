@@ -1,0 +1,78 @@
+{
+  "source": "0ac1650924e3bea6adf11d5ed406ca0cf0e4eeb0",
+  "accepted_product_base": "1c17f4e447b839e20f8efbdee0900963a5d8fcad",
+  "execution_kind": "offline-verification",
+  "target_dir": "/Users/maggnus/Code/ymp2/target",
+  "checks": [
+    {
+      "name": "fmt",
+      "command": [
+        "cargo",
+        "fmt",
+        "--all",
+        "--check"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 0.673,
+      "log": "fmt-final.log"
+    },
+    {
+      "name": "clippy",
+      "command": [
+        "cargo",
+        "clippy",
+        "--workspace",
+        "--all-targets",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 2.244,
+      "log": "clippy-final.log"
+    },
+    {
+      "name": "workspace-tests",
+      "command": [
+        "cargo",
+        "test",
+        "--workspace"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 183.049,
+      "log": "workspace-tests-final.log"
+    },
+    {
+      "name": "python-tests",
+      "command": [
+        "python3",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "ymp-evals/tests",
+        "-v"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 0.652,
+      "log": "python-tests-final.log"
+    },
+    {
+      "name": "envelope-tests",
+      "command": [
+        "python3",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "ymp-evals/weak-pilot",
+        "-p",
+        "test_codex_envelope.py",
+        "-v"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 0.146,
+      "log": "envelope-tests-final.log"
+    }
+  ]
+}

@@ -1,0 +1,92 @@
+{
+  "source": "94d97c5b1f0fc6347b866acaa6aca3ac40db1901",
+  "accepted_product_base": "1c17f4e447b839e20f8efbdee0900963a5d8fcad",
+  "execution_kind": "offline-verification",
+  "target_dir": "/Users/maggnus/Code/ymp2/target",
+  "checks": [
+    {
+      "name": "fmt",
+      "command": [
+        "cargo",
+        "fmt",
+        "--all",
+        "--check"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 0.683,
+      "log": "fmt-combined.log"
+    },
+    {
+      "name": "clippy",
+      "command": [
+        "cargo",
+        "clippy",
+        "--workspace",
+        "--all-targets",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 2.703,
+      "log": "clippy-combined.log"
+    },
+    {
+      "name": "workspace-tests",
+      "command": [
+        "cargo",
+        "test",
+        "--workspace"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 227.669,
+      "log": "workspace-tests-combined.log"
+    },
+    {
+      "name": "python-tests",
+      "command": [
+        "python3",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "ymp-evals/tests",
+        "-v"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 0.704,
+      "log": "python-tests-combined.log"
+    },
+    {
+      "name": "envelope-tests",
+      "command": [
+        "python3",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "ymp-evals/weak-pilot",
+        "-p",
+        "test_codex_envelope.py",
+        "-v"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 0.148,
+      "log": "envelope-tests-combined.log"
+    },
+    {
+      "name": "consumer-build",
+      "command": [
+        "cargo",
+        "build",
+        "-p",
+        "ymp-eval-driver",
+        "--bin",
+        "ymp-weak-pilot"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 1.642,
+      "log": "consumer-build-combined.log"
+    }
+  ]
+}

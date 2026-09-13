@@ -1,0 +1,14 @@
+{
+  "source": "0ac1650924e3bea6adf11d5ed406ca0cf0e4eeb0",
+  "command": [
+    "/Users/maggnus/Code/ymp2/target/debug/ymp-weak-pilot",
+    "scripted",
+    "--manifest",
+    "/private/tmp/ymp201-consumer-accepted-fev9z7op/manifest.json"
+  ],
+  "exit_code": 0,
+  "elapsed_seconds": 54.044,
+  "directory": "/private/tmp/ymp201-consumer-accepted-fev9z7op",
+  "execution_kind": "protocol-fixture",
+  "binary_sha256": "ecb46cb19cb6d22017be05ef52d386307d76b8d0766c2f758c581bd4b2201f46"
+}

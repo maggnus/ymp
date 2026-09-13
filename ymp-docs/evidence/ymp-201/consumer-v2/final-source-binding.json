@@ -1,0 +1,26 @@
+{
+  "source_revision": "0ac1650924e3bea6adf11d5ed406ca0cf0e4eeb0",
+  "accepted_product_base": "1c17f4e447b839e20f8efbdee0900963a5d8fcad",
+  "product_git_objects": {
+    "ymp-rust/crates/ymp-core": "bf95796b2292ea24853175079fb0d271a9c5263a",
+    "ymp-rust/crates/ymp-runtime": "144d49ee2b48d0d50d54fdde1024e2361d24d006",
+    "ymp-rust/crates/ymp-storage": "7c8ebd589fad42ba069004682b40377515a02d25",
+    "ymp-rust/crates/ymp-providers": "5bdb35ff6cb0e5bd84a6b703bb589aa50021d797",
+    "ymp-rust/crates/ymp-cli": "238e1e5b51a5f130f93bfaa75b1391ae8a14d2f6",
+    "ymp-rust/crates/ymp-tui": "6a882b41839d030a6bbc234e0de7ec526bd56747",
+    "ymp-rust/crates/ymp-workspace": "2f9d0b2a86842402bdaf7d6fda64c9a1b4a50c1e",
+    "ymp-bridges": "a3a91865daec02d49103d2f9264d47bdb1c9f49d",
+    "Cargo.toml": "61d450c0bf4885a97092ec4b0941f2466fbced47",
+    "Cargo.lock": "762d728d987aa8dd7536712b3489234a5b58e810"
+  },
+  "product_bytes_equal": true,
+  "binary_sha256": "ecb46cb19cb6d22017be05ef52d386307d76b8d0766c2f758c581bd4b2201f46",
+  "calibration_manifest_sha256": "34993fee70abbffb0db35a77277b42b4d22dc3c7ec6bb77ced8c05e33f70c076",
+  "pilot_manifest_sha256": "a3eaadab9d484f3d2adabaf486a959f58b49dd2c333490d2bebe6d1053fd282a",
+  "native_model_calls": 0,
+  "scripted_outcomes": 12,
+  "rust_tests_passed": 631,
+  "rust_tests_ignored": 2,
+  "python_fixture_tests_passed": 36,
+  "python_envelope_tests_passed": 16
+}

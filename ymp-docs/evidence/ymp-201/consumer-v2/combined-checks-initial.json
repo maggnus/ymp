@@ -1,0 +1,46 @@
+{
+  "source": "7c87117340d579cb2ecee6105ef768ffa116c28b",
+  "accepted_product_base": "1c17f4e447b839e20f8efbdee0900963a5d8fcad",
+  "execution_kind": "offline-verification",
+  "target_dir": "/Users/maggnus/Code/ymp2/target",
+  "checks": [
+    {
+      "name": "fmt",
+      "command": [
+        "cargo",
+        "fmt",
+        "--all",
+        "--check"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 0.685,
+      "log": "fmt-combined.log"
+    },
+    {
+      "name": "clippy",
+      "command": [
+        "cargo",
+        "clippy",
+        "--workspace",
+        "--all-targets",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 17.762,
+      "log": "clippy-combined.log"
+    },
+    {
+      "name": "workspace-tests",
+      "command": [
+        "cargo",
+        "test",
+        "--workspace"
+      ],
+      "exit_code": 101,
+      "elapsed_seconds": 141.925,
+      "log": "workspace-tests-combined.log"
+    }
+  ]
+}
