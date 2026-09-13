@@ -1022,6 +1022,11 @@
           "at": "2026-09-13T18:54:08.795878+00:00",
           "status": "in_progress",
           "note": "Read-only readiness review confirms current Engine supports two/three genuine weak-model participants, including the reserved final reviewer; Engine cannot supply true solo without violating independent acceptance. Extended the existing preparation fork only with a thin native adapter in ymp-eval-driver for solo/isolated attempts and complete shared accounting. Bare ask loses usage; scripted driver successes are not model results. Require protocol fixtures for limits, errors, settings and native delegation; no real inference until concrete quota approval."
+        },
+        {
+          "at": "2026-09-13T19:31:33.486117+00:00",
+          "status": "in_progress",
+          "note": "Preparation candidate 15529e6 delivered fixtures, external scoring and 12 offline protocol controls; author reports 36 Python and 580 Rust tests passed, two ignored. Native command is still an unconditional refusal, so no measured trial or completed runner is accepted. Same fork continues installed native-control verification and full manifest-to-result consumer; transport retries are distinguished from extra participants and observed stop thresholds from hard billed ceilings. Concrete calibration/pilot allowance remains unapproved."
         }
       ]
     },
@@ -4076,6 +4081,11 @@
           "at": "2026-09-13T18:42:36.879969+00:00",
           "status": "in_progress",
           "note": "Owner approved YMP-153. Extend the current correction fork with the bounded explicit owner authorization and same-session completion tests; preserve the existing inspection and fresh-review work. Plan-only progress is no longer the completion boundary. Real providers, the live failed session and comparative trials remain outside authorization."
+        },
+        {
+          "at": "2026-09-13T19:31:33.486117+00:00",
+          "status": "in_progress",
+          "note": "Author delivered second-round candidate 743543f with executable source edc779a, clean tree and 624 passing tests, two ignored. Claimed end-to-end current-files continuation preserves legacy uncertainty through restart and actual task completion. Dispatched bounded executable re-review to 52111c72 and authority/CAS/hold review to 332e0b99 against the owner-approved YMP-153 contract. Candidate is not integrated or accepted; UI and installed delivery remain pending."
         }
       ]
     },
@@ -4376,7 +4386,7 @@
       ]
     }
   ],
-  "updated_at": "2026-09-13T18:54:08.795878+00:00",
+  "updated_at": "2026-09-13T19:31:33.486117+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",

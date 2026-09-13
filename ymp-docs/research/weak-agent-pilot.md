@@ -156,3 +156,41 @@ authority, provider, CLI or UI change is authorized by this preparation. Its
 native calls must be tested with scripted/protocol fixtures only until the final
 concrete quota and execution settings are approved. A separate evaluation binary
 is a development tool, not an extra distributed application dependency.
+
+## Preparation candidate and native follow-through
+
+Candidate `15529e6bba9995964507d8ba7c28c13870968382` provides separate fixture
+variants, discriminating validators, public-only selection, submission freezing,
+and 12 offline protocol cases. Author checks report 36 Python tests, 580 Rust
+tests with two ignored, formatting and strict Clippy passed. These are author
+results for preparation, not independent acceptance or model measurements.
+The native command still unconditionally refuses before spawning a provider;
+this is not a complete measurement consumer and YMP-201 remains in progress.
+
+Continue in the same fork by binding the frozen manifest, discovered models and
+fixed settings, visible inputs, native observation, aggregate admission, ordinary
+Engine execution, public selection and final export. Exercise this complete
+consumer with controlled protocol fixtures before requesting the remaining
+concrete owner quota approval. Do not replace the unconditional refusal with an
+unverified bypass.
+
+The [official Codex configuration reference](https://learn.chatgpt.com/docs/config-file/config-reference)
+documents `features.multi_agent`, `features.memories`, memory generation/use
+switches, named filesystem permissions and transport retry settings. The
+[advanced configuration guide](https://learn.chatgpt.com/docs/config-file/config-advanced)
+documents one-run CLI overrides. Existing ProviderConfig.args is a possible
+integration path. Installed-version support and effective behavior must still be
+verified without inference; absence of these fields on TurnRequest alone is not
+proof that native configuration is impossible.
+
+Scientific requirements distinguish additional participants from transport
+retries or multiple requests in one participant's ordinary tool loop. The latter
+may remain if fixed, recorded, included in accounting and bounded by the stated
+stop rules. Hidden extra participants, unaccounted work and exposure of private
+answers invalidate the corresponding interpretation. An observed-token stop
+threshold with disclosed in-flight overshoot is an acceptable type of proposed
+resource envelope; a hard billed-token ceiling is not claimed. The owner has not
+yet approved particular values. Synthetic 12,000-token/120-second limits do not
+establish that the real orchestration has enough allowance to be meaningfully
+compared. Prepare a small explicit calibration allocation and a separately stated
+conditional pilot allocation before approval.

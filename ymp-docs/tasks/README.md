@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-13 18:54 UTC.
+Updated: 2026-09-13 19:31 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -40,7 +40,7 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-107](#ymp-107) | P1 | Expose recorded checks and factual recovery limits | 2026-09-12 12:55 |
 | `[=]` | [YMP-108](#ymp-108) | P2 | Evaluate an optional usage estimate with explicit price provenance | 2026-09-12 09:35 |
 | `[x]` | [YMP-111](#ymp-111) | P0 | Apply native models and reasoning settings per assignment | 2026-09-12 12:18 |
-| `[~]` | [YMP-201](#ymp-201) | P2 | Test whether two or three weaker agents can match a stronger solo agent | 2026-09-13 18:54 |
+| `[~]` | [YMP-201](#ymp-201) | P2 | Test whether two or three weaker agents can match a stronger solo agent | 2026-09-13 19:31 |
 | `[=]` | [YMP-202](#ymp-202) | P1 | Test memory and adaptive assignment on held-out tasks | 2026-09-13 16:17 |
 | `[=]` | [YMP-203](#ymp-203) | P1 | Test effort, reduced preparation and low-effort ensembles separately | 2026-09-13 16:17 |
 | `[=]` | [YMP-204](#ymp-204) | P1 | Evaluate a project-scoped prior-outcome router | 2026-09-13 16:17 |
@@ -86,7 +86,7 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-143](#ymp-143) | P1 | Provide a separate /git changes view modeled on Paseo | 2026-09-13 14:04 |
 | `[x]` | [YMP-144](#ymp-144) | P1 | Research recovery of sessions after one or more agent failures | 2026-09-13 14:36 |
 | `[x]` | [YMP-145](#ymp-145) | P1 | Unify full-row popup selection and verify stable scrolling geometry | 2026-09-13 16:31 |
-| `[~]` | [YMP-146](#ymp-146) | P0 | Recover interrupted session stages and let the owner change the active team | 2026-09-13 18:42 |
+| `[~]` | [YMP-146](#ymp-146) | P0 | Recover interrupted session stages and let the owner change the active team | 2026-09-13 19:31 |
 | `[x]` | [YMP-147](#ymp-147) | P1 | Translate product goals into a focused comparative trial program | 2026-09-13 15:38 |
 | `[=]` | [YMP-148](#ymp-148) | P1 | Make session coordination replaceable through a typed strategy contract | 2026-09-13 16:13 |
 | `[x]` | [YMP-149](#ymp-149) | P1 | Use concise professional terminology throughout the interface | 2026-09-13 18:44 |
@@ -636,9 +636,9 @@ Test whether two or three weaker agents can match a stronger solo agent
 
 **State:** `[~]` (in_progress) · **Type:** experiment · **Priority:** P2
 
-**Last update (UTC):** 2026-09-13 18:54
+**Last update (UTC):** 2026-09-13 19:31
 
-**Current reason:** Read-only readiness review confirms current Engine supports two/three genuine weak-model participants, including the reserved final reviewer; Engine cannot supply true solo without violating independent acceptance. Extended the existing preparation fork only with a thin native adapter in ymp-eval-driver for solo/isolated attempts and complete shared accounting. Bare ask loses usage; scripted driver successes are not model results. Require protocol fixtures for limits, errors, settings and native delegation; no real inference until concrete quota approval.
+**Current reason:** Preparation candidate 15529e6 delivered fixtures, external scoring and 12 offline protocol controls; author reports 36 Python and 580 Rust tests passed, two ignored. Native command is still an unconditional refusal, so no measured trial or completed runner is accepted. Same fork continues installed native-control verification and full manifest-to-result consumer; transport retries are distinguished from extra participants and observed stop thresholds from hard billed ceilings. Concrete calibration/pilot allowance remains unapproved.
 
 **Owner:** Experiment lead
 
@@ -2202,9 +2202,9 @@ Recover interrupted session stages and let the owner change the active team
 
 **State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P0
 
-**Last update (UTC):** 2026-09-13 18:42
+**Last update (UTC):** 2026-09-13 19:31
 
-**Current reason:** Owner approved YMP-153. Extend the current correction fork with the bounded explicit owner authorization and same-session completion tests; preserve the existing inspection and fresh-review work. Plan-only progress is no longer the completion boundary. Real providers, the live failed session and comparative trials remain outside authorization.
+**Current reason:** Author delivered second-round candidate 743543f with executable source edc779a, clean tree and 624 passing tests, two ignored. Claimed end-to-end current-files continuation preserves legacy uncertainty through restart and actual task completion. Dispatched bounded executable re-review to 52111c72 and authority/CAS/hold review to 332e0b99 against the owner-approved YMP-153 contract. Candidate is not integrated or accepted; UI and installed delivery remain pending.
 
 **Owner:** Background backend author and Claude Code claude-opus-5 high UI author; maintainer owns contracts and acceptance
 
