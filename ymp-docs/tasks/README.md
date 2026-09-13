@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-13 14:51 UTC.
+Updated: 2026-09-13 14:52 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -86,7 +86,7 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-143](#ymp-143) | P1 | Provide a separate /git changes view modeled on Paseo | 2026-09-13 14:04 |
 | `[x]` | [YMP-144](#ymp-144) | P1 | Research recovery of sessions after one or more agent failures | 2026-09-13 14:36 |
 | `[~]` | [YMP-145](#ymp-145) | P1 | Unify full-row popup selection and verify stable scrolling geometry | 2026-09-13 14:19 |
-| `[~]` | [YMP-146](#ymp-146) | P1 | Recover interrupted session stages and let the owner change the active team | 2026-09-13 14:51 |
+| `[~]` | [YMP-146](#ymp-146) | P0 | Recover interrupted session stages and let the owner change the active team | 2026-09-13 14:52 |
 
 ## YMP-001
 
@@ -2187,11 +2187,11 @@ Selected popup text is styled while inter-column spacing remains unstyled. The r
 
 Recover interrupted session stages and let the owner change the active team
 
-**State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P1
+**State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P0
 
-**Last update (UTC):** 2026-09-13 14:51
+**Last update (UTC):** 2026-09-13 14:52
 
-**Current reason:** Product questions answered and owner approval remains active. Independent researcher confirmed that existing allocation/resource/board/checker interfaces should be reused; recovery-action selection is the minimal missing boundary. Parent defined the backend contract and is dispatching isolated implementation. Busy-member removal defaults to visible pending departure, preserving current work and preventing new admission. Strategy-selector UI placement stays open. No backend result or release is accepted yet.
+**Current reason:** Owner explicitly prioritizes orchestration of a failed/problematic agent. Backend author 98b3d512-de44-4679-8a59-fdf3d0d20112 instructed to deliver a reviewable same-session recovery slice first: saved-stage continuation, bounded safe retry/reassignment, honest waiting, no duplicate planning or lost evidence. Remaining live-team controls and strategy comparison follow; minimal owner replacement may belong to recovery. Existing invariants, tests and authorization remain unchanged.
 
 **Owner:** Background backend author and Claude Code claude-opus-5 high UI author; maintainer owns contracts and acceptance
 

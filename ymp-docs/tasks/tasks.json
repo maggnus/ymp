@@ -3896,7 +3896,7 @@
       "id": "YMP-146",
       "title": "Recover interrupted session stages and let the owner change the active team",
       "type": "implementation",
-      "priority": "P1",
+      "priority": "P0",
       "status": "in_progress",
       "owner": "Background backend author and Claude Code claude-opus-5 high UI author; maintainer owns contracts and acceptance",
       "authorization": "Owner approved implementing the YMP-144 recovery recommendation and explicitly requires changing the team during a session. Before starting implementation, owner requested an explanation of current team meaning, behavior and scaling. Implementation is registered but not started during that explanation.",
@@ -3933,11 +3933,16 @@
           "at": "2026-09-13T14:51:13.568137+00:00",
           "status": "in_progress",
           "note": "Product questions answered and owner approval remains active. Independent researcher confirmed that existing allocation/resource/board/checker interfaces should be reused; recovery-action selection is the minimal missing boundary. Parent defined the backend contract and is dispatching isolated implementation. Busy-member removal defaults to visible pending departure, preserving current work and preventing new admission. Strategy-selector UI placement stays open. No backend result or release is accepted yet."
+        },
+        {
+          "at": "2026-09-13T14:52:47.796184+00:00",
+          "status": "in_progress",
+          "note": "Owner explicitly prioritizes orchestration of a failed/problematic agent. Backend author 98b3d512-de44-4679-8a59-fdf3d0d20112 instructed to deliver a reviewable same-session recovery slice first: saved-stage continuation, bounded safe retry/reassignment, honest waiting, no duplicate planning or lost evidence. Remaining live-team controls and strategy comparison follow; minimal owner replacement may belong to recovery. Existing invariants, tests and authorization remain unchanged."
         }
       ]
     }
   ],
-  "updated_at": "2026-09-13T14:51:13.568137+00:00",
+  "updated_at": "2026-09-13T14:52:47.796184+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",
