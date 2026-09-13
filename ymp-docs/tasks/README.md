@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-13 17:32 UTC.
+Updated: 2026-09-13 17:36 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -89,7 +89,7 @@ A planned task is not implemented functionality. Completed research and planning
 | `[~]` | [YMP-146](#ymp-146) | P0 | Recover interrupted session stages and let the owner change the active team | 2026-09-13 17:32 |
 | `[x]` | [YMP-147](#ymp-147) | P1 | Translate product goals into a focused comparative trial program | 2026-09-13 15:38 |
 | `[=]` | [YMP-148](#ymp-148) | P1 | Make session coordination replaceable through a typed strategy contract | 2026-09-13 16:13 |
-| `[~]` | [YMP-149](#ymp-149) | P1 | Use concise professional terminology throughout the interface | 2026-09-13 17:16 |
+| `[~]` | [YMP-149](#ymp-149) | P1 | Use concise professional terminology throughout the interface | 2026-09-13 17:36 |
 | `[=]` | [YMP-150](#ymp-150) | P1 | Make /team the session control page and separate the /agents catalog | 2026-09-13 16:13 |
 | `[=]` | [YMP-151](#ymp-151) | P1 | Prepare reproducible offline comparisons of coordination strategies | 2026-09-13 16:17 |
 | `[+]` | [YMP-152](#ymp-152) | P2 | Keep the selected palette command visible in very short terminals | 2026-09-13 16:25 |
@@ -2297,9 +2297,9 @@ Use concise professional terminology throughout the interface
 
 **State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P1
 
-**Last update (UTC):** 2026-09-13 17:16
+**Last update (UTC):** 2026-09-13 17:36
 
-**Current reason:** Independent149review RETURN accepted for bounded semantic rework: rename Config.team flag toPREFERRED, distinguish unavailablemetadata from unavailableagent, preserve distinct prefix modelIDs, and check actualcatalogfieldvalue. Parent disproved review premise that runtime ignoresConfig.team: eligible_from explicitly uses it to order candidates. Author instructed not to change runtime or use not-used wording; reviewer asked to reconcile sourcefact. No integration/install.
+**Current reason:** Author delivered 46a5a51 after 07025c5 with a clean tree. Final formatting, strict Clippy and workspace checks passed (579 tests, two ignored); row checks report 29 records and table checks 19 cases in each marker mode. Historical model-prefix control fails before and passes after. A bounded implementation verification is assigned to Claude agent 8d8b7748 using the explicit frozen 149 worktree, while both P0 reviewers retain their recovery assignments. No acceptance or installation yet.
 
 **Owner:** Claude Code claude-opus-5 high; maintainer owns language contract and independent acceptance
 
