@@ -281,6 +281,55 @@ pub fn spans_table(columns: &[Column], cells: &[Cell]) -> bool {
     cells.len() == 1 && columns.len() > 1
 }
 
+/// Where a selection is on a page: the table that holds it, the key of its row and its position,
+/// so that a rebuilt page can find the same record again. A key alone is not enough, because a
+/// page may list one id in several tables, such as a member and the pool row of the same agent.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Anchor {
+    pub table: Option<String>,
+    pub key: String,
+    pub index: usize,
+}
+
+/// The title of the table the item at `index` belongs to, if a heading comes before it.
+fn table_of(items: &[Item], index: usize) -> Option<&str> {
+    items[..index.min(items.len())]
+        .iter()
+        .rfind(|item| item.kind == ItemKind::Heading)
+        .map(|heading| heading.title.as_str())
+}
+
+/// The anchor of the row at `selected`, or nothing when no row is selected there.
+pub fn anchor(items: &[Item], selected: usize) -> Option<Anchor> {
+    let row = items
+        .get(selected)
+        .filter(|item| item.kind == ItemKind::Row)?;
+    Some(Anchor {
+        table: table_of(items, selected).map(str::to_owned),
+        key: row.key.clone(),
+        index: selected,
+    })
+}
+
+/// Where an anchored selection belongs on a rebuilt page: its key in the same table, then its
+/// key anywhere on the page, and when the record is gone, the nearest row at or after the
+/// position it had, or the last row.
+pub fn locate(items: &[Item], anchor: &Anchor) -> Option<usize> {
+    let rows = || {
+        items
+            .iter()
+            .enumerate()
+            .filter(|(_, item)| item.kind == ItemKind::Row)
+            .map(|(index, _)| index)
+    };
+    let keyed = || rows().filter(|index| items[*index].key == anchor.key);
+    keyed()
+        .find(|index| table_of(items, *index) == anchor.table.as_deref())
+        .or_else(|| keyed().next())
+        .or_else(|| rows().find(|index| *index >= anchor.index))
+        .or_else(|| rows().next_back())
+}
+
 /// Apply a filter and each table's sort to a built page.
 ///
 /// Rows the filter does not keep are removed, and so is a table a filter left with no row. Each
@@ -454,14 +503,29 @@ pub fn titles(
         .iter()
         .enumerate()
         .map(|(index, column)| {
-            let mut title = column.title.to_owned();
-            if let Some(sort) = sort.filter(|sort| sort.column == column.title) {
-                title.push(' ');
-                title.push_str(match sort.direction {
-                    Direction::Ascending => theme.markers.ascending,
-                    Direction::Descending => theme.markers.descending,
-                });
-            }
+            let title = match sort.filter(|sort| sort.column == column.title) {
+                Some(sort) => {
+                    let arrow = match sort.direction {
+                        Direction::Ascending => theme.markers.ascending,
+                        Direction::Descending => theme.markers.descending,
+                    };
+                    // The direction is what says the table is sorted, so a squeezed title gives
+                    // way before its arrow does.
+                    let room = widths.get(index).copied().flatten().unwrap_or(usize::MAX);
+                    let arrow_width = text::width(arrow);
+                    if text::width(column.title) + 1 + arrow_width <= room {
+                        format!("{} {arrow}", column.title)
+                    } else if room < arrow_width + 2 {
+                        arrow.to_owned()
+                    } else {
+                        format!(
+                            "{} {arrow}",
+                            text::truncate(column.title, room - arrow_width - 1)
+                        )
+                    }
+                }
+                None => column.title.to_owned(),
+            };
             Cell::spans(underline(&title, keys.get(index).copied().flatten(), style))
         })
         .collect();
@@ -780,6 +844,54 @@ mod tests {
                 && span.style.add_modifier.contains(Modifier::UNDERLINED)),
             "the sort key is not underlined in its title"
         );
+    }
+
+    #[test]
+    fn an_anchor_finds_its_record_in_its_own_table_then_elsewhere_then_nearby() {
+        let row = |key: &str| Item::row(key, cells(key, "idle", None));
+        let page = |pool: [&str; 2]| {
+            vec![
+                Item::table("Members", &COLUMNS),
+                row("codex"),
+                row("claude"),
+                Item::table("Pool", &COLUMNS),
+                row(pool[0]),
+                row(pool[1]),
+            ]
+        };
+        let before = page(["claude", "codex"]);
+        let pool_claude = anchor(&before, 4).expect("a row is selected");
+        assert_eq!(pool_claude.table.as_deref(), Some("Pool"));
+        assert_eq!(anchor(&before, 3), None, "a heading is not a selection");
+        // The pool is sorted: the same key in the Members table is not the record.
+        assert_eq!(locate(&page(["codex", "claude"]), &pool_claude), Some(5));
+        // Its table is gone, so the key is found wherever it is.
+        let moved = Anchor {
+            table: Some("Left open".into()),
+            ..pool_claude.clone()
+        };
+        assert_eq!(locate(&before, &moved), Some(2));
+        // The record is gone: the nearest row at or after its position, or the last row.
+        let gone = Anchor {
+            key: "gemini".into(),
+            ..pool_claude.clone()
+        };
+        assert_eq!(locate(&before, &gone), Some(4));
+        assert_eq!(locate(&before, &Anchor { index: 9, ..gone }), Some(5));
+        assert_eq!(locate(&[Item::table("", &COLUMNS)], &pool_claude), None);
+    }
+
+    #[test]
+    fn a_squeezed_sorted_title_keeps_its_direction() {
+        let theme = crate::theme::theme("ember");
+        let sort = Sort::cycle(None, "TOKENS");
+        let widths = [Some(4), Some(5), Some(3)];
+        let shown = plain(&titles(&COLUMNS, &widths, &[None; 3], sort, theme));
+        assert!(
+            shown.ends_with(theme.markers.ascending),
+            "a squeezed sorted title lost its direction: {shown:?}"
+        );
+        assert_eq!(text::width(&shown), 4 + 2 + 5 + 2 + 3);
     }
 
     #[test]

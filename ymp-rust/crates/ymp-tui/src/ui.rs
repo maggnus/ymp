@@ -523,10 +523,7 @@ fn page_view(frame: &mut Frame, area: Rect, app: &mut App) {
             selected_line,
             page.empty.clone(),
             page.selectable(),
-            page.items
-                .iter()
-                .filter(|item| item.kind == ItemKind::Row)
-                .count(),
+            page.items.iter().filter(|item| item.is_record()).count(),
         )
     };
 

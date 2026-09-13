@@ -9088,3 +9088,233 @@ fn table_column_titles_stay_on_screen_while_the_rows_scroll() {
         "the column titles scrolled away with the rows:\n{shown}"
     );
 }
+
+/// The table holding the selection, by heading title, and the key of the selected row.
+fn selected_place(app: &mut App, width: u16) -> (String, String) {
+    // Building the page may move the selection, so it is read after the build.
+    app.page(width);
+    let selected = app.page_selected;
+    let page = app.page(width);
+    let table = page.items[..selected.min(page.items.len())]
+        .iter()
+        .rfind(|item| item.kind == crate::views::ItemKind::Heading)
+        .map(|heading| heading.title.clone())
+        .unwrap_or_default();
+    let key = page
+        .items
+        .get(selected)
+        .map(|item| item.key.clone())
+        .unwrap_or_default();
+    (table, key)
+}
+
+#[test]
+fn selection_stays_on_an_edited_profile_that_its_sort_moves() {
+    let fixture = fixture();
+    let mut app = fixture.app();
+    app.set_view(View::Agents);
+    let width = app.page_width(100);
+    let enabled = |app: &App| -> Vec<(String, bool)> {
+        app.config
+            .agents
+            .iter()
+            .map(|profile| (profile.id.clone(), profile.enabled))
+            .collect()
+    };
+    let disabled_first = |app: &mut App| {
+        let first = row_keys(app, width)[0].clone();
+        (!app.config.agent(&first).unwrap().enabled).then_some(first)
+    };
+    // N is the underlined letter of ENABLED. Sort until a disabled profile leads.
+    for _ in 0..2 {
+        if disabled_first(&mut app).is_some() {
+            break;
+        }
+        app.on_key(key(KeyCode::Char('N')), 100);
+    }
+    let profile = disabled_first(&mut app).expect("no sort puts a disabled profile first");
+    app.on_key(key(KeyCode::Home), 100);
+    assert_eq!(app.selected_item(100).unwrap().key, profile);
+    // As the terminal check does: filter to the profile, keep the filter, then clear it.
+    app.on_key(key(KeyCode::Char('/')), 100);
+    type_keys(&mut app, 100, &profile);
+    app.on_key(key(KeyCode::Enter), 100);
+    app.on_key(key(KeyCode::Esc), 100);
+    assert!(app.table.filter.is_empty() && app.view == View::Agents);
+    assert_eq!(
+        app.selected_item(100).unwrap().key,
+        profile,
+        "clearing the filter lost the profile"
+    );
+    let before = enabled(&app);
+
+    app.on_key(key(KeyCode::Char(' ')), 100);
+    assert!(app.config.agent(&profile).unwrap().enabled);
+    assert_ne!(
+        row_keys(&mut app, width)[0],
+        profile,
+        "enabling the profile did not move it, so this proves nothing"
+    );
+    assert_eq!(
+        app.selected_item(100).unwrap().key,
+        profile,
+        "the selection stayed on a position instead of the edited profile"
+    );
+    app.on_key(key(KeyCode::Char(' ')), 100);
+    assert_eq!(
+        enabled(&app),
+        before,
+        "the second Space did not undo the first on the same profile"
+    );
+}
+
+#[test]
+fn selection_stays_in_its_own_table_when_a_key_repeats_on_the_page() {
+    let fixture = fixture();
+    let mut app = fixture.app();
+    app.set_view(View::Team);
+    let width = app.page_width(100);
+    let pool = "Available on this machine".to_owned();
+    let members = app.config.team.clone();
+    for _ in 0..40 {
+        let (table, id) = selected_place(&mut app, width);
+        if table == pool && members.contains(&id) {
+            break;
+        }
+        app.on_key(key(KeyCode::Down), 100);
+    }
+    let (table, id) = selected_place(&mut app, width);
+    assert!(
+        table == pool && members.contains(&id),
+        "no pool row of a member to start from: {table:?} {id:?}"
+    );
+    assert!(
+        row_keys(&mut app, width)
+            .iter()
+            .filter(|key| **key == id)
+            .count()
+            >= 2,
+        "the member is listed once, so this proves nothing"
+    );
+
+    // M is the underlined letter of MODEL, a column only the pool table has.
+    app.on_key(key(KeyCode::Char('M')), 100);
+    assert_eq!(selected_place(&mut app, width), (pool.clone(), id.clone()));
+    app.on_key(key(KeyCode::Char('M')), 100);
+    assert_eq!(
+        selected_place(&mut app, width),
+        (pool.clone(), id.clone()),
+        "sorting the pool moved the selection into another table"
+    );
+    let direction = app
+        .page(width)
+        .items
+        .iter()
+        .find(|item| item.kind == crate::views::ItemKind::Heading && item.title == pool)
+        .and_then(|heading| heading.sort)
+        .map(|sort| sort.direction);
+    assert_eq!(direction, Some(crate::table::Direction::Descending));
+
+    app.on_key(key(KeyCode::Char('M')), 100);
+    app.on_key(key(KeyCode::Char('/')), 100);
+    for ch in id.chars().take(2) {
+        app.on_key(key(KeyCode::Char(ch)), 100);
+        assert_eq!(
+            selected_place(&mut app, width),
+            (pool.clone(), id.clone()),
+            "typing a filter moved the selection into another table"
+        );
+    }
+}
+
+#[tokio::test]
+async fn selection_follows_a_live_update_that_moves_its_record_before_the_next_frame() {
+    let run = mock_run("Create a greeting", |_| {}).await;
+    let mut app = run.app();
+    app.load_session(&run.session).unwrap();
+    app.active = true;
+    let first = app.tasks[0].clone();
+    let mut second = first.clone();
+    second.id = new_id();
+    second.title = "A second task".into();
+    second.state = TaskState::Ready;
+    let mut running = first.clone();
+    running.state = TaskState::Running;
+    app.event(UiEvent::Task(second.clone()));
+    app.event(UiEvent::Task(running));
+    app.command("/tasks", 100);
+    let width = app.page_width(100);
+    let order = |app: &mut App| -> Vec<String> {
+        row_keys(app, width)
+            .into_iter()
+            .filter(|key| *key == first.id || *key == second.id)
+            .collect()
+    };
+    // S is the underlined letter of STATE: ready sorts before running.
+    app.on_key(key(KeyCode::Char('S')), 100);
+    assert_eq!(order(&mut app), [second.id.clone(), first.id.clone()]);
+    for _ in 0..20 {
+        if app.selected_item(100).unwrap().key == first.id {
+            break;
+        }
+        app.on_key(key(KeyCode::Down), 100);
+    }
+    assert_eq!(app.selected_item(100).unwrap().key, first.id);
+
+    // The runtime reports the task accepted; a key arrives before anything is painted.
+    let mut accepted = first.clone();
+    accepted.state = TaskState::Accepted;
+    app.event(UiEvent::Task(accepted));
+    assert_eq!(
+        app.selected_item(100).unwrap().key,
+        first.id,
+        "a live update left the selection on the position its record moved away from"
+    );
+    assert_eq!(
+        order(&mut app),
+        [first.id.clone(), second.id.clone()],
+        "the update did not move the record, so this proves nothing"
+    );
+}
+
+#[test]
+fn selection_table_counts_records_sorts_values_as_figures_and_filter_typing_ends_with_focus() {
+    let fixture = fixture();
+    let mut config = Config::default();
+    config.limits.parallel = 12;
+    config.limits.turns = 4;
+    config.limits.turn_timeout_secs = 300;
+    config.limits.attempts = 30;
+    let mut app = app_with(&fixture, config);
+    app.set_view(View::Limits);
+    let width = app.page_width(100);
+
+    // The count is the four limits, not the note that says no session was read.
+    let rendered = draw(&mut app, 100, 30);
+    assert!(
+        rendered.contains(&format!("{}[4]", View::Limits.title())),
+        "the record count includes an explanatory note:\n{rendered}"
+    );
+
+    // V is the underlined letter of VALUE. As text, "12" and "300 s" would sort before "4".
+    app.on_key(key(KeyCode::End), 100);
+    app.on_key(key(KeyCode::Char('V')), 100);
+    let next: Vec<String> = row_keys(&mut app, width)
+        .into_iter()
+        .filter(|key| ["parallel", "turns", "timeout", "attempts"].contains(&key.as_str()))
+        .collect();
+    assert_eq!(next, ["turns", "parallel", "attempts", "timeout"]);
+
+    // While a filter is typed, Ctrl+J is not a composer newline, and leaving ends the typing.
+    app.on_key(key(KeyCode::Char('/')), 100);
+    type_keys(&mut app, 100, "tu");
+    app.on_key(control('j'), 100);
+    assert_eq!(app.table.filter, "tu");
+    assert!(app.input.value.is_empty(), "Ctrl+J wrote into the composer");
+    app.on_key(key(KeyCode::Tab), 100);
+    assert_eq!(app.focus, Focus::Composer);
+    assert!(
+        !app.table.typing,
+        "the filter still takes typing after the focus left the page"
+    );
+}

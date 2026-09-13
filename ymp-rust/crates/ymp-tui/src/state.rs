@@ -285,8 +285,8 @@ pub struct App {
     pub page_top: usize,
     /// The filter and the sorts the reader applied to the open page's tables.
     pub table: crate::table::Controls,
-    /// The row the selection stays on while the page is filtered or sorted again.
-    table_anchor: Option<String>,
+    /// The record the selection stays on while the open page is built again.
+    table_anchor: Option<(View, crate::table::Anchor)>,
     pub memory_query: String,
 
     pub tick: u64,
@@ -439,6 +439,7 @@ impl App {
             None => true,
         };
         if stale {
+            self.remember_selection();
             let theme = self.theme;
             let (team, team_captured) = self.active_team();
             let mut page = views::build(
@@ -463,8 +464,7 @@ impl App {
             );
             // Keys, the selection and Inspect act on the rows on screen, so the filter and the
             // sorts are applied to the page itself rather than only when it is painted.
-            let is_row = |item: &views::Item| item.kind == views::ItemKind::Row;
-            self.table.unfiltered = page.items.iter().filter(|item| is_row(item)).count();
+            self.table.unfiltered = page.items.iter().filter(|item| item.is_record()).count();
             let view = self.view;
             let controls = &self.table;
             page.items = crate::table::arrange(
@@ -473,13 +473,15 @@ impl App {
                 view.sort_reserved(),
                 |title| controls.sort(view, title),
             );
-            if let Some(key) = self.table_anchor.take() {
-                // The row the reader was on, or the first row when the filter removed it.
-                self.page_selected = page
-                    .items
-                    .iter()
-                    .position(|item| is_row(item) && item.key == key)
-                    .unwrap_or(0);
+            // Every rebuild of the same page keeps the selected record, whatever caused it: a
+            // sort, a filter, an edit and a live event can each move a row.
+            if let Some((view, anchor)) = self.table_anchor.take() {
+                let found = (view == self.view)
+                    .then(|| crate::table::locate(&page.items, &anchor))
+                    .flatten();
+                if let Some(index) = found {
+                    self.page_selected = index;
+                }
             }
             self.page_cache = Some((self.view, width, self.revision, page));
             self.select_a_row();
@@ -489,10 +491,27 @@ impl App {
 
     /// Build the open page again under a changed filter or sort, keeping the selected row.
     fn rearrange(&mut self) {
-        self.table_anchor = self.page_anchor();
-        self.page_cache = None;
+        self.invalidate_page();
         self.page_top = 0;
         self.dirty = true;
+    }
+
+    /// Remember the selected record of the page last built, unless one is remembered already,
+    /// so that the next build of the same page puts the selection back on it.
+    fn remember_selection(&mut self) {
+        if self.table_anchor.is_some() {
+            return;
+        }
+        if let Some((view, _, _, page)) = self.page_cache.as_ref() {
+            self.table_anchor =
+                crate::table::anchor(&page.items, self.page_selected).map(|anchor| (*view, anchor));
+        }
+    }
+
+    /// Drop the built page, keeping its selected record for the next build.
+    fn invalidate_page(&mut self) {
+        self.remember_selection();
+        self.page_cache = None;
     }
 
     /// Shift and a letter: sort the table holding the selection by the column that letter
@@ -501,6 +520,8 @@ impl App {
     fn sort_by_key(&mut self, letter: char, width: u16) -> bool {
         let width = self.page_width(width);
         let view = self.view;
+        // Building the page may move the selection onto its record, so it is read afterwards.
+        self.page(width);
         let selected = self.page_selected;
         let page = self.page(width);
         let is_heading = |item: &views::Item| item.kind == views::ItemKind::Heading;
@@ -638,16 +659,11 @@ impl App {
         if self.session.as_deref().is_some_and(|open| open != session) {
             return;
         }
-        // The statistics page is a live list. Remember the row the reader selected, so a
-        // snapshot that records a new agent above it does not move them onto another one.
-        // No other page is built from statistics, so none of them is rebuilt here.
-        let anchor = (self.view == View::Usage)
-            .then(|| self.page_anchor())
-            .flatten();
+        // The statistics page is a live list. Its rebuild keeps the selected agent, as every
+        // rebuild of a page keeps its selected record.
         self.stats.replace(session, usage);
         self.count_turns();
         self.changed();
-        self.restore_page_anchor(anchor.as_deref());
     }
 
     /// Advance the turn counter to the invocations the statistics account for.
@@ -678,31 +694,6 @@ impl App {
             "running"
         } else {
             &self.session_status
-        }
-    }
-
-    /// The key of the row the open page is pointing at, if it has one.
-    fn page_anchor(&self) -> Option<String> {
-        let (_, _, _, page) = self.page_cache.as_ref()?;
-        page.items
-            .get(self.page_selected)
-            .filter(|item| item.kind == views::ItemKind::Row)
-            .map(|item| item.key.clone())
-    }
-
-    /// Put the selection back on the row it was on after the data underneath it changed.
-    fn restore_page_anchor(&mut self, key: Option<&str>) {
-        let (Some(key), Some((_, width, _, _))) = (key, self.page_cache.as_ref()) else {
-            return;
-        };
-        let width = *width;
-        let found = self
-            .page(width)
-            .items
-            .iter()
-            .position(|item| item.kind == views::ItemKind::Row && item.key == key);
-        if let Some(index) = found {
-            self.page_selected = index;
         }
     }
 
@@ -763,7 +754,7 @@ impl App {
     /// store itself, which is what keeps opening one a pure read.
     fn refresh_records(&mut self) {
         self.records = Records::read(&self.store, self.session.as_deref());
-        self.page_cache = None;
+        self.invalidate_page();
     }
 
     /// Inspect what is installed on this machine again.
@@ -773,7 +764,7 @@ impl App {
     /// installation's own business and is never decided here.
     fn refresh_pool(&mut self) {
         self.pool = Pool::read(&self.config);
-        self.page_cache = None;
+        self.invalidate_page();
     }
 
     /// Load a stored conversation for reading. This never starts an agent and never
@@ -889,6 +880,8 @@ impl App {
     /// Tab and Shift+Tab. The composer and the transcript or page are the only regions that take
     /// the keyboard, so either key moves the focus to the other one.
     fn cycle_focus(&mut self) {
+        // A filter being typed belongs to the page; leaving the page keeps what was typed.
+        self.table.typing = false;
         self.focus = match self.focus {
             Focus::Composer => Focus::Main,
             Focus::Main => Focus::Composer,
@@ -1016,7 +1009,7 @@ impl App {
 
     pub fn apply_theme(&mut self, id: &str) {
         self.theme = theme::resolved(id, self.theme.markers);
-        self.page_cache = None;
+        self.invalidate_page();
         self.dirty = true;
     }
 
@@ -1088,7 +1081,8 @@ impl App {
                 self.changed();
                 return Vec::new();
             }
-            KeyCode::Char('j') if control => {
+            // While a filter is typed the keys belong to it, and Ctrl+J is no composer newline.
+            KeyCode::Char('j') if control && !self.table.typing => {
                 self.input.insert('\n');
                 return Vec::new();
             }
@@ -1832,7 +1826,7 @@ impl App {
                     KeyCode::Char('y') | KeyCode::Enter => match target {
                         Confirm::ForgetMemory(id) => match self.store.forget_memory(&id) {
                             Ok(()) => {
-                                self.page_cache = None;
+                                self.invalidate_page();
                                 self.notice("Memory entry retired.");
                             }
                             Err(error) => {
@@ -1965,7 +1959,7 @@ impl App {
             },
             PromptTarget::MemorySearch => {
                 self.memory_query = value;
-                self.page_cache = None;
+                self.invalidate_page();
                 self.set_view(View::Memory);
             }
         }
@@ -2127,7 +2121,7 @@ impl App {
                         .get(2)
                         .ok_or_else(|| anyhow::anyhow!("Use /memory forget ID."))?;
                     self.store.forget_memory(id)?;
-                    self.page_cache = None;
+                    self.invalidate_page();
                     self.notice("Memory entry retired.");
                 } else {
                     self.memory_query = parts[1..].join(" ");
