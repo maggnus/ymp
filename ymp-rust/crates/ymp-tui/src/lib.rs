@@ -316,9 +316,8 @@ pub async fn run(
     drop(input);
     drop(terminal);
     drop(guard);
-    let standard_home = std::env::var_os("HOME").map(|home| PathBuf::from(home).join(".ymp2"));
     let mut out = std::io::stdout();
-    let _ = out.write_all(exit::farewell(&store, &departure, standard_home.as_deref()).as_bytes());
+    let _ = out.write_all(exit::farewell(&store, &departure).as_bytes());
     let _ = out.flush();
     Ok(())
 }

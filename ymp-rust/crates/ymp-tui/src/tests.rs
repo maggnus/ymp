@@ -464,6 +464,8 @@ fn other_input_withdraws_the_question() {
     assert_eq!(app.input.value, "x pasted");
 }
 
+/// Only repeats and releases a terminal reports as such can be told apart. ymp does not ask for
+/// event types, so a terminal that repeats a held Ctrl+C as plain presses is not covered here.
 #[test]
 fn a_repeated_or_released_key_is_not_a_second_press() {
     let fixture = fixture();
@@ -686,7 +688,7 @@ fn the_resume_command_names_the_saved_project_and_reads_back_through_a_shell() {
         session: app.session.clone(),
         unfinished: false,
     };
-    let text = exit::farewell(&fixture.store, &departure, None);
+    let text = exit::farewell(&fixture.store, &departure);
     let lines: Vec<&str> = text.lines().collect();
     assert_eq!(lines[0], "Resume this session with:", "{text}");
     assert!(lines[2].contains("starts no agents") && lines[2].contains("/resume"));
@@ -710,30 +712,30 @@ fn only_a_session_that_exists_gets_a_resume_command() {
     let fixture = fixture();
     let id = fixture.seed_session("Finished");
     let home = std::path::absolute(&fixture.store.home).unwrap();
-    let command = exit::resume_command(&fixture.store, &id, Some(&home)).unwrap();
+    let command = exit::resume_command(&fixture.store, &id).unwrap();
     assert!(
-        !command.contains("--home"),
-        "the standard home is not named: {command}"
+        command.starts_with(&format!(
+            "ymp --home {} -C ",
+            exit::shell_word(home.to_str().unwrap())
+        )),
+        "the metadata directory is named even when it is the standard one: {command}"
     );
     assert!(command.ends_with(&format!(" resume {id}")), "{command}");
 
     assert!(fixture.app().session.is_none());
-    assert_eq!(
-        exit::farewell(&fixture.store, &Departure::default(), None),
-        ""
-    );
+    assert_eq!(exit::farewell(&fixture.store, &Departure::default()), "");
     let stopped = Departure {
         session: None,
         unfinished: true,
     };
-    let text = exit::farewell(&fixture.store, &stopped, None);
+    let text = exit::farewell(&fixture.store, &stopped);
     assert!(text.contains("stopped waiting") && !text.contains("Resume this session"));
 
     let missing = Departure {
         session: Some(new_id()),
         unfinished: false,
     };
-    let text = exit::farewell(&fixture.store, &missing, None);
+    let text = exit::farewell(&fixture.store, &missing);
     assert!(text.contains("could not be read again") && !text.contains("Resume this session"));
 }
 

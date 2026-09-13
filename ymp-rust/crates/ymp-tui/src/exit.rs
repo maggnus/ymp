@@ -87,7 +87,7 @@ pub async fn stop_and_wait<R, S>(
 
 /// What is printed after the terminal is restored. A window that never had a conversation
 /// prints no command, because there is nothing to resume.
-pub fn farewell(store: &Store, departure: &Departure, standard_home: Option<&Path>) -> String {
+pub fn farewell(store: &Store, departure: &Departure) -> String {
     let mut text = String::new();
     if departure.unfinished {
         text.push_str(&format!(
@@ -98,7 +98,7 @@ pub fn farewell(store: &Store, departure: &Departure, standard_home: Option<&Pat
     let Some(session) = departure.session.as_deref() else {
         return text;
     };
-    match resume_command(store, session, standard_home) {
+    match resume_command(store, session) {
         Ok(command) => text.push_str(&format!(
             "Resume this session with:\n{command}\nThis opens the saved conversation and starts no agents. Use /resume there to continue the run, or send a message to continue the conversation.\n"
         )),
@@ -112,26 +112,22 @@ pub fn farewell(store: &Store, departure: &Departure, standard_home: Option<&Pat
 /// The command that opens `session` again, every word quoted for a POSIX shell.
 ///
 /// The directory is the one the session's project is saved under, which is where a resumed
-/// run works, not the directory this window started in. The metadata directory is named
-/// whenever it is not `standard_home`, so the command does not depend on the environment of
-/// the shell it is pasted into.
-pub fn resume_command(
-    store: &Store,
-    session: &str,
-    standard_home: Option<&Path>,
-) -> Result<String> {
+/// run works, not the directory this window started in. The metadata directory is always
+/// named by its absolute path, so the command does not depend on the environment of the shell
+/// it is pasted into, whatever `HOME` or `YMP_HOME` says there.
+pub fn resume_command(store: &Store, session: &str) -> Result<String> {
     let record = store.session(session)?;
     let project = store.get_project(&record.project_id)?;
     let home = std::path::absolute(&store.home)?;
-    let mut words = vec!["ymp".to_owned()];
-    if standard_home != Some(home.as_path()) {
-        words.push("--home".into());
-        words.push(shell_word(path_text(&home)?));
-    }
-    words.push("-C".into());
-    words.push(shell_word(path_text(&project.path)?));
-    words.push("resume".into());
-    words.push(shell_word(&record.id));
+    let words = [
+        "ymp".to_owned(),
+        "--home".to_owned(),
+        shell_word(path_text(&home)?),
+        "-C".to_owned(),
+        shell_word(path_text(&project.path)?),
+        "resume".to_owned(),
+        shell_word(&record.id),
+    ];
     Ok(words.join(" "))
 }
 
