@@ -1,0 +1,24 @@
+ymp  project             b638c777  ✓ completed  — tok  8/200
+────────────────────────────────────────────────────────────
+ Changed files[2]  /diff /Users/maggnus/Code/ymp2/ymp-docs/…
+────────────────────────────────────────────────────────────
+ › ◇ How this directory is used, and what cannot be put …
+
+   RECORDED CHANGES
+   PATH                                           STATUS
+   /Users/maggnus/Code/ymp2/ymp-docs/research/e…  created
+
+   WHERE ACCEPTED WORK WAS RECORDED
+      RESULT                        STATE
+   ✓  Created greeting.txt and ve…  accepted, unconfirmed
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────
+› Describe a task, or type / for commands.
+Ready main Enter show the full path  Esc back  / filter  Sh…

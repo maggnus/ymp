@@ -1,0 +1,39 @@
+{
+  "status": "parent recommendation awaiting independent author response",
+  "candidates": [
+    {
+      "name": "ratatui-explorer",
+      "version": "0.3.0",
+      "source": "https://github.com/tatounee/ratatui-explorer",
+      "ratatui": "^0.30",
+      "assessment": "Focused native navigation/input and renderable widget, theme/title hooks, filter/map callback, native path identity, no write commands. Parent preference; guard failed directory entry."
+    },
+    {
+      "name": "tui-file-explorer",
+      "version": "2.3.0",
+      "source": "https://github.com/sorinirimies/tui-file-explorer",
+      "ratatui": "^0.30",
+      "assessment": "Native search/sort and injectable FileSystem with semantic commands; library-only build available. Current published renderer has arbitrary UTF-8 byte slicing for a long current_dir header and less flexible header branding; needs correction or justified workaround."
+    },
+    {
+      "name": "ratatui-interact",
+      "version": "0.5.3",
+      "source": "https://github.com/Brainwires/ratatui-interact",
+      "ratatui": "^0.30",
+      "assessment": "Ready FileExplorerState/FileExplorer, search/multiselect and optional filesystem loading, but caller wires keyboard dispatch; navigation helpers discard load errors and the package brings a wider toolkit."
+    }
+  ],
+  "other_checks": [
+    {
+      "name": "ratkit",
+      "version": "0.2.18",
+      "reason": "Published package depends on Ratatui ^0.29 and Crossterm ^0.28."
+    },
+    {
+      "name": "fpicker",
+      "version": "0.1.4",
+      "reason": "Published package depends on Ratatui ^0.28.1."
+    }
+  ],
+  "owner_requirement": "Use an actual ready-made file navigator widget for /files; cap-std alone is not an acceptable substitution."
+}

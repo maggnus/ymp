@@ -1,0 +1,24 @@
+ymp  project             f9e3d11a  ✓ completed  — tok  8/200
+────────────────────────────────────────────────────────────
+ Sessions[1]  /sessions                  1 saved in project
+────────────────────────────────────────────────────────────
+   SESSION   TITLE          STATUS       CREATED
+ › f9e3d11a  Create greet…  ✓ completed  2026-09-13 11:03
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────
+› Describe a task, or type / for commands.
+Ready  main Enter open read-only  r resume the run  Esc back

@@ -1,0 +1,24 @@
+ymp  project                                 b638c777  ✓ completed  — tok  8/200
+────────────────────────────────────────────────────────────────────────────────
+ Token usage[3]  /usage                     — tokens │ SESSION
+─────────────────────────────────────────────────────│ b638c777     ✓ completed
+   SESSION                                           │ turns this ses…  8 / 200
+   SCOPE          TOKENS                             │ dir …-044/tables/project
+ › session total       —                             │
+                                                     │ TOKENS                 —
+   AGENTS                                            │ AGENT   TOKENS
+   AGENT   PROVIDER  TOKENS                          │ Atlas        —
+   Atlas   demo           —                          │ Cygnus       —
+   Cygnus  demo           —                          │
+                                                     │ TEAM        this session
+                                                     │ AGENT     STATE
+                                                     │ ○ Atlas   idle
+                                                     │ ○ Cygnus  idle
+                                                     │
+                                                     │ TASKS     accepted 1 / 1
+                                                     │
+                                                     │
+                                                     │
+────────────────────────────────────────────────────────────────────────────────
+› Describe a task, or type / for commands.
+Ready       main Enter inspect  Esc back  / filter  Shift+letter sort  d inspect

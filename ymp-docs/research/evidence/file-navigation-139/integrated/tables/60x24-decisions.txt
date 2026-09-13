@@ -1,0 +1,24 @@
+ymp  project             1b61f53b  ✓ completed  — tok  8/200
+────────────────────────────────────────────────────────────
+ Decisions[52]  /decisions        52 recorded · 0 confirmed
+────────────────────────────────────────────────────────────
+ › ◇ What a decision record is, and what a grade means  …
+
+      KIND     ACTOR          OUTCOME
+   ✓  alloca…  the runtime    membership committed
+   ✓  alloca…  the runtime    membership committed
+   ✓  resour…  the runtime    bound set
+   ·  direct…  unknown model  directory reserved
+   ·  turn a…  Atlas          turn admitted
+   ·  reserv…  the runtime    reservation ended
+   ○  plan p…  Atlas          recorded without an outcome
+   ✓  alloca…  the runtime    membership committed
+   ✓  alloca…  the runtime    membership committed
+   ✓  resour…  the runtime    bound set
+   ·  direct…  unknown model  directory reserved
+   ·  turn a…  Cygnus         turn admitted
+   ·  reserv…  the runtime    reservation ended
+   ◇  plan r…  Cygnus         accepted, unconfirmed
+────────────────────────────────────────────────────────────
+› Describe a task, or type / for commands.
+Ready main Enter show the record  Esc back  / filter  Shift…

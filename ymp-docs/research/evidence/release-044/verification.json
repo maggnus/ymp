@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "version": "0.4.4",
+  "status": "installed",
+  "installed_at": "2026-09-13T11:03:10.953279+00:00",
+  "source_revision": "dc97d0ea0e3de55c59eb5fe514b09ee99c868cfb",
+  "artifact": {
+    "binary": "/Users/maggnus/Code/ymp2/target/release/ymp",
+    "command": "/Users/maggnus/.local/bin/ymp",
+    "sha256": "4864834d4dfcd44554fe4f6ca63bd10c828f500f71cb75dc7f3974721906e2f9",
+    "previous_sha256": "a09d261a1c5220a7f1acd98760f494f1b6d5e7a929b87cb590d6ca382b84d3aa",
+    "backup": "/Users/maggnus/.ymp2/backups/release-0.4.4-20260913T110310Z/ymp.previous"
+  },
+  "checks": [
+    {
+      "check": "fmt",
+      "exit_code": 0,
+      "log": "fmt.log"
+    },
+    {
+      "check": "clippy",
+      "exit_code": 0,
+      "log": "clippy.log"
+    },
+    {
+      "check": "tests",
+      "exit_code": 0,
+      "log": "tests.log"
+    }
+  ],
+  "tests": {
+    "passed": 535,
+    "failed": 0,
+    "ignored": 2
+  },
+  "staged_terminal": {
+    "files_unicode": 12,
+    "files_ascii": 12,
+    "tables_unicode": 19,
+    "tables_ascii": 19,
+    "deliberate_exit": 5
+  },
+  "installed_terminal": {
+    "files_unicode": 12,
+    "tables_unicode": 19
+  },
+  "native_provider_inference_in_tests": false,
+  "source_manifest": "source-manifest.json",
+  "limits": [
+    "Synchronous directory enumeration without timeout.",
+    "Inline agent-output highlighting remains in YMP-140.",
+    "Linux/Windows runtime checks were not run."
+  ],
+  "verified_at": "2026-09-13T11:07:10.648046+00:00"
+}

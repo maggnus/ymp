@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-13 07:19 UTC.
+Updated: 2026-09-13 11:07 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -14,7 +14,8 @@ A planned task is not implemented functionality. Completed research and planning
 | design | 1 | 1 |
 | documentation | 4 | 4 |
 | experiment | 0 | 4 |
-| implementation | 29 | 34 |
+| implementation | 32 | 36 |
+| maintenance | 1 | 1 |
 | research | 8 | 8 |
 | verification | 2 | 2 |
 
@@ -75,8 +76,11 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-133](#ymp-133) | P1 | Present non-popup data collections as consistent keyboard-navigable tables | 2026-09-13 07:01 |
 | `[x]` | [YMP-134](#ymp-134) | P1 | Finish sidebar, Detailed mode and floating-surface corrections requested directly in Paseo | 2026-09-13 07:01 |
 | `[x]` | [YMP-135](#ymp-135) | P1 | Show model-only labels when native effort is unknown or only a thinking toggle is reported | 2026-09-13 07:01 |
-| `[~]` | [YMP-136](#ymp-136) | P1 | Upgrade the terminal stack to the latest stable Ratatui release | 2026-09-13 07:19 |
-| `[=]` | [YMP-137](#ymp-137) | P1 | Keep Ember and Slate and add the sixteen requested library themes | 2026-09-13 07:19 |
+| `[x]` | [YMP-136](#ymp-136) | P1 | Upgrade the terminal stack to the latest stable Ratatui release | 2026-09-13 08:42 |
+| `[x]` | [YMP-137](#ymp-137) | P1 | Keep Ember and Slate and add the sixteen requested library themes | 2026-09-13 11:07 |
+| `[x]` | [YMP-138](#ymp-138) | P2 | Clean up obsolete Paseo workspaces and ymp2 development worktrees | 2026-09-13 08:31 |
+| `[x]` | [YMP-139](#ymp-139) | P1 | Integrate a ready-made Ratatui file navigator and code highlighting | 2026-09-13 11:07 |
+| `[~]` | [YMP-140](#ymp-140) | P1 | Render agent code and explicit diffs clearly using established AI-chat patterns | 2026-09-13 10:35 |
 
 ## YMP-001
 
@@ -1861,11 +1865,11 @@ The shared label helper appends none for all missing reported effort and present
 
 Upgrade the terminal stack to the latest stable Ratatui release
 
-**State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P1
+**State:** `[x]` (done) · **Type:** implementation · **Priority:** P1
 
-**Last update (UTC):** 2026-09-13 07:19
+**Last update (UTC):** 2026-09-13 08:42
 
-**Current reason:** Verified upstream releases and local manifests. Latest Ratatui0.30.2 and ratatui-themes0.3.0 are compatible; the current workspace remains0.29 until implementation is reviewed. UI work uses Claude Opus5 high.
+**Current reason:** Independently reviewed and integrated the Ratatui 0.30.2 / Crossterm 0.29 candidate with the theme adapter. Production source matches candidate 508d7f5. Parent fmt, strict Clippy and all 504 tests pass; 19 real-terminal cases pass, including 18-theme reachability at 40x12. Dependency graph contains one Ratatui facade and one Crossterm version. Installed-release verification remains with YMP-137 and the combined YMP-139 delivery.
 
 **Owner:** Claude Code Opus 5 high; maintainer integrates and verifies
 
@@ -1879,21 +1883,22 @@ The workspace uses Ratatui0.29; the current ratatui-themes0.3.0 uses0.30.2. Upgr
 
 - Use stable Ratatui0.30.2 and compatible terminal backend dependencies, with the lockfile updated and no unintended duplicate Ratatui runtime.
 - Preserve terminal restoration, double Ctrl+C, paste/input handling, table selection and model attribution; adapt only the API changes necessary for compatibility.
-- Run required fmt, strict workspace Clippy and workspace tests, then exercise the actual terminal and installed release. Do not call real providers as tests.
+- Run required fmt, strict workspace Clippy and workspace tests, then validate the migrated terminal with existing mock/terminal checks. Final installed-release verification is owned by YMP-137. Do not call real providers as tests.
 
 **Evidence:**
 
-- Pending.
+- ymp-docs/architecture/theme-library.md
+- ymp-docs/research/evidence/file-navigation-139/prerequisites/verification.json
 
 ## YMP-137
 
 Keep Ember and Slate and add the sixteen requested library themes
 
-**State:** `[=]` (planned) · **Type:** implementation · **Priority:** P1
+**State:** `[x]` (done) · **Type:** implementation · **Priority:** P1
 
-**Last update (UTC):** 2026-09-13 07:19
+**Last update (UTC):** 2026-09-13 11:07
 
-**Current reason:** Needs YMP-136
+**Current reason:** Installed release 0.4.4 is independently verified: required Rust checks pass (535 tests, 2 ignored), staged Unicode/ASCII file and table cases pass, and the installed command passes 12 file-navigation and 19 table/theme cases including all 18 themes. Previous executable is backed up. Inline agent output continues separately in YMP-140.
 
 **Owner:** Claude Code Opus 5 high; maintainer integrates and verifies
 
@@ -1903,8 +1908,6 @@ Keep Ember and Slate and add the sixteen requested library themes
 
 Reuse maintained palettes without coupling application rendering and preferences directly to the third-party theme model.
 
-**Latest progress note:** Positive integration assessment: use the library for palette data and retain ymp semantic roles and chooser behavior. Ratatui migration is a separate prerequisite. Original themes request has not yet changed application code.
-
 **Acceptance criteria:**
 
 - Retain Ember and Slate including their styles; replace selectable Paper, Contrast and Terminal with Dracula, One Dark Pro, Nord, Catppuccin Mocha, Catppuccin Latte, Gruvbox Dark, Gruvbox Light, Tokyo Night, Solarized Dark, Solarized Light, Monokai Pro, Rosé Pine, Kanagawa, Everforest, Cyberpunk and Midnight Commander.
@@ -1913,7 +1916,104 @@ Reuse maintained palettes without coupling application rendering and preferences
 
 **Evidence:**
 
-- Pending.
+- ymp-docs/architecture/theme-library.md
+- ymp-docs/research/evidence/file-navigation-139/prerequisites/verification.json
+- ymp-docs/research/evidence/release-044/verification.json
+
+## YMP-138
+
+Clean up obsolete Paseo workspaces and ymp2 development worktrees
+
+**State:** `[x]` (done) · **Type:** maintenance · **Priority:** P2
+
+**Last update (UTC):** 2026-09-13 08:31
+
+**Current reason:** Deleted four obsolete Paseo projects and archived their four completed agents/workspaces; removed 61 historical worktrees and 14 unused Cargo caches; stopped orphan mock PID 7407. Preserved 97 archive entries and 15 previously unreferenced Git heads, all verified. Main and pending YMP-136/137 worktree, agent and cache remain. Observed free space increased by 57.24 GiB to 71.50 GiB. Required fmt, strict Clippy and workspace tests pass: 498 passed, 0 failed, 2 ignored. Recovery record and limitations are documented.
+
+**Owner:** Maintainer
+
+**Authorization:** Owner explicitly requested investigating all orphaned ymp2 resources in Paseo and deleting everything safe to remove.
+
+**Depends on:** None
+
+Completed Paseo assignments and temporary Git worktrees retain old build output, review files and an abandoned mock TUI process.
+
+**Acceptance criteria:**
+
+- Inventory related Paseo agents, projects, workspaces, schedules, terminals and registered Git worktrees; preserve the main checkout and unfinished YMP-136/137 work.
+- Preserve uncommitted review material in a verified local archive and retain Git references for otherwise unreachable worktree commits before removal.
+- Archive completed assignments, delete obsolete temporary Paseo projects, remove unused development worktrees and stop the confirmed orphan mock process.
+- Verify remaining Paseo and Git state, record reclaimed disk allocation and retain restoration details without changing product source or approved intent.
+
+**Evidence:**
+
+- ymp-docs/research/paseo-cleanup-2026-09-13.md
+
+## YMP-139
+
+Integrate a ready-made Ratatui file navigator and code highlighting
+
+**State:** `[x]` (done) · **Type:** implementation · **Priority:** P1
+
+**Last update (UTC):** 2026-09-13 11:07
+
+**Current reason:** Installed release 0.4.4 is independently verified: required Rust checks pass (535 tests, 2 ignored), staged Unicode/ASCII file and table cases pass, and the installed command passes 12 file-navigation and 19 table/theme cases including all 18 themes. Previous executable is backed up. Inline agent output continues separately in YMP-140.
+
+**Owner:** Claude Code claude-opus-5 xhigh; maintainer owns contracts, integration and independent verification
+
+**Authorization:** Owner explicitly requested launching Opus 5 xhigh, comparing two or three suitable projects, choosing the best options and implementing file navigation and code highlighting. This assignment-specific effort supersedes the standing high setting. Owner clarified that /files must integrate a ready-made file-navigation library, then explicitly requested a renewed Ratatui-specific investigation by both the parent and Opus with a joint choice.
+
+**Depends on:** [YMP-133](#ymp-133), [YMP-134](#ymp-134), [YMP-135](#ymp-135)
+
+The Files page only lists the selected directory and exposes path metadata; it cannot navigate directories or read highlighted source content. Reuse suitable maintained libraries behind narrow application interfaces.
+
+**Acceptance criteria:**
+
+- Reassess two or three actual reusable file-explorer components specifically for Ratatui 0.30.2 using current primary sources. Parent and Claude Opus 5 xhigh compare findings and agree on the component; record compatibility, maintenance, licensing, dependency cost and real integration tradeoffs. Preserve the separately researched syntax-highlighting choice unless a concrete integration issue changes it.
+- Integrate ratatui-explorer 0.3.0 into /files using its actual navigation, selection, filter/map and widget APIs, with narrow error/empty-state guards. A custom navigator backed only by cap-std does not satisfy this requirement. The old /files table layout is superseded for this page; retain other pages. Start browsing at execution cwd, allow parent traversal, keep browsing read-only and execution cwd/session unchanged, and connect bounded source preview/highlighting.
+- Keep file-content previews bounded and handle unreadable, deleted, binary, large, Unicode and unusual filenames without reading special-file contents or sending data to providers. Preserve literal source content while preventing terminal control interpretation. Document the selected native widget's synchronous whole-directory enumeration and lack of a directory timeout; do not claim asynchronous or bounded-duration listing.
+- Delegate UI implementation to the explicitly requested Claude Opus 5 xhigh; preserve pending YMP-136/137 changes, independently review integration and run required Rust and representative offline terminal checks.
+- Record source commits and reproducible verification evidence, update English interface documentation and remove temporary assignment worktrees only after results are retained and accepted.
+
+**Evidence:**
+
+- ymp-docs/research/evidence/file-navigation-139/ratatui-recheck/joint-decision.json
+- ymp-docs/architecture/file-navigation-and-highlighting.md
+- ymp-docs/research/evidence/file-navigation-139/integrated/verification.json
+- ymp-docs/research/evidence/release-044/verification.json
+
+## YMP-140
+
+Render agent code and explicit diffs clearly using established AI-chat patterns
+
+**State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P1
+
+**Last update (UTC):** 2026-09-13 10:35
+
+**Current reason:** Validated terminal baseline after accepted 139 confirms the exact remaining gap: Inspect highlights code and explicit diff in Ember/Latte, while inline Detailed chat does not. The checker now observes the actual selected message dialog after grammar load, with independent SGR-observability and stored-byte checks. Opus is implementing 140; final positive and monochrome checks remain.
+
+**Owner:** Existing Claude Opus 5 xhigh author continues the current assignment; maintainer owns reference research, contracts and acceptance
+
+**Authorization:** Owner explicitly requested implementing the agreed navigation/highlighting work and adding highlighted agent output in the same or a separate task, informed by mature systems and other AI chats.
+
+**Depends on:** [YMP-139](#ymp-139)
+
+Agent output mixes prose, code, command output and proposed changes. It needs readable presentation that respects the actual content and available provenance.
+
+**Acceptance criteria:**
+
+- Inspect primary documentation/source of two or three mature AI coding/chat systems and record a concrete presentation decision for ymp, with source URLs and limits.
+- Apply syntax highlighting to explicit fenced code and readable addition/removal/context styling to explicit diff/patch content. Distinguish actual structured edit evidence from prose or suggested changes; never invent a before/after version or interpret arbitrary output as a patch.
+- Preserve stored message text, whitespace, authorship and originating invocation. Keep Detailed/Inspect expansion, streaming and scrolling usable, and apply current semantic themes including light themes and monochrome fallbacks.
+- Reuse the accepted highlighting implementation from YMP-139; keep formatting and diff classification bounded, preserve unknown-language/plain-text fallbacks and handle incomplete streamed fences/patches truthfully.
+- Delegate UI implementation to the current requested Claude assignment, independently inspect the integration and verify representative real-terminal mock fixtures plus required Rust checks; record what is actually installed.
+
+**Evidence:**
+
+- ymp-docs/architecture/agent-output-highlighting.md
+- ymp-docs/research/evidence/agent-output-140/reference-sources.json
+- ymp-docs/research/evidence/agent-output-140/baseline-color/report.json
+- ymp-docs/research/evidence/agent-output-140/baseline-message/report.json
 
 ## Intent coverage
 

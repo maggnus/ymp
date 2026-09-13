@@ -1,0 +1,45 @@
+ymp  project  /Users/maggnus/Code/ymp2/ymp-docs/research/evidence/release-044/tabl…  fc38a676  + completed  - tokens  8 / 200 turns captured
+--------------------------------------------------------------------------------------------------------------------------------------------
+ Help[44]  /help                                                     Every command and key, in one place | SESSION
+---------------------------------------------------------------------------------------------------------| fc38a676             + completed
+   CONVERSATION                                                                                          | turns this session       8 / 200
+   COMMAND   SUMMARY                                                                                     | dir …se-044/tables-ascii/project
+ > /chat     Return to the conversation.                                                                 |
+   /new      Start an unrelated task. The next prompt opens a new session.                               | TOKENS                         -
+   /details  Toggle full attributed agent messages instead of collapsed activity.                        | AGENT   TOKENS
+                                                                                                         | Atlas        -
+   NAVIGATE                                                                                              | Cygnus       -
+   COMMAND       SUMMARY                                                                                 |
+   /help         Command reference and keyboard map.                                                     | TEAM                this session
+   /tasks        Task graph, assignments and outcomes for the current session.                           | AGENT     STATE
+   /usage        Token statistics for the loaded session, agent by agent.                                | o Atlas   idle
+   /sessions     Saved sessions for this project. Opening one only reads it.                             | o Cygnus  idle
+   /files        Browse files read only, starting in the working directory.                              |
+   /diff         Files created, modified or deleted during the loaded session.                           | TASKS             accepted 1 / 1
+   /checks       Commands ymp ran itself for the loaded session, and their outcome.                      |
+   /assignments  Turns the run assigned, with the settings each one actually used.                       |
+                                                                                                         |
+   TEAM AND PROVIDERS                                                                                    |
+   COMMAND     SUMMARY                                                                                   |
+   /providers  Configured local providers and their availability.                                        |
+   /agents     Agent profiles, with model and instruction editing.                                       |
+   /agent      Create or edit an agent profile, or inspect one.                                          |
+   /team       Team membership for new sessions.                                                         |
+   /limits     Turn budget and parallelism for the next run.                                             |
+                                                                                                         |
+   KNOWLEDGE AND EVIDENCE                                                                                |
+   COMMAND      SUMMARY                                                                                  |
+   /decisions   Plans, reviews, acceptances and credit the session recorded.                             |
+   /memory      Search verified project and global knowledge, or retire an entry.                        |
+   /reputation  Evidence behind competence estimates.                                                    |
+                                                                                                         |
+   APPEARANCE                                                                                            |
+   COMMAND   SUMMARY                                                                                     |
+   /theme    Choose a colour theme. The choice is remembered.                                            |
+   /sidebar  Show or hide the context sidebar.                                                           |
+                                                                                                         |
+   SESSION CONTROL                                                                                       |
+   COMMAND  SUMMARY                                                                                      |
+--------------------------------------------------------------------------------------------------------------------------------------------
+> Describe a task, or type / for commands.
+Ready                                       main Enter run the command  Esc back to the conversation  / filter  Shift+letter sort  d inspect

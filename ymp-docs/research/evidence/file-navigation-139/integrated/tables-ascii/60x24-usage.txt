@@ -1,0 +1,24 @@
+ymp  project             529fc995  + completed  - tok  8/200
+------------------------------------------------------------
+ Token usage[3]  /usage                            - tokens
+------------------------------------------------------------
+   SESSION
+   SCOPE          TOKENS
+ > session total       -
+
+   AGENTS
+   AGENT   PROVIDER  TOKENS
+   Atlas   demo           -
+   Cygnus  demo           -
+
+
+
+
+
+
+
+
+
+------------------------------------------------------------
+> Describe a task, or type / for commands.
+Ready main Enter inspect  Esc back  / filter  Shift+letter …

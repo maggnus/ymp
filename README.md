@@ -4,7 +4,7 @@ A terminal workspace for a self-organizing team of local AI agents. Written in R
 
 Give the team a task. Agents propose plans and temporary responsibilities; the runtime validates assignments and revisions. They work in the selected directory and independently review the deliverable. Objectively confirmed outcomes supply qualified experience and reusable knowledge; qualitative acceptance remains explicitly unconfirmed.
 
-**Status:** 0.4.3 MVP. See the [0.4.3](ymp-docs/releases/0.4.3.md), [0.4.2](ymp-docs/releases/0.4.2.md) and [0.4.1](ymp-docs/releases/0.4.1.md) patch notes and the [0.4.0 release notes](ymp-docs/releases/0.4.0.md) for verified behavior and limitations. Quality improvements from memory and adaptive assignment remain hypotheses to evaluate, not a measured product claim.
+**Status:** 0.4.4 MVP. See the [0.4.4](ymp-docs/releases/0.4.4.md), [0.4.3](ymp-docs/releases/0.4.3.md), [0.4.2](ymp-docs/releases/0.4.2.md) and [0.4.1](ymp-docs/releases/0.4.1.md) patch notes and the [0.4.0 release notes](ymp-docs/releases/0.4.0.md) for verified behavior and limitations. Quality improvements from memory and adaptive assignment remain hypotheses to evaluate, not a measured product claim.
 
 ## Requirements
 
@@ -62,7 +62,7 @@ Enter sends, Ctrl+J inserts a newline, and Tab completes a command name or moves
 
 Your prompts and the team's final answers are the content of the transcript; routine plan, bid and review payloads are collapsed into one readable line each, and `Enter` on an entry shows the complete attributed message. `/details` switches to full messages. Scrolling up pauses auto-follow, which the status row reports along with the key that returns to the newest message.
 
-Five colour themes ship with ymp, including a light one, a high-contrast one, and one that inherits your terminal's own palette. `/theme` or `Ctrl+T` opens a chooser that previews as you move; the choice is remembered. No state is shown by colour alone.
+Eighteen colour themes ship with ymp: Ember, Slate and sixteen library palettes, including light themes. `/theme` or `Ctrl+T` opens a chooser that previews as you move; the choice is remembered. No state is shown by colour alone.
 
 Opening a record page never starts an agent or writes to your working directory. See the [interface guide](ymp-docs/guides/interface.md).
 

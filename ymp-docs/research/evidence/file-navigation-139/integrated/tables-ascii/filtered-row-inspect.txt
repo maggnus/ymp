@@ -1,0 +1,45 @@
+ymp  project  /Users/maggnus/Code/ymp2/ymp-docs/research/evidence/file-navigation-…  529fc995  + completed  - tokens  8 / 200 turns captured
+--------------------------------------------------------------------------------------------------------------------------------------------
+ Files</m-small>[1]  /files /Users/maggnus/Code/ymp2/ymp-docs/research/evidence/file-navigation-139/inte…| SESSION
+---------------------------------------------------------------------------------------------------------| 529fc995             + completed
+   ../                                                                                                   | turns this session       8 / 200
+ > m-small.txt                                                                                           | dir …grated/tables-ascii/project
+                                                                                                         |
+                                                                                                         | TOKENS                         -
+                                                                                                         | AGENT   TOKENS
+                                                                                                         | Atlas        -
+                                                                                                         |              -
+                           ┌ m-small.txt ──────────────────────────────────────────────────────────── read only ┐
+                           │ path              /Users/maggnus/Code/ymp2/ymp-docs/research/evidence/file-navigat │              this session
+                           │                   ion-139/integrated/tables-ascii/project/m-small.txt              │    STATE
+                           │ kind              file                                                             │    idle
+                           │ size              3 B                                                              │ s  idle
+                           │                                                                                    │
+                           │ Enter shows the start of the file, read only. Nothing is run or changed.           │            accepted 1 / 1
+                           │                                                                                    │
+                           │ Up/Down scroll  Esc close                                                          │
+                           └────────────────────────────────────────────────────────────────────────────────────┘
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+--------------------------------------------------------------------------------------------------------------------------------------------
+> Describe a task, or type / for commands.
+Ready                                                        main Enter open  Backspace parent  / filter  d details  r read again  Esc close

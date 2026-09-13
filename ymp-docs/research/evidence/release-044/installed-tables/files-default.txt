@@ -1,0 +1,45 @@
+ymp  project  /Users/maggnus/Code/ymp2/ymp-docs/research/evidence/release-044/inst…  f9e3d11a  ✓ completed  — tokens  8 / 200 turns captured
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ Files[4]  /files /Users/maggnus/Code/ymp2/ymp-docs/research/evidence/release-044/installed-tables/proje…│ SESSION
+─────────────────────────────────────────────────────────────────────────────────────────────────────────│ f9e3d11a             ✓ completed
+ › ../                                                                                                   │ turns this session       8 / 200
+   a-large.txt                                                                                           │ dir …44/installed-tables/project
+   greeting.txt                                                                                          │
+   m-small.txt                                                                                           │ TOKENS                         —
+   z-medium.txt                                                                                          │ AGENT   TOKENS
+                                                                                                         │ Atlas        —
+                                                                                                         │ Cygnus       —
+                                                                                                         │
+                                                                                                         │ TEAM                this session
+                                                                                                         │ AGENT     STATE
+                                                                                                         │ ○ Atlas   idle
+                                                                                                         │ ○ Cygnus  idle
+                                                                                                         │
+                                                                                                         │ TASKS             accepted 1 / 1
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+› Describe a task, or type / for commands.
+Ready                                                        main Enter open  Backspace parent  / filter  d details  r read again  Esc close

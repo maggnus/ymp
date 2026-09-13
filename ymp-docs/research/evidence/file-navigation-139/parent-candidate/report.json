@@ -1,0 +1,12 @@
+{
+  "binary": "/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp139-file-navigation/target/debug/ymp",
+  "baseline": false,
+  "native_inference": false,
+  "native_name_variant": "newline versus space; filesystem rejects non-UTF-8 names",
+  "directory_descent": true,
+  "literal_source_preview": true,
+  "native_path_identity": true,
+  "explicit_link_preview": true,
+  "workspace_unchanged": true,
+  "passed": true
+}

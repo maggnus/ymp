@@ -3401,7 +3401,7 @@
       "title": "Upgrade the terminal stack to the latest stable Ratatui release",
       "type": "implementation",
       "priority": "P1",
-      "status": "in_progress",
+      "status": "done",
       "owner": "Claude Code Opus 5 high; maintainer integrates and verifies",
       "authorization": "Owner explicitly requires the latest available Ratatui release. Official upstream latest release verified as0.30.2 on2026-09-13.",
       "depends_on": [
@@ -3413,14 +3413,22 @@
       "acceptance": [
         "Use stable Ratatui0.30.2 and compatible terminal backend dependencies, with the lockfile updated and no unintended duplicate Ratatui runtime.",
         "Preserve terminal restoration, double Ctrl+C, paste/input handling, table selection and model attribution; adapt only the API changes necessary for compatibility.",
-        "Run required fmt, strict workspace Clippy and workspace tests, then exercise the actual terminal and installed release. Do not call real providers as tests."
+        "Run required fmt, strict workspace Clippy and workspace tests, then validate the migrated terminal with existing mock/terminal checks. Final installed-release verification is owned by YMP-137. Do not call real providers as tests."
       ],
-      "evidence": [],
+      "evidence": [
+        "ymp-docs/architecture/theme-library.md",
+        "ymp-docs/research/evidence/file-navigation-139/prerequisites/verification.json"
+      ],
       "history": [
         {
           "at": "2026-09-13T07:19:30.422157+00:00",
           "status": "in_progress",
           "note": "Verified upstream releases and local manifests. Latest Ratatui0.30.2 and ratatui-themes0.3.0 are compatible; the current workspace remains0.29 until implementation is reviewed. UI work uses Claude Opus5 high."
+        },
+        {
+          "at": "2026-09-13T08:42:09.658700+00:00",
+          "status": "done",
+          "note": "Independently reviewed and integrated the Ratatui 0.30.2 / Crossterm 0.29 candidate with the theme adapter. Production source matches candidate 508d7f5. Parent fmt, strict Clippy and all 504 tests pass; 19 real-terminal cases pass, including 18-theme reachability at 40x12. Dependency graph contains one Ratatui facade and one Crossterm version. Installed-release verification remains with YMP-137 and the combined YMP-139 delivery."
         }
       ]
     },
@@ -3429,7 +3437,7 @@
       "title": "Keep Ember and Slate and add the sixteen requested library themes",
       "type": "implementation",
       "priority": "P1",
-      "status": "planned",
+      "status": "done",
       "owner": "Claude Code Opus 5 high; maintainer integrates and verifies",
       "authorization": "Owner requested preserving Ember and State (interpreted as the existing Slate theme), replacing other themes using ratatui-themes, and supplied the exact16-theme list. Owner also requested evaluating the library; use it as a palette source behind the existing semantic Theme interface.",
       "depends_on": [
@@ -3441,17 +3449,191 @@
         "Use ratatui-themes0.3.0 through one small semantic palette adapter; no machine-specific path dependency. Retain stable theme IDs, readable selection and state colors, preview/cancel/save behavior and safe loading of removed or unknown saved theme IDs.",
         "Make all18 themes accessible in short windows, preserve current table/input behavior, update English interface documentation and verify representative dark/light themes in the installed executable."
       ],
-      "evidence": [],
+      "evidence": [
+        "ymp-docs/architecture/theme-library.md",
+        "ymp-docs/research/evidence/file-navigation-139/prerequisites/verification.json",
+        "ymp-docs/research/evidence/release-044/verification.json"
+      ],
       "history": [
         {
           "at": "2026-09-13T07:19:30.422157+00:00",
           "status": "planned",
           "note": "Positive integration assessment: use the library for palette data and retain ymp semantic roles and chooser behavior. Ratatui migration is a separate prerequisite. Original themes request has not yet changed application code."
+        },
+        {
+          "at": "2026-09-13T08:42:09.759557+00:00",
+          "status": "in_progress",
+          "note": "Authored theme candidate 508d7f5 is independently reviewed and integrated. All 18 palettes, short-window reachability, table/focus behavior and saved-theme fallback pass source and terminal checks. Installation remains pending the combined file-navigation/highlighting change YMP-139; no installed-theme update is claimed yet."
+        },
+        {
+          "at": "2026-09-13T11:07:10.648046+00:00",
+          "status": "done",
+          "note": "Installed release 0.4.4 is independently verified: required Rust checks pass (535 tests, 2 ignored), staged Unicode/ASCII file and table cases pass, and the installed command passes 12 file-navigation and 19 table/theme cases including all 18 themes. Previous executable is backed up. Inline agent output continues separately in YMP-140."
+        }
+      ]
+    },
+    {
+      "id": "YMP-138",
+      "title": "Clean up obsolete Paseo workspaces and ymp2 development worktrees",
+      "type": "maintenance",
+      "priority": "P2",
+      "status": "done",
+      "owner": "Maintainer",
+      "authorization": "Owner explicitly requested investigating all orphaned ymp2 resources in Paseo and deleting everything safe to remove.",
+      "depends_on": [],
+      "reason": "Completed Paseo assignments and temporary Git worktrees retain old build output, review files and an abandoned mock TUI process.",
+      "acceptance": [
+        "Inventory related Paseo agents, projects, workspaces, schedules, terminals and registered Git worktrees; preserve the main checkout and unfinished YMP-136/137 work.",
+        "Preserve uncommitted review material in a verified local archive and retain Git references for otherwise unreachable worktree commits before removal.",
+        "Archive completed assignments, delete obsolete temporary Paseo projects, remove unused development worktrees and stop the confirmed orphan mock process.",
+        "Verify remaining Paseo and Git state, record reclaimed disk allocation and retain restoration details without changing product source or approved intent."
+      ],
+      "evidence": [
+        "ymp-docs/research/paseo-cleanup-2026-09-13.md"
+      ],
+      "history": [
+        {
+          "at": "2026-09-13T08:23:34.716030+00:00",
+          "status": "in_progress",
+          "note": "Inventory found 63 registered worktrees, including main and the unfinished theme branch. Four of five temporary Paseo projects have completed assignments. Preservation and process checks precede cleanup."
+        },
+        {
+          "at": "2026-09-13T08:31:17.370517+00:00",
+          "status": "done",
+          "note": "Deleted four obsolete Paseo projects and archived their four completed agents/workspaces; removed 61 historical worktrees and 14 unused Cargo caches; stopped orphan mock PID 7407. Preserved 97 archive entries and 15 previously unreferenced Git heads, all verified. Main and pending YMP-136/137 worktree, agent and cache remain. Observed free space increased by 57.24 GiB to 71.50 GiB. Required fmt, strict Clippy and workspace tests pass: 498 passed, 0 failed, 2 ignored. Recovery record and limitations are documented."
+        }
+      ]
+    },
+    {
+      "id": "YMP-139",
+      "title": "Integrate a ready-made Ratatui file navigator and code highlighting",
+      "type": "implementation",
+      "priority": "P1",
+      "status": "done",
+      "owner": "Claude Code claude-opus-5 xhigh; maintainer owns contracts, integration and independent verification",
+      "authorization": "Owner explicitly requested launching Opus 5 xhigh, comparing two or three suitable projects, choosing the best options and implementing file navigation and code highlighting. This assignment-specific effort supersedes the standing high setting. Owner clarified that /files must integrate a ready-made file-navigation library, then explicitly requested a renewed Ratatui-specific investigation by both the parent and Opus with a joint choice.",
+      "depends_on": [
+        "YMP-133",
+        "YMP-134",
+        "YMP-135"
+      ],
+      "reason": "The Files page only lists the selected directory and exposes path metadata; it cannot navigate directories or read highlighted source content. Reuse suitable maintained libraries behind narrow application interfaces.",
+      "acceptance": [
+        "Reassess two or three actual reusable file-explorer components specifically for Ratatui 0.30.2 using current primary sources. Parent and Claude Opus 5 xhigh compare findings and agree on the component; record compatibility, maintenance, licensing, dependency cost and real integration tradeoffs. Preserve the separately researched syntax-highlighting choice unless a concrete integration issue changes it.",
+        "Integrate ratatui-explorer 0.3.0 into /files using its actual navigation, selection, filter/map and widget APIs, with narrow error/empty-state guards. A custom navigator backed only by cap-std does not satisfy this requirement. The old /files table layout is superseded for this page; retain other pages. Start browsing at execution cwd, allow parent traversal, keep browsing read-only and execution cwd/session unchanged, and connect bounded source preview/highlighting.",
+        "Keep file-content previews bounded and handle unreadable, deleted, binary, large, Unicode and unusual filenames without reading special-file contents or sending data to providers. Preserve literal source content while preventing terminal control interpretation. Document the selected native widget's synchronous whole-directory enumeration and lack of a directory timeout; do not claim asynchronous or bounded-duration listing.",
+        "Delegate UI implementation to the explicitly requested Claude Opus 5 xhigh; preserve pending YMP-136/137 changes, independently review integration and run required Rust and representative offline terminal checks.",
+        "Record source commits and reproducible verification evidence, update English interface documentation and remove temporary assignment worktrees only after results are retained and accepted."
+      ],
+      "evidence": [
+        "ymp-docs/research/evidence/file-navigation-139/ratatui-recheck/joint-decision.json",
+        "ymp-docs/architecture/file-navigation-and-highlighting.md",
+        "ymp-docs/research/evidence/file-navigation-139/integrated/verification.json",
+        "ymp-docs/research/evidence/release-044/verification.json"
+      ],
+      "history": [
+        {
+          "at": "2026-09-13T08:37:32.944922+00:00",
+          "status": "in_progress",
+          "note": "Native Claude catalog confirms claude-opus-5 supports xhigh. A managed development worktree is based on candidate 508d7f5 so the implementation can use Ratatui 0.30.2 and the pending semantic themes. The maintainer will independently verify prerequisite integration; no change to the standing effort policy or approved intent."
+        },
+        {
+          "at": "2026-09-13T08:41:26.040998+00:00",
+          "status": "in_progress",
+          "note": "Claude Opus 5 xhigh launched as Paseo agent 1d46240d-791d-476c-8fdb-82c246d087f2 in workspace wks_dfebc35245c1183e, branch feat/ymp139-file-navigation. Native requested and effective effort are both xhigh. The parent supplied bounded read-only browsing/preview contracts and independently passed fmt, Clippy and 504 prerequisite tests; physical theme/table checks are running."
+        },
+        {
+          "at": "2026-09-13T09:06:50.094130+00:00",
+          "status": "in_progress",
+          "note": "Author selected cap-std 4.0.3 and syntect 5.3.0 with two-face 0.5.2+bat-0.26.1 after examining explorer and highlighting candidates. Draft browse/highlight adapters are written; implementation and author checks continue. Parent verified primary sources, reproduced the missing directory-descent behavior in a real terminal, and requested a directory-entry bound plus unambiguous filename escaping. APFS rejects invalid UTF-8 filenames, so physical identity checks use newline/space names and raw-byte keys require separate pure tests. Final integration and installation remain pending."
+        },
+        {
+          "at": "2026-09-13T09:16:34.679791+00:00",
+          "status": "in_progress",
+          "note": "Owner corrected the interpretation: integrate a ready-made navigator library for /files. Parent immediately redirected the existing Opus xhigh agent and began an independent Ratatui-specific web search. cap-std is no longer the proposed navigation component; useful highlighting/preview work remains. Parent-imposed fixed /files table layout and no-ascent rule must not be used to dismiss otherwise suitable widgets. Joint selection and implementation remain in progress."
+        },
+        {
+          "at": "2026-09-13T09:25:05.946320+00:00",
+          "status": "in_progress",
+          "note": "Parent and Opus completed independent Ratatui-specific searches and source reviews and jointly chose ratatui-explorer 0.3.0. Considered tui-file-explorer, ratatui-interact and the additional ratatree candidate. Author is instructed to integrate the real widget, guard failed directory entry and empty input/rendering, remove cap-std/custom navigation, and retain bounded previews plus highlighting. Normal parent traversal is allowed without changing execution cwd. No implementation acceptance or installation is claimed."
+        },
+        {
+          "at": "2026-09-13T09:32:47.997557+00:00",
+          "status": "in_progress",
+          "note": "Owner requested two additional joint rechecks: ratatui-async-explorer and highlighting alternatives. Parent verified async explorer 0.3.4 and sole upstream master still use Ratatui 0.29, while tui-syntax-highlight 0.2.0 uses ratatui-core 0.1 and provides a public per-line adapter. Opus is reassessing both choices; current draft is preserved and no alternative is yet integrated. Pending independent checks cover actual async behavior, path identity and highlighted text fidelity."
+        },
+        {
+          "at": "2026-09-13T09:37:14.221139+00:00",
+          "status": "in_progress",
+          "note": "Owner explicitly directed implementing the agreed components and extending agent-output highlighting. Parent adapter probe passed on Ratatui 0.30.2, including literal text, multiline state and semantic colors; CRLF normalization is identified. Opus is instructed to complete 139 without another recommendation pause. Agent-output presentation is tracked separately as YMP-140; no readiness or installation claim yet."
+        },
+        {
+          "at": "2026-09-13T10:24:42.058451+00:00",
+          "status": "done",
+          "note": "Accepted and integrated author commit 1eaf6a4 as f19cb4b. Parent production bytes match the author; required fmt, strict Clippy and all 535 tests pass (2 ignored). Independent file/path/read-only probe and 19 table/theme terminal cases in both Unicode and ASCII pass. Preview-content limits are enforced; native synchronous directory enumeration is explicitly documented rather than claimed bounded in time. File preview and Inspect highlight code; inline agent output follows in YMP-140. Combined installed verification remains with 137/140."
+        },
+        {
+          "at": "2026-09-13T11:07:10.648046+00:00",
+          "status": "done",
+          "note": "Installed release 0.4.4 is independently verified: required Rust checks pass (535 tests, 2 ignored), staged Unicode/ASCII file and table cases pass, and the installed command passes 12 file-navigation and 19 table/theme cases including all 18 themes. Previous executable is backed up. Inline agent output continues separately in YMP-140."
+        }
+      ]
+    },
+    {
+      "id": "YMP-140",
+      "title": "Render agent code and explicit diffs clearly using established AI-chat patterns",
+      "type": "implementation",
+      "priority": "P1",
+      "status": "in_progress",
+      "owner": "Existing Claude Opus 5 xhigh author continues the current assignment; maintainer owns reference research, contracts and acceptance",
+      "authorization": "Owner explicitly requested implementing the agreed navigation/highlighting work and adding highlighted agent output in the same or a separate task, informed by mature systems and other AI chats.",
+      "depends_on": [
+        "YMP-139"
+      ],
+      "reason": "Agent output mixes prose, code, command output and proposed changes. It needs readable presentation that respects the actual content and available provenance.",
+      "acceptance": [
+        "Inspect primary documentation/source of two or three mature AI coding/chat systems and record a concrete presentation decision for ymp, with source URLs and limits.",
+        "Apply syntax highlighting to explicit fenced code and readable addition/removal/context styling to explicit diff/patch content. Distinguish actual structured edit evidence from prose or suggested changes; never invent a before/after version or interpret arbitrary output as a patch.",
+        "Preserve stored message text, whitespace, authorship and originating invocation. Keep Detailed/Inspect expansion, streaming and scrolling usable, and apply current semantic themes including light themes and monochrome fallbacks.",
+        "Reuse the accepted highlighting implementation from YMP-139; keep formatting and diff classification bounded, preserve unknown-language/plain-text fallbacks and handle incomplete streamed fences/patches truthfully.",
+        "Delegate UI implementation to the current requested Claude assignment, independently inspect the integration and verify representative real-terminal mock fixtures plus required Rust checks; record what is actually installed."
+      ],
+      "evidence": [
+        "ymp-docs/architecture/agent-output-highlighting.md",
+        "ymp-docs/research/evidence/agent-output-140/reference-sources.json",
+        "ymp-docs/research/evidence/agent-output-140/baseline-color/report.json",
+        "ymp-docs/research/evidence/agent-output-140/baseline-message/report.json"
+      ],
+      "history": [
+        {
+          "at": "2026-09-13T09:37:14.221139+00:00",
+          "status": "planned",
+          "note": "Registered as a sequential presentation follow-up to 139. Parent and author will inspect mature AI chat/coding interfaces while the navigator and highlighter are implemented. This record is a plan, not delivered agent-output highlighting."
+        },
+        {
+          "at": "2026-09-13T09:44:35.656132+00:00",
+          "status": "planned",
+          "note": "Parent inspected pinned primary source from Gemini CLI, OpenCode and Aider. Contract recorded: separate prose, language-tagged code and explicit diffs; preserve text/provenance and streaming, never invent before/after content. Current runtime has text messages/deltas, not a universal structured file-diff record. Implementation follows acceptance of 139; reference research is complete."
+        },
+        {
+          "at": "2026-09-13T10:08:43.903244+00:00",
+          "status": "planned",
+          "note": "Independent terminal baseline now has observable SGR colors: 8 distinct color pairs in Ember and 12 in Catppuccin Latte, while code/diff tokens remain undifferentiated. Initial capture inherited NO_COLOR=1 and is explicitly invalidated for color claims. Corrected checker clears NO_COLOR only for color tests, has a separate monochrome mode, and confirms stored message bytes remain unchanged. Implementation still depends on accepted 139."
+        },
+        {
+          "at": "2026-09-13T10:24:42.058451+00:00",
+          "status": "in_progress",
+          "note": "YMP-139 is independently accepted in main. Existing Opus author continues sequentially with inline agent-code and explicit-diff presentation using the agreed reference contract and highlighter. Parent checker distinguishes inline chat from Inspect; no output-highlighting completion or installed release is claimed yet."
+        },
+        {
+          "at": "2026-09-13T10:35:25.819604+00:00",
+          "status": "in_progress",
+          "note": "Validated terminal baseline after accepted 139 confirms the exact remaining gap: Inspect highlights code and explicit diff in Ember/Latte, while inline Detailed chat does not. The checker now observes the actual selected message dialog after grammar load, with independent SGR-observability and stored-byte checks. Opus is implementing 140; final positive and monochrome checks remain."
         }
       ]
     }
   ],
-  "updated_at": "2026-09-13T07:19:30.422157+00:00",
+  "updated_at": "2026-09-13T11:07:10.648046+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",
@@ -3858,8 +4040,8 @@
     "stage": "MVP"
   },
   "installed_release": {
-    "version": "0.4.3",
+    "version": "0.4.4",
     "status": "installed",
-    "evidence": "ymp-docs/research/evidence/release-043/verification.json"
+    "evidence": "ymp-docs/research/evidence/release-044/verification.json"
   }
 }

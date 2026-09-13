@@ -177,6 +177,8 @@ provider = "demo"
 
                 chat_code_colored = chat_style("let code_140") != chat_style("literal  spaces")
                 chat_diff_colored = chat_style("-let REMOVED_140") != chat_style("+let ADDED_140")
+                assert chat_style("PROSE_LIST_140") == chat_style("OUTPUT_BEGIN_140"), "chat prose list acquired diff styling"
+                assert chat_style("OUTPUT_END_140") == chat_style("OUTPUT_BEGIN_140"), "chat code styling leaked into prose"
                 # Loading the session appends a non-message notice after our
                 # injected report. Select the report before opening Inspect.
                 # End enters follow mode; the first Up selects the final notice,
@@ -209,10 +211,13 @@ provider = "demo"
 
                 code_colored = style("let code_140") != style("literal  spaces")
                 diff_colored = style("-let REMOVED_140") != style("+let ADDED_140")
+                assert style("PROSE_LIST_140") == style("OUTPUT_BEGIN_140"), "Inspect prose list acquired diff styling"
+                assert style("OUTPUT_END_140") == style("OUTPUT_BEGIN_140"), "Inspect code styling leaked into prose"
                 case = {"theme": theme, "literal_text": True, "code_colored": code_colored,
                         "diff_colored": diff_colored, "prose_visible": True,
                         "chat_code_colored": chat_code_colored, "chat_diff_colored": chat_diff_colored,
                         "inspect_opened": True,
+                        "prose_not_diff": True,
                         "distinct_color_pairs": distinct_colors}
                 if args.monochrome:
                     assert all(pair == (None, None) for pair in chat_colors), "chat ignored NO_COLOR"

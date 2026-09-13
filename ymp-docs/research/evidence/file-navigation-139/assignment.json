@@ -1,0 +1,12 @@
+{
+  "task": "YMP-139",
+  "agent_id": "1d46240d-791d-476c-8fdb-82c246d087f2",
+  "workspace_id": "wks_dfebc35245c1183e",
+  "workspace": "/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp139-file-navigation",
+  "branch": "feat/ymp139-file-navigation",
+  "base": "508d7f575ea73e9b4d65e81949b006883197caad",
+  "model": "claude-opus-5",
+  "requested_thinking": "xhigh",
+  "effective_thinking": "xhigh",
+  "authorization": "Explicit owner request overrides the standing high default for this assignment only."
+}

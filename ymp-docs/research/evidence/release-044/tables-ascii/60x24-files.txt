@@ -1,0 +1,24 @@
+ymp  project             fc38a676  + completed  - tok  8/200
+------------------------------------------------------------
+ Files[4]  /files /Users/maggnus/Code/ymp2/ymp-docs/researc…
+------------------------------------------------------------
+ > ../
+   a-large.txt
+   greeting.txt
+   m-small.txt
+   z-medium.txt
+
+
+
+
+
+
+
+
+
+
+
+
+------------------------------------------------------------
+> Describe a task, or type / for commands.
+Ready main Enter open  Backspace parent  / filter  d details

@@ -1,0 +1,36 @@
+{
+  "verified": "2026-09-13",
+  "sources": [
+    {
+      "project": "cap-std",
+      "version": "4.0.3",
+      "url": "https://docs.rs/cap-std/latest/cap_std/fs/struct.Dir.html",
+      "repository": "https://github.com/bytecodealliance/cap-std",
+      "checked": "Dir APIs resolve relative paths; this is a browsing adapter boundary, not provider execution isolation."
+    },
+    {
+      "project": "syntect",
+      "version": "5.3.0",
+      "url": "https://docs.rs/syntect/5.3.0/syntect/",
+      "repository": "https://github.com/trishume/syntect",
+      "checked": "Parsing and highlighting APIs are separate; inspect application bounds and regex-backend feature selection in the final manifest."
+    },
+    {
+      "project": "two-face",
+      "version": "0.5.2+bat-0.26.1",
+      "url": "https://docs.rs/two-face/0.5.2%2Bbat-0.26.1/two_face/",
+      "repository": "https://codeberg.org/CosmicHarper/two-face",
+      "checked": "Additional versioned syntax assets; regex backend must match syntect, fancy excludes some grammars; the acknowledgement API covers embedded asset notices."
+    }
+  ],
+  "local_manifest_inspection": [
+    "ratatui-explorer 0.3.0: Ratatui 0.30 dependency",
+    "tui-file-explorer 2.3.0: Ratatui 0.30 and Crossterm 0.29 dependencies, optional preview/full-app/CLI features"
+  ],
+  "implementation_acceptance": "Pending; upstream inspection does not validate the delegated code.",
+  "final_source_review_checks": [
+    "Do not call SyntaxSet::find_syntax_for_file in the preview path: upstream implementation can reopen unknown-extension paths with File::open and read an unbounded first line. Select syntax using the already bounded text and path metadata.",
+    "Bound individual lines and total highlighting work; fancy-regex errors become non-matches internally, so the frontend must not rely on a propagated regex error for responsiveness.",
+    "Use native cap_std::fs/Path identity; display formatting must not become the row action key."
+  ]
+}

@@ -1,0 +1,12 @@
+ym┌ Colour theme ──── saved on Enter ┐00
+--│   Slate               dark       │--
+  │   Dracula             dark       │ …
+- │   One Dark Pro        dark       │ -
+  │   Nord                dark       │
+  │ > Catppuccin Mocha    dark       │
+  │   Soothing warm pastels on the   │
+  │                                  │
+  │ Up/Down preview  Enter keep      │
+--└────────────────────────── 4 more ┘--
+> Describe a task, or type / for command
+Ready main Space add or remove  Enter o…

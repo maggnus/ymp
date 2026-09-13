@@ -1,0 +1,45 @@
+ymp  project  /Users/maggnus/Code/ymp2/ymp-docs/research/evidence/file-navigation-…  1662f9ac  ✓ completed  — tokens  8 / 200 turns captured
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ Files</m-small>[1]  /files /Users/maggnus/Code/ymp2/ymp-docs/research/evidence/file-navigation-139/prer…│ SESSION
+─────────────────────────────────────────────────────────────────────────────────────────────────────────│ 1662f9ac             ✓ completed
+   NAME         KIND  SIZE ↓                                                                             │ turns this session       8 / 200
+ › m-small.txt  file     3 B                                                                             │ dir …requisites/terminal/project
+                                                                                                         │
+                                                                                                         │ TOKENS                         —
+                                                                                                         │ AGENT   TOKENS
+                                                                                                         │ Atlas        —
+                                                                                                         │ Cygnus       —
+                                                                                                         │
+                           ┌ m-small.txt ──────────────────────────────────────────────────────────── read only ┐              this session
+                           │ path              /Users/maggnus/Code/ymp2/ymp-docs/research/evidence/file-navigat │    STATE
+                           │                   ion-139/prerequisites/terminal/project/m-small.txt               │    idle
+                           │ kind              file                                                             │ s  idle
+                           │ size              3 B                                                              │
+                           │                                                                                    │            accepted 1 / 1
+                           │ Up/Down scroll  Esc close                                                          │
+                           └────────────────────────────────────────────────────────────────────────────────────┘
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+› Describe a task, or type / for commands.
+Ready                                                        main Enter show the full path  Esc back  / filter  Shift+letter sort  d inspect

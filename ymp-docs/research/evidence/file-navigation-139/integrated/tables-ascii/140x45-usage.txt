@@ -1,0 +1,45 @@
+ymp  project  /Users/maggnus/Code/ymp2/ymp-docs/research/evidence/file-navigation-…  529fc995  + completed  - tokens  8 / 200 turns captured
+--------------------------------------------------------------------------------------------------------------------------------------------
+ Token usage[3]  /usage                                           - tokens · 0 of 8 invocations reported | SESSION
+---------------------------------------------------------------------------------------------------------| 529fc995             + completed
+   SESSION                                                                                               | turns this session       8 / 200
+   SCOPE          TOKENS                                                                                 | dir …grated/tables-ascii/project
+ > session total       -                                                                                 |
+                                                                                                         | TOKENS                         -
+   AGENTS                                                                                                | AGENT   TOKENS
+   AGENT   PROVIDER  TOKENS                                                                              | Atlas        -
+   Atlas   demo           -                                                                              | Cygnus       -
+   Cygnus  demo           -                                                                              |
+                                                                                                         | TEAM                this session
+                                                                                                         | AGENT     STATE
+                                                                                                         | o Atlas   idle
+                                                                                                         | o Cygnus  idle
+                                                                                                         |
+                                                                                                         | TASKS             accepted 1 / 1
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+--------------------------------------------------------------------------------------------------------------------------------------------
+> Describe a task, or type / for commands.
+Ready                                                                   main Enter inspect  Esc back  / filter  Shift+letter sort  d inspect

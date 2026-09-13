@@ -1,0 +1,45 @@
+{
+  "accepted_at": "2026-09-13T10:24:42.058451+00:00",
+  "author_commit": "1eaf6a4b30022d489acd5342159c101f35171d26",
+  "integration_commit": "f19cb4b",
+  "parent_head": "c50fe98e3134af8fa7b5a17e7cd9edff09cec1e5",
+  "production_source_matches_author": true,
+  "parent_binary_sha256": "58131ca86a33c64c817010441074fffc31e887e8635b896e28d78ef54893fcbf",
+  "parent_checks": [
+    {
+      "check": "fmt",
+      "exit_code": 0,
+      "log": "fmt.log"
+    },
+    {
+      "check": "clippy",
+      "exit_code": 0,
+      "log": "clippy.log"
+    },
+    {
+      "check": "test",
+      "exit_code": 0,
+      "log": "test.log"
+    },
+    {
+      "check": "build",
+      "exit_code": 0,
+      "log": "build.log"
+    }
+  ],
+  "workspace_tests": {
+    "passed": 535,
+    "failed": 0,
+    "ignored": 2
+  },
+  "parent_file_probe": "../parent-candidate/report.json",
+  "table_unicode_cases": 19,
+  "table_ascii_cases": 19,
+  "review": "Real explorer widget/API and per-line syntax adapter are integrated; checked native paths, failed navigation, empty-state guards, read-only bounded preview, theme/keyboard interaction and unchanged runtime contracts. No required 139 corrections remain.",
+  "limits": [
+    "Native directory enumeration is synchronous and has no timeout.",
+    "Linux/Windows runtime validation was not performed; APFS raw-byte names are checked through pure key/display tests.",
+    "Inline agent-message highlighting is still owned by YMP-140; only file preview and Inspect are highlighted here."
+  ],
+  "installation": "Pending combined local maintenance release with YMP-137/140; this acceptance confirms integrated functionality, not an installed upgrade."
+}

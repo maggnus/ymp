@@ -1,0 +1,24 @@
+ymp  project                                 f9e3d11a  ✓ completed  — tok  8/200
+────────────────────────────────────────────────────────────────────────────────
+ Help[44]  /help Every command and key, in one place │ SESSION
+─────────────────────────────────────────────────────│ f9e3d11a     ✓ completed
+   CONVERSATION                                      │ turns this ses…  8 / 200
+   COMMAND   SUMMARY                                 │ dir …lled-tables/project
+ › /chat     Return to the conversation.             │
+   /new      Start an unrelated task. The next pr…   │ TOKENS                 —
+   /details  Toggle full attributed agent message…   │ AGENT   TOKENS
+                                                     │ Atlas        —
+   NAVIGATE                                          │ Cygnus       —
+   COMMAND       SUMMARY                             │
+   /help         Command reference and keyboard m…   │ TEAM        this session
+   /tasks        Task graph, assignments and outc…   │ AGENT     STATE
+   /usage        Token statistics for the loaded …   │ ○ Atlas   idle
+   /sessions     Saved sessions for this project.…   │ ○ Cygnus  idle
+   /files        Browse files read only, starting…   │
+   /diff         Files created, modified or delet…   │ TASKS     accepted 1 / 1
+   /checks       Commands ymp ran itself for the …   │
+   /assignments  Turns the run assigned, with the…   │
+                                                     │
+────────────────────────────────────────────────────────────────────────────────
+› Describe a task, or type / for commands.
+Ready main Enter run the command  Esc back to the conversation  / filter  Shift…

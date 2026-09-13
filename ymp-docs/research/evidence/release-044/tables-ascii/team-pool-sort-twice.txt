@@ -1,0 +1,45 @@
+ymp  project  /Users/maggnus/Code/ymp2/ymp-docs/research/evidence/release-044/tabl…  fc38a676  + completed  - tokens  8 / 200 turns captured
+--------------------------------------------------------------------------------------------------------------------------------------------
+ Team</Atlas>[2]  /team                          2 captured by this session · 3 eligible on this machine | SESSION
+---------------------------------------------------------------------------------------------------------| fc38a676             + completed
+   MEMBERS OF THIS SESSION                                                                               | turns this session       8 / 200
+      AGENT  READING             PROVIDER  STATE                                                         | dir …se-044/tables-ascii/project
+   +  Atlas  model not recorded  demo      3 turn(s) here                                                |
+                                                                                                         | TOKENS                         -
+   AVAILABLE ON THIS MACHINE                                                                             | AGENT   TOKENS
+      MODEL v  PROVIDER  STATE                                                                           | Atlas        -
+ > +  Atlas    demo      eligible                                                                        | Cygnus       -
+                                                                                                         |
+                                                                                                         | TEAM                this session
+                                                                                                         | AGENT     STATE
+                                                                                                         | o Atlas   idle
+                                                                                                         | o Cygnus  idle
+                                                                                                         |
+                                                                                                         | TASKS             accepted 1 / 1
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+--------------------------------------------------------------------------------------------------------------------------------------------
+> Describe a task, or type / for commands.
+Ready                                      main Space add or remove  Enter open the record  Esc back  / filter  Shift+letter sort  d inspect

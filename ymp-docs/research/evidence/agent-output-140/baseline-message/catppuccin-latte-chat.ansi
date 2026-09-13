@@ -1,0 +1,50 @@
+[1m[38;2;30;102;245m[48;2;239;241;245mymp[0m[38;2;140;143;161m[48;2;239;241;245m  [1m[38;2;49;51;68mproject[0m[38;2;140;143;161m[48;2;239;241;245m  /Users/maggnus/Code/ymp2/ymp-docs/resea…[38;2;76;79;105m  [38;2;108;111;133mf3b63ce4[38;2;76;79;105m  [38;2;64;160;43m✓ completed[38;2;76;79;105m  [38;2;140;143;161m— tokens[38;2;76;79;105m  [38;2;140;143;161m8 / 200 turns captured[38;2;76;79;105m  [38;2;30;102;245mdetails
+[38;2;180;182;195m────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+[38;2;76;79;105m
+  [38;2;64;160;43m· [1m[38;2;49;51;68mAtlas[0m[38;2;108;111;133m[48;2;239;241;245m · execution report[38;2;76;79;105m                                                                                     [38;2;140;143;161m10:31[38;2;76;79;105m
+    Created greeting.txt and verified its content.
+  [38;2;140;143;161m· [38;2;108;111;133mCygnus [38;2;140;143;161mreview · accepted · The stated acceptance criteria are satisfied.[38;2;76;79;105m                                     [38;2;140;143;161m10:31[38;2;76;79;105m
+    [38;2;140;143;161m{"approved":true,"lesson":"Check the produced artifact against the requested content.","reason":"The stated [38;2;76;79;105m
+    [38;2;140;143;161macceptance criteria are satisfied."}[38;2;76;79;105m
+  [38;2;140;143;161m· [38;2;108;111;133mCygnus [38;2;140;143;161mreview · accepted · The stated acceptance criteria are satisfied.[38;2;76;79;105m                                     [38;2;140;143;161m10:31[38;2;76;79;105m
+    [38;2;140;143;161m{"approved":true,"lesson":"Check the produced artifact against the requested content.","reason":"The stated [38;2;76;79;105m
+    [38;2;140;143;161macceptance criteria are satisfied."}[38;2;76;79;105m
+  [38;2;140;143;161m· [38;2;108;111;133mCygnus [38;2;140;143;161mproposed a reusable procedure · Verify file-producing tasks[38;2;76;79;105m                                           [38;2;140;143;161m10:31[38;2;76;79;105m
+    [38;2;140;143;161m{"content":"For file-producing tasks, check both existence and requested content. Run the check on the final [38;2;76;79;105m
+    [38;2;140;143;161mintegrated artifact.","title":"Verify file-producing tasks","useful":true}[38;2;76;79;105m
+  [38;2;140;143;161m· [38;2;108;111;133mAtlas [38;2;140;143;161mreview · accepted · The stated acceptance criteria are satisfied.[38;2;76;79;105m                                      [38;2;140;143;161m10:31[38;2;76;79;105m
+    [38;2;140;143;161m{"approved":true,"lesson":"Check the produced artifact against the requested content.","reason":"The stated [38;2;76;79;105m
+    [38;2;140;143;161macceptance criteria are satisfied."}[38;2;76;79;105m
+  [38;2;23;146;153m◇ Unconfirmed procedure candidate retained: Verify file-producing tasks[38;2;76;79;105m                                        [38;2;140;143;161m10:31[38;2;76;79;105m
+
+  [1m[38;2;30;102;245m◆ [38;2;49;51;68mCygnus[0m[38;2;108;111;133m[48;2;239;241;245m · final result[38;2;76;79;105m                                                                                        [38;2;140;143;161m10:31[38;2;76;79;105m
+    The requested artifact is complete and independently verified.
+
+  [1m[38;2;30;102;245m◆ [38;2;49;51;68mymp[0m[38;2;108;111;133m[48;2;239;241;245m · run summary[38;2;76;79;105m                                                                                            [38;2;140;143;161m10:31[38;2;76;79;105m
+    The requested artifact is complete and independently verified.
+
+    Acceptance: accepted; confirmation: unconfirmed.
+
+    Workspace: /Users/maggnus/Code/ymp2/ymp-docs/research/evidence/agent-output-140/baseline-message/project
+
+  [38;2;64;160;43m· [1m[38;2;49;51;68munknown model[0m[38;2;108;111;133m[48;2;239;241;245m · execution report[38;2;76;79;105m                                                                             [38;2;140;143;161m00:00[38;2;76;79;105m
+    OUTPUT_BEGIN_140
+
+    [38;2;140;143;161m│ [38;2;49;51;68m[48;2;218;221;229mfn main() {[38;2;76;79;105m[48;2;239;241;245m
+    [38;2;140;143;161m│ [38;2;49;51;68m[48;2;218;221;229m    let code_140 = "literal  spaces";[38;2;76;79;105m[48;2;239;241;245m
+    [38;2;140;143;161m│ [38;2;49;51;68m[48;2;218;221;229m}[38;2;76;79;105m[48;2;239;241;245m
+
+    [38;2;140;143;161m│ [38;2;49;51;68m[48;2;218;221;229mdiff --git a/demo.rs b/demo.rs[38;2;76;79;105m[48;2;239;241;245m
+    [38;2;140;143;161m│ [38;2;49;51;68m[48;2;218;221;229m--- a/demo.rs[38;2;76;79;105m[48;2;239;241;245m
+    [38;2;140;143;161m│ [38;2;49;51;68m[48;2;218;221;229m+++ b/demo.rs[38;2;76;79;105m[48;2;239;241;245m
+    [38;2;140;143;161m│ [38;2;49;51;68m[48;2;218;221;229m@@ -1 +1 @@[38;2;76;79;105m[48;2;239;241;245m
+    [38;2;140;143;161m│ [38;2;49;51;68m[48;2;218;221;229m-let REMOVED_140 = 1;[38;2;76;79;105m[48;2;239;241;245m
+    [38;2;140;143;161m│ [38;2;49;51;68m[48;2;218;221;229m+let ADDED_140 = 2;[38;2;76;79;105m[48;2;239;241;245m
+
+    [38;2;30;102;245m• [38;2;76;79;105mPROSE_LIST_140 is an ordinary list item.
+
+    OUTPUT_END_140
+  [38;2;23;146;153m◇ Session loaded for reading. Send a message to continue the conversation, or use /resume to continue the run.[38;2;76;79;105m [38;2;140;143;161m10:31[38;2;76;79;105m
+[1m[38;2;30;102;245m────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+[48;2;227;229;236m› [0m[38;2;140;143;161m[48;2;227;229;236mDescribe a task, or type / for commands.[38;2;76;79;105m
+[38;2;140;143;161m[48;2;239;241;245mReady[38;2;76;79;105m                                                                    [38;2;108;111;133mcomposer [38;2;30;102;245mEnter[38;2;108;111;133m send[38;2;140;143;161m  [38;2;30;102;245mCtrl+P[38;2;108;111;133m commands[38;2;140;143;161m  [38;2;30;102;245mTab[38;2;108;111;133m focus

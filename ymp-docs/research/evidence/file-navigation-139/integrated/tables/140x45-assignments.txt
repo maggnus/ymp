@@ -1,0 +1,45 @@
+ymp  project  /Users/maggnus/Code/ymp2/ymp-docs/research/evidence/file-navigation-…  1b61f53b  ✓ completed  — tokens  8 / 200 turns captured
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ Assignments[8]  /assignments                                        8 assigned · none open · read 10:17 │ SESSION
+─────────────────────────────────────────────────────────────────────────────────────────────────────────│ 1b61f53b             ✓ completed
+ › ◇ How work is assigned, and what these records are  what this page is                                 │ turns this session       8 / 200
+                                                                                                         │ dir …9/integrated/tables/project
+   RECORDED EARLIER                                                                                      │
+      AGENT   PURPOSE        STATE      STARTED                                                          │ TOKENS                         —
+   ✓  Atlas   plan           completed  2026-09-13 10:17                                                 │ AGENT   TOKENS
+   ✓  Cygnus  review_plan    completed  2026-09-13 10:17                                                 │ Atlas        —
+   ✓  Atlas   execute        completed  2026-09-13 10:17                                                 │ Cygnus       —
+   ✓  Cygnus  review         completed  2026-09-13 10:17                                                 │
+   ✓  Cygnus  final_review   completed  2026-09-13 10:17                                                 │ TEAM                this session
+   ✓  Cygnus  learn          completed  2026-09-13 10:17                                                 │ AGENT     STATE
+   ✓  Atlas   review_memory  completed  2026-09-13 10:17                                                 │ ○ Atlas   idle
+   ✓  Cygnus  synthesis      completed  2026-09-13 10:17                                                 │ ○ Cygnus  idle
+                                                                                                         │
+                                                                                                         │ TASKS             accepted 1 / 1
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+› Describe a task, or type / for commands.
+Ready                                                           main Enter show the record  Esc back  / filter  Shift+letter sort  d inspect

@@ -1,0 +1,36 @@
+ymp  project  /Users/maggnus/Code/ymp2/ymp-docs/research/evide…  529fc995  + completed  - tokens  8 / 200 turns captured
+------------------------------------------------------------------------------------------------------------------------
+ Team</Atlas>[2]  /team          2 captured by this session · 3 eligible on this machine | SESSION
+-----------------------------------------------------------------------------------------| 529fc995         + completed
+   MEMBERS OF THIS SESSION                                                               | turns this session   8 / 200
+      AGENT  READING                                                                     | dir …ed/tables-ascii/project
+   +  Atlas  model not recorde ┌ Colour theme ────────────────────────── saved on Enter ┐|
+                               │ > Ember               dark                             │| TOKENS                     -
+   AVAILABLE ON THIS MACHINE   │   Warm amber on black. The default ymp palette.        │| AGENT   TOKENS
+      MODEL v  PROVIDER  STATE │   Slate               dark                             │| Atlas        -
+ > +  Atlas    demo      eligi │   Dracula             dark                             │| Cygnus       -
+                               │   One Dark Pro        dark                             │|
+                               │   Nord                dark                             │| TEAM            this session
+                               │   Catppuccin Mocha    dark                             │| AGENT     STATE
+                               │   Catppuccin Latte    light                            │| o Atlas   idle
+                               │   Gruvbox Dark        dark                             │| o Cygnus  idle
+                               │   Gruvbox Light       light                            │|
+                               │ v 9 more                                               │| TASKS         accepted 1 / 1
+                               │                                                        │|
+                               │ The whole interface previews as you move.              │|
+                               │                                                        │|
+                               │ Up/Down preview  Enter keep  Esc cancel                │|
+                               └────────────────────────────────────────────────────────┘|
+                                                                                         |
+                                                                                         |
+                                                                                         |
+                                                                                         |
+                                                                                         |
+                                                                                         |
+                                                                                         |
+                                                                                         |
+                                                                                         |
+                                                                                         |
+------------------------------------------------------------------------------------------------------------------------
+> Describe a task, or type / for commands.
+Ready                  main Space add or remove  Enter open the record  Esc back  / filter  Shift+letter sort  d inspect

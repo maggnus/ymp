@@ -1,0 +1,84 @@
+{
+  "binary": "/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp139-file-navigation/target/debug/ymp",
+  "ascii": true,
+  "native_inference": false,
+  "cases": [
+    {
+      "case": "sidebar-without-navigation",
+      "passed": true
+    },
+    {
+      "case": "detailed-expands-long-agent-report",
+      "passed": true
+    },
+    {
+      "case": "files-widget",
+      "passed": true
+    },
+    {
+      "case": "paste-stays-in-filter",
+      "passed": true
+    },
+    {
+      "case": "filter-and-clear",
+      "passed": true
+    },
+    {
+      "case": "inverse-filter",
+      "passed": true
+    },
+    {
+      "case": "file-widget-native-order",
+      "passed": true
+    },
+    {
+      "case": "empty-filter-recovery",
+      "passed": true
+    },
+    {
+      "case": "inspect-filtered-row-and-return",
+      "passed": true
+    },
+    {
+      "case": "pages-at-140x45",
+      "passed": true
+    },
+    {
+      "case": "pages-at-80x24",
+      "passed": true
+    },
+    {
+      "case": "pages-at-60x24",
+      "passed": true
+    },
+    {
+      "case": "sorted-profile-edit-retains-record",
+      "passed": true
+    },
+    {
+      "case": "team-selection-keeps-table-identity",
+      "passed": true
+    },
+    {
+      "case": "modal-margin-preserves-sidebar-divider",
+      "passed": true
+    },
+    {
+      "case": "short-surface-selection-stays-visible",
+      "passed": true
+    },
+    {
+      "case": "all-eighteen-themes-reachable-at-40x12",
+      "passed": true
+    },
+    {
+      "case": "narrow-choice-prompt-and-confirm-surfaces",
+      "passed": true
+    },
+    {
+      "case": "workspace-unchanged",
+      "passed": true
+    }
+  ],
+  "passed": true
+}

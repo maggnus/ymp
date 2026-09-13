@@ -1,0 +1,751 @@
+    Blocking waiting for file lock on build directory
+   Compiling ymp-core v0.4.4 (/Users/maggnus/Code/ymp2/ymp-rust/crates/ymp-core)
+   Compiling ymp-eval-driver v0.4.4 (/Users/maggnus/Code/ymp2/ymp-rust/crates/ymp-eval-driver)
+   Compiling ymp-providers v0.4.4 (/Users/maggnus/Code/ymp2/ymp-rust/crates/ymp-providers)
+   Compiling ymp-workspace v0.4.4 (/Users/maggnus/Code/ymp2/ymp-rust/crates/ymp-workspace)
+   Compiling ymp-storage v0.4.4 (/Users/maggnus/Code/ymp2/ymp-rust/crates/ymp-storage)
+   Compiling ymp-runtime v0.4.4 (/Users/maggnus/Code/ymp2/ymp-rust/crates/ymp-runtime)
+   Compiling ymp-tui v0.4.4 (/Users/maggnus/Code/ymp2/ymp-rust/crates/ymp-tui)
+   Compiling ymp-cli v0.4.4 (/Users/maggnus/Code/ymp2/ymp-rust/crates/ymp-cli)
+    Finished `test` profile [unoptimized] target(s) in 33.81s
+     Running unittests src/main.rs (target/debug/deps/ymp-faa1a70a483d95d2)
+
+running 1 test
+test tests::team_probe_charges_its_first_explicit_invocation_at_admission ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+     Running tests/acceptance_contracts.rs (target/debug/deps/acceptance_contracts-9c951d7710f57000)
+
+running 6 tests
+test executable_missing_and_duplicate_targets_stop_before_production ... ok
+test demo_keeps_explicit_contract_configuration ... ok
+test executable_contract_confirms_and_supplies_supported_knowledge_to_a_later_session ... ok
+test executable_correction_contract_scope_and_public_mcp_history_are_reachable ... ok
+test executable_absent_partial_and_failed_contracts_do_not_create_supported_credit ... ok
+test executable_resume_rejects_changed_or_added_authority_and_allows_capture_only_resume ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.44s
+
+     Running tests/long_metadata_home.rs (target/debug/deps/long_metadata_home-a8faa0eaac3a9c3c)
+
+running 1 test
+test demo_preserves_long_metadata_home_and_selected_output_directory ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.54s
+
+     Running tests/message_labels.rs (target/debug/deps/message_labels-f6039a76e6eeec18)
+
+running 1 test
+test headless_headings_name_each_invocation_by_its_model_and_effort ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 13.08s
+
+     Running tests/native_catalog.rs (target/debug/deps/native_catalog-e045fadaa47a2c40)
+
+running 10 tests
+test executable_claude_sdk_scan_preserves_native_alias_names_and_selects_offerings ... ignored, requires npm ci and npm run build in ymp-bridges/claude; still fixture-only
+test simultaneous_scans_are_serialized_and_edits_during_discovery_are_preserved ... ok
+test failed_initial_and_bounded_scans_leave_explicit_unresolved_state ... ok
+test init_upgrades_existing_generated_placeholders_and_keeps_disabled_custom_actors ... ok
+test first_scan_preserves_fixed_model_policy_qualified_experience ... ok
+test first_scan_preserves_defaulted_model_policy_qualified_experience ... ok
+test effective_overrides_use_native_aliases_and_unknown_claims_never_become_native ... ok
+test executable_runtime_captures_the_effective_native_assignment_identity ... ok
+test executable_scan_populates_native_names_and_selection_without_enrolling_the_catalog ... ok
+test repeat_change_and_partial_failure_preserve_actor_pins_custom_profiles_and_history ... ok
+
+test result: ok. 9 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 12.22s
+
+     Running unittests src/lib.rs (target/debug/deps/ymp_core-c1349865b6b102ce)
+
+running 11 tests
+test usage::tests::cache_and_reasoning_are_not_counted_twice ... ok
+test usage::tests::missing_usage_is_distinct_from_zero ... ok
+test config::execution::tests::pins_are_singletons_and_defaults_only_fill_missing_choices ... ok
+test model::tests::rejects_cycles ... ok
+test model::tests::rejects_self_acceptance_and_double_assignment ... ok
+test model::tests::rejects_ambiguous_malformed_or_wrong_schema_responses ... ok
+test model::tests::parses_review_after_streamed_commentary ... ok
+test provenance::execution_version_tests::historical_observation_identity_survives_absent_backend_metadata ... ok
+test config::execution::tests::versions_separate_effective_configuration_and_unknown_reports ... ok
+test config::lock_tests::completed_configuration_owner_releases_before_inherited_descriptor_closes ... ok
+test reputation::tests::experienced_success_wins_more_but_newcomers_get_opportunities ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/pool_metadata.rs (target/debug/deps/pool_metadata-afe1742c17ac9a27)
+
+running 5 tests
+test live_activity_requires_bound_distinct_invocations_for_current_members ... ok
+test captured_names_survive_profile_edits_and_do_not_imply_membership_or_activity ... ok
+test invalid_capability_claims_fail_before_pool_inspection_or_invocation ... ok
+test legacy_profiles_round_trip_without_renaming_or_inventing_capabilities ... ok
+test configured_native_controls_round_trip_with_exact_types_and_unknowns ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (target/debug/deps/ymp_eval_driver-58580ce66d640d73)
+
+running 7 tests
+test driver_controls::qualitative_rubric_rejects_well_formatted_unrelated_content ... ok
+test driver_controls::actual_workflow_export_rejects_missing_acceptance_and_retains_extra_usage_and_credit ... ok
+test export::tests::build_binding_rejects_source_and_checker_drift_and_unknown_backends_stay_unknown ... ok
+test export::tests::effort_projection_preserves_extra_early_unattributed_and_duplicate_runtime_events ... ok
+test export::tests::location_projection_preserves_extra_answers_outcomes_and_query_results ... ok
+test driver_controls::actual_knowledge_export_retains_duplicates_order_and_rejects_missing_sources ... ok
+test export::tests::partial_projection_uses_causal_sequence_and_maps_the_guarantee_read ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 10.80s
+
+     Running tests/restart.rs (target/debug/deps/restart-0abb4e884ba0d3a0)
+
+running 1 test
+test real_process_recovery_projection_preserves_extra_closure_revocation_and_order ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.22s
+
+     Running unittests src/lib.rs (target/debug/deps/ymp_providers-ebf4615af339ed93)
+
+running 13 tests
+test usage::tests::acp_usage_is_not_assumed_to_cover_a_whole_turn ... ok
+test usage::tests::a_new_process_can_reset_totals_even_if_its_new_numbers_are_larger ... ok
+test redaction::tests::safe_errors_keep_their_types_and_empty_capabilities_do_not_rewrite_text ... ok
+test redaction::tests::nested_protocol_error_data_and_repeated_values_are_redacted ... ok
+test redaction::tests::every_error_format_and_source_is_redacted_without_losing_diagnosis ... ok
+test usage::tests::resumed_thread_history_is_subtracted_and_repeats_do_not_accumulate ... ok
+test usage::tests::missing_or_reset_baseline_is_partial_not_full_history ... ok
+test discovery::tests::configured_metadata_cannot_claim_to_be_an_observed_native_response ... ok
+test discovery::tests::fixed_execution_model_takes_precedence_over_a_stale_profile_default_in_pool_eligibility ... ok
+test discovery::tests::cached_installation_discovery_preserves_roster_ids_and_names ... ok
+test discovery::tests::eligibility_distinguishes_disabled_missing_unknown_and_explicitly_unlisted ... ok
+test discovery::catalog::lock_tests::completed_scan_owner_releases_before_inherited_descriptor_closes ... ok
+test discovery::tests::pool_inspection_never_runs_the_provider_and_does_not_select_a_team ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.44s
+
+     Running tests/authority.rs (target/debug/deps/authority-6c68745c532d375a)
+
+running 4 tests
+test debug_output_never_contains_the_live_capability_secret ... ok
+test acp_resume_resets_prior_bypass_mode_before_prompt ... ok
+test codex_resume_replaces_saved_mcp_configuration_and_native_sandbox ... ok
+test unsupported_permission_guarantees_and_unsafe_acp_restore_never_prompt ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.03s
+
+     Running tests/backend.rs (target/debug/deps/backend-8852e31036553cad)
+
+running 1 test
+test backend_common_validation_rejects_invalid_settings_and_permission_mismatch ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/codex_retry.rs (target/debug/deps/codex_retry-2642ce3eae092cf5)
+
+running 10 tests
+test codex_native_retry_keeps_only_known_error_codes ... ok
+test codex_native_retry_does_not_disable_cancellation ... ok
+test codex_native_retry_filters_other_threads_and_turns ... ok
+test codex_native_retry_completes_the_same_invocation ... ok
+test codex_native_retry_before_start_response_preserves_unknown_usage ... ok
+test native_provenance_distinguishes_sent_reported_and_unknown_settings ... ok
+test codex_native_retry_can_still_end_in_terminal_failure ... ok
+test codex_native_retry_requires_completion_and_final_text ... ok
+test codex_native_retry_requires_an_explicit_boolean_true ... ok
+test codex_native_retry_does_not_disable_timeout ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.01s
+
+     Running tests/resource_limits.rs (target/debug/deps/resource_limits-3e29c85ec151dd1e)
+
+running 2 tests
+test timeout_also_bounds_mock_backend_and_keeps_partial_usage ... ok
+test output_limit_stops_the_provider_path_and_keeps_final_usage ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests/settings.rs (target/debug/deps/settings-74c687b39dae1850)
+
+running 7 tests
+test codex_sends_assignment_model_and_open_catalog_effort_to_the_turn ... ok
+test codex_rejects_unadvertised_effort_before_prompt ... ok
+test acp_unknown_model_can_use_observed_controls_but_stale_controls_cannot_validate_effort ... ok
+test missing_and_explicitly_absent_controls_have_distinct_no_prompt_diagnostics ... ok
+test native_defaults_stay_omitted_and_model_drift_is_rejected_before_prompt ... ok
+test acp_uses_refreshed_model_controls_and_checks_acknowledgement ... ok
+test acp_output_exhaustion_keeps_usage_without_accepting_partial_text ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 8.11s
+
+     Running tests/tool_activity.rs (target/debug/deps/tool_activity-b34f6d3b0f647871)
+
+running 1 test
+test bridge_tool_activity_follows_native_execution_metadata ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.06s
+
+     Running unittests src/lib.rs (target/debug/deps/ymp_runtime-307a7c04552f6e2c)
+
+running 112 tests
+test engine::confirmation_tests::confirmation_pinned_validator_captures_actual_process_and_data ... ok
+test engine::confirmation_tests::confirmation_failed_applicable_assertion_overrides_every_approving_agent ... ok
+test engine::confirmation_tests::confirmation_storage_rejects_forged_result_review_and_credit_links ... ok
+test engine::contract_ingress_tests::configured_invalid_contract_sets_leave_no_partial_session ... ok
+test engine::confirmation_tests::confirmation_alternative_executor_cannot_bypass_runtime_evidence_guards ... ok
+test engine::confirmation_tests::confirmation_final_review_excludes_all_aggregate_producers ... ok
+test engine::confirmation_tests::confirmation_stale_artifact_requires_a_new_attempt_and_new_review ... ok
+test engine::confirmation_tests::confirmation_final_phase_and_review_outcome_are_bound_to_the_invocation ... ok
+test engine::confirmation_tests::confirmation_external_data_is_resolved_from_actual_supplied_bytes ... ok
+test engine::confirmation_tests::confirmation_success_is_attributed_once_and_survives_narration_failure ... ok
+test engine::confirmation_tests::confirmation_coverage_and_agreement_do_not_imply_quality ... ok
+test engine::contract_ingress_tests::configured_missing_and_ambiguous_plan_targets_are_rejected_including_revisions ... ok
+test engine::contract_ingress_tests::configured_resume_revalidates_saved_plan_bindings_before_production_or_review ... ok
+test engine::knowledge_tests::knowledge_intermediate_survives_sibling_failure_and_reaches_later_session ... ok
+test engine::contract_ingress_tests::configured_resume_preserves_capture_and_rejects_replacement_before_invocation ... ok
+test engine::knowledge_tests::knowledge_outcomes_retain_captured_location_after_project_relocation ... ok
+test engine::contract_ingress_tests::configured_requirements_reach_planning_revisions_without_reference_or_verifier_bytes ... ok
+test engine::tests::aborted_execution_is_interrupted_and_never_submitted_as_a_result ... ok
+test engine::tests::allocation_contract_tests::allocation_contradictions_and_unavailable_pins_never_invoke ... ok
+test engine::contract_ingress_tests::configured_input_and_verifier_drift_on_resume_is_not_recaptured_or_confirmed ... ok
+test engine::knowledge_tests::knowledge_partial_confirmation_preserves_candidates_without_activation ... ok
+test engine::knowledge_tests::knowledge_policy_failure_preserves_accepted_project_fact ... ok
+test engine::tests::a_follow_up_question_keeps_context_without_reexecuting_the_task ... ok
+test engine::contract_ingress_tests::configured_changes_during_production_or_review_do_not_create_credit ... ok
+test engine::knowledge_tests::knowledge_scope_source_drift_and_retirement_are_resolved_by_runtime ... ok
+test engine::knowledge_tests::knowledge_policy_substitution_cannot_forge_sources_activation_or_context_limits ... ok
+test engine::tests::allocation_contract_tests::allocation_resource_substitution_cannot_override_runtime_ceilings ... ok
+test engine::tests::allocation_contract_tests::allocation_availability_refresh_blocks_grants_and_active_responsibilities_cannot_depart ... ok
+test engine::tests::allocation_contract_tests::allocation_fixed_size_one_replaces_identity_for_independent_review ... ok
+test engine::tests::allocation_contract_tests::allocation_failed_check_reconsiders_evidence_without_automatic_effort_escalation ... ok
+test engine::tests::allocation_contract_tests::allocation_fixed_size_replacement_preserves_history_and_rejects_retired_admission ... ok
+test engine::tests::allocation_contract_tests::allocation_infeasible_final_review_is_explicit_even_for_a_dishonest_policy ... ok
+test engine::tests::accepting_without_confirmation_never_awards_reputation ... ok
+test engine::tests::backend_contract_tests::backend_public_engine_admission_precedes_script_execution ... ok
+test engine::tests::allocation_contract_tests::allocation_policy_cannot_override_captured_effort_pins ... ok
+test engine::tests::allocation_contract_tests::allocation_dynamic_ceiling_and_fixed_roster_are_distinct ... ok
+test engine::tests::allocation_contract_tests::allocation_resource_substitution_changes_actual_controls_with_the_same_admission_ledger ... ok
+test engine::tests::allocation_contract_tests::allocation_policy_substitution_reaches_native_settings_without_a_universal_effort_ladder ... ok
+test engine::tests::backend_contract_tests::backend_public_engine_executes_a_distinct_workflow_and_records_actual_identity ... ok
+test engine::tests::allocation_contract_tests::allocation_two_task_fixed_roster_keeps_final_review_feasible ... ok
+test engine::tests::allocation_startup_is_bounded_and_never_requires_pool_bids ... ok
+test engine::tests::backend_contract_tests::native_output_limit_never_automatically_retries_a_writer ... ok
+test engine::tests::backend_contract_tests::backend_public_engine_cancels_a_noncooperative_future ... ok
+test engine::tests::assignment_settings_isolate_changes_and_preserve_known_default_and_explicit_continuations ... ok
+test engine::tests::backend_contract_tests::backend_public_engine_redacts_nested_capability_errors ... ok
+test engine::tests::backend_contract_tests::backend_public_engine_stops_result_overflow_and_drains_usage ... ok
+test engine::tests::backend_contract_tests::backend_public_engine_stops_stream_overflow_and_drains_usage ... ok
+test engine::tests::backend_contract_tests::backend_identity_scopes_continuations_and_competence_in_both_directions ... ok
+test engine::tests::budget_context_limit_rejects_before_native_work_without_spending_invocations ... ok
+test engine::tests::allocation_contract_tests::allocation_verified_experience_changes_native_choice_but_unconfirmed_claims_do_not ... ok
+test engine::tests::budget_native_output_stop_reaches_trace_with_actual_usage ... ok
+test engine::tests::backend_contract_tests::tool_activity_names_the_actor_by_id_and_never_by_its_caption ... ok
+test engine::tests::budget_public_resume_preserves_legacy_spend_with_missing_or_sparse_rows ... ok
+test engine::tests::budget_resume_preserves_unknown_usage_stop_and_captured_limits ... ok
+test engine::tests::backend_contract_tests::visible_follow_up_answer_keeps_its_origin_after_decoding ... ok
+test engine::tests::cancellation_preserves_session_without_rewarding_failure ... ok
+test engine::tests::cancellation_retains_reported_tokens ... ok
+test engine::tests::backend_contract_tests::native_review_limit_respects_cancellation_partial_usage_and_token_ceiling ... ok
+test engine::tests::backend_contract_tests::native_review_retry_cannot_exceed_remaining_invocations ... ok
+test engine::tests::budget_minimum_startup_allowance_keeps_plan_review_possible ... ok
+test engine::tests::budget_all_purposes_share_usage_and_timeout_controls ... ok
+test engine::tests::backend_contract_tests::native_review_limit_recovers_without_replaying_the_writer ... ok
+test engine::tests::backend_contract_tests::backend_public_engine_times_out_a_noncooperative_future ... ok
+test engine::tests::captured_pins_reject_conflicting_overrides_before_invocation_and_survive_config_edits ... ok
+test engine::tests::budget_startup_does_not_invoke_every_team_member ... ok
+test engine::tests::disabled_memory_records_no_query_or_included_sources ... ok
+test engine::tests::joint_engine_budget_stops_never_leave_unaccounted_or_active_grants ... ok
+test engine::tests::competence_lookup_and_updates_share_the_original_execution_configuration ... ok
+test engine::tests::memory_retrieval_uses_task_content_and_records_bounded_sources ... ok
+test engine::tests::backend_contract_tests::native_review_limit_does_not_retry_unrelated_or_runtime_stops ... ok
+test engine::tests::every_planner_invocation_has_a_production_decision ... ok
+test engine::tests::failed_final_checks_do_not_restore_a_previously_completed_session ... ok
+test engine::tests::failing_check_overrules_an_approving_reviewer ... ok
+test engine::confirmation_tests::confirmation_delivery_rechecks_files_after_normal_and_failed_narration ... ok
+test engine::tests::knowledge_agreement_never_activates_general_claims ... ok
+test engine::tests::cancellation_during_learning_or_synthesis_still_pauses_the_session ... ok
+test mcp::socket::tests::closing_an_old_binding_preserves_a_replacement_listener ... ok
+test mcp::socket::tests::failed_bind_does_not_unlink_the_existing_listener ... ok
+test mcp::socket::tests::long_addresses_use_separate_private_aliases_and_keep_metadata ... ok
+test mcp::socket::tests::short_address_needs_no_alias_and_releases_its_socket ... ok
+test mcp::tests::board_proposals_cannot_self_grant_or_commit_runtime_state ... ok
+test mcp::tests::competing_runtime_admissions_commit_one_assignment ... ok
+test mcp::tests::concurrent_replayed_request_has_only_one_effect ... ok
+test mcp::tests::concurrent_revocation_cannot_commit_an_operation_after_the_terminal_event ... ok
+test mcp::tests::cross_assignment_and_session_arguments_are_rejected ... ok
+test mcp::tests::duplicate_claims_wrong_scope_and_failed_admission_leave_no_grants_or_events ... ok
+test mcp::tests::explicit_server_admission_rejects_historical_ordinals_before_issuing_capabilities ... ok
+test engine::tests::memory_retrieval_follows_latest_user_request_and_preserves_global_scope ... ok
+test mcp::tests::fresh_assignment_rotates_scope_without_discarding_native_context ... ok
+test mcp::tests::grant_event_rolls_back_when_later_invocation_insert_fails ... ok
+test mcp::tests::joint_budget_denial_creates_no_grant_or_live_capability_across_connections ... ok
+test mcp::tests::joint_terminal_and_restart_release_reservations_and_reject_capabilities ... ok
+test mcp::tests::memory_proposal_records_bound_origin_without_activation ... ok
+test mcp::tests::restart_does_not_restore_credentials_from_native_context ... ok
+test mcp::tests::same_token_is_rejected_by_another_session_server ... ok
+test mcp::tests::scoped_internal_memory_inspection_preserves_applicability_and_confirmation ... ok
+test mcp::tests::server_drop_ends_grants_and_restart_requires_fresh_admission ... ok
+test mcp::tests::task_reassignment_revokes_the_previous_attempt_in_the_same_commit ... ok
+test mcp::tests::terminal_assignment_credentials_reject_completion_failure_and_cancellation ... ok
+test engine::tests::synthesis_failure_preserves_accepted_results_and_usage ... ok
+test public_mcp::tests::published_tool_schemas_match_discovery ... ok
+test workspace_access::tests::scoped_resources_reject_path_aliases_and_conflict_by_components ... ok
+test engine::tests::interrupted_execution_is_inspected_then_resumed_without_failure_credit ... ok
+test engine::tests::team_produces_verified_artifact_memory_and_durable_session ... ok
+test engine::tests::turn_exhaustion_only_preserves_completion_after_final_review ... ok
+test engine::tests::revised_plan_commit_identifies_the_new_producer_and_rejected_predecessor ... ok
+test mcp::tests::internal_memory_search_projects_large_rows_with_versions_and_continuation ... ok
+test engine::tests::usage_updates_are_live_and_final_snapshots_are_not_lost ... ok
+test engine::tests::optional_learning_failure_keeps_the_accepted_result ... ok
+test engine::tests::provenance_uses_task_id_and_captured_limits_across_resume ... ok
+test public_mcp::tests::identified_start_is_insert_only_and_retains_spend ... ok
+test engine::tests::failures_before_final_acceptance_never_use_narration_fallback ... ok
+
+test result: ok. 112 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.31s
+
+     Running tests/allocation_admission.rs (target/debug/deps/allocation_admission-48957092839b217d)
+
+running 13 tests
+test invalid_pinned_reviewer_must_be_rejected_before_startup ... ok
+test required_review_configuration_is_checked_before_startup ... ok
+test known_model_and_effort_conflicts_do_not_create_startup_records ... ok
+test invalid_pinned_reviewer_control_supported_effort_completes ... ok
+test an_effort_pin_can_choose_another_supported_model_without_changing_the_pin ... ok
+test public_admission_must_not_consume_reserved_final_reviewer ... ok
+test public_reserved_admission_must_not_consume_reserved_final_reviewer ... ok
+test replacement_denies_retired_id_and_contradictions_preserve_capture ... ok
+test public_admission_control_allows_ordinary_current_executor ... ok
+test admission_uses_reservation_committed_after_assignment_records_were_prepared ... ok
+test public_consumer_preserves_conversation_and_separates_distinct_task ... ok
+test unknown_native_metadata_does_not_turn_a_pin_into_a_contradiction ... ok
+test reservation_commit_rechecks_production_admitted_after_its_snapshot ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.24s
+
+     Running tests/board_coordination.rs (target/debug/deps/board_coordination-215245a7d8596149)
+
+running 11 tests
+test later_selection_error_drains_and_reviews_already_claimed_work ... ok
+test replacing_strategy_changes_choice_without_bypassing_runtime_validation ... ok
+test malicious_proposals_cannot_override_identity_versions_pins_or_contracts ... ok
+test post_commit_revision_preserves_objectives_contract_and_rejects_stale_plan ... ok
+test actual_team_tools_commit_one_of_two_conflicting_claims_and_execute_the_winner ... ok
+test racing_public_claims_have_one_winner_and_do_not_issue_authority ... ok
+test recovery_inspects_uncertain_effect_before_replay_and_preserves_confirmed_sibling ... ok
+test a_participant_can_distribute_work_and_a_new_subtask_reaches_independent_acceptance ... ok
+test reassignment_and_membership_changes_preserve_historical_contributions ... ok
+test an_approach_revision_keeps_responsibility_and_stale_membership_cannot_overwrite ... ok
+test parallel_commitment_waits_for_busy_owner_and_keeps_prior_claims_running ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.86s
+
+     Running tests/capability_errors.rs (target/debug/deps/capability_errors-ff9cf5cfb7078314)
+
+running 1 test
+test native_errors_preserve_diagnosis_without_exposing_current_capabilities ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.09s
+
+     Running tests/concurrency.rs (target/debug/deps/concurrency-996c63da243d0c7b)
+
+running 11 tests
+test reviewed_task_definition_includes_explicit_authority ... ok
+test legacy_task_access_defaults_to_write_and_is_bound_into_candidate_definition ... ok
+test policy_cannot_claim_unsupported_narrow_backend_guarantees ... ok
+test independent_probe_two_failed_siblings_keep_eligible_review_reachable ... ok
+test independent_read_only_contributions_overlap_through_public_engine ... ok
+test public_admission_cannot_enlarge_reviewed_read_only_authority ... ok
+test failed_sibling_preserves_completed_work_review_usage_and_restart_inspection ... ok
+test scoped_backend_overlaps_independent_read_but_serializes_conflicting_writers ... ok
+test cancellation_releases_waiters_without_spend_and_resume_inspects_only_admitted_work ... ok
+test native_unbounded_access_serializes_writers_and_readers ... ok
+test substituted_workspace_policy_serializes_the_same_public_engine_read_workload ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.96s
+
+     Running tests/knowledge_correction.rs (target/debug/deps/knowledge_correction-2e59bf9fbac8e577)
+
+running 6 tests
+test malicious_correction_policy_cannot_activate_an_uncommitted_replacement ... ok
+test unrelated_review_context_cannot_approve_the_correction_relation ... ok
+test cross_file_correction_reopens_retrieves_and_replays_without_duplicate_credit ... ok
+test unrelated_confirmation_agreement_and_changed_authority_cannot_supersede ... ok
+test policy_substitution_competing_stale_and_cyclic_corrections_remain_runtime_owned ... ok
+test board_integration::board_revision_reassignment_and_busy_owner_preserve_corrected_knowledge_after_failure ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.74s
+
+     Running tests/pool_identity.rs (target/debug/deps/pool_identity-f96f0d98151292f6)
+
+running 1 test
+test agents_sharing_a_backend_keep_contexts_authorship_usage_and_captured_names ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.56s
+
+     Running tests/state_integration.rs (target/debug/deps/state_integration-d5836242804b44ae)
+
+running 1 test
+test membership_changes_preserve_supported_knowledge_and_original_locations ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.48s
+
+     Running tests/workspace_reservation.rs (target/debug/deps/workspace_reservation-ba465a82cc03cb4b)
+
+running 7 tests
+test project_owner_child_probe ... ok
+test policy_cannot_assert_false_enforced_scope_or_forge_native_configuration ... ok
+test lease_admission_binds_identity_and_drop_revokes_before_releasing_access ... ok
+test public_project_ownership_excludes_a_second_process ... ok
+test actual_prompt_and_instruction_bytes_cannot_bypass_captured_context_limits ... ok
+test one_shot_conflict_and_capacity_probes_leave_no_assignment_grant_spend_or_queue ... ok
+test actual_engine_waits_on_the_same_public_reservation_then_runs_after_release ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+     Running unittests src/lib.rs (target/debug/deps/ymp_storage-9aa69f04a702530b)
+
+running 39 tests
+test knowledge::tests::legacy_outcome_without_captured_directory_does_not_invent_a_location ... ok
+test provenance_tests::budget_failed_event_rolls_back_reservation_and_ordinal ... ok
+test provenance_tests::budget_session_save_cannot_rewind_missing_historical_spend ... ok
+test provenance_tests::budget_legacy_resume_captures_new_limits_once_without_inventing_old_policy ... ok
+test knowledge::tests::legacy_active_memory_is_inspectable_but_cannot_be_used_as_supported_evidence ... ok
+test provenance_tests::budget_retains_observed_overshoot_and_rejects_retracted_spend ... ok
+test provenance_tests::bounded_unknown_usage_retains_reported_token_ceiling_and_reservation_races ... ok
+test provenance_tests::budget_concurrent_connections_reserve_once_and_keep_review_usable ... ok
+test provenance_tests::cancellation_failure_and_recovery_preserve_partial_and_unknown_usage ... ok
+test provenance_tests::decisions_preserve_confirmation_distinctions_without_grading ... ok
+test provenance_tests::explicit_admissions_require_the_next_unspent_ordinal ... ok
+test provenance_tests::event_failure_rolls_back_invocation_and_usage_state ... ok
+test provenance_tests::joint_grant_and_budget_events_roll_back_as_one_admission ... ok
+test projection::tests::bounds_full_candidate_rows_and_snapshot_bytes ... ok
+test provenance_tests::live_review_reservation_is_counted_once_and_completed_review_releases_unused_protection ... ok
+test provenance_tests::message_attribution_reads_existing_team_operation_links_without_time_guesses ... ok
+test provenance_tests::message_attribution_keeps_exact_origin_across_model_changes_and_reopening ... ok
+test provenance_tests::session_contract_capture_rolls_back_the_whole_set_on_second_contract_failure ... ok
+test provenance_tests::provenance_is_immutable_attributed_and_exportable_after_reopen ... ok
+test provenance_tests::plan_commit_preserves_reviewed_order_and_forward_dependency_mapping ... ok
+test provenance_tests::provenance_migration_is_transactional_and_legacy_capture_stays_unknown ... ok
+test provenance_tests::wrong_scope_stale_attempt_and_identity_collisions_leave_no_partial_writes ... ok
+test tests::completed_project_owner_releases_lock_before_inherited_descriptor_closes ... ok
+test tests::completed_session_owner_releases_lock_before_inherited_descriptor_closes ... ok
+test provenance_tests::variable_reservations_race_atomically_and_cannot_override_captured_ceiling ... ok
+test provenance_tests::variable_reservations_preserve_partial_usage_stop_and_reject_arithmetic_overflow ... ok
+test tests::only_one_session_may_own_a_project_writer_lock ... ok
+test tests::observations_are_idempotent_and_memory_is_scoped ... ok
+test tests::recorded_checks_are_read_back_in_order_without_completing_missing_fields ... ok
+test tests::session_ids_cannot_be_rebound_to_another_project ... ok
+test provenance_tests::captured_unknown_usage_policy_preserves_partial_spend_and_allows_bounded_admission_only ... ok
+test provenance_tests::budget_cancel_interrupt_and_failure_release_without_refunding_unknown_or_partial_spend ... ok
+test usage::tests::recorded_turns_without_events_are_unknown_not_zero ... ok
+test usage::tests::migration_does_not_add_cumulative_history_again ... ok
+test usage::tests::snapshots_replace_and_agents_are_not_grouped_by_provider ... ok
+test provenance_tests::budget_legacy_missing_calls_remain_additive_across_sparse_concurrent_admission ... ok
+test provenance_tests::stale_task_decisions_cannot_rewind_attempts_or_overwrite_a_later_state ... ok
+test provenance_tests::explicit_storage_wrappers_cannot_replace_unknown_history_or_skip_allowance ... ok
+test provenance_tests::plan_commit_rejects_altered_task_bodies_without_state_or_event_changes ... ok
+
+test result: ok. 39 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.28s
+
+     Running unittests src/lib.rs (target/debug/deps/ymp_tui-c33699581db842fe)
+
+running 239 tests
+test files::tests::a_name_that_is_not_utf8_is_shown_by_its_bytes ... ok
+test files::tests::a_shown_name_escapes_controls_and_cannot_pass_for_another ... ok
+test files::tests::a_long_line_keeps_its_first_characters_and_counts_the_rest ... ok
+test highlight::tests::the_notice_names_the_bundled_version ... ok
+test files::tests::an_empty_list_is_neither_moved_through_nor_drawn ... ok
+test files::tests::tabs_stop_every_four_columns_and_controls_are_written_out ... ok
+test label::tests::a_choice_is_the_raw_concrete_model_and_never_its_caption ... ok
+test label::tests::a_label_cannot_carry_terminal_control ... ok
+test files::tests::a_move_that_fails_keeps_the_list_and_says_why ... ok
+test label::tests::a_thinking_switch_or_a_missing_effort_leaves_the_model_alone ... ok
+test files::tests::a_link_to_a_directory_is_listed_where_it_leads ... ok
+test label::tests::an_unlinked_message_stays_unknown_and_a_linked_fixture_keeps_its_captured_name ... ok
+test label::tests::a_roster_names_a_fixture_by_its_name_and_an_unread_agent_as_unknown ... ok
+test label::tests::work_is_named_by_the_invocations_own_model_and_reported_effort ... ok
+test files::tests::entering_and_leaving_keep_native_paths_and_select_the_directory_left ... ok
+test table::tests::a_note_stays_above_the_rows_of_a_sorted_table ... ok
+test table::tests::a_filter_keeps_matching_rows_and_a_leading_bang_inverts_it ... ok
+test table::tests::an_anchor_finds_its_record_in_its_own_table_then_elsewhere_then_nearby ... ok
+test table::tests::columns_are_as_wide_as_their_widest_cell_and_figures_align_right ... ok
+test table::tests::sort_keys_take_the_first_free_letter_of_each_title ... ok
+test table::tests::a_squeezed_sorted_title_keeps_its_direction ... ok
+test table::tests::a_narrow_table_squeezes_its_flexible_column_then_hides_by_rank_then_cuts ... ok
+test table::tests::sorting_cycles_and_unknown_values_follow_known_ones_either_way ... ok
+test highlight::tests::every_role_reads_on_panels_and_code_in_every_theme ... ok
+test table::tests::a_table_never_takes_more_than_its_width ... ok
+test files::tests::the_filter_keeps_the_parent_row_and_moves_the_selection_to_a_match ... ok
+test tests::a_chosen_theme_is_applied_and_restored_at_the_next_start ... ok
+test tests::a_choice_of_agent_is_its_concrete_model_and_never_a_caption_or_an_unresolved_alias ... ok
+test tests::a_conversation_that_moves_to_a_new_session_keeps_naming_the_earlier_messages ... ok
+test tests::a_budget_stop_is_named_on_the_limits_page ... ok
+test highlight::tests::a_language_is_found_by_name_extension_first_line_or_token ... ok
+test highlight::tests::a_long_line_or_a_spent_budget_leaves_the_rest_plain ... ok
+test highlight::tests::highlighting_keeps_the_text_and_colours_it_by_role ... ok
+test tests::a_failed_attempt_keeps_the_previous_reading_and_says_it_failed ... ok
+test tests::a_directory_removed_after_it_was_listed_is_reported_and_read_again ... ok
+test tests::a_fenced_code_block_is_rendered_character_for_character ... ok
+test tests::a_filter_narrows_the_list_and_esc_clears_it_before_closing_the_page ... ok
+test tests::a_first_ctrl_c_during_a_catalog_reading_stops_nothing ... ok
+test tests::a_first_ctrl_c_leaves_active_work_and_the_draft_untouched ... ok
+test tests::a_first_ctrl_c_when_idle_does_not_leave ... ok
+test tests::a_floating_surface_keeps_the_sidebar_rule_whole_outside_itself ... ok
+test tests::a_floating_surface_leaves_the_rules_around_the_body_intact ... ok
+test tests::a_header_gives_up_its_summary_before_its_own_name ... ok
+test tests::a_link_is_named_with_its_target_and_described_before_it_is_followed ... ok
+test tests::a_live_snapshot_reaches_the_header_before_the_run_finishes ... ok
+test tests::a_live_stream_and_the_sidebar_name_the_invocation_that_is_running ... ok
+test tests::a_captured_member_is_not_relabelled_by_the_catalog_as_it_stands_now ... ok
+test tests::a_captured_member_shows_what_its_turns_ran_with_before_what_its_profile_said ... ok
+test tests::a_message_cannot_be_queued_to_a_session_the_run_is_not_working_on ... ok
+test tests::a_message_sent_during_a_run_is_queued_for_the_shared_chat ... ok
+test tests::a_model_and_effort_reported_after_a_message_was_linked_rename_that_message ... ok
+test tests::a_model_no_reading_lists_is_unknown_and_never_native ... ok
+test tests::a_narrow_sidebar_cuts_what_a_member_is_doing_before_its_model_and_effort ... ok
+test tests::a_confirmed_projection_and_a_candidate_are_not_shown_as_the_same_thing ... ok
+test tests::a_new_snapshot_keeps_the_row_and_the_reading_position ... ok
+test tests::a_decision_is_named_by_the_turn_it_links_and_not_by_a_later_turn_of_its_actor ... ok
+test tests::a_paste_into_a_confirmation_is_ignored ... ok
+test tests::a_paste_reaches_the_field_that_owns_the_keyboard ... ok
+test tests::a_paste_while_a_filter_is_typed_stays_in_the_filter_and_the_palette_ends_typing ... ok
+test tests::a_page_has_no_detail_pane_and_its_record_opens_whole_at_every_supported_size ... ok
+test tests::a_plan_review_is_summarised_like_every_other_review ... ok
+test tests::a_captured_acceptance_contract_is_shown_as_a_binding_and_not_as_a_result ... ok
+test tests::a_profile_with_no_native_reading_is_not_presented_as_a_named_agent ... ok
+test tests::a_confirmed_acceptance_names_its_evidence_and_its_credit ... ok
+test tests::a_finished_session_is_named_by_the_identity_its_turns_captured ... ok
+test tests::a_provider_that_reports_part_of_a_turn_is_marked_partial ... ok
+test tests::a_read_only_task_is_shown_as_declared_and_never_as_measured ... ok
+test tests::a_reading_that_is_no_longer_current_says_so_rather_than_reading_as_native ... ok
+test tests::a_record_binds_only_to_the_exact_invocation_it_names ... ok
+test tests::a_decision_that_changed_the_plan_reads_as_its_own_outcome ... ok
+test tests::a_record_written_before_tasks_were_recorded_is_read_as_unscoped ... ok
+test tests::a_rejected_configuration_change_is_reverted_and_reported ... ok
+test tests::a_member_the_roster_replaced_is_not_presented_as_one_and_keeps_its_records ... ok
+test tests::a_membership_decision_says_what_it_changed_and_what_it_reserved ... ok
+test tests::a_page_keeps_its_name_and_command_at_every_supported_size ... ok
+test tests::a_repeated_or_released_key_is_not_a_second_press ... ok
+test tests::a_plan_change_an_agent_asked_for_is_listed_with_its_outcome_and_reason ... ok
+test tests::a_run_recorded_without_a_task_covers_every_task_that_declared_the_command ... ok
+test tests::a_run_scoped_to_one_task_does_not_cover_the_same_command_in_another ... ok
+test tests::a_plan_that_could_not_be_read_is_not_shown_as_a_plan_with_nothing_on_it ... ok
+test tests::a_running_session_shows_live_tokens_turns_and_status_together ... ok
+test tests::a_reopened_session_is_measured_against_the_limits_it_captured ... ok
+test tests::a_saved_session_names_its_team_by_its_records_and_not_by_the_profiles_it_captured ... ok
+test tests::a_scanned_model_is_shown_exactly_as_the_installation_resolved_it ... ok
+test tests::a_second_ctrl_c_after_the_window_only_asks_again ... ok
+test tests::a_saved_theme_that_is_no_longer_offered_starts_with_the_default ... ok
+test tests::a_session_that_captured_no_resource_limits_shows_no_token_policy_in_their_place ... ok
+test tests::a_session_that_captured_no_limits_says_so_instead_of_showing_todays ... ok
+test tests::a_relocated_project_does_not_move_where_an_outcome_was_recorded ... ok
+test tests::a_shared_chat_post_is_named_by_the_invocation_its_team_operation_committed ... ok
+test tests::a_short_id_names_the_record_and_not_the_kind_it_is ... ok
+test tests::a_proposal_is_named_by_the_turn_that_asked_and_never_by_a_later_one ... ok
+test tests::a_snapshot_replaces_the_previous_one_instead_of_adding_to_it ... ok
+test tests::a_single_line_stream_cannot_fill_the_transcript ... ok
+test tests::a_proposal_no_decision_answered_is_not_shown_as_refused ... ok
+test tests::a_record_that_carries_its_own_outcome_never_reads_as_ungraded ... ok
+test tests::a_source_preview_takes_the_theme_colours_and_names_its_language ... ok
+test tests::a_truncated_record_says_the_rest_is_not_shown_anywhere ... ok
+test tests::a_thinking_switch_is_not_shown_as_an_effort_and_stays_in_the_details ... ok
+test tests::a_correction_reads_as_applied_in_its_row_and_in_its_record ... ok
+test tests::a_word_with_quotes_or_control_characters_reads_back_exactly ... ok
+test tests::a_contract_names_the_inputs_it_declares_and_the_source_a_correction_replaced ... ok
+test tests::a_reopened_session_shows_the_token_policy_it_captured_and_not_todays ... ok
+test tests::a_session_that_recorded_no_roster_says_so_and_still_shows_its_records ... ok
+test tests::an_actor_whose_model_comes_from_its_execution_policy_is_still_named_natively ... ok
+test tests::an_agent_held_up_by_coordination_is_not_reported_as_working ... ok
+test tests::an_agent_model_and_instructions_can_be_edited_from_the_page ... ok
+test tests::a_setting_rewritten_on_its_way_out_names_both_values ... ok
+test tests::a_session_without_a_token_ceiling_names_no_allowance_and_protects_nothing ... ok
+test tests::a_usage_row_names_the_model_its_turns_actually_ran_with ... ok
+test tests::an_empty_list_at_the_filesystem_root_takes_every_key ... ok
+test tests::an_entry_can_be_inspected_in_full ... ok
+test tests::an_empty_page_paints_its_prose_whole_at_every_supported_size ... ok
+test tests::an_execution_turn_is_labelled_as_a_report_not_as_a_change ... ok
+test tests::an_idle_prompt_continues_the_loaded_conversation ... ok
+test tests::an_acceptance_on_review_alone_is_not_presented_as_confirmed ... ok
+test tests::an_open_invocation_in_a_stored_session_is_not_called_running ... ok
+test tests::an_unknown_command_is_reported_without_changing_the_view ... ok
+test tests::an_unknown_theme_is_reported_and_changes_nothing ... ok
+test tests::an_unlinked_native_message_stays_unknown_after_its_actor_runs_as_a_local_fixture ... ok
+test tests::a_turn_left_open_is_not_called_running_until_a_run_is_active ... ok
+test tests::asking_a_disabled_installation_is_refused_with_its_reason ... ok
+test tests::a_task_says_who_is_responsible_for_it_and_what_was_put_off ... ok
+test tests::browsing_a_saved_session_reports_what_was_stored ... ok
+test tests::browsing_above_the_start_changes_no_directory_setting_or_file ... ok
+test tests::browsing_sessions_during_a_run_stays_available ... ok
+test tests::an_accepted_outcome_names_the_directory_it_was_recorded_in ... ok
+test tests::cancelling_an_editor_discards_the_text_pasted_into_it ... ok
+test tests::command_lists_align_their_summaries_and_keep_text_off_the_border ... ok
+test tests::ctrl_c_asks_the_same_question_from_every_region ... ok
+test tests::ctrl_c_twice_leaves_from_a_file_preview ... ok
+test tests::ctrl_c_twice_leaves_from_an_open_overlay_without_closing_it_first ... ok
+test tests::detailed_mode_collapses_no_agent_message ... ok
+test tests::editing_never_splits_a_character ... ok
+test tests::enter_completes_a_partial_name_and_runs_it ... ok
+test tests::enter_drafts_only_a_command_that_cannot_act_without_an_argument ... ok
+test tests::enter_on_a_directory_lists_it_and_backspace_returns_to_its_row ... ok
+test tests::a_task_that_waited_says_what_it_waited_for ... ok
+test tests::enter_on_resume_without_an_argument_reports_instead_of_drafting ... ok
+test tests::enter_runs_a_command_whose_arguments_are_optional ... ok
+test tests::enter_on_a_source_file_shows_its_literal_text ... ok
+test tests::esc_closes_the_topmost_surface_in_order ... ok
+test tests::every_message_names_the_model_and_effort_of_the_invocation_that_wrote_it ... ok
+test tests::every_theme_is_distinct_and_at_least_one_is_light ... ok
+test tests::an_accepted_result_whose_files_changed_stays_accepted_and_says_what_changed ... ok
+test tests::help_lists_every_command_in_the_registry ... ok
+test tests::every_page_renders_at_the_smallest_supported_size ... ok
+test tests::instructions_editor_preserves_multiline_content_and_keeps_the_cursor_visible ... ok
+test tests::invocations_with_no_agent_leave_the_agent_figures_incomplete ... ok
+test tests::keep_the_fixtures_an_interface_walk_reads ... ignored
+test tests::an_assignment_shows_what_was_sent_and_never_claims_an_unreported_setting_applied ... ok
+test tests::an_assignment_says_whether_its_token_allowance_was_requested_or_inherited ... ok
+test tests::leaving_stops_the_work_and_names_a_session_opened_while_it_stopped ... ok
+test tests::large_binary_and_empty_files_are_described_rather_than_dumped ... ok
+test tests::an_old_unlinked_record_stays_unknown_after_a_known_native_turn_of_its_actor ... ok
+test tests::leaving_waits_only_so_long_for_work_that_does_not_stop ... ok
+test tests::an_unreadable_grade_is_never_read_as_a_pass ... ok
+test tests::a_retired_entry_is_kept_and_is_never_offered ... ok
+test tests::only_a_session_that_exists_gets_a_resume_command ... ok
+test tests::opening_a_saved_session_reads_it_and_starts_nothing ... ok
+test tests::opening_another_session_shows_the_statistics_that_session_recorded ... ok
+test tests::opening_the_statistics_page_selects_the_session_and_inspects_its_breakdown ... ok
+test tests::other_input_withdraws_the_question ... ok
+test tests::quit_and_ctrl_d_still_leave_on_one_explicit_request ... ok
+test tests::re_reading_the_catalog_is_an_action_that_asks_no_provider_anything ... ok
+test tests::read_only_pages_never_produce_a_run_action ... ok
+test tests::recorded_checks_show_their_command_and_outcome_for_the_selected_session ... ok
+test tests::repository_discovery_looks_above_the_working_directory_and_never_concludes_absence ... ok
+test tests::credit_this_session_did_not_read_is_reported_and_not_asserted ... ok
+test tests::resuming_a_session_is_a_separate_explicit_key ... ok
+test tests::routine_coordination_is_collapsed_and_routing_is_hidden ... ok
+test tests::representative_viewports_render_without_clipping_the_composer ... ok
+test tests::selection_stays_in_its_own_table_when_a_key_repeats_on_the_page ... ok
+test tests::selection_stays_on_an_edited_profile_that_its_sort_moves ... ok
+test tests::selection_table_counts_records_sorts_values_as_figures_and_filter_typing_ends_with_focus ... ok
+test tests::statistics_are_forgotten_when_the_conversation_is ... ok
+test tests::streaming_text_does_not_move_the_reading_position ... ok
+test tests::submitting_follows_up_after_a_session_is_loaded_and_new_starts_a_fresh_run ... ok
+test tests::tab_cycles_one_focus_owner_and_esc_walks_back_to_the_composer ... ok
+test tests::table_column_titles_stay_on_screen_while_the_rows_scroll ... ok
+test tests::table_filter_keeps_matching_rows_inverts_on_bang_and_clears_before_the_page_closes ... ok
+test tests::every_theme_renders_a_complete_screen ... ok
+test tests::table_sessions_hide_lesser_columns_on_a_narrow_terminal ... ok
+test tests::table_sort_orders_figures_as_numbers_keeps_unknown_last_and_the_selection ... ok
+test tests::team_membership_and_limits_are_saved_and_reloaded ... ok
+test tests::knowledge_a_run_recorded_without_evidence_is_listed_rather_than_hidden ... ok
+test tests::the_change_view_states_that_previous_content_was_never_recorded ... ok
+test tests::the_checks_page_does_not_report_an_absent_session_as_an_absent_record ... ok
+test tests::the_closing_status_names_the_work_it_waits_on ... ok
+test tests::the_command_palette_filters_and_closes_without_side_effects ... ok
+test tests::the_composer_places_the_cursor_on_the_cell_the_next_character_fills ... ok
+test tests::home_wins_over_a_record_remembered_from_a_live_update ... ok
+test tests::the_first_screen_says_how_the_directory_is_used_and_what_cannot_be_undone ... ok
+test tests::the_inspect_surface_is_built_for_its_own_width_and_not_the_terminal ... ok
+test tests::the_last_theme_of_the_long_chooser_is_previewed_saved_cancelled_and_reloaded_in_a_short_window ... ok
+test tests::the_palette_keeps_its_selection_in_view_on_a_short_terminal ... ok
+test tests::local_fixture_agents_keep_their_names_and_the_user_and_ymp_keep_theirs ... ok
+test tests::the_palette_runs_optional_argument_commands_and_drafts_required_ones ... ok
+test tests::the_paused_state_and_its_remedy_are_shown ... ok
+test tests::the_question_is_painted_and_withdrawn_when_its_window_passes ... ok
+test tests::the_resume_command_names_the_saved_project_and_reads_back_through_a_shell ... ok
+test tests::membership_keeps_an_agent_that_worked_here_after_it_leaves_the_pool ... ok
+test tests::the_session_total_and_the_agents_survive_a_small_terminal ... ok
+test tests::the_sidebar_is_present_from_eighty_columns_and_can_be_hidden ... ok
+test tests::the_sidebar_lists_no_destinations ... ok
+test tests::locations_that_could_not_be_read_are_not_reported_as_none ... ok
+test tests::the_sidebar_shows_the_team_the_session_captured_not_the_edited_configuration ... ok
+test tests::the_statistics_page_reads_and_starts_nothing ... ok
+test tests::the_status_line_keeps_what_the_window_is_doing_at_every_supported_size ... ok
+test tests::no_row_puts_more_in_its_right_column_than_the_narrowest_column_holds ... ok
+test tests::the_theme_chooser_previews_and_esc_restores_the_stored_choice ... ok
+test tests::the_whole_window_names_a_member_by_what_the_installation_returned ... ok
+test tests::the_working_directory_is_always_visible ... ok
+test tests::tool_activity_names_the_running_invocation_and_keeps_the_members_purpose ... ok
+test tests::selection_follows_a_live_update_that_moves_its_record_before_the_next_frame ... ok
+test tests::table_keys_inspect_without_acting_and_memory_search_moves_to_s ... ok
+test tests::typing_a_command_offers_completions_and_tab_accepts_one ... ok
+test tests::two_agents_on_one_provider_are_counted_apart ... ok
+test tests::unicode_survives_a_round_trip_through_the_transcript ... ok
+test tests::unknown_is_not_zero_and_a_growing_total_says_so ... ok
+test tests::an_entry_recorded_for_other_conditions_is_not_current_here ... ok
+test tests::wrapping_keeps_whitespace_that_carries_meaning ... ok
+test theme::tests::ember_and_slate_lead_the_catalog_unchanged_and_ember_is_the_default ... ok
+test theme::tests::every_palette_keeps_its_text_labels_and_selected_row_readable ... ok
+test theme::tests::the_catalog_offers_the_requested_library_palettes_in_order ... ok
+test theme::tests::the_ink_of_a_selected_row_is_the_side_that_contrasts_more ... ok
+test views::tests::a_narrow_record_keeps_its_lines_inside_the_width ... ok
+test views::tests::a_value_recorded_as_unknown_sorts_as_unknown_and_none_stays_a_value ... ok
+test views::tests::every_value_of_a_record_starts_in_one_column ... ok
+test tests::the_theme_chooser_keeps_its_selection_in_view_on_a_short_terminal ... ok
+test tests::unreadable_files_directories_and_fifos_are_ordinary_states ... ok
+test tests::unusual_names_are_escaped_and_each_opens_its_own_file ... ok
+test tests::the_access_a_turn_held_is_shown_as_the_backend_enforced_it ... ok
+test tests::both_sides_of_a_correction_are_kept_and_each_says_which_it_is ... ok
+test tests::the_decision_and_not_the_stored_status_says_what_became_of_a_proposal ... ok
+test tests::the_sidebar_lists_tokens_team_and_open_tasks_as_aligned_tables ... ok
+test tests::turns_recorded_without_a_captured_identity_are_not_renamed_from_the_present_catalog ... ok
+test tests::the_record_pages_paint_their_statements_whole_at_every_supported_size ... ok
+test tests::the_row_that_explains_the_page_is_not_something_an_action_applies_to ... ok
+
+test result: ok. 238 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 5.00s
+
+     Running unittests src/lib.rs (target/debug/deps/ymp_workspace-611a804ebfcf9788)
+
+running 15 tests
+test tests::filename_validation_rejects_non_utf8_relative_paths ... ok
+test repository::tests::a_working_directory_that_cannot_be_canonicalized_is_still_inspected ... ok
+test repository::tests::git_environment_variables_are_reported_because_they_override_the_walk ... ok
+test preview::tests::an_unreadable_file_is_an_ordinary_state ... ok
+test preview::tests::special_files_are_never_opened_as_regular_ones ... ok
+test repository::tests::nothing_found_is_reported_as_the_bounds_of_the_search ... ok
+test repository::tests::a_git_file_is_reported_as_the_worktree_or_submodule_link_it_is ... ok
+test preview::tests::a_preview_reads_no_more_than_its_limit_and_says_so ... ok
+test repository::tests::a_directory_nested_below_the_root_is_still_inside_the_repository ... ok
+test preview::tests::content_that_is_not_utf8_text_is_named_rather_than_shown ... ok
+test preview::tests::links_are_followed_to_what_they_name_and_reported_when_they_lead_nowhere ... ok
+test tests::listing_keeps_symlinks_without_following_them_and_hashes_link_targets ... ok
+test tests::writes_stay_in_the_working_directory_and_home_contains_only_metadata ... ok
+test tests::listing_preserves_sorted_names_and_excludes_ignored_paths_and_nested_metadata ... ok
+test tests::listing_skips_regular_file_contents_but_change_detection_reads_them ... ok
+
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+   Doc-tests ymp_core
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests ymp_providers
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests ymp_runtime
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests ymp_storage
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests ymp_tui
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests ymp_workspace
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

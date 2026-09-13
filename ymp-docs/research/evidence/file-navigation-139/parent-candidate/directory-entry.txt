@@ -1,0 +1,32 @@
+ymp  project  /Users/maggnus/Code/ymp2/ymp-docs/research/evide…  5a1c6809  ✓ completed  — tokens  8 / 200 turns captured
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ Files[4]  /files /Users/maggnus/Code/ymp2/ymp-docs/research/evidence/file-navigation-13…│ SESSION
+─────────────────────────────────────────────────────────────────────────────────────────│ 5a1c6809         ✓ completed
+ › ../                                                                                   │ turns this session   8 / 200
+   link-out.rs -> /Users/maggnus/Code/ymp2/ymp-docs/research/evidence/file-navigation-   │ dir …arent-candidate/project
+   literal.rs                                                                            │
+   same-a b.rs                                                                           │ TOKENS                     —
+   same-a\nb.rs                                                                          │ AGENT   TOKENS
+                                                                                         │ Atlas        —
+                                                                                         │ Cygnus       —
+                                                                                         │
+                                                                                         │ TEAM            this session
+                                                                                         │ AGENT     STATE
+                                                                                         │ ○ Atlas   idle
+                                                                                         │ ○ Cygnus  idle
+                                                                                         │
+                                                                                         │ TASKS         accepted 1 / 1
+                                                                                         │
+                                                                                         │
+                                                                                         │
+                                                                                         │
+                                                                                         │
+                                                                                         │
+                                                                                         │
+                                                                                         │
+                                                                                         │
+                                                                                         │
+                                                                                         │
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+› Describe a task, or type / for commands.
+Ready                                    main Enter open  Backspace parent  / filter  d details  r read again  Esc close

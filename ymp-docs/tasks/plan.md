@@ -1,6 +1,6 @@
 # Delivery plan and progress
 
-Updated: 2026-09-13 07:19 UTC.
+Updated: 2026-09-13 11:07 UTC.
 
 [Approved intent](../../intent.md) · [Task details and evidence](README.md) · [Canonical register](tasks.json)
 
@@ -14,7 +14,7 @@ Delivery counts exclude completed research and planning work. They are task coun
 
 Target release: **0.4.0 (MVP)**. Final acceptance: [YMP-121](README.md#ymp-121), with independent review at **max** reasoning. The version is not released until that task is complete.
 
-Installed maintenance release: **0.4.3**. The target above records the initial MVP baseline; current patch verification is in [0.4.3 release notes](../releases/0.4.3.md).
+Installed maintenance release: **0.4.4**. The target above records the initial MVP baseline; current patch verification is in [0.4.4 release notes](../releases/0.4.4.md).
 
 ## Status key
 
@@ -33,7 +33,7 @@ A planned task automatically shows `[=]` while prerequisites remain unfinished a
 ## Current work and owner questions
 
 - `[+]` [YMP-130](README.md#ymp-130) — Show active agent work during headless session runs (2026-09-13 00:54). Read-only diagnosis: poker checks passed at 2026-09-13T00:52:09Z; the following claude-opus-5 review invocation was active. Earlier attempts were cancelled. No active run was stopped or restarted by this investigation.
-- `[~]` [YMP-136](README.md#ymp-136) — Upgrade the terminal stack to the latest stable Ratatui release (2026-09-13 07:19). Verified upstream releases and local manifests. Latest Ratatui0.30.2 and ratatui-themes0.3.0 are compatible; the current workspace remains0.29 until implementation is reviewed. UI work uses Claude Opus5 high.
+- `[~]` [YMP-140](README.md#ymp-140) — Render agent code and explicit diffs clearly using established AI-chat patterns (2026-09-13 10:35). Validated terminal baseline after accepted 139 confirms the exact remaining gap: Inspect highlights code and explicit diff in Ember/Latte, while inline Detailed chat does not. The checker now observes the actual selected message dialog after grammar load, with independent SGR-observability and stored-byte checks. Opus is implementing 140; final positive and monochrome checks remain.
 
 ## Ready next
 
@@ -140,11 +140,11 @@ Deferred and post-MVP work:
 
 | Time (UTC) | Task | State | Update |
 | --- | --- | --- | --- |
-| 2026-09-13 07:19 | [YMP-136](README.md#ymp-136) | `[~]` | Verified upstream releases and local manifests. Latest Ratatui0.30.2 and ratatui-themes0.3.0 are compatible; the current workspace remains0.29 until implementation is reviewed. UI work uses Claude Opus5 high. |
-| 2026-09-13 07:19 | [YMP-137](README.md#ymp-137) | `[=]` | Positive integration assessment: use the library for palette data and retain ymp semantic roles and chooser behavior. Ratatui migration is a separate prerequisite. Original themes request has not yet changed application code. |
-| 2026-09-13 07:01 | [YMP-133](README.md#ymp-133) | `[x]` | Installed0.4.3 with all record pages and sidebar collections as tables, numeric sorting, substring/inverse filters, sticky headers and Inspect. Required layout and selected-record defects were fixed; same-table identity survives refresh/edit events. Final input-boundary corrections are included. Independent review accepted;498 Rust tests and18 terminal cases in both Unicode and ASCII pass, plus the installed-binary rerun. |
-| 2026-09-13 07:01 | [YMP-134](README.md#ymp-134) | `[x]` | Installed0.4.3 with sidebar navigation removed, full Detailed agent messages, aligned/padded floating surfaces and preserved window rules. Short palette/theme selections remain visible. Independent review and final workspace/terminal/exit checks pass; existing double Ctrl+C, resume and invocation attribution are preserved. |
-| 2026-09-13 07:01 | [YMP-135](README.md#ymp-135) | `[x]` | Installed0.4.3 with model-only labels when effort is absent or a binary thinking toggle is reported. Actual graded native effort, including an explicitly reported none, stays factual. TUI and headless share the helper; four actual CLI fixture variants and final terminal checks pass. No execution settings or stored native metadata were rewritten. |
+| 2026-09-13 11:07 | [YMP-137](README.md#ymp-137) | `[x]` | Installed release 0.4.4 is independently verified: required Rust checks pass (535 tests, 2 ignored), staged Unicode/ASCII file and table cases pass, and the installed command passes 12 file-navigation and 19 table/theme cases including all 18 themes. Previous executable is backed up. Inline agent output continues separately in YMP-140. |
+| 2026-09-13 11:07 | [YMP-139](README.md#ymp-139) | `[x]` | Installed release 0.4.4 is independently verified: required Rust checks pass (535 tests, 2 ignored), staged Unicode/ASCII file and table cases pass, and the installed command passes 12 file-navigation and 19 table/theme cases including all 18 themes. Previous executable is backed up. Inline agent output continues separately in YMP-140. |
+| 2026-09-13 10:35 | [YMP-140](README.md#ymp-140) | `[~]` | Validated terminal baseline after accepted 139 confirms the exact remaining gap: Inspect highlights code and explicit diff in Ember/Latte, while inline Detailed chat does not. The checker now observes the actual selected message dialog after grammar load, with independent SGR-observability and stored-byte checks. Opus is implementing 140; final positive and monochrome checks remain. |
+| 2026-09-13 08:42 | [YMP-136](README.md#ymp-136) | `[x]` | Independently reviewed and integrated the Ratatui 0.30.2 / Crossterm 0.29 candidate with the theme adapter. Production source matches candidate 508d7f5. Parent fmt, strict Clippy and all 504 tests pass; 19 real-terminal cases pass, including 18-theme reachability at 40x12. Dependency graph contains one Ratatui facade and one Crossterm version. Installed-release verification remains with YMP-137 and the combined YMP-139 delivery. |
+| 2026-09-13 08:31 | [YMP-138](README.md#ymp-138) | `[x]` | Deleted four obsolete Paseo projects and archived their four completed agents/workspaces; removed 61 historical worktrees and 14 unused Cargo caches; stopped orphan mock PID 7407. Preserved 97 archive entries and 15 previously unreferenced Git heads, all verified. Main and pending YMP-136/137 worktree, agent and cache remain. Observed free space increased by 57.24 GiB to 71.50 GiB. Required fmt, strict Clippy and workspace tests pass: 498 passed, 0 failed, 2 ignored. Recovery record and limitations are documented. |
 
 ## Maintenance
 

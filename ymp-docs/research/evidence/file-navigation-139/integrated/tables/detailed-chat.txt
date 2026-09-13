@@ -1,0 +1,45 @@
+ymp  project  /Users/maggnus/Code/ymp2/ymp-docs/research/evidence/file-na…  1b61f53b  ✓ completed  — tokens  8 / 200 turns captured  details
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+    {"approved":true,"lesson":"Check the produced artifact against the requested                         │ SESSION
+    content.","reason":"The stated acceptance criteria are satisfied."}                                  │ 1b61f53b             ✓ completed
+  ◇ Unconfirmed procedure candidate retained: Verify file-producing tasks                         10:17  │ turns this session       8 / 200
+                                                                                                         │ dir …9/integrated/tables/project
+  ◆ Cygnus · final result                                                                         10:17  │
+    The requested artifact is complete and independently verified.                                       │ TOKENS                         —
+                                                                                                         │ AGENT   TOKENS
+  ◆ ymp · run summary                                                                             10:17  │ Atlas        —
+    The requested artifact is complete and independently verified.                                       │ Cygnus       —
+                                                                                                         │
+    Acceptance: accepted; confirmation: unconfirmed.                                                     │ TEAM                this session
+                                                                                                         │ AGENT     STATE
+    Workspace:                                                                                           │ ○ Atlas   idle
+    /Users/maggnus/Code/ymp2/ymp-docs/research/evidence/file-navigation-139/integrated/tables/project    │ ○ Cygnus  idle
+                                                                                                         │
+  · unknown model · execution report                                                              00:00  │ TASKS             accepted 1 / 1
+    Terminal detail paragraph 1.                                                                         │
+                                                                                                         │
+    Terminal detail paragraph 2.                                                                         │
+                                                                                                         │
+    Terminal detail paragraph 3.                                                                         │
+                                                                                                         │
+    Terminal detail paragraph 4.                                                                         │
+                                                                                                         │
+    Terminal detail paragraph 5.                                                                         │
+                                                                                                         │
+    Terminal detail paragraph 6.                                                                         │
+                                                                                                         │
+    Terminal detail paragraph 7.                                                                         │
+                                                                                                         │
+    Terminal detail paragraph 8.                                                                         │
+                                                                                                         │
+    Terminal detail paragraph 9.                                                                         │
+                                                                                                         │
+    Terminal detail paragraph 10.                                                                        │
+                                                                                                         │
+    Terminal detail paragraph 11.                                                                        │
+                                                                                                         │
+    Terminal detail paragraph 12.                                                                        │
+  ◇ Session loaded for reading. Send a message to continue the conversation, or use /resume to …  10:17  │
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+› Describe a task, or type / for commands.
+Ready                                                                                        composer Enter send  Ctrl+P commands  Tab focus

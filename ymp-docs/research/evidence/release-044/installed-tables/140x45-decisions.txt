@@ -1,0 +1,45 @@
+ymp  project  /Users/maggnus/Code/ymp2/ymp-docs/research/evidence/release-044/inst…  f9e3d11a  ✓ completed  — tokens  8 / 200 turns captured
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ Decisions[52]  /decisions                                                     52 recorded · 0 confirmed │ SESSION
+─────────────────────────────────────────────────────────────────────────────────────────────────────────│ f9e3d11a             ✓ completed
+ › ◇ What a decision record is, and what a grade means  what this page is                                │ turns this session       8 / 200
+                                                                                                         │ dir …44/installed-tables/project
+      KIND                           ACTOR          OUTCOME                      RECORDED                │
+   ✓  allocation committed           the runtime    membership committed         2026-09-13 11:03        │ TOKENS                         —
+   ✓  allocation committed           the runtime    membership committed         2026-09-13 11:03        │ AGENT   TOKENS
+   ✓  resource allocation committed  the runtime    bound set                    2026-09-13 11:03        │ Atlas        —
+   ·  directory reserved             unknown model  directory reserved           2026-09-13 11:03        │ Cygnus       —
+   ·  turn admitted                  Atlas          turn admitted                2026-09-13 11:03        │
+   ·  reservation ended              the runtime    reservation ended            2026-09-13 11:03        │ TEAM                this session
+   ○  plan proposed                  Atlas          recorded without an outcome  2026-09-13 11:03        │ AGENT     STATE
+   ✓  allocation committed           the runtime    membership committed         2026-09-13 11:03        │ ○ Atlas   idle
+   ✓  allocation committed           the runtime    membership committed         2026-09-13 11:03        │ ○ Cygnus  idle
+   ✓  resource allocation committed  the runtime    bound set                    2026-09-13 11:03        │
+   ·  directory reserved             unknown model  directory reserved           2026-09-13 11:03        │ TASKS             accepted 1 / 1
+   ·  turn admitted                  Cygnus         turn admitted                2026-09-13 11:03        │
+   ·  reservation ended              the runtime    reservation ended            2026-09-13 11:03        │
+   ◇  plan review                    Cygnus         accepted, unconfirmed        2026-09-13 11:03        │
+   ○  plan committed                 the runtime    recorded without an outcome  2026-09-13 11:03        │
+   ✓  allocation committed           the runtime    membership committed         2026-09-13 11:03        │
+   ○  task taken up                  the runtime    recorded without an outcome  2026-09-13 11:03        │
+   ✓  resource allocation committed  the runtime    bound set                    2026-09-13 11:03        │
+   ·  directory reserved             unknown model  directory reserved           2026-09-13 11:03        │
+   ·  turn admitted                  Atlas          turn admitted                2026-09-13 11:03        │
+   ○  result submitted               Atlas          recorded without an outcome  2026-09-13 11:03        │
+   ·  reservation ended              the runtime    reservation ended            2026-09-13 11:03        │
+   ·  directory reserved             the runtime    directory reserved           2026-09-13 11:03        │
+   ✓  allocation committed           the runtime    membership committed         2026-09-13 11:03        │
+   ✓  resource allocation committed  the runtime    bound set                    2026-09-13 11:03        │
+   ·  directory reserved             unknown model  directory reserved           2026-09-13 11:03        │
+   ·  turn admitted                  Cygnus         turn admitted                2026-09-13 11:03        │
+   ·  reservation ended              the runtime    reservation ended            2026-09-13 11:03        │
+   ◇  candidate review               Cygnus         accepted, unconfirmed        2026-09-13 11:03        │
+   ◇  task accepted                  Cygnus         accepted, unconfirmed        2026-09-13 11:03        │
+   ·  reservation ended              the runtime    reservation ended            2026-09-13 11:03        │
+   ○  result aggregated              the runtime    recorded without an outcome  2026-09-13 11:03        │
+   ✓  allocation committed           the runtime    membership committed         2026-09-13 11:03        │
+   ✓  resource allocation committed  the runtime    bound set                    2026-09-13 11:03        │
+   ·  directory reserved             unknown model  directory reserved           2026-09-13 11:03        │
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+› Describe a task, or type / for commands.
+Ready                                                           main Enter show the record  Esc back  / filter  Shift+letter sort  d inspect

@@ -1,0 +1,45 @@
+ymp  project  /Users/maggnus/Code/ymp2/ymp-docs/research/evidence/file-navigation-…  1662f9ac  ✓ completed  — tokens  8 / 200 turns captured
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ Limits[16]  /limits                                                     captured 200 turns, 3 at a time │ SESSION
+─────────────────────────────────────────────────────────────────────────────────────────────────────────│ 1662f9ac             ✓ completed
+ › ◇ What a limit is, and which run it applies to  what this page is                                     │ turns this session       8 / 200
+                                                                                                         │ dir …requisites/terminal/project
+   THIS SESSION, AS CAPTURED                                                                             │
+   LIMIT              VALUE                                                                              │ TOKENS                         —
+   turns              8 of 200                                                                           │ AGENT   TOKENS
+   parallel           3                                                                                  │ Atlas        —
+   timeout            900 s                                                                              │ Cygnus       —
+   attempts           3                                                                                  │
+   turns admitted     8                                                                                  │ TEAM                this session
+   reserved turns     2 + 0                                                                              │ AGENT     STATE
+   tokens observed    unknown                                                                            │ ○ Atlas   idle
+   token ceiling      none                                                                               │ ○ Cygnus  idle
+   turn allowance     none                                                                               │
+   review tokens      none                                                                               │ TASKS             accepted 1 / 1
+   incomplete counts  stop admitting                                                                     │
+   strict bound       not proved                                                                         │
+                                                                                                         │
+   THE NEXT RUN                                                                                          │
+   LIMIT     VALUE                                                                                       │
+   parallel  3                                                                                           │
+   turns     200                                                                                         │
+   timeout   900 s                                                                                       │
+   attempts  3                                                                                           │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+› Describe a task, or type / for commands.
+Ready               main + / - adjust the next run  Enter type a value, or read the record  Esc back  / filter  Shift+letter sort  d inspect

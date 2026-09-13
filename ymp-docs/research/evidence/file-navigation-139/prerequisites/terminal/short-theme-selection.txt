@@ -1,0 +1,10 @@
+ymp  projec┌ Colour theme ────────────────────────── saved on Enter ┐ tok  8/200
+───────────│   Everforest          dark                             │───────────
+ Team</Atl │   Cyberpunk           dark                             │
+────────── │ › Midnight Commander  dark                             │ completed
+   AVAILAB │   The classic file manager: white and cyan on dark     │   8 / 200
+      MODE │                                                        │ l/project
+ › ✓  Atla │ Up/Down preview  Enter keep  Esc cancel                │
+───────────└──────────────────────────────────────────────── 3 more ┘───────────
+› Describe a task, or type / for commands.
+Ready main Space add or remove  Enter open the record  Esc back  / filter  Shif…

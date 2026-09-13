@@ -1,0 +1,45 @@
+ymp  project  /Users/maggnus/Code/ymp2/ymp-docs/research/evidence/release-044/installed-files/project              no session  0 / 200 turns
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ Files[2]  /files /Users/maggnus/Code/ymp2/ymp-docs/research/evidence/release-044/installed-files/projec…│ SESSION
+─────────────────────────────────────────────────────────────────────────────────────────────────────────│ none · the next message opens on
+ › ../                                                                                                   │ turns next run           0 / 200
+   nested/                                                                                               │ dir …044/installed-files/project
+   main.rs                                                                                               │
+                                                                                                         │ TOKENS                         —
+                                                                                                         │ none · nothing spent yet
+                                                                                                         │
+                                                                                                         │ TEAM                    next run
+                                                                                                         │ AGENT    STATE
+                                                                                                         │ ○ Atlas  idle
+                                                                                                         │
+                                                                                                         │ TASKS
+                                                                                                         │ no task graph yet
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+› Describe a task, or type / for commands.
+Ready                                                        main Enter open  Backspace parent  / filter  d details  r read again  Esc close

@@ -1,0 +1,12 @@
+ym┌ Colour theme ──── saved on Enter ┐00
+--│   Catppuccin Latte    light      │--
+  │   Gruvbox Dark        dark       │ …
+- │   Gruvbox Light       light      │ -
+  │   Tokyo Night         dark       │
+  │ > Solarized Dark      dark       │
+  │   Precision-tuned colours on the │
+  │                                  │
+  │ Up/Down preview  Enter keep      │
+--└────────────────────────── 4 more ┘--
+> Describe a task, or type / for command
+Ready main Space add or remove  Enter o…

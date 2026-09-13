@@ -1,0 +1,345 @@
+ymp-cli v0.4.3 (/private/tmp/ymp132-agent-attribution/ymp-rust/crates/ymp-cli)
+anyhow v1.0.104
+clap v4.6.6
+clap_builder v4.6.6
+anstream v1.0.0
+anstyle v1.0.14
+anstyle-parse v1.0.0
+utf8parse v0.2.2
+anstyle-query v1.1.5
+colorchoice v1.0.5
+is_terminal_polyfill v1.70.2
+utf8parse v0.2.2
+anstyle v1.0.14
+clap_lex v1.1.0
+strsim v0.11.1
+clap_derive v4.6.4 (proc-macro)
+heck v0.5.0
+proc-macro2 v1.0.107
+unicode-ident v1.0.24
+quote v1.0.47
+proc-macro2 v1.0.107 (*)
+syn v3.0.5
+proc-macro2 v1.0.107 (*)
+quote v1.0.47 (*)
+unicode-ident v1.0.24
+serde_json v1.0.151
+itoa v1.0.18
+memchr v2.8.3
+serde_core v1.0.229
+zmij v1.0.23
+tokio v1.53.1
+bytes v1.12.1
+libc v0.2.189
+mio v1.2.3
+libc v0.2.189
+log v0.4.34
+parking_lot v0.12.5
+lock_api v0.4.14
+scopeguard v1.2.0
+parking_lot_core v0.9.12
+cfg-if v1.0.4
+libc v0.2.189
+smallvec v1.16.1
+pin-project-lite v0.2.17
+signal-hook-registry v1.4.8
+errno v0.3.14
+libc v0.2.189
+libc v0.2.189
+socket2 v0.6.5
+libc v0.2.189
+tokio-macros v2.7.2 (proc-macro)
+proc-macro2 v1.0.107 (*)
+quote v1.0.47 (*)
+syn v3.0.5 (*)
+tokio-util v0.7.19
+bytes v1.12.1
+futures-core v0.3.34
+futures-sink v0.3.34
+futures-util v0.3.34
+futures-core v0.3.34
+futures-macro v0.3.34 (proc-macro)
+proc-macro2 v1.0.107 (*)
+quote v1.0.47 (*)
+syn v3.0.5 (*)
+futures-task v0.3.34
+pin-project-lite v0.2.17
+slab v0.4.12
+pin-project-lite v0.2.17
+tokio v1.53.1 (*)
+toml v0.8.23
+serde v1.0.229
+serde_core v1.0.229
+serde_derive v1.0.229 (proc-macro)
+proc-macro2 v1.0.107 (*)
+quote v1.0.47 (*)
+syn v3.0.5 (*)
+serde_spanned v0.6.9
+serde v1.0.229 (*)
+toml_datetime v0.6.11
+serde v1.0.229 (*)
+toml_edit v0.22.27
+indexmap v2.14.2
+equivalent v1.0.2
+hashbrown v0.17.1
+allocator-api2 v0.2.21
+equivalent v1.0.2
+foldhash v0.2.0
+serde v1.0.229 (*)
+serde_spanned v0.6.9 (*)
+toml_datetime v0.6.11 (*)
+toml_write v0.1.2
+winnow v0.7.15
+ymp-core v0.4.3 (/private/tmp/ymp132-agent-attribution/ymp-rust/crates/ymp-core)
+anyhow v1.0.104
+chrono v0.4.45
+iana-time-zone v0.1.65
+core-foundation-sys v0.8.7
+num-traits v0.2.19
+libm v0.2.16
+serde v1.0.229 (*)
+fs2 v0.4.3
+libc v0.2.189
+rand v0.8.8
+libc v0.2.189
+rand_chacha v0.3.1
+ppv-lite86 v0.2.21
+zerocopy v0.8.57
+rand_core v0.6.4
+getrandom v0.2.17
+cfg-if v1.0.4
+libc v0.2.189
+rand_core v0.6.4 (*)
+rand_distr v0.4.3
+num-traits v0.2.19 (*)
+rand v0.8.8 (*)
+serde v1.0.229 (*)
+serde_json v1.0.151 (*)
+sha2 v0.10.9
+cfg-if v1.0.4
+cpufeatures v0.2.17
+libc v0.2.189
+digest v0.10.7
+block-buffer v0.10.4
+generic-array v0.14.7
+typenum v1.20.1
+crypto-common v0.1.7
+generic-array v0.14.7 (*)
+typenum v1.20.1
+toml v0.8.23 (*)
+uuid v1.26.1
+getrandom v0.4.3
+cfg-if v1.0.4
+libc v0.2.189
+serde_core v1.0.229
+ymp-providers v0.4.3 (/private/tmp/ymp132-agent-attribution/ymp-rust/crates/ymp-providers)
+anyhow v1.0.104
+async-trait v0.1.92 (proc-macro)
+proc-macro2 v1.0.107 (*)
+quote v1.0.47 (*)
+syn v3.0.5 (*)
+fs2 v0.4.3 (*)
+libc v0.2.189
+serde v1.0.229 (*)
+serde_json v1.0.151 (*)
+tokio v1.53.1 (*)
+tokio-util v0.7.19 (*)
+ymp-core v0.4.3 (/private/tmp/ymp132-agent-attribution/ymp-rust/crates/ymp-core) (*)
+ymp-runtime v0.4.3 (/private/tmp/ymp132-agent-attribution/ymp-rust/crates/ymp-runtime)
+anyhow v1.0.104
+chrono v0.4.45 (*)
+rand v0.8.8 (*)
+serde v1.0.229 (*)
+serde_json v1.0.151 (*)
+tempfile v3.27.0
+fastrand v2.5.0
+getrandom v0.4.3 (*)
+once_cell v1.21.4
+rustix v1.1.4
+bitflags v2.13.2
+errno v0.3.14 (*)
+libc v0.2.189
+tokio v1.53.1 (*)
+tokio-util v0.7.19 (*)
+uuid v1.26.1 (*)
+ymp-core v0.4.3 (/private/tmp/ymp132-agent-attribution/ymp-rust/crates/ymp-core) (*)
+ymp-providers v0.4.3 (/private/tmp/ymp132-agent-attribution/ymp-rust/crates/ymp-providers) (*)
+ymp-storage v0.4.3 (/private/tmp/ymp132-agent-attribution/ymp-rust/crates/ymp-storage)
+anyhow v1.0.104
+chrono v0.4.45 (*)
+fs2 v0.4.3 (*)
+rusqlite v0.32.1
+bitflags v2.13.2
+fallible-iterator v0.3.0
+fallible-streaming-iterator v0.1.9
+hashlink v0.9.1
+hashbrown v0.14.5
+ahash v0.8.12
+cfg-if v1.0.4
+once_cell v1.21.4
+zerocopy v0.8.57
+libsqlite3-sys v0.30.1
+smallvec v1.16.1
+serde v1.0.229 (*)
+serde_json v1.0.151 (*)
+uuid v1.26.1 (*)
+ymp-core v0.4.3 (/private/tmp/ymp132-agent-attribution/ymp-rust/crates/ymp-core) (*)
+ymp-workspace v0.4.3 (/private/tmp/ymp132-agent-attribution/ymp-rust/crates/ymp-workspace)
+anyhow v1.0.104
+serde v1.0.229 (*)
+serde_json v1.0.151 (*)
+sha2 v0.10.9 (*)
+tempfile v3.27.0 (*)
+tokio v1.53.1 (*)
+walkdir v2.5.0
+same-file v1.0.6
+ymp-core v0.4.3 (/private/tmp/ymp132-agent-attribution/ymp-rust/crates/ymp-core) (*)
+ymp-storage v0.4.3 (/private/tmp/ymp132-agent-attribution/ymp-rust/crates/ymp-storage) (*)
+ymp-tui v0.4.3 (/private/tmp/ymp132-agent-attribution/ymp-rust/crates/ymp-tui)
+anyhow v1.0.104
+crossterm v0.29.0
+bitflags v2.13.2
+derive_more v2.1.1
+derive_more-impl v2.1.1 (proc-macro)
+convert_case v0.10.0
+unicode-segmentation v1.13.3
+proc-macro2 v1.0.107 (*)
+quote v1.0.47 (*)
+syn v2.0.119
+proc-macro2 v1.0.107 (*)
+quote v1.0.47 (*)
+unicode-ident v1.0.24
+document-features v0.2.12 (proc-macro)
+litrs v1.0.0
+futures-core v0.3.34
+mio v1.2.3 (*)
+parking_lot v0.12.5 (*)
+rustix v1.1.4 (*)
+signal-hook v0.3.18
+libc v0.2.189
+signal-hook-registry v1.4.8 (*)
+signal-hook-mio v0.2.5
+libc v0.2.189
+mio v1.2.3 (*)
+signal-hook v0.3.18 (*)
+ratatui v0.30.2
+instability v0.3.13 (proc-macro)
+darling v0.24.1
+darling_core v0.24.1
+ident_case v1.0.1
+proc-macro2 v1.0.107 (*)
+quote v1.0.47 (*)
+strsim v0.11.1
+syn v3.0.5 (*)
+darling_macro v0.24.1 (proc-macro)
+darling_core v0.24.1 (*)
+quote v1.0.47 (*)
+syn v3.0.5 (*)
+indoc v2.0.7 (proc-macro)
+proc-macro2 v1.0.107 (*)
+quote v1.0.47 (*)
+syn v3.0.5 (*)
+ratatui-core v0.1.2
+bitflags v2.13.2
+compact_str v0.9.1
+castaway v0.2.4
+rustversion v1.0.23 (proc-macro)
+cfg-if v1.0.4
+itoa v1.0.18
+rustversion v1.0.23 (proc-macro)
+ryu v1.0.23
+static_assertions v1.1.0
+critical-section v1.2.0
+hashbrown v0.17.1 (*)
+itertools v0.14.0
+either v1.18.0
+kasuari v0.4.12
+hashbrown v0.16.1
+allocator-api2 v0.2.21
+equivalent v1.0.2
+foldhash v0.2.0
+thiserror v2.0.20
+thiserror-impl v2.0.20 (proc-macro)
+proc-macro2 v1.0.107 (*)
+quote v1.0.47 (*)
+syn v3.0.5 (*)
+lru v0.18.4
+hashbrown v0.17.1 (*)
+strum v0.28.0
+strum_macros v0.28.0 (proc-macro)
+heck v0.5.0
+proc-macro2 v1.0.107 (*)
+quote v1.0.47 (*)
+syn v2.0.119 (*)
+thiserror v2.0.20 (*)
+unicode-segmentation v1.13.3
+unicode-truncate v2.0.1
+itertools v0.14.0 (*)
+unicode-segmentation v1.13.3
+unicode-width v0.2.0
+unicode-width v0.2.0
+ratatui-crossterm v0.1.2
+cfg-if v1.0.4
+crossterm v0.29.0 (*)
+instability v0.3.13 (proc-macro) (*)
+ratatui-core v0.1.2 (*)
+ratatui-macros v0.7.2
+ratatui-core v0.1.2 (*)
+ratatui-widgets v0.3.2
+bitflags v2.13.2
+hashbrown v0.17.1 (*)
+indoc v2.0.7 (proc-macro)
+instability v0.3.13 (proc-macro) (*)
+itertools v0.14.0 (*)
+line-clipping v0.3.8
+bitflags v2.13.2
+ratatui-core v0.1.2 (*)
+strum v0.28.0 (*)
+time v0.3.55
+deranged v0.5.8
+libc v0.2.189
+num-conv v0.2.2
+num_threads v0.1.7
+libc v0.2.189
+powerfmt v0.2.0
+time-core v0.1.9
+unicode-segmentation v1.13.3
+unicode-width v0.2.0
+ratatui-widgets v0.3.2 (*)
+ratatui-themes v0.3.0
+ratatui v0.30.2 (*)
+serde_json v1.0.151 (*)
+tokio v1.53.1 (*)
+tokio-util v0.7.19 (*)
+unicode-width v0.2.0
+ymp-core v0.4.3 (/private/tmp/ymp132-agent-attribution/ymp-rust/crates/ymp-core) (*)
+ymp-providers v0.4.3 (/private/tmp/ymp132-agent-attribution/ymp-rust/crates/ymp-providers) (*)
+ymp-runtime v0.4.3 (/private/tmp/ymp132-agent-attribution/ymp-rust/crates/ymp-runtime) (*)
+ymp-storage v0.4.3 (/private/tmp/ymp132-agent-attribution/ymp-rust/crates/ymp-storage) (*)
+ymp-workspace v0.4.3 (/private/tmp/ymp132-agent-attribution/ymp-rust/crates/ymp-workspace) (*)
+
+ymp-core v0.4.3 (/private/tmp/ymp132-agent-attribution/ymp-rust/crates/ymp-core) (*)
+
+ymp-eval-driver v0.4.3 (/private/tmp/ymp132-agent-attribution/ymp-rust/crates/ymp-eval-driver)
+anyhow v1.0.104
+chrono v0.4.45 (*)
+clap v4.6.6 (*)
+serde v1.0.229 (*)
+serde_json v1.0.151 (*)
+tokio v1.53.1 (*)
+tokio-util v0.7.19 (*)
+walkdir v2.5.0 (*)
+ymp-core v0.4.3 (/private/tmp/ymp132-agent-attribution/ymp-rust/crates/ymp-core) (*)
+ymp-providers v0.4.3 (/private/tmp/ymp132-agent-attribution/ymp-rust/crates/ymp-providers) (*)
+ymp-runtime v0.4.3 (/private/tmp/ymp132-agent-attribution/ymp-rust/crates/ymp-runtime) (*)
+ymp-storage v0.4.3 (/private/tmp/ymp132-agent-attribution/ymp-rust/crates/ymp-storage) (*)
+
+ymp-providers v0.4.3 (/private/tmp/ymp132-agent-attribution/ymp-rust/crates/ymp-providers) (*)
+
+ymp-runtime v0.4.3 (/private/tmp/ymp132-agent-attribution/ymp-rust/crates/ymp-runtime) (*)
+
+ymp-storage v0.4.3 (/private/tmp/ymp132-agent-attribution/ymp-rust/crates/ymp-storage) (*)
+
+ymp-tui v0.4.3 (/private/tmp/ymp132-agent-attribution/ymp-rust/crates/ymp-tui) (*)
+
+ymp-workspace v0.4.3 (/private/tmp/ymp132-agent-attribution/ymp-rust/crates/ymp-workspace) (*)

@@ -1,0 +1,24 @@
+ymp  project             f9e3d11a  ✓ completed  — tok  8/200
+────────────────────────────────────────────────────────────
+  ┌ Colour theme ──────────────────────── saved on Enter ┐ …
+─ │ › Ember               dark                           │ ─
+  │   Warm amber on black. The default ymp palette.      │
+  │   Slate               dark                           │
+  │   Dracula             dark                           │
+  │   One Dark Pro        dark                           │
+  │   Nord                dark                           │
+  │   Catppuccin Mocha    dark                           │
+  │   Catppuccin Latte    light                          │
+  │   Gruvbox Dark        dark                           │
+  │   Gruvbox Light       light                          │
+  │ ▼ 9 more                                             │
+  │                                                      │
+  │ The whole interface previews as you move.            │
+  │                                                      │
+  │ Up/Down preview  Enter keep  Esc cancel              │
+  └──────────────────────────────────────────────────────┘
+
+
+────────────────────────────────────────────────────────────
+› Describe a task, or type / for commands.
+Ready main Space add or remove  Enter open the record  Esc …

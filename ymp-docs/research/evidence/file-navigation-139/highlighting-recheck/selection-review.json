@@ -1,0 +1,23 @@
+{
+  "async_explorer": {
+    "crate": "ratatui-async-explorer",
+    "version": "0.3.4",
+    "repository": "https://github.com/caelansar/ratatui-explorer",
+    "docs": "https://docs.rs/ratatui-async-explorer/latest/ratatui_async_explorer/",
+    "upstream_ref": "be87d96120a20c1bd2e437ee6b081b736fb09339",
+    "upstream_branches": [
+      "master"
+    ],
+    "ratatui_dependency": "^0.29 in published package and master",
+    "assessment": "Not selected as a direct replacement for current Ratatui 0.30.2 integration. It provides real tokio filesystem IO and timeouts, but host scheduling is still required for interactive loading; the default backend converts native paths to lossy Strings and has a delete operation. A compatibility port was not built or tested."
+  },
+  "highlighting": {
+    "engine": "syntect 5.3.0",
+    "syntax_assets": "two-face 0.5.2+bat-0.26.1",
+    "preferred_adapter": "tui-syntax-highlight 0.2.0",
+    "adapter_api": "Highlighter::highlight_line with caller-owned HighlightLines state",
+    "assessment": "Independent compiled probe passed Ratatui 0.30.2 Line compatibility, exact Unicode/space/tab content, multiline parse state, semantic colors and common grammars. Caller retains per-line/message limits and normalizes CRLF/control display. Application integration remains pending.",
+    "rejected_adapter": "syntect-tui 3.0.6 uses Ratatui ^0.29",
+    "alternative_limit": "Latest tree-sitter-highlight 0.27.0 requires Rust 1.90; this does not claim older tree-sitter versions are unusable."
+  }
+}

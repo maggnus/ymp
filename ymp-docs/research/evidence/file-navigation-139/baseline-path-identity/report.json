@@ -1,0 +1,10 @@
+{
+  "binary": "/private/tmp/ymp132-test-target/debug/ymp",
+  "baseline": true,
+  "native_inference": false,
+  "native_name_variant": "newline versus space; filesystem rejects non-UTF-8 names",
+  "directory_descent": false,
+  "expected_failure": "Enter only inspects directory metadata; its source child is unreachable.",
+  "workspace_unchanged": true,
+  "passed": true
+}

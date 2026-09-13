@@ -1,0 +1,41 @@
+{
+  "verified_at": "2026-09-13T08:42:09.533609+00:00",
+  "candidate": "508d7f575ea73e9b4d65e81949b006883197caad",
+  "integrated_head": "8e248c1412881db243a349faaa3af1dfad8e75ec",
+  "production_source_matches_candidate": true,
+  "binary_sha256": "645748532e73ae01aa3fc3923b3d240cb55dfb5a6774e01c512ab67549aac88f",
+  "checks": [
+    {
+      "check": "fmt",
+      "exit_code": 0,
+      "log": "fmt.log"
+    },
+    {
+      "check": "clippy",
+      "exit_code": 0,
+      "log": "clippy.log"
+    },
+    {
+      "check": "test",
+      "exit_code": 0,
+      "log": "test.log"
+    },
+    {
+      "check": "build",
+      "exit_code": 0,
+      "log": "build.log"
+    }
+  ],
+  "tests": {
+    "passed": 504,
+    "failed": 0,
+    "ignored": 2
+  },
+  "terminal": {
+    "passed": true,
+    "cases": 19,
+    "report": "terminal/report.json"
+  },
+  "independent_review": "Maintainer read dependency, palette adapter, theme chooser, preference compatibility and test changes; no required source corrections found. Physical terminal checks cover all 18 themes at 40x12 and the established table/focus controls.",
+  "installation": "Pending combined YMP-139 release; this record does not claim an installed upgrade."
+}

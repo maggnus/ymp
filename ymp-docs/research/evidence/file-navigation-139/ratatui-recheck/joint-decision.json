@@ -1,0 +1,33 @@
+{
+  "decided_at": "2026-09-13T09:25:05.946320+00:00",
+  "selected": {
+    "crate": "ratatui-explorer",
+    "version": "0.3.0",
+    "source": "https://github.com/tatounee/ratatui-explorer",
+    "api": [
+      "FileExplorerBuilder",
+      "FileExplorer::handle",
+      "FileExplorer::set_cwd",
+      "FileExplorer::set_filter_map",
+      "FileExplorer::widget"
+    ]
+  },
+  "agreement": {
+    "parent": "Independent web search and source review; prefers focused reusable explorer, configurable theme/title/filter and native paths.",
+    "opus": "Reconsidered four compatible candidates and agreed to ratatui-explorer with narrow error/empty-state guards."
+  },
+  "alternatives": [
+    "tui-file-explorer 2.3.0: richer but current renderer slices long Unicode paths at arbitrary byte boundaries; write-operation and renderer integration need more adaptation.",
+    "ratatui-interact 0.5.3: ready file component inside a wider toolkit, with swallowed navigation errors and less customizable footer.",
+    "ratatree 0.4.0: viable new list/tree picker with fuzzy search; additional modes are not needed for this focused /files integration."
+  ],
+  "contract": [
+    "Use the real library navigation/state/widget, not a custom navigator backed only by filesystem helpers.",
+    "Use library set_cwd rather than the failure-prone handle(Right) branch; preserve selection on return.",
+    "Guard empty input and renderer paths because the library widget accesses current().",
+    "Allow browsing parent directories; execution cwd, sessions and provider settings stay unchanged.",
+    "File reads remain explicit and read-only with bounded regular-file previews; keep syntect/two-face.",
+    "No new sidebar or replacement application runtime; retain other pages."
+  ],
+  "status": "implementation authorized and dispatched; not yet accepted or installed"
+}

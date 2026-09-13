@@ -1,0 +1,26 @@
+[
+  {
+    "theme": "ember",
+    "surface": "chat",
+    "prose_not_diff": true,
+    "code_style_does_not_leak": true
+  },
+  {
+    "theme": "ember",
+    "surface": "inspect",
+    "prose_not_diff": true,
+    "code_style_does_not_leak": true
+  },
+  {
+    "theme": "catppuccin-latte",
+    "surface": "chat",
+    "prose_not_diff": true,
+    "code_style_does_not_leak": true
+  },
+  {
+    "theme": "catppuccin-latte",
+    "surface": "inspect",
+    "prose_not_diff": true,
+    "code_style_does_not_leak": true
+  }
+]

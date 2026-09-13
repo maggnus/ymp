@@ -1,0 +1,24 @@
+ymp  project             b638c777  ✓ completed  — tok  8/200
+────────────────────────────────────────────────────────────
+ Team[7]  /team 2 captured by this session · 3 eligible on …
+────────────────────────────────────────────────────────────
+ › ◇ What membership means here  what this page is
+
+   MEMBERS OF THIS SESSION
+      AGENT   PROVIDER  STATE
+   ✓  Atlas   demo      3 turn(s) here
+   ✓  Cygnus  demo      5 turn(s) here
+
+   HOW THE ROSTER IS BOUNDED
+      RULE          VALUE
+   ✓  roster        2 member(s) · revision 8
+   •  roster rules  up to 4
+
+   AVAILABLE ON THIS MACHINE
+      MODEL   PROVIDER  STATE
+   ✓  Atlas   demo      eligible
+   ✓  Boreal  demo      eligible
+   ✓  Cygnus  demo      eligible
+────────────────────────────────────────────────────────────
+› Describe a task, or type / for commands.
+Ready main Space add or remove  Enter open the record  Esc …

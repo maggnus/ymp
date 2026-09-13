@@ -1,0 +1,24 @@
+ymp  project             f9e3d11a  ✓ completed  — tok  8/200
+────────────────────────────────────────────────────────────
+ Memory[3]  /memory 3 recorded · 0 current · 0 supported as…
+────────────────────────────────────────────────────────────
+ › ◇ What current, superseded and corrected mean here  w…
+
+   TITLE                          STATE        SCOPE
+   Verify file-producing tasks    unconfirmed  project
+   Reviewer lesson (unconfirmed)  unconfirmed  project
+   Create a greeting              unconfirmed  project
+
+
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────
+› Describe a task, or type / for commands.
+Ready main s search  f retire the entry  Enter read  Esc ba…

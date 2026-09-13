@@ -1,0 +1,17 @@
+[
+  {
+    "check": "fmt",
+    "exit_code": 0,
+    "log": "fmt.log"
+  },
+  {
+    "check": "clippy",
+    "exit_code": 0,
+    "log": "clippy.log"
+  },
+  {
+    "check": "tests",
+    "exit_code": 0,
+    "log": "tests.log"
+  }
+]
