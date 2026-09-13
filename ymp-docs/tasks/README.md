@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-13 15:38 UTC.
+Updated: 2026-09-13 16:00 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -14,7 +14,7 @@ A planned task is not implemented functionality. Completed research and planning
 | design | 2 | 2 |
 | documentation | 4 | 4 |
 | experiment | 0 | 4 |
-| implementation | 35 | 40 |
+| implementation | 35 | 41 |
 | maintenance | 1 | 1 |
 | research | 10 | 10 |
 | verification | 2 | 2 |
@@ -86,8 +86,9 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-143](#ymp-143) | P1 | Provide a separate /git changes view modeled on Paseo | 2026-09-13 14:04 |
 | `[x]` | [YMP-144](#ymp-144) | P1 | Research recovery of sessions after one or more agent failures | 2026-09-13 14:36 |
 | `[~]` | [YMP-145](#ymp-145) | P1 | Unify full-row popup selection and verify stable scrolling geometry | 2026-09-13 14:19 |
-| `[~]` | [YMP-146](#ymp-146) | P0 | Recover interrupted session stages and let the owner change the active team | 2026-09-13 15:38 |
+| `[~]` | [YMP-146](#ymp-146) | P0 | Recover interrupted session stages and let the owner change the active team | 2026-09-13 16:00 |
 | `[x]` | [YMP-147](#ymp-147) | P1 | Translate product goals into a focused comparative trial program | 2026-09-13 15:38 |
+| `[=]` | [YMP-148](#ymp-148) | P1 | Expose replaceable coordination on /team and separate the agent catalog | 2026-09-13 16:00 |
 
 ## YMP-001
 
@@ -2191,9 +2192,9 @@ Recover interrupted session stages and let the owner change the active team
 
 **State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P0
 
-**Last update (UTC):** 2026-09-13 15:38
+**Last update (UTC):** 2026-09-13 16:00
 
-**Current reason:** Product discussion identifies agent interaction and temporary role selection as the important experimental behavior, not a public recovery-policy switch. P0 failure recovery remains unchanged; broader goal-directed coordination trials are separated in147/201 so they do not delay the executing backend fork.
+**Current reason:** Owner selected /team-only strategy controls and identified /agents duplication. Recorded concrete follow-up as148; scope clarification does not alter the P0 recovery/backend work or restart the executing fork.
 
 **Owner:** Background backend author and Claude Code claude-opus-5 high UI author; maintainer owns contracts and acceptance
 
@@ -2213,7 +2214,7 @@ Saved proposals cannot resume at failed pre-task review, provider failures do no
 - Define and verify behavior for single/multiple failures, restart, unavailable final reviewer, negative versus malformed review, unknown usage and owner changes during active work. Keep actual provider availability and uncertain writes explicit; do not infer rollback.
 - Implement recovery and team-control choices through existing typed strategy interfaces where applicable; identify and justify only the missing replacement boundary. Keep shared runtime constraints, accounting, authority and acceptance enforcement outside replaceable algorithms.
 - For a newly introduced replacement point, prove materially different strategies through the same consumer and acceptance conditions, recording strategy identity/version/configuration and actual decisions. Reuse existing substitution evidence; do not redesign unrelated subsystems.
-- Treat strategy selection as a possible team UI attribute, not an approved placement. Keep session/team persistence and live strategy-switch semantics explicit; model-assisted strategies must use ordinary admitted and recorded invocations.
+- Strategy selection belongs only on /team in the separate YMP-148 follow-up. Preserve session-level policy revision and actual strategy provenance; do not expand this P0 backend recovery assignment into the selector UI or whole coordination strategy.
 
 **Evidence:**
 
@@ -2247,6 +2248,39 @@ Recent discussion concentrated on interchangeable policies while the five produc
 **Evidence:**
 
 - ymp-docs/research/goal-driven-trials.md
+
+## YMP-148
+
+Expose replaceable coordination on /team and separate the agent catalog
+
+**State:** `[=]` (planned) · **Type:** implementation · **Priority:** P1
+
+**Last update (UTC):** 2026-09-13 16:00
+
+**Current reason:** Needs YMP-145, YMP-146
+
+**Owner:** Backend strategy author and Claude Code claude-opus-5 high UI author; maintainer owns contracts and independent acceptance
+
+**Authorization:** Owner accepted the CoordinationPolicy interface direction and explicitly limited policy selection to /team and the discussed policies, then identified duplication between /agents and /team. No policy controls in /settings or a separate strategies page are requested.
+
+**Depends on:** [YMP-145](#ymp-145), [YMP-146](#ymp-146)
+
+Allocation and resource interfaces exist, but whole-session interaction remains partly hardcoded. Current team view repeats the full pool, and both agent/team membership actions edit starting preferences rather than live session membership.
+
+**Latest progress note:** Recorded owner /team-only policy placement and separate catalog/team responsibility. Parent verified full pool duplication and common toggle_membership Config.team mutation in both current views. Follow-up is queued behind popup/recovery work; no coordination strategy or new UI is implemented by this specification.
+
+**Acceptance criteria:**
+
+- Provide a typed replaceable coordination boundary for next work, temporary responsibilities, information sharing and review/disagreement flow, reusing existing allocation/resource interfaces and runtime enforcement. Establish materially different behavior through the real consumer and common acceptance rules; do not claim a board-order substitution replaces all coordination.
+- Place available coordination, allocation and resource strategy selection only on /team; persist the effective versioned configuration on the session. No /settings default selector, separate strategy page, recovery mode selector or universal policy parameterization.
+- Make /team own current-session participants, responsibilities, live add/remove/replace and pending changes through the accepted backend command API. Clearly distinguish the next-session draft when no session is selected, and preserve active assignments and historical attribution when strategies change.
+- Keep /agents as native catalog/capability/profile configuration. Remove the repeated full catalog from /team in favor of an add-member chooser using the same source/components; remove duplicate preference-only membership mutations or route shortcuts into the single team flow.
+- Display only real registered implementations with concise behavior descriptions. Keep native identities, capability discovery, mandatory acceptance and resource constraints intact.
+- Delegate UI to Claude Code high after dependent work is accepted, prove current-session versus next-run semantics and strategy effects with meaningful failing controls, perform required checks and independent terminal verification. Do not delay P0 recovery or claim live comparative quality without an authorized experiment.
+
+**Evidence:**
+
+- ymp-docs/architecture/team-and-agent-surfaces.md
 
 ## Intent coverage
 

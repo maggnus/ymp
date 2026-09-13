@@ -1,7 +1,7 @@
 # YMP-146: recovery and owner-controlled team changes
 
-Status: authorized backend implementation contract, 2026-09-13. UI placement of
-strategy selection remains open. This does not amend intent.md or authorize
+Status: authorized backend implementation contract, 2026-09-13. The owner later
+selected `/team` for strategy selection in a separate follow-up. This does not amend intent.md or authorize
 changing resource limits, replaying the owner's live session, or implementing an
 editor. Parent owns this contract and final acceptance.
 
@@ -123,8 +123,8 @@ native participants. Team changes do not amend token/time/invocation limits,
 change task acceptance criteria or create new historical agent identities.
 
 Strategy IDs/configuration must remain attributable to their decisions. The
-future placement of a strategy selector on a team screen is open and must not
-be settled by a backend placeholder UI.
+owner selected `/team` for the later strategy UI; that separate follow-up must
+not be replaced by a backend placeholder UI or delay this recovery outcome.
 
 ## Acceptance and verification
 

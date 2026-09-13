@@ -3919,7 +3919,7 @@
         "Define and verify behavior for single/multiple failures, restart, unavailable final reviewer, negative versus malformed review, unknown usage and owner changes during active work. Keep actual provider availability and uncertain writes explicit; do not infer rollback.",
         "Implement recovery and team-control choices through existing typed strategy interfaces where applicable; identify and justify only the missing replacement boundary. Keep shared runtime constraints, accounting, authority and acceptance enforcement outside replaceable algorithms.",
         "For a newly introduced replacement point, prove materially different strategies through the same consumer and acceptance conditions, recording strategy identity/version/configuration and actual decisions. Reuse existing substitution evidence; do not redesign unrelated subsystems.",
-        "Treat strategy selection as a possible team UI attribute, not an approved placement. Keep session/team persistence and live strategy-switch semantics explicit; model-assisted strategies must use ordinary admitted and recorded invocations."
+        "Strategy selection belongs only on /team in the separate YMP-148 follow-up. Preserve session-level policy revision and actual strategy provenance; do not expand this P0 backend recovery assignment into the selector UI or whole coordination strategy."
       ],
       "evidence": [
         "ymp-docs/architecture/session-recovery-contract.md"
@@ -3959,6 +3959,11 @@
           "at": "2026-09-13T15:38:57.314453+00:00",
           "status": "in_progress",
           "note": "Product discussion identifies agent interaction and temporary role selection as the important experimental behavior, not a public recovery-policy switch. P0 failure recovery remains unchanged; broader goal-directed coordination trials are separated in147/201 so they do not delay the executing backend fork."
+        },
+        {
+          "at": "2026-09-13T16:00:44.572147+00:00",
+          "status": "in_progress",
+          "note": "Owner selected /team-only strategy controls and identified /agents duplication. Recorded concrete follow-up as148; scope clarification does not alter the P0 recovery/backend work or restart the executing fork."
         }
       ]
     },
@@ -3990,9 +3995,41 @@
           "note": "Maintainer reviewed intent, value proposition, existing trusted driver/validators and paused201–203 protocols. Recorded goal-linked metrics, four diagnostic task structures, 24 proposed full outcome attempts across three treatments, held-out/negative controls, actual-resource accounting and a single later goal-directed coordination candidate. Corrected an obsolete active-document claim that concurrency was still take(1). This is completed product design only; fixtures, strategy implementation and live experiments are not claimed."
         }
       ]
+    },
+    {
+      "id": "YMP-148",
+      "title": "Expose replaceable coordination on /team and separate the agent catalog",
+      "type": "implementation",
+      "priority": "P1",
+      "status": "planned",
+      "owner": "Backend strategy author and Claude Code claude-opus-5 high UI author; maintainer owns contracts and independent acceptance",
+      "authorization": "Owner accepted the CoordinationPolicy interface direction and explicitly limited policy selection to /team and the discussed policies, then identified duplication between /agents and /team. No policy controls in /settings or a separate strategies page are requested.",
+      "depends_on": [
+        "YMP-145",
+        "YMP-146"
+      ],
+      "reason": "Allocation and resource interfaces exist, but whole-session interaction remains partly hardcoded. Current team view repeats the full pool, and both agent/team membership actions edit starting preferences rather than live session membership.",
+      "acceptance": [
+        "Provide a typed replaceable coordination boundary for next work, temporary responsibilities, information sharing and review/disagreement flow, reusing existing allocation/resource interfaces and runtime enforcement. Establish materially different behavior through the real consumer and common acceptance rules; do not claim a board-order substitution replaces all coordination.",
+        "Place available coordination, allocation and resource strategy selection only on /team; persist the effective versioned configuration on the session. No /settings default selector, separate strategy page, recovery mode selector or universal policy parameterization.",
+        "Make /team own current-session participants, responsibilities, live add/remove/replace and pending changes through the accepted backend command API. Clearly distinguish the next-session draft when no session is selected, and preserve active assignments and historical attribution when strategies change.",
+        "Keep /agents as native catalog/capability/profile configuration. Remove the repeated full catalog from /team in favor of an add-member chooser using the same source/components; remove duplicate preference-only membership mutations or route shortcuts into the single team flow.",
+        "Display only real registered implementations with concise behavior descriptions. Keep native identities, capability discovery, mandatory acceptance and resource constraints intact.",
+        "Delegate UI to Claude Code high after dependent work is accepted, prove current-session versus next-run semantics and strategy effects with meaningful failing controls, perform required checks and independent terminal verification. Do not delay P0 recovery or claim live comparative quality without an authorized experiment."
+      ],
+      "evidence": [
+        "ymp-docs/architecture/team-and-agent-surfaces.md"
+      ],
+      "history": [
+        {
+          "at": "2026-09-13T16:00:44.572147+00:00",
+          "status": "planned",
+          "note": "Recorded owner /team-only policy placement and separate catalog/team responsibility. Parent verified full pool duplication and common toggle_membership Config.team mutation in both current views. Follow-up is queued behind popup/recovery work; no coordination strategy or new UI is implemented by this specification."
+        }
+      ]
     }
   ],
-  "updated_at": "2026-09-13T15:38:57.314453+00:00",
+  "updated_at": "2026-09-13T16:00:44.572147+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",

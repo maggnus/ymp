@@ -40,8 +40,9 @@ Comparisons record implementation IDs/versions, configuration, workload, resourc
 
 Owner clarification, 2026-09-13: team scaling and decision algorithms should be
 investigated by implementing shared interfaces and comparing strategies, without
-repeatedly rewriting the execution kernel. Whether the UI presents strategy
-selection as a team attribute remains an open product choice.
+repeatedly rewriting the execution kernel. The owner subsequently selected
+`/team` as the only UI location for the discussed policy choices; see
+[team and agent surfaces](team-and-agent-surfaces.md).
 
 The owner subsequently cautioned against parameterizing every policy. A
 replaceable implementation, its algorithm parameters and public user settings
@@ -71,8 +72,8 @@ permission for hidden inference or unaccounted provider calls.
 Record the selected strategy identity, version, explicit configuration and the
 effective policy revision alongside the decisions it influences. A later strategy
 change must not relabel earlier decisions or silently alter an active assignment.
-The session-versus-team configuration placement needs a concrete contract before
-UI implementation; the owner has not selected that placement yet.
+Strategy configuration belongs to the session, while its UI control belongs only
+to `/team`. No additional selector/default control is added to `/settings`.
 
 Prove each newly introduced replacement point through two materially different
 implementations using the same consumer and acceptance conditions. Compare actual
