@@ -2094,7 +2094,7 @@ impl Engine {
                         &ctx.session.id,
                         "ymp",
                         "notice",
-                        &format!("{} proposal unavailable: {e}", agent.name),
+                        &format!("Plan proposal unavailable: {e}"),
                     )?;
                 }
             }
@@ -2185,7 +2185,7 @@ impl Engine {
                 selected = Some((author, proposal, review));
                 break;
             }
-            self.post(&ctx.session.id, "ymp", "notice", &format!("{}'s proposal exhausted its revision attempts. Considering another participant's proposal.", author.name))?;
+            self.post(&ctx.session.id, "ymp", "notice", "A plan proposal exhausted its revision attempts. Considering another participant's proposal.")?;
         }
         let (author, proposal, (review_response, review_id, review_reason)) =
             selected.context("No proposed plan passed independent review")?;
