@@ -1,6 +1,6 @@
 # Delivery plan and progress
 
-Updated: 2026-09-13 11:43 UTC.
+Updated: 2026-09-13 11:50 UTC.
 
 [Approved intent](../../intent.md) · [Task details and evidence](README.md) · [Canonical register](tasks.json)
 
@@ -33,7 +33,7 @@ A planned task automatically shows `[=]` while prerequisites remain unfinished a
 ## Current work and owner questions
 
 - `[+]` [YMP-130](README.md#ymp-130) — Show active agent work during headless session runs (2026-09-13 00:54). Read-only diagnosis: poker checks passed at 2026-09-13T00:52:09Z; the following claude-opus-5 review invocation was active. Earlier attempts were cancelled. No active run was stopped or restarted by this investigation.
-- `[+]` [YMP-143](README.md#ymp-143) — Provide a separate live Git status and committed-history view (2026-09-13 11:43). Owner clarified separate Git functionality and narrowed the file manager to simple read-only opening with the existing highlighter. Current source and native Git command shapes were inspected; no UI, Git backend, editor or release change was implemented. Research-only scope remains in force.
+- `[+]` [YMP-143](README.md#ymp-143) — Provide a separate /git changes view modeled on Paseo (2026-09-13 11:50). Parent and Claude inspected clean Paseo0.8.0 source fa93c42. Committed/Uncommitted are view modes; the default follows dirty/clean state, and an empty comparison displays no changes. BranchSwitcher performs checkout with explicit stash handling. No uncommit action found. Recorded a /git proposal matching this behavior; no implementation, Git mutation or installed update. Optional wording clarification is pending.
 
 ## Ready next
 
@@ -141,8 +141,8 @@ Deferred and post-MVP work:
 
 | Time (UTC) | Task | State | Update |
 | --- | --- | --- | --- |
+| 2026-09-13 11:50 | [YMP-143](README.md#ymp-143) | `[+]` | Parent and Claude inspected clean Paseo0.8.0 source fa93c42. Committed/Uncommitted are view modes; the default follows dirty/clean state, and an empty comparison displays no changes. BranchSwitcher performs checkout with explicit stash handling. No uncommit action found. Recorded a /git proposal matching this behavior; no implementation, Git mutation or installed update. Optional wording clarification is pending. |
 | 2026-09-13 11:43 | [YMP-142](README.md#ymp-142) | `[x]` | Latest owner direction keeps file opening read-only with the current highlighter for now. Editing is deferred. Live Git inspection is a distinct feature recorded as143, not part of the file manager or justification to replace its highlighter. |
-| 2026-09-13 11:43 | [YMP-143](README.md#ymp-143) | `[+]` | Owner clarified separate Git functionality and narrowed the file manager to simple read-only opening with the existing highlighter. Current source and native Git command shapes were inspected; no UI, Git backend, editor or release change was implemented. Research-only scope remains in force. |
 | 2026-09-13 11:37 | [YMP-141](README.md#ymp-141) | `[=]` | Owner research-only scope remains in force. Shared modal geometry cause diagnosed. The isolated branch retains185 unrun test lines; no renderer fix, integration, package change or installed update was made. Parent retained the draft patch and recorded the independent editor research separately as142. |
 | 2026-09-13 11:15 | [YMP-138](README.md#ymp-138) | `[x]` | After 0.4.4/0.4.5 acceptance, archived the final two assignment agents/workspaces and removed their clean worktrees, the obsolete theme project and three remaining temporary build caches. Both branches/commits are retained; generated fixture data is verified in a compact recovery archive. Only the main Git worktree remains; installed executable, release backups and owner changes are preserved. |
 | 2026-09-13 11:13 | [YMP-140](README.md#ymp-140) | `[x]` | Independently accepted author 8d3da6a and integrated as 0829dc6. Release source f29bb7a passes fmt, strict Clippy and 554 tests (2 ignored), colour/monochrome inline+Inspect checks with immutable stored messages, 12+12 file cases, 19 table/theme cases and five exit cases. Installed 0.4.5 passes independent colour and monochrome checks in Ember/Latte. Cooperative timing, source-byte cache limits and plain streaming code are documented; no Linux/Windows or real-provider inference claim. |

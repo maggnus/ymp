@@ -1,0 +1,60 @@
+{
+  "mode": "research_only",
+  "reference_repo": "/Users/maggnus/Code/paseo",
+  "revision": "fa93c4290eaa87ae58452ab6e2012f85ae6e0c6b",
+  "reference_version": "0.8.0",
+  "installed_paseo_cli_version": "0.8.0",
+  "reference_worktree_clean": true,
+  "method": "Read source, tests and local public docs; no live app clicks or Git mutations. Matching version labels do not prove exact installed source identity.",
+  "deployed_docs": "https://paseo.sh/llms.txt was attempted through web and HTTP; unavailable (HTTP403 in direct fetch). Used pinned local source and local public-docs/worktrees.md instead.",
+  "files": {
+    "packages/app/src/git/diff-pane.tsx": "5c7d2f3711bc963b41e94481985695961237477bb9d0fe109c08a715d1055d0d",
+    "packages/app/src/git/working-diff-comparison/state.ts": "1d05771a647c0617f825226771d7c6db74bcdd2069eb21b4c6df39fc11b1e2e7",
+    "packages/app/src/git/use-working-diff.ts": "c1346c22bc0184670c6de34cf6b410e88d7c5a048fbb8fede02be0775f71b85f",
+    "packages/app/src/hooks/use-branch-switcher.ts": "9a77566ff48309f89b2df1ea7695a916bd010f62ae85c905022ce2de2e4153e8",
+    "packages/app/src/git/branch-switcher-operations.ts": "d4473c8f8d7397e42bdb3555c99817a042201172211e00939aa0d12abfd8f4cd",
+    "packages/server/src/server/session/git-mutation/git-mutation-service.ts": "47932269723810b8accfadf0d20e33af4eef6ef80dce4d631a76a88d4fccd2ea",
+    "packages/server/src/server/session/checkout/checkout-session.ts": "a88dc5d1e0b1256245d59a51dd01b64240fe75d5e3534286d51153e1908713ec",
+    "packages/server/src/server/session/workspace-git-observer/workspace-git-observer-service.ts": "24e5c01ebfd5658bfcf5be2c1904da295d69a7bf545538ae8ef23b5dfa25e4ea",
+    "packages/server/src/server/workspace-git-service.ts": "c165ed8c0b52e3fbba532b4a9f58f5400b9c3f56d6f072186d9c52e4f23de02c",
+    "packages/server/src/utils/checkout-git.ts": "f64ca2e3541371205965e7311a7eab7dbf3a341b5fb0b62a14d646057e80a8e8",
+    "public-docs/worktrees.md": "893de912139db48c2de5b4e89daaf03bf2879bcc02559b3f1883ce914da33f24"
+  },
+  "findings": {
+    "modes": [
+      "uncommitted",
+      "base (Committed label)"
+    ],
+    "uncommitted": "HEAD versus working content, including untracked files",
+    "committed": "Merge base of selected base ref with HEAD, compared to HEAD; excludes untracked files",
+    "default": "Uncommitted when dirty; Committed when clean, unless a current-state manual selection overrides it",
+    "empty": "Empty-message state, sometimes with a link to the other comparison mode; loading/non-Git/error are separate states",
+    "branch_switch": "Actual checkout; backend requires clean tree, UI offers stash-and-switch confirmation when dirty and optional restore on target branch",
+    "commit": "Separate operation; default addAll=true in request handler, stages all and commits; empty message may use agent-generated metadata",
+    "uncommit": "No dedicated uncommit/undo-commit/reset-soft command found in searched app and server source. Do not infer this operation from Committed/Uncommitted labels.",
+    "live_updates": "Filesystem and Git metadata observers,1-second debounce,5-second degraded polling fallback."
+  },
+  "scope_questions": [
+    "Owner clarification pending: view toggle versus actual commit/uncommit operations."
+  ],
+  "not_verified": [
+    "Installed app interaction by clicking",
+    "Execution of branch switch, stash, commit or undo operations",
+    "A ymp implementation"
+  ],
+  "reviewed_at": "2026-09-13T11:50:05.547469+00:00",
+  "independent_ui_review": {
+    "agent": "10cfb57d-de32-4182-9573-a4717cfeebe8",
+    "model": "claude-opus-5",
+    "mode": "source-only",
+    "agreed": [
+      "Committed/Uncommitted are comparison views; no uncommit operation found.",
+      "Empty state is comparison-specific, not equivalent to a clean working tree.",
+      "Dirty defaults to Uncommitted; clean defaults to Committed. Manual choice expires on dirty-state boundary.",
+      "BranchSwitcher performs actual checkout and offers stash/restore; baseRef is obtained from status, not selected by this control.",
+      "Commit is a separate action, by default all changes; metadata generation is in the server.",
+      "Keep /files independent and read-only; adapt the Changes panel as /git."
+    ]
+  },
+  "current_interpretation": "Treat owner commit/uncommit wording as Committed/Uncommitted view labels for this proposal; optional clarification is pending. Do not infer authorization to undo commits."
+}

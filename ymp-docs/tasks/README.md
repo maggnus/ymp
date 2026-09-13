@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-13 11:43 UTC.
+Updated: 2026-09-13 11:50 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -83,7 +83,7 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-140](#ymp-140) | P1 | Render agent code and explicit diffs clearly using established AI-chat patterns | 2026-09-13 11:13 |
 | `[=]` | [YMP-141](#ymp-141) | P1 | Keep popup geometry stable while scrolling content | 2026-09-13 11:37 |
 | `[x]` | [YMP-142](#ymp-142) | P1 | Assess ratatui-code-editor for opening files inside ymp | 2026-09-13 11:43 |
-| `[+]` | [YMP-143](#ymp-143) | P1 | Provide a separate live Git status and committed-history view | 2026-09-13 11:43 |
+| `[+]` | [YMP-143](#ymp-143) | P1 | Provide a separate /git changes view modeled on Paseo | 2026-09-13 11:50 |
 
 ## YMP-001
 
@@ -2086,17 +2086,17 @@ Determine whether the ready editor widget improves file interaction without dupl
 
 ## YMP-143
 
-Provide a separate live Git status and committed-history view
+Provide a separate /git changes view modeled on Paseo
 
 **State:** `[+]` (new) · **Type:** implementation · **Priority:** P1
 
-**Last update (UTC):** 2026-09-13 11:43
+**Last update (UTC):** 2026-09-13 11:50
 
-**Current reason:** Owner clarified separate Git functionality and narrowed the file manager to simple read-only opening with the existing highlighter. Current source and native Git command shapes were inspected; no UI, Git backend, editor or release change was implemented. Research-only scope remains in force.
+**Current reason:** Parent and Claude inspected clean Paseo0.8.0 source fa93c42. Committed/Uncommitted are view modes; the default follows dirty/clean state, and an empty comparison displays no changes. BranchSwitcher performs checkout with explicit stash handling. No uncommit action found. Recorded a /git proposal matching this behavior; no implementation, Git mutation or installed update. Optional wording clarification is pending.
 
 **Owner:** Maintainer defines Git data contracts; Claude Code high owns future UI implementation
 
-**Authorization:** Owner wants live visibility of committed/uncommitted files with branch or worktree selection and explicitly clarified that this must be separate from the file manager. Current authorization is research and scope definition only; do not begin implementation under the existing research-only instruction.
+**Authorization:** Owner wants live visibility of committed/uncommitted files with branch or worktree selection and explicitly clarified that this must be separate from the file manager. Current authorization is research and scope definition only; do not begin implementation under the existing research-only instruction. Owner further proposed /git, an empty view until differences exist, branch switching and commit/uncommit, and asked to inspect Paseo as the reference. Source review identifies Committed/Uncommitted as comparison modes; an optional clarification about actual commit/undo operations remains pending. Research-only scope still applies.
 
 **Depends on:** [YMP-139](#ymp-139), [YMP-140](#ymp-140)
 
@@ -2104,14 +2104,16 @@ The current Git-marker discovery and session changes page do not expose actual s
 
 **Acceptance criteria:**
 
-- Provide Git inspection as a separate section; keep /files as filesystem navigation with the existing read-only highlighted preview.
-- Distinguish staged, unstaged, untracked and conflicted files in the selected worktree, and committed history/files for a selected branch or commit. A branch selection for inspection must not perform checkout or change session execution cwd.
-- Refresh visible Git data asynchronously with preserved selection, bounded work and explicit stale/error state; use actual committed objects for historical content.
-- Delegate future UI implementation to Claude Code high, independently verify Git fixtures and terminal behavior and record implemented versus proposed functionality.
+- Keep /git separate from /files. /files remains a read-only filesystem navigator with current highlighting.
+- Provide Uncommitted working changes and Committed branch-versus-base differences, changed-file counts and highlighted diff opening. Empty/loading/error/non-Git states must be distinct. Preserve appropriate mode and selection through live updates.
+- Support inspecting existing worktrees. Treat actual branch switching as an explicit checkout operation, separate from comparison selection, with dirty-tree handling and coordination with active agent writes. Do not infer undo-commit, discard or remote operations from the Committed/Uncommitted labels.
+- Refresh visible Git data asynchronously with bounded work and honest stale/error state. Use actual Git objects for historical content and verify Git edge-case fixtures.
+- Delegate future UI implementation to Claude Code high and independently verify source and terminal behavior. Current task remains unimplemented under the owner research-only restriction.
 
 **Evidence:**
 
 - ymp-docs/research/separate-git-inspection.md
+- ymp-docs/research/evidence/git-paseo-143/source-review.json
 
 ## Intent coverage
 

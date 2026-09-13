@@ -3735,36 +3735,43 @@
     },
     {
       "id": "YMP-143",
-      "title": "Provide a separate live Git status and committed-history view",
+      "title": "Provide a separate /git changes view modeled on Paseo",
       "type": "implementation",
       "priority": "P1",
       "status": "new",
       "owner": "Maintainer defines Git data contracts; Claude Code high owns future UI implementation",
-      "authorization": "Owner wants live visibility of committed/uncommitted files with branch or worktree selection and explicitly clarified that this must be separate from the file manager. Current authorization is research and scope definition only; do not begin implementation under the existing research-only instruction.",
+      "authorization": "Owner wants live visibility of committed/uncommitted files with branch or worktree selection and explicitly clarified that this must be separate from the file manager. Current authorization is research and scope definition only; do not begin implementation under the existing research-only instruction. Owner further proposed /git, an empty view until differences exist, branch switching and commit/uncommit, and asked to inspect Paseo as the reference. Source review identifies Committed/Uncommitted as comparison modes; an optional clarification about actual commit/undo operations remains pending. Research-only scope still applies.",
       "depends_on": [
         "YMP-139",
         "YMP-140"
       ],
       "reason": "The current Git-marker discovery and session changes page do not expose actual staged/unstaged status or committed history.",
       "acceptance": [
-        "Provide Git inspection as a separate section; keep /files as filesystem navigation with the existing read-only highlighted preview.",
-        "Distinguish staged, unstaged, untracked and conflicted files in the selected worktree, and committed history/files for a selected branch or commit. A branch selection for inspection must not perform checkout or change session execution cwd.",
-        "Refresh visible Git data asynchronously with preserved selection, bounded work and explicit stale/error state; use actual committed objects for historical content.",
-        "Delegate future UI implementation to Claude Code high, independently verify Git fixtures and terminal behavior and record implemented versus proposed functionality."
+        "Keep /git separate from /files. /files remains a read-only filesystem navigator with current highlighting.",
+        "Provide Uncommitted working changes and Committed branch-versus-base differences, changed-file counts and highlighted diff opening. Empty/loading/error/non-Git states must be distinct. Preserve appropriate mode and selection through live updates.",
+        "Support inspecting existing worktrees. Treat actual branch switching as an explicit checkout operation, separate from comparison selection, with dirty-tree handling and coordination with active agent writes. Do not infer undo-commit, discard or remote operations from the Committed/Uncommitted labels.",
+        "Refresh visible Git data asynchronously with bounded work and honest stale/error state. Use actual Git objects for historical content and verify Git edge-case fixtures.",
+        "Delegate future UI implementation to Claude Code high and independently verify source and terminal behavior. Current task remains unimplemented under the owner research-only restriction."
       ],
       "evidence": [
-        "ymp-docs/research/separate-git-inspection.md"
+        "ymp-docs/research/separate-git-inspection.md",
+        "ymp-docs/research/evidence/git-paseo-143/source-review.json"
       ],
       "history": [
         {
           "at": "2026-09-13T11:43:40.534902+00:00",
           "status": "new",
           "note": "Owner clarified separate Git functionality and narrowed the file manager to simple read-only opening with the existing highlighter. Current source and native Git command shapes were inspected; no UI, Git backend, editor or release change was implemented. Research-only scope remains in force."
+        },
+        {
+          "at": "2026-09-13T11:50:05.547469+00:00",
+          "status": "new",
+          "note": "Parent and Claude inspected clean Paseo0.8.0 source fa93c42. Committed/Uncommitted are view modes; the default follows dirty/clean state, and an empty comparison displays no changes. BranchSwitcher performs checkout with explicit stash handling. No uncommit action found. Recorded a /git proposal matching this behavior; no implementation, Git mutation or installed update. Optional wording clarification is pending."
         }
       ]
     }
   ],
-  "updated_at": "2026-09-13T11:43:40.534902+00:00",
+  "updated_at": "2026-09-13T11:50:05.547469+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",
