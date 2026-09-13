@@ -1,0 +1,45 @@
+{
+  "head": "edc779a2da5b101ad50a5803427b4fe4354d46f3",
+  "started": "2026-09-13T19:21:18.762096+00:00",
+  "target_dir": "/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-recovery-backend/target",
+  "checks": [
+    {
+      "command": [
+        "cargo",
+        "fmt",
+        "--all",
+        "--check"
+      ],
+      "started": "2026-09-13T19:21:18.762238+00:00",
+      "log": "final-attempt2-0.log",
+      "exit_code": 0,
+      "finished": "2026-09-13T19:21:19.418894+00:00"
+    },
+    {
+      "command": [
+        "cargo",
+        "clippy",
+        "--workspace",
+        "--all-targets",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "started": "2026-09-13T19:21:19.419279+00:00",
+      "log": "final-attempt2-1.log",
+      "exit_code": 0,
+      "finished": "2026-09-13T19:21:22.726722+00:00"
+    },
+    {
+      "command": [
+        "cargo",
+        "test",
+        "--workspace"
+      ],
+      "started": "2026-09-13T19:21:22.727036+00:00",
+      "log": "final-attempt2-2.log",
+      "exit_code": 0,
+      "finished": "2026-09-13T19:23:56.505731+00:00"
+    }
+  ]
+}

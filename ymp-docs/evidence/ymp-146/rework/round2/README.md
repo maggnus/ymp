@@ -104,7 +104,27 @@ focused test reproduced it. The full fresh-review proposal had enlarged every
 cloned Engine/async frame; sharing that immutable command via Arc fixes the
 regression. The unchanged test then passed without increasing the stack limit.
 Logs and source hashes are in `export-stack-before.json`/`export-stack-after.json`.
-The required final sequence is repeated only after this source correction. No real provider inference, user
+The required final sequence was repeated only after this source correction.
+
+Final executable source: `edc779a2da5b101ad50a5803427b4fe4354d46f3`.
+All final commands exited **0**:
+
+- `cargo fmt --all --check`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo test --workspace`: **624 passed, 0 failed, 2 ignored**.
+
+`final-checks.json` records the actual command arguments, times and logs.
+`source-verification.json` binds the 15 source/test files changed in this round,
+checks the exact write zone, confirms the preserved R4 files and project contract,
+and verifies all 16 reviewer-owned original artifacts. The two ignored tests are
+the existing fixture-only Claude SDK scan requiring bridge npm setup/build and
+the optional fixture-retention helper. No real-provider probe was added.
+
+Only evidence/documentation changes follow the checked source commit. Authored
+command logs have trailing blank lines normalized; reviewer originals remain
+byte-identical. No checks are repeated for these documentation-only edits.
+The next step is independent parent acceptance and integration; this delivery
+does not assert that the owner's real session has been resumed. No real provider inference, user
 home/session access, integration, installation, UI, dependency or release change
 is included. Linux and actual native process/external-effect guarantees remain
 unverified. Parent owns independent final acceptance and UI/integration.
