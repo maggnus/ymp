@@ -11,6 +11,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import uuid
 from datetime import datetime, timezone
 
 from native_controls_probe import CONTROLS
@@ -71,7 +72,7 @@ def generate(runner, output, workspaces, phase, seed=2010914, prerequisite=None)
             identifier = task + "-" + condition
             attempts.append({"id": identifier, "condition": condition, "task": task,
                              "variant": "preparation" if calibration else "measured",
-                             "blind_id": hashlib.sha256(f"{seed}:{phase}:{identifier}".encode()).hexdigest()[:32]})
+                             "blind_id": uuid.uuid4().hex})
     frozen = {}
     for area in ["ymp-evals/weak-pilot", "ymp-evals/validators", "ymp-rust/crates/ymp-eval-driver/src/bin"]:
         for path in sorted((ROOT / area).rglob("*")):
