@@ -3,7 +3,9 @@
 //! One rule names agents in the terminal interface and in the headless command alike. While
 //! agents are discovered or chosen, an agent is the concrete model identifier native metadata
 //! resolves it to. While an agent works, it is the model and effort of the one invocation doing
-//! that work, as the invocation reported them. A caption an installation returned stays in the
+//! that work, as the invocation reported them. Where no effort was reported, or what was reported
+//! only switches thinking on or off, the label is the model alone; a reported `none` is a native
+//! level and stays. A caption an installation returned stays in the
 //! stored metadata, and a provider or actor identifier stays a field of its own: neither becomes
 //! the name. `default` is an internal alias rather than a model, so it is shown only as the model
 //! native metadata or the invocation resolves it to. A value nothing recorded stays unknown and
@@ -22,8 +24,9 @@ const MAX_CELLS: usize = 120;
 
 /// The label of an agent whose concrete model nothing recorded or resolved.
 pub const UNKNOWN_MODEL: &str = "unknown model";
-/// The effort beside a model whose invocation reported none. Nothing is guessed in its place.
-pub const UNREPORTED_EFFORT: &str = "none";
+/// Reported values that switch a native thinking control on or off rather than grade an effort.
+/// Such a value stays in the details exactly as reported and is never mapped to a level.
+const SWITCHES: &[&str] = &["on", "off", "enabled", "disabled", "true", "false"];
 
 /// A native identifier that names a model rather than the internal default alias.
 fn concrete(id: &str) -> Option<&str> {
@@ -238,19 +241,27 @@ impl<'a> Turn<'a> {
         }
     }
 
-    /// The effort the installation reported. A requested or sent effort is not evidence of the
-    /// effort that applied, so it is never presented as one.
+    /// The graded effort the installation reported. A requested or sent effort is not evidence
+    /// of the effort that applied, so it is never presented as one, and a switch that only turns
+    /// thinking on or off grades nothing.
     fn effort(&self) -> Option<&'a str> {
         self.reported
             .and_then(|settings| settings.effort.as_deref())
-            .filter(|effort| !effort.trim().is_empty())
+            .map(str::trim)
+            .filter(|effort| {
+                !effort.is_empty()
+                    && !SWITCHES
+                        .iter()
+                        .any(|switch| effort.eq_ignore_ascii_case(switch))
+            })
     }
 
+    /// The model, with the graded effort beside it only where one was reported.
     fn label(&self) -> String {
         let model = self.model().map_or_else(|| UNKNOWN_MODEL.to_owned(), clean);
         match self.effort() {
             Some(effort) => format!("{model} {}", clean(effort)),
-            None => format!("{model} {UNREPORTED_EFFORT}"),
+            None => model,
         }
     }
 }
@@ -272,10 +283,12 @@ fn local_actor(
             .rev()
             .find(|assignment| assignment.agent_id == agent)
         {
-            return match &assignment.agent_identity {
-                Some(identity) => identity.status == AgentIdentityStatus::Local,
-                None => provider_is_local(config, &assignment.provider_id),
-            };
+            // A turn that captured no identity recorded nothing that makes it a fixture's. What
+            // its provider is configured as now is not evidence about that turn.
+            return assignment
+                .agent_identity
+                .as_ref()
+                .is_some_and(|identity| identity.status == AgentIdentityStatus::Local);
         }
         if let Some(profile) = trace
             .session
@@ -444,7 +457,7 @@ mod tests {
             settings(Some("default"), Some("max")),
             settings(None, None),
         );
-        assert_eq!(invocation(&unreported), "native-long-version[1m] none");
+        assert_eq!(invocation(&unreported), "native-long-version[1m]");
         // A model sent explicitly is acknowledged rather than reported, and it is still the model.
         let explicit = linked(
             None,
@@ -460,7 +473,33 @@ mod tests {
             settings(Some("default"), None),
             settings(None, None),
         );
-        assert_eq!(invocation(&alias), "unknown model none");
+        assert_eq!(invocation(&alias), "unknown model");
+    }
+
+    #[test]
+    fn a_thinking_switch_or_a_missing_effort_leaves_the_model_alone() {
+        // Nothing requested or sent an effort; the installation reported what it did.
+        let turn = |effort: Option<&str>| {
+            invocation(&linked(
+                None,
+                settings(Some("glm-4.7"), None),
+                settings(Some("glm-4.7"), None),
+                settings(Some("glm-4.7"), effort),
+            ))
+        };
+        assert_eq!(turn(None), "glm-4.7");
+        assert_eq!(turn(Some(" ")), "glm-4.7");
+        // A binary thought control is not a level, and it is not mapped to one.
+        for switch in ["on", "off", "enabled", "disabled", "On"] {
+            assert_eq!(
+                turn(Some(switch)),
+                "glm-4.7",
+                "{switch} was shown as an effort"
+            );
+        }
+        // A native level stays, including a reported none, which is not missing metadata.
+        assert_eq!(turn(Some("none")), "glm-4.7 none");
+        assert_eq!(turn(Some("high")), "glm-4.7 high");
     }
 
     #[test]

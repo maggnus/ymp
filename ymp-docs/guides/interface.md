@@ -52,9 +52,11 @@ Agents are named by model. Neither the caption an installation gives a model, su
 by the model and effort of the invocation it is bound to, for example `glm-5.2 max`: the model
 the installation reported for that turn, otherwise the concrete model that was sent, with the
 internal `default` alias resolved only through the identity captured for that turn. Effort
-appears only when the installation reported it; otherwise it reads `none`, as in
-`claude-opus-5 none`. The assignment details list requested, sent and reported effort
-separately. Two turns of one actor that ran different models or efforts therefore carry
+appears only when the installation reported a graded level. Where it reported none, the
+heading is the model alone, as in `claude-opus-5`. A binary thinking switch such as `on` or `off`
+is not a level either, so a GLM turn that reported `on` reads `glm-4.7`. A level the installation
+really reported as `none` stays, as in `glm-5.2 none`. The assignment details list requested,
+sent and reported effort separately and exactly as recorded. Two turns of one actor that ran different models or efforts therefore carry
 different headings. A message no recorded invocation is linked to, such as one written
 before messages were linked, reads `unknown model`; a later turn, a configuration change or the
 provider the actor uses now does not rename it. Your prompts stay `you`, runtime notices stay
@@ -65,6 +67,12 @@ A stream, a working member in the sidebar and a tool call in the status row are 
 invocation that is running. An idle member, a token row and every choice on the team and agent
 pages are named by the concrete model alone, as native metadata resolved it. A profile whose
 `default` alias nothing resolved reads `unknown model` and is not offered as a new choice.
+A decision, a proposal to change the plan and the actors a record names are history: each is
+named by the turn that record itself links, and one that links no turn of that actor reads
+`unknown model`, even when a later turn of the same actor is known. A turn that captured no
+identity is not treated as a local fixture because of how its provider is configured now. The
+sessions list names a team by the models its recorded turns ran, which it reads for the loaded
+session, and never by the names or aliases of the profiles the session captured.
 
 The sidebar's team section names the profiles the loaded session captured when it started,
 and says so. With no session loaded it describes the team the next run would use instead; the

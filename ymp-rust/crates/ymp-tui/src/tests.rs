@@ -5688,6 +5688,263 @@ async fn turns_recorded_without_a_captured_identity_are_not_renamed_from_the_pre
         !rendered.contains("GPT-6-Astra"),
         "the window renamed a finished session's actor from the present catalog:\n{rendered}"
     );
+    // Its provider is a local fixture as configured now, which says nothing about a turn that
+    // captured no identity: the member is not given the fixture's configured name either.
+    app.command("/team", 100);
+    let member = left_of_key(&mut app, 100, &assignment.agent_id);
+    assert!(
+        member.contains(crate::label::UNKNOWN_MODEL),
+        "the provider as configured now named a turn that captured no identity: {member}"
+    );
+}
+
+/// A later turn of `agent` that captured a native identity and reported its model and effort:
+/// evidence about that turn, which a record written before it must not borrow.
+fn append_known_native_turn(run: &Run, agent: &str) {
+    let trace = run.store.trace(&run.session).unwrap();
+    let previous = trace.assignments.last().unwrap().clone();
+    let assignment = ymp_core::AssignmentRecord {
+        id: ymp_core::new_id(),
+        agent_id: agent.to_owned(),
+        grant_ids: Vec::new(),
+        agent_identity: Some(ymp_core::AgentIdentity {
+            name: "GPT-5.6-Terra".into(),
+            configured_name: agent.to_owned(),
+            model: Some("gpt-5.6-terra".into()),
+            effort: None,
+            resolved_model: None,
+            source: None,
+            status: ymp_core::AgentIdentityStatus::Native,
+        }),
+        state: ymp_core::InvocationState::Running,
+        started_at: ymp_core::now(),
+        ended_at: None,
+        ..previous
+    };
+    let reported = ymp_core::ExecutionSettings {
+        model: Some("gpt-5.6-terra".into()),
+        effort: Some("high".into()),
+        permission_mode: None,
+    };
+    let turn = ymp_core::InvocationRecord {
+        id: ymp_core::new_id(),
+        session_id: run.session.clone(),
+        assignment_id: assignment.id.clone(),
+        execution_backend: None,
+        turn: trace.invocations.len() as u64 + 1,
+        requested: assignment.requested.clone(),
+        sent: reported.clone(),
+        reported,
+        resumed_from: None,
+        native_session_id: None,
+        native_turn_id: None,
+        native_version: None,
+        state: ymp_core::InvocationState::Running,
+        started_at: ymp_core::now(),
+        ended_at: None,
+        usage: None,
+        terminal_reason: None,
+    };
+    run.store
+        .begin_invocation_with_grants(&assignment, &turn, &[])
+        .unwrap();
+}
+
+/// A decision with an actor, from the run's own records, and whether it links that actor's turn.
+fn actor_decision(run: &Run, linked: bool) -> (ymp_core::DecisionRecord, String) {
+    let trace = run.store.trace(&run.session).unwrap();
+    trace
+        .decisions
+        .iter()
+        .find_map(|decision| {
+            let actor = decision.actor.clone()?;
+            let own = decision.links.assignment_id.as_deref().is_some_and(|id| {
+                trace
+                    .assignments
+                    .iter()
+                    .any(|assignment| assignment.id == id && assignment.agent_id == actor)
+            });
+            (own == linked).then(|| (decision.clone(), actor))
+        })
+        .expect("the run recorded a decision of the kind this test reads")
+}
+
+#[tokio::test]
+async fn a_decision_is_named_by_the_turn_it_links_and_not_by_a_later_turn_of_its_actor() {
+    let run = mock_run("Create a greeting", |_| {}).await;
+    let (decision, actor) = actor_decision(&run, true);
+    append_known_native_turn(&run, &actor);
+    let mut app = run.app();
+    app.load_session(&run.session).unwrap();
+
+    // The fixture is effective: where the actor as it stands is meant, the later turn names it.
+    app.command("/team", 100);
+    assert!(
+        left_of_key(&mut app, 100, &actor).contains("gpt-5.6-terra"),
+        "the later native turn did not reach the roster, so this test proves nothing"
+    );
+
+    app.command("/decisions", 100);
+    let key = text::short_id(&decision.id);
+    let row = left_of_key(&mut app, 100, &key);
+    let detail = detail_of_key(&mut app, 100, &key);
+    assert!(
+        !row.contains("gpt-5.6-terra") && !detail.contains("gpt-5.6-terra"),
+        "a later turn renamed the actor of an earlier decision:\n{row}\n{detail}"
+    );
+    assert!(
+        row.ends_with(&format!(" · {actor}")),
+        "the decision is not named by the fixture turn it links: {row}"
+    );
+}
+
+#[tokio::test]
+async fn an_old_unlinked_record_stays_unknown_after_a_known_native_turn_of_its_actor() {
+    // A record written before decisions linked the turn behind them, followed by a turn whose
+    // model is known. Only that later turn names a model, and it is not this record's turn.
+    let run = mock_run("Create a greeting", |_| {}).await;
+    let (decision, actor) = actor_decision(&run, true);
+    append_known_native_turn(&run, &actor);
+    let mut app = run.app();
+    app.load_session(&run.session).unwrap();
+    app.command("/decisions", 100);
+    let trace = app.records.trace.as_mut().expect("the records were read");
+    for recorded in &mut trace.decisions {
+        if recorded.id == decision.id {
+            recorded.links.assignment_id = None;
+            recorded.links.invocation_id = None;
+        }
+    }
+
+    let key = text::short_id(&decision.id);
+    let row = left_of_key(&mut app, 100, &key);
+    let detail = detail_of_key(&mut app, 100, &key);
+    assert!(
+        !row.contains("gpt-5.6-terra") && !detail.contains("gpt-5.6-terra"),
+        "an unlinked record borrowed the model of a later turn:\n{row}\n{detail}"
+    );
+    assert!(
+        row.ends_with(&format!(" · {}", crate::label::UNKNOWN_MODEL))
+            && detail.contains(&format!("{} · {actor}", crate::label::UNKNOWN_MODEL)),
+        "an unlinked record does not say its model is unknown:\n{row}\n{detail}"
+    );
+}
+
+#[test]
+fn a_record_binds_only_to_the_exact_invocation_it_names() {
+    let fixture = fixture();
+    let config = native_label_config();
+    let session = native_label_session(&fixture, &config);
+    let first = native_turn(
+        &fixture,
+        &session,
+        "transport-one",
+        captured("Latest release", "glm-5.2", None),
+        (Some("glm-5.2"), Some("low")),
+    );
+    let mut app = app_with(&fixture, config);
+    app.load_session(&session).unwrap();
+    app.command("/decisions", 100);
+    let trace = app.records.trace.as_mut().expect("the records were read");
+    let recorded = trace
+        .invocations
+        .iter()
+        .find(|turn| turn.id == first)
+        .expect("the fixture recorded its turn")
+        .clone();
+    let assignment = recorded.assignment_id.clone();
+    // A later call of the same assignment that reported another effort.
+    trace.invocations.push(ymp_core::InvocationRecord {
+        id: "later-call".into(),
+        reported: ymp_core::ExecutionSettings {
+            effort: Some("max".into()),
+            ..recorded.reported.clone()
+        },
+        ..recorded
+    });
+    let decision = |id: &str, invocation: Option<&str>| ymp_core::DecisionRecord {
+        id: id.into(),
+        session_id: session.clone(),
+        kind: "review".into(),
+        actor: Some("transport-one".into()),
+        reason: "fixture".into(),
+        outcome: None,
+        links: ymp_core::RecordLinks {
+            assignment_id: Some(assignment.clone()),
+            invocation_id: invocation.map(str::to_owned),
+            ..Default::default()
+        },
+        created_at: ymp_core::now(),
+    };
+    trace.decisions.push(decision("exact-call", Some(&first)));
+    trace
+        .decisions
+        .push(decision("missing-call", Some("not-recorded")));
+    trace.decisions.push(decision("no-call-named", None));
+
+    let row = |app: &mut App, id: &str| left_of_key(app, 100, &text::short_id(id));
+    let exact = row(&mut app, "exact-call");
+    assert!(
+        exact.ends_with(" · glm-5.2 low"),
+        "a record is not named by the invocation it names exactly: {exact}"
+    );
+    // An exact reference that names no recorded call does not fall back to another call.
+    let missing = row(&mut app, "missing-call");
+    assert!(
+        missing.ends_with(&format!(" · {}", crate::label::UNKNOWN_MODEL)),
+        "an invalid invocation reference was bound to another call: {missing}"
+    );
+    // The assignment made two calls and the record names neither: the label rests on what the
+    // assignment captured, with no effort borrowed from either call.
+    let ambiguous = row(&mut app, "no-call-named");
+    assert!(
+        ambiguous.ends_with(" · glm-5.2"),
+        "an assignment-only reference chose one of several calls: {ambiguous}"
+    );
+}
+
+#[test]
+fn a_saved_session_names_its_team_by_its_records_and_not_by_the_profiles_it_captured() {
+    // A captured profile carries a configured caption and an alias. Neither is a model a turn
+    // recorded, and what kind its provider is configured as now says nothing about the session.
+    let fixture = fixture();
+    let team = ["codex", "claude"]
+        .into_iter()
+        .map(|id| AgentProfile {
+            id: id.into(),
+            name: "Captured Caption".into(),
+            provider: id.into(),
+            model: Some("opus".into()),
+            instructions: String::new(),
+            enabled: true,
+        })
+        .collect::<Vec<_>>();
+    let session = fixture.seed_with_team("A finished session", team.clone());
+
+    let mut app = fixture.app();
+    app.command("/sessions", 100);
+    let unread = detail_of_key(&mut app, 100, &session);
+    assert!(
+        !unread.contains("Captured Caption") && !unread.contains("opus"),
+        "a session whose records were not read was named from its captured profiles:\n{unread}"
+    );
+    assert!(
+        unread.contains("read from this session's own records"),
+        "the page does not say where the team's models come from:\n{unread}"
+    );
+
+    app.load_session(&session).unwrap();
+    app.command("/sessions", 100);
+    let loaded = detail_of_key(&mut app, 100, &session);
+    assert!(
+        !loaded.contains("Captured Caption") && !loaded.contains("opus"),
+        "the loaded session was named from its captured profiles:\n{loaded}"
+    );
+    assert!(
+        team.iter().all(|profile| loaded.contains(&profile.id))
+            && loaded.contains("no turn of this agent was recorded"),
+        "the loaded session does not list its members:\n{loaded}"
+    );
 }
 
 #[test]
@@ -6691,6 +6948,53 @@ async fn a_plan_that_could_not_be_read_is_not_shown_as_a_plan_with_nothing_on_it
 }
 
 #[tokio::test]
+async fn a_proposal_is_named_by_the_turn_that_asked_and_never_by_a_later_one() {
+    let board = board_views().await;
+    let proposer = board
+        .run
+        .store
+        .board(&board.run.session)
+        .unwrap()
+        .proposals
+        .iter()
+        .find(|proposal| proposal.id == board.committed)
+        .expect("the committed proposal is on the plan")
+        .agent_id
+        .clone();
+    append_known_native_turn(&board.run, &proposer);
+    let mut app = board.run.app();
+    app.load_session(&board.run.session).unwrap();
+    app.command("/tasks", 100);
+
+    let right = right_of_key(&mut app, 100, &board.committed);
+    let detail = detail_of_key(&mut app, 100, &board.committed);
+    assert!(
+        !right.contains("gpt-5.6-terra") && !detail.contains("gpt-5.6-terra"),
+        "a later turn renamed the agent that asked for a change:\n{right}\n{detail}"
+    );
+    assert!(
+        right.ends_with(&proposer),
+        "the proposal is not named by the fixture turn that asked: {right}"
+    );
+
+    // A proposal whose turn is not among the records read names no model, however well the
+    // actor's later turn is known.
+    let mut snapshot = app.records.board.take().expect("the plan was read");
+    for proposal in &mut snapshot.proposals {
+        if proposal.id == board.committed {
+            proposal.assignment_id = "not-recorded".into();
+            proposal.invocation_id = "not-recorded".into();
+        }
+    }
+    app.records.board = Some(snapshot);
+    let right = right_of_key(&mut app, 101, &board.committed);
+    assert!(
+        right.ends_with(crate::label::UNKNOWN_MODEL) && !right.contains("gpt-5.6-terra"),
+        "a proposal without its turn borrowed a model: {right}"
+    );
+}
+
+#[tokio::test]
 async fn a_decision_that_changed_the_plan_reads_as_its_own_outcome() {
     let board = board_views().await;
     let mut app = board.run.app();
@@ -7648,8 +7952,8 @@ fn every_message_names_the_model_and_effort_of_the_invocation_that_wrote_it() {
     assert_eq!(author("A runtime notice"), "ymp");
     assert_eq!(
         author("The first turn's plan"),
-        "claude-opus-5 none",
-        "the first turn is not named by the model it reported, with none for the effort it did not report"
+        "claude-opus-5",
+        "the first turn is not named by the model it reported alone, without an effort it did not report"
     );
     assert_eq!(
         author("The second turn's report"),
@@ -7676,7 +7980,9 @@ fn every_message_names_the_model_and_effort_of_the_invocation_that_wrote_it() {
     }
     let rendered = draw(&mut app, 120, 30);
     assert!(
-        rendered.contains("glm-5.2 max") && rendered.contains("claude-opus-5 none"),
+        rendered.contains("glm-5.2 max")
+            && rendered.contains("claude-opus-5")
+            && !rendered.contains("claude-opus-5 none"),
         "the transcript does not show the invocation labels:\n{rendered}"
     );
 }
@@ -8094,10 +8400,7 @@ fn a_conversation_that_moves_to_a_new_session_keeps_naming_the_earlier_messages(
         .unwrap();
     let mut app = app_with(&fixture, config.clone());
     app.load_session(&earlier).unwrap();
-    assert_eq!(
-        author_of(&mut app, "The earlier answer"),
-        "claude-opus-5 none"
-    );
+    assert_eq!(author_of(&mut app, "The earlier answer"), "claude-opus-5");
 
     // A follow-up that needs new work records a child session. Its first message opens that
     // session in the same window, below the conversation already shown.
@@ -8116,7 +8419,7 @@ fn a_conversation_that_moves_to_a_new_session_keeps_naming_the_earlier_messages(
     assert_eq!(app.session.as_deref(), Some(child.as_str()));
     assert_eq!(
         author_of(&mut app, "The earlier answer"),
-        "claude-opus-5 none",
+        "claude-opus-5",
         "the earlier session's message lost the invocation it is linked to"
     );
     assert_eq!(author_of(&mut app, "The follow-up answer"), "glm-5.2 max");
@@ -8130,7 +8433,7 @@ fn a_conversation_that_moves_to_a_new_session_keeps_naming_the_earlier_messages(
     });
     assert_eq!(
         author_of(&mut app, "The earlier answer"),
-        "claude-opus-5 none",
+        "claude-opus-5",
         "an earlier session's message was not resolved from its own records"
     );
 }
@@ -8155,10 +8458,7 @@ fn a_model_and_effort_reported_after_a_message_was_linked_rename_that_message() 
     let mut app = app_with(&fixture, config);
     app.load_session(&session).unwrap();
     app.active = true;
-    assert_eq!(
-        author_of(&mut app, "An answer written mid-turn"),
-        "glm-5.2 none"
-    );
+    assert_eq!(author_of(&mut app, "An answer written mid-turn"), "glm-5.2");
 
     report(&fixture, &session, &turn, (Some("glm-5.2"), Some("max")));
     app.event(UiEvent::AgentStatus {
@@ -8182,6 +8482,61 @@ fn a_model_and_effort_reported_after_a_message_was_linked_rename_that_message() 
     assert_eq!(
         author_of(&mut app, "An answer written mid-turn"),
         "glm-5.2 max"
+    );
+}
+
+#[test]
+fn a_thinking_switch_is_not_shown_as_an_effort_and_stays_in_the_details() {
+    let fixture = fixture();
+    let config = native_label_config();
+    let session = native_label_session(&fixture, &config);
+    let store = &fixture.store;
+    // What GLM installations report for glm-4.7 and glm-4.5-air: no effort was requested or
+    // sent, and the native binary thought control reads on. That is not a graded level.
+    let toggled = native_turn(
+        &fixture,
+        &session,
+        "transport-one",
+        captured("GLM-4.7", "glm-4.7", None),
+        (Some("glm-4.7"), Some("on")),
+    );
+    store
+        .invocation_message(&session, &toggled, "chat", "A switched-on answer")
+        .unwrap();
+    let air = native_turn(
+        &fixture,
+        &session,
+        "transport-two",
+        captured("GLM-4.5-Air", "glm-4.5-air", None),
+        (Some("glm-4.5-air"), Some("on")),
+    );
+    store
+        .invocation_message(&session, &air, "chat", "An air answer")
+        .unwrap();
+    // A native level called none, reported as such, is an effort and not missing metadata.
+    let none = native_turn(
+        &fixture,
+        &session,
+        "transport-one",
+        captured("Latest release", "glm-5.2", None),
+        (Some("glm-5.2"), Some("none")),
+    );
+    store
+        .invocation_message(&session, &none, "chat", "A reported none")
+        .unwrap();
+
+    let mut app = app_with(&fixture, config);
+    app.load_session(&session).unwrap();
+    assert_eq!(author_of(&mut app, "A switched-on answer"), "glm-4.7");
+    assert_eq!(author_of(&mut app, "An air answer"), "glm-4.5-air");
+    assert_eq!(author_of(&mut app, "A reported none"), "glm-5.2 none");
+
+    // The switch is kept exactly as the installation reported it.
+    app.command("/assignments", 100);
+    let detail = row_prose(&mut app, 100, "glm-4.7");
+    assert!(
+        detail.contains("the installation reported on"),
+        "the reported thought control is not kept in the record:\n{detail}"
     );
 }
 
