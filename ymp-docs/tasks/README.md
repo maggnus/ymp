@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-13 14:27 UTC.
+Updated: 2026-09-13 14:36 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -14,7 +14,7 @@ A planned task is not implemented functionality. Completed research and planning
 | design | 1 | 1 |
 | documentation | 4 | 4 |
 | experiment | 0 | 4 |
-| implementation | 35 | 39 |
+| implementation | 35 | 40 |
 | maintenance | 1 | 1 |
 | research | 10 | 10 |
 | verification | 2 | 2 |
@@ -84,8 +84,9 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-141](#ymp-141) | P1 | Keep popup geometry stable while scrolling content | 2026-09-13 14:04 |
 | `[x]` | [YMP-142](#ymp-142) | P1 | Assess ratatui-code-editor for opening files inside ymp | 2026-09-13 11:52 |
 | `[x]` | [YMP-143](#ymp-143) | P1 | Provide a separate /git changes view modeled on Paseo | 2026-09-13 14:04 |
-| `[x]` | [YMP-144](#ymp-144) | P1 | Research recovery of sessions after one or more agent failures | 2026-09-13 14:27 |
+| `[x]` | [YMP-144](#ymp-144) | P1 | Research recovery of sessions after one or more agent failures | 2026-09-13 14:36 |
 | `[~]` | [YMP-145](#ymp-145) | P1 | Unify full-row popup selection and verify stable scrolling geometry | 2026-09-13 14:19 |
+| `[ ]` | [YMP-146](#ymp-146) | P1 | Recover interrupted session stages and let the owner change the active team | 2026-09-13 14:36 |
 
 ## YMP-001
 
@@ -2129,9 +2130,9 @@ Research recovery of sessions after one or more agent failures
 
 **State:** `[x]` (done) · **Type:** research · **Priority:** P1
 
-**Last update (UTC):** 2026-09-13 14:27
+**Last update (UTC):** 2026-09-13 14:36
 
-**Current reason:** Both independent researchers and maintainer source review confirm saved plan proposal, missing pre-task review recovery, ineffectual failure reassignment and no unknown-usage admission block for this incident without numeric token caps. Researchers reconciled existing task recovery, genuine versus fabricated participant IDs, fixed-size versus pinned-roster constraints and negative-review handling. Research recommendation and acceptance scenarios recorded; owner-controlled policy amendment remains an open product option. No application implementation, tests, provider probes or live-session recovery was performed. Implementation requires separate authorization.
+**Current reason:** Owner approved implementation and live team changes; follow-up recorded as YMP-146. Parent current-team inspection clarified that SessionPolicy.eligible_pool is initial evidence, while effective eligibility is rebuilt from engine configuration under captured team constraints; it is not itself an immutable allowed-list enforcement path. Original diagnostic conclusions remain valid.
 
 **Owner:** Two background Paseo researchers; maintainer owns product discussion and synthesis
 
@@ -2177,6 +2178,39 @@ Selected popup text is styled while inter-column spacing remains unstyled. The r
 - Cover branch/worktree choices, command palette, themes, file preview and Inspect; preserve footer, cursor, last-line reachability, resize behavior, semantic themes and Unicode/ASCII presentation.
 - Demonstrate meaningful failing-before and passing-after checks; verify full-row cell backgrounds and stable geometry through the first, middle and final visible positions. Record unresolved reproduction details explicitly.
 - Delegate implementation and checks to an isolated Claude Code high worktree. Run fmt, strict Clippy, workspace tests and relevant terminal checks once on final code; independently review before integration. Reuse existing Ratatui and popup helpers without new dependencies.
+
+**Evidence:**
+
+- Pending.
+
+## YMP-146
+
+Recover interrupted session stages and let the owner change the active team
+
+**State:** `[ ]` (planned) · **Type:** implementation · **Priority:** P1
+
+**Last update (UTC):** 2026-09-13 14:36
+
+**Current reason:** Ready to start
+
+**Owner:** Background backend author and Claude Code claude-opus-5 high UI author; maintainer owns contracts and acceptance
+
+**Authorization:** Owner approved implementing the YMP-144 recovery recommendation and explicitly requires changing the team during a session. Before starting implementation, owner requested an explanation of current team meaning, behavior and scaling. Implementation is registered but not started during that explanation.
+
+**Depends on:** [YMP-144](#ymp-144)
+
+Saved proposals cannot resume at failed pre-task review, provider failures do not dispatch admissible recovery, and the current TUI membership action edits starting preferences rather than the active session membership.
+
+**Latest progress note:** Owner approved recovery implementation and live team changes, then asked to explain current team behavior before starting. Recorded authorization without dispatching implementation. Current source confirms heuristic allocation, separate membership/concurrency caps and preference-only TUI membership editing. Resource-budget amendment is not implied by team-edit authorization.
+
+**Acceptance criteria:**
+
+- Preserve durable stage/result versions and resume an interrupted plan review without repeating completed planning. Keep accepted work, objections, history, usage and independent acceptance intact.
+- Provide bounded recovery appropriate to failure classification and uncertain effects, with shared-provider failure handling and explicit waiting/manual controls; preserve owner-requested pauses and captured resource limits.
+- Allow explicit owner additions, removals and replacements within the same session while work is active. Record versioned team-policy decisions, distinguish starting preferences from active membership, and resolve active responsibilities before conflicting reassignment.
+- Automatic changes respect the current owner-approved constraints. Explicit owner team changes can revise pinned membership; changing team membership does not silently enlarge resource budgets or erase consumed usage.
+- Reuse current allocation, assignment, access, storage and UI boundaries. Delegate UI to Claude Code high, sequence conflicting edits and perform independent acceptance with meaningful failure controls and required checks.
+- Define and verify behavior for single/multiple failures, restart, unavailable final reviewer, negative versus malformed review, unknown usage and owner changes during active work. Keep actual provider availability and uncertain writes explicit; do not infer rollback.
 
 **Evidence:**
 

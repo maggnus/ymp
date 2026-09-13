@@ -148,3 +148,21 @@ owner-controlled policy-amendment mechanism remain product decisions.
 Next: discuss the product behavior with the owner and record a separately
 authorized implementation contract. Do not start recovery implementation or
 resume the real session merely because this research is complete.
+
+## Subsequent owner decision and eligibility clarification
+
+The owner approved implementing recovery and explicitly changing the active team
+during a session. YMP-146 records this authorization. The owner first requested an
+explanation of current team behavior, so implementation was not dispatched during
+that explanatory turn. Team changes do not implicitly authorize resource-budget
+amendments or resetting historical usage.
+
+A subsequent maintainer source check narrows the earlier captured-pool wording:
+`SessionPolicy.eligible_pool` records startup evidence. Effective eligibility is
+reconstructed from the engine configuration, native metadata and captured
+`TeamConstraints` by `eligible_agents` / `eligible_from` in
+[engine/allocation.rs](../../ymp-rust/crates/ymp-runtime/src/engine/allocation.rs),
+lines 60–129. The original pool snapshot is not itself an enforced immutable
+allowed list; explicit `eligible_agents` and `fixed_roster` constraints are. A
+future live-team contract must distinguish these records rather than introducing
+a snapshot restriction based on the researchers' wording alone.
