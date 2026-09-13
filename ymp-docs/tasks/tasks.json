@@ -3897,7 +3897,7 @@
       "title": "Recover interrupted session stages and let the owner change the active team",
       "type": "implementation",
       "priority": "P1",
-      "status": "planned",
+      "status": "in_progress",
       "owner": "Background backend author and Claude Code claude-opus-5 high UI author; maintainer owns contracts and acceptance",
       "authorization": "Owner approved implementing the YMP-144 recovery recommendation and explicitly requires changing the team during a session. Before starting implementation, owner requested an explanation of current team meaning, behavior and scaling. Implementation is registered but not started during that explanation.",
       "depends_on": [
@@ -3915,7 +3915,9 @@
         "For a newly introduced replacement point, prove materially different strategies through the same consumer and acceptance conditions, recording strategy identity/version/configuration and actual decisions. Reuse existing substitution evidence; do not redesign unrelated subsystems.",
         "Treat strategy selection as a possible team UI attribute, not an approved placement. Keep session/team persistence and live strategy-switch semantics explicit; model-assisted strategies must use ordinary admitted and recorded invocations."
       ],
-      "evidence": [],
+      "evidence": [
+        "ymp-docs/architecture/session-recovery-contract.md"
+      ],
       "history": [
         {
           "at": "2026-09-13T14:36:59.818804+00:00",
@@ -3926,11 +3928,16 @@
           "at": "2026-09-13T14:46:35.102081+00:00",
           "status": "planned",
           "note": "Owner clarified the research method: implement common interfaces to compare team-scaling and decision strategies while retaining the runtime. Parent confirmed existing AllocationPolicy/ResourceAllocationPolicy and narrower BoardProposalPolicy/ConfirmationChecker scope. A bounded background researcher assesses minimal missing boundaries; UI placement as a team attribute remains open. No recovery or strategy source implementation was dispatched."
+        },
+        {
+          "at": "2026-09-13T14:51:13.568137+00:00",
+          "status": "in_progress",
+          "note": "Product questions answered and owner approval remains active. Independent researcher confirmed that existing allocation/resource/board/checker interfaces should be reused; recovery-action selection is the minimal missing boundary. Parent defined the backend contract and is dispatching isolated implementation. Busy-member removal defaults to visible pending departure, preserving current work and preventing new admission. Strategy-selector UI placement stays open. No backend result or release is accepted yet."
         }
       ]
     }
   ],
-  "updated_at": "2026-09-13T14:46:35.102081+00:00",
+  "updated_at": "2026-09-13T14:51:13.568137+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",

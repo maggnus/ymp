@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-13 14:46 UTC.
+Updated: 2026-09-13 14:51 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -86,7 +86,7 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-143](#ymp-143) | P1 | Provide a separate /git changes view modeled on Paseo | 2026-09-13 14:04 |
 | `[x]` | [YMP-144](#ymp-144) | P1 | Research recovery of sessions after one or more agent failures | 2026-09-13 14:36 |
 | `[~]` | [YMP-145](#ymp-145) | P1 | Unify full-row popup selection and verify stable scrolling geometry | 2026-09-13 14:19 |
-| `[ ]` | [YMP-146](#ymp-146) | P1 | Recover interrupted session stages and let the owner change the active team | 2026-09-13 14:46 |
+| `[~]` | [YMP-146](#ymp-146) | P1 | Recover interrupted session stages and let the owner change the active team | 2026-09-13 14:51 |
 
 ## YMP-001
 
@@ -2187,11 +2187,11 @@ Selected popup text is styled while inter-column spacing remains unstyled. The r
 
 Recover interrupted session stages and let the owner change the active team
 
-**State:** `[ ]` (planned) · **Type:** implementation · **Priority:** P1
+**State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P1
 
-**Last update (UTC):** 2026-09-13 14:46
+**Last update (UTC):** 2026-09-13 14:51
 
-**Current reason:** Ready to start
+**Current reason:** Product questions answered and owner approval remains active. Independent researcher confirmed that existing allocation/resource/board/checker interfaces should be reused; recovery-action selection is the minimal missing boundary. Parent defined the backend contract and is dispatching isolated implementation. Busy-member removal defaults to visible pending departure, preserving current work and preventing new admission. Strategy-selector UI placement stays open. No backend result or release is accepted yet.
 
 **Owner:** Background backend author and Claude Code claude-opus-5 high UI author; maintainer owns contracts and acceptance
 
@@ -2200,8 +2200,6 @@ Recover interrupted session stages and let the owner change the active team
 **Depends on:** [YMP-144](#ymp-144)
 
 Saved proposals cannot resume at failed pre-task review, provider failures do not dispatch admissible recovery, and the current TUI membership action edits starting preferences rather than the active session membership.
-
-**Latest progress note:** Owner clarified the research method: implement common interfaces to compare team-scaling and decision strategies while retaining the runtime. Parent confirmed existing AllocationPolicy/ResourceAllocationPolicy and narrower BoardProposalPolicy/ConfirmationChecker scope. A bounded background researcher assesses minimal missing boundaries; UI placement as a team attribute remains open. No recovery or strategy source implementation was dispatched.
 
 **Acceptance criteria:**
 
@@ -2217,7 +2215,7 @@ Saved proposals cannot resume at failed pre-task review, provider failures do no
 
 **Evidence:**
 
-- Pending.
+- ymp-docs/architecture/session-recovery-contract.md
 
 ## Intent coverage
 
