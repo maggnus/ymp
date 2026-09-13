@@ -1,0 +1,20 @@
+$ env PATH=/usr/bin:/bin target/debug/deps/ymp_tui-6095038d9173546d --exact tests::no_row_puts_more_in_its_right_column_than_the_narrowest_column_holds
+
+running 1 test
+test tests::no_row_puts_more_in_its_right_column_than_the_narrowest_column_holds ... FAILED
+
+failures:
+
+---- tests::no_row_puts_more_in_its_right_column_than_the_narrowest_column_holds stdout ----
+
+thread 'tests::no_row_puts_more_in_its_right_column_than_the_narrowest_column_holds' panicked at ymp-rust/crates/ymp-tui/src/tests.rs:7241:5:
+no row carried the pool's own refusal, so the narrowest case went unchecked
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    tests::no_row_puts_more_in_its_right_column_than_the_narrowest_column_holds
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 267 filtered out; finished in 0.70s
+
+exit=101

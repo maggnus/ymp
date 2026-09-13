@@ -7205,10 +7205,17 @@ async fn no_row_puts_more_in_its_right_column_than_the_narrowest_column_holds() 
         }
     }
     // And again with the shipped configuration and no session, which is where the pool states
-    // its own reasons for refusing a profile.
+    // its own reasons for refusing a profile. Every provider names this test's own executable,
+    // which the pool only looks at and never starts, so the refusal is the missing native model
+    // on every host instead of a provider program one machine happens not to have installed.
+    let inert = std::env::current_exe().expect("the test names its own executable");
+    let mut shipped = Config::default();
+    for provider in &mut shipped.providers {
+        provider.command = inert.to_string_lossy().into_owned();
+    }
     let mut fresh = App::new(
         run.store.clone(),
-        Config::default(),
+        shipped,
         PathBuf::from(run.project.path()),
     );
     let mut refusals = 0;

@@ -1,0 +1,8 @@
+$ target/debug/deps/ymp_tui-6095038d9173546d --exact tests::no_row_puts_more_in_its_right_column_than_the_narrowest_column_holds  (host PATH, codex on PATH)
+
+running 1 test
+test tests::no_row_puts_more_in_its_right_column_than_the_narrowest_column_holds ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 267 filtered out; finished in 0.65s
+
+exit=0

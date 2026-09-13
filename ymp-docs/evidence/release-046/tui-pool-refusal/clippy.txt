@@ -1,0 +1,4 @@
+   Compiling ymp-eval-driver v0.4.5 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp141-popup-scroll/ymp-rust/crates/ymp-eval-driver)
+    Checking ymp-tui v0.4.5 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp141-popup-scroll/ymp-rust/crates/ymp-tui)
+    Finished `dev` profile [unoptimized] target(s) in 3.10s
+exit=0
