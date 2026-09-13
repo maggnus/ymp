@@ -1,0 +1,48 @@
+{
+  "source_commit": "3225c63ea2d5854127823281bc276a7dfd4f5fa1",
+  "source_directory": "/Users/maggnus/Code/ymp2",
+  "staged_binary": "/tmp/ymp129-review-limit/target/release/ymp",
+  "binary_sha256": "84831d6ada7374916f1343bce6385d0303090e7cbe3e4e99b4159fb6787cb278",
+  "smoke_directory": "/var/folders/cw/7pn8sb3x6bj69g7j2d8f_ss00000gn/T/ymp129-final-smoke-fo8doahs",
+  "checks": [
+    {
+      "name": "version",
+      "exit_code": 0
+    },
+    {
+      "name": "help",
+      "exit_code": 0
+    },
+    {
+      "name": "resume-help",
+      "exit_code": 0
+    },
+    {
+      "name": "demo",
+      "exit_code": 0
+    }
+  ],
+  "artifact": {
+    "name": "greeting.txt",
+    "sha256": "67b63638f5cf6adcdea67af75aee1086192da26aaf575687ea4ecd5c05b90a4f"
+  },
+  "native_inference": false,
+  "installed_at": "2026-09-13T00:34:07.389946+00:00",
+  "installed_binary": "/Users/maggnus/Code/ymp2/target/release/ymp",
+  "installed_command": "/Users/maggnus/.local/bin/ymp",
+  "previous_binary": "/Users/maggnus/.ymp2/backups/release-0.4.1-20260913T003406Z/ymp.previous",
+  "previous_sha256": "cc8ed8a755b9778a2cfcad6460880730167e0dd39ce075543ddad25cb4278f14",
+  "installed_version": "ymp 0.4.1",
+  "installed_version_exit_code": 0,
+  "required_checks": {
+    "fmt": 0,
+    "clippy": 0,
+    "workspace_tests": 0,
+    "passed": 425,
+    "existing_ignored": 2
+  },
+  "independent_review": "ACCEPT",
+  "intent_sha256": "4479e919c5b47934e69e81ac493d16e90a0dc420a9a370382e79bca3f3c754d9",
+  "bridge_sha256": "002c8b154f8b5b9b8b2f2bf67ca02cff25dc8dcee3d994ae798f3b46753f3165",
+  "native_poker_session_resumed": false
+}

@@ -2983,7 +2983,7 @@
       "title": "Recover bounded independent reviews after ACP output exhaustion",
       "type": "implementation",
       "priority": "P1",
-      "status": "in_progress",
+      "status": "done",
       "owner": "Maintainer",
       "authorization": "Owner supplied a blocked real poker run; investigate and correct the runtime failure without replaying generated work or using paid models in tests.",
       "depends_on": [
@@ -3000,7 +3000,14 @@
         "Verify native protocol and actual Engine paths offline, including preserved candidate/artifact and prior spend, successful bounded recovery, repeated exhaustion and no write retry.",
         "Update recovery documentation and provide a concrete low-effort resume route for the reported session without changing its stored history or executing real provider requests as tests."
       ],
-      "evidence": [],
+      "evidence": [
+        "ymp-docs/guides/incomplete-native-review.md",
+        "ymp-docs/releases/0.4.1.md",
+        "ymp-docs/research/evidence/native-review-recovery/verification.json",
+        "ymp-docs/research/evidence/native-review-recovery/independent-review.md",
+        "ymp-docs/research/evidence/native-review-recovery/provider-negative-control.log",
+        "ymp-docs/research/evidence/native-review-recovery/runtime-negative-control.log"
+      ],
       "history": [
         {
           "at": "2026-09-13T00:12:07.131236+00:00",
@@ -3011,6 +3018,16 @@
           "at": "2026-09-13T00:21:54.373500+00:00",
           "status": "in_progress",
           "note": "Offline protocol and Engine regressions failed before the fix. Typed ACP output exhaustion and bounded read-only review recovery now preserve the candidate, settings, fresh capabilities and both usage records. Cancellation, incomplete accounting and token-ceiling controls pass; finishing invocation-ceiling coverage and required workspace checks."
+        },
+        {
+          "at": "2026-09-13T00:26:31.248145+00:00",
+          "status": "in_progress",
+          "note": "Integrated source cd0fd19 (equivalent patch 4c00072) passes fmt, strict Clippy and 425 workspace tests; 2 existing tests remain explicitly ignored. Independent patch review and staged release installation checks are in progress. Session-scoped GLM none override prepared under ~/.ymp2/recovery; no real inference or poker artifact edits."
+        },
+        {
+          "at": "2026-09-13T00:34:38.812378+00:00",
+          "status": "done",
+          "note": "Corrected source 3225c63 independently accepted with no open findings. Required checks pass: fmt, strict Clippy, 425 tests (2 existing ignores). Built from the permanent checkout, verified version/help and mock demo, installed ymp 0.4.1 SHA-256 84831d6ada7374916f1343bce6385d0303090e7cbe3e4e99b4159fb6787cb278 with the previous binary backed up. Poker session and its files remain unchanged; explicit GLM none resume settings and command are documented."
         }
       ]
     }

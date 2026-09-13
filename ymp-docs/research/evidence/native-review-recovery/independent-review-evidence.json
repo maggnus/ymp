@@ -1,0 +1,80 @@
+{
+  "source": "3225c63ea2d5854127823281bc276a7dfd4f5fa1",
+  "reviewed_files": {
+    "ymp-rust/crates/ymp-runtime/src/engine.rs": "8b5bf50885e5a0a84582730af6fb9eba4c5247a2ceffb1c86e3f8f9ada0403c7",
+    "ymp-rust/crates/ymp-providers/src/lib.rs": "4d3c33da77360a0982250fbba1ffa48372f1d9ea37badc55fd2c907fadc83996",
+    "ymp-rust/crates/ymp-runtime/src/backend_tests.rs": "a3578c419f56acc9b7bff80c7a51bf30fbb9e19a48b7145d722d206dec1bef73",
+    "ymp-rust/crates/ymp-providers/tests/settings.rs": "43351d332096496ab3a897ba283398c6c64a8c38a4313899e73d916c8059313c",
+    "ymp-rust/crates/ymp-providers/tests/fixtures/settings.py": "3da8c5424777bdc53c93ec6fcbc20ba7ecbc310a88e787a2dd3eafde38a97e86"
+  },
+  "independent_original_patch_checks": [
+    {
+      "case": "provider",
+      "command": [
+        "cargo",
+        "test",
+        "--offline",
+        "--locked",
+        "-p",
+        "ymp-providers",
+        "--test",
+        "settings",
+        "acp_output_exhaustion_keeps_usage_without_accepting_partial_text",
+        "--",
+        "--nocapture"
+      ],
+      "exit": 0,
+      "log": "/tmp/ymp129-independent-provider.log",
+      "sha256": "35143a1e1d44b655e02e52ba86fbf8e4a538958b2d28fd954d094093ce96883b"
+    },
+    {
+      "case": "reviews",
+      "command": [
+        "cargo",
+        "test",
+        "--offline",
+        "--locked",
+        "-p",
+        "ymp-runtime",
+        "--lib",
+        "native_review",
+        "--",
+        "--nocapture"
+      ],
+      "exit": 0,
+      "log": "/tmp/ymp129-independent-reviews.log",
+      "sha256": "8fc28298fc18f17e70e9e63484d41a9d8f2f723dfa3309878e44ba6ad44229a7"
+    },
+    {
+      "case": "writer",
+      "command": [
+        "cargo",
+        "test",
+        "--offline",
+        "--locked",
+        "-p",
+        "ymp-runtime",
+        "--lib",
+        "native_output_limit_never_automatically_retries_a_writer",
+        "--",
+        "--nocapture"
+      ],
+      "exit": 0,
+      "log": "/tmp/ymp129-independent-writer.log",
+      "sha256": "529543c9df4f5d96629de45ecc3c8b722788efe4028a1097976f3d9c57130a56"
+    }
+  ],
+  "corrected_workspace_tests": {
+    "counts": [
+      425,
+      0,
+      2
+    ],
+    "groups": 32,
+    "log": "/tmp/ymp129-workspace-tests-final.log",
+    "sha256": "3cd1e229fa1f6daf98c95f54c39e4871a38b9a57860fe2a40edf8bee7e0d6524"
+  },
+  "resolved_finding": "Initial requested settings resolved before re-enrollment allocation in4c00072; corrected after allocation at engine.rs942 in3225c63",
+  "source_edits_by_reviewer": false,
+  "native_inference_calls": 0
+}

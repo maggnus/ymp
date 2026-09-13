@@ -1,0 +1,6 @@
+    Checking ymp-providers v0.4.1 (/Users/maggnus/Code/ymp2/ymp-rust/crates/ymp-providers)
+   Compiling ymp-eval-driver v0.4.1 (/Users/maggnus/Code/ymp2/ymp-rust/crates/ymp-eval-driver)
+    Checking ymp-runtime v0.4.1 (/Users/maggnus/Code/ymp2/ymp-rust/crates/ymp-runtime)
+    Checking ymp-tui v0.4.1 (/Users/maggnus/Code/ymp2/ymp-rust/crates/ymp-tui)
+    Checking ymp-cli v0.4.1 (/Users/maggnus/Code/ymp2/ymp-rust/crates/ymp-cli)
+    Finished `dev` profile [unoptimized] target(s) in 5.91s

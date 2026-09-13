@@ -1,0 +1,35 @@
+{
+  "session_id": "0b24eea4-0c01-4d9e-b137-0f432cd7d2ac",
+  "workspace": "/Users/maggnus/Downloads/_ymp2",
+  "failed_invocation_id": "010dc8f0-d25d-4b5f-a691-1aa61d9f6c29",
+  "purpose": "review",
+  "native_model": "glm-5.2",
+  "native_effort": "max",
+  "stop_reason": "max_tokens",
+  "reported_usage": {
+    "input": 22178,
+    "output": 8192,
+    "reasoning": 8185,
+    "cache_read": 14784,
+    "partial": true,
+    "coverage": "last model request only"
+  },
+  "retained_task": {
+    "id": "5c63ccc7-4b73-42c2-94e8-ad6e1198814c",
+    "state": "review",
+    "attempts": 1
+  },
+  "unstarted_tasks": [
+    "playable interface and computer opponents",
+    "browser verification"
+  ],
+  "existing_checks": {
+    "command": "node --test tests/poker.test.cjs",
+    "exit_code": 0,
+    "passed": 23
+  },
+  "index_sha256_at_investigation": "74a329684cffde2ced42742558310cbca0767be3fa6aeb9345dc304b50d92bbd",
+  "native_inference_started_by_investigation": false,
+  "project_artifacts_modified_by_investigation": false,
+  "history_rewritten": false
+}

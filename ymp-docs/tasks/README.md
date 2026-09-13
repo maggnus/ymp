@@ -14,7 +14,7 @@ A planned task is not implemented functionality. Completed research and planning
 | design | 1 | 1 |
 | documentation | 4 | 4 |
 | experiment | 0 | 4 |
-| implementation | 23 | 26 |
+| implementation | 24 | 26 |
 | research | 8 | 8 |
 | verification | 2 | 2 |
 
@@ -68,7 +68,7 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-126](#ymp-126) | P1 | Execute universal acceptance scenarios through a trusted runtime driver | 2026-09-12 22:52 |
 | `[x]` | [YMP-127](#ymp-127) | P0 | Build and display the agent pool from provider-returned native names | 2026-09-12 20:43 |
 | `[x]` | [YMP-128](#ymp-128) | P1 | Support internal team transport with long metadata paths | 2026-09-12 21:24 |
-| `[~]` | [YMP-129](#ymp-129) | P1 | Recover bounded independent reviews after ACP output exhaustion | 2026-09-13 00:21 |
+| `[x]` | [YMP-129](#ymp-129) | P1 | Recover bounded independent reviews after ACP output exhaustion | 2026-09-13 00:34 |
 
 ## YMP-001
 
@@ -1629,11 +1629,11 @@ The actual isolated install succeeds, but its mock demo fails with path must be 
 
 Recover bounded independent reviews after ACP output exhaustion
 
-**State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P1
+**State:** `[x]` (done) · **Type:** implementation · **Priority:** P1
 
-**Last update (UTC):** 2026-09-13 00:21
+**Last update (UTC):** 2026-09-13 00:34
 
-**Current reason:** Offline protocol and Engine regressions failed before the fix. Typed ACP output exhaustion and bounded read-only review recovery now preserve the candidate, settings, fresh capabilities and both usage records. Cancellation, incomplete accounting and token-ceiling controls pass; finishing invocation-ceiling coverage and required workspace checks.
+**Current reason:** Corrected source 3225c63 independently accepted with no open findings. Required checks pass: fmt, strict Clippy, 425 tests (2 existing ignores). Built from the permanent checkout, verified version/help and mock demo, installed ymp 0.4.1 SHA-256 84831d6ada7374916f1343bce6385d0303090e7cbe3e4e99b4159fb6787cb278 with the previous binary backed up. Poker session and its files remain unchanged; explicit GLM none resume settings and command are documented.
 
 **Owner:** Maintainer
 
@@ -1653,7 +1653,12 @@ The real GLM review ended max_tokens at 8192 output tokens, 8185 reasoning; the 
 
 **Evidence:**
 
-- Pending.
+- ymp-docs/guides/incomplete-native-review.md
+- ymp-docs/releases/0.4.1.md
+- ymp-docs/research/evidence/native-review-recovery/verification.json
+- ymp-docs/research/evidence/native-review-recovery/independent-review.md
+- ymp-docs/research/evidence/native-review-recovery/provider-negative-control.log
+- ymp-docs/research/evidence/native-review-recovery/runtime-negative-control.log
 
 ## Intent coverage
 

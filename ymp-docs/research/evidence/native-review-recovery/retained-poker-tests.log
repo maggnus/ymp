@@ -1,0 +1,31 @@
+✔ the deck has 52 unique cards and Fisher-Yates shuffles a copy reproducibly (1.559666ms)
+✔ all nine hand categories have known values and rank in poker order (0.3125ms)
+✔ wheel straights, duplicate ranks, and ace boundaries are evaluated correctly (0.457166ms)
+✔ best five of seven handles two trips, three pairs, six-card flushes, and board-only ties (0.266333ms)
+✔ kickers and the full rank vector break ties without considering suits (0.172208ms)
+✔ invalid cards and invalid game options are rejected (0.442834ms)
+✔ five seats get two cards, pay blinds once, and act clockwise with the big blind option (1.217583ms)
+✔ out-of-turn, illegal checks, invalid raises, and starting mid-hand are atomic failures (0.336375ms)
+✔ a single short all-in does not reopen action for callers, but a full raise does (0.638458ms)
+✔ cumulative short all-ins reopen action separately according to each player's previous call (0.440542ms)
+✔ an opening all-in below the minimum bet permits calls and does not reopen a previous check (0.300667ms)
+✔ all opponents folding returns the uncalled blind and awards without revealing hole cards (0.166375ms)
+✔ one main pot and three side pots pay only the players eligible for each level (0.581166ms)
+✔ an uncalled overbet is refunded before building the main and side pots (0.211541ms)
+✔ split pots award the odd chip to the first tied winner left of the dealer (0.225375ms)
+✔ folded contributions remain in the pot but a folded stronger hand cannot win (0.17975ms)
+✔ heads-up uses the button as small blind and acts first preflop, last postflop (0.187542ms)
+✔ short blinds use the nominal big blind multiway and only the actual wager heads-up (0.554833ms)
+✔ elimination skips empty seats and the transition to heads-up does not repeat the big blind (0.256583ms)
+✔ a tournament winner prevents further hands and a new game restores starting stacks (0.17ms)
+✔ public views hide all other hole cards, exclude private information, and cannot mutate the game (0.557708ms)
+✔ 2,000 seeded hands preserve chips, unique cards, legal turns, and terminate across varied stacks (162.002334ms)
+✔ 100 seeded tournaments rotate seats, eliminate players, and finish without creating chips (13.376541ms)
+ℹ tests 23
+ℹ suites 0
+ℹ pass 23
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 235.48675

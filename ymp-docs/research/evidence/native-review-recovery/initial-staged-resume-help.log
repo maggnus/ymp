@@ -1,0 +1,13 @@
+Resume an interrupted team session
+
+Usage: ymp resume [OPTIONS] <SESSION>
+
+Arguments:
+  <SESSION>  
+
+Options:
+      --headless                                   
+      --home <HOME>                                
+      --assignment-settings <ASSIGNMENT_SETTINGS>  
+  -C, --cwd <CWD>                                  
+  -h, --help                                       Print help

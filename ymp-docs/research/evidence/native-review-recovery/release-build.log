@@ -1,0 +1,4 @@
+   Compiling ymp-runtime v0.4.1 (/Users/maggnus/Code/ymp2/ymp-rust/crates/ymp-runtime)
+   Compiling ymp-tui v0.4.1 (/Users/maggnus/Code/ymp2/ymp-rust/crates/ymp-tui)
+   Compiling ymp-cli v0.4.1 (/Users/maggnus/Code/ymp2/ymp-rust/crates/ymp-cli)
+    Finished `release` profile [optimized] target(s) in 26.69s
