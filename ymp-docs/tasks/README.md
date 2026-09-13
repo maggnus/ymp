@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-13 19:31 UTC.
+Updated: 2026-09-13 19:38 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -86,7 +86,7 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-143](#ymp-143) | P1 | Provide a separate /git changes view modeled on Paseo | 2026-09-13 14:04 |
 | `[x]` | [YMP-144](#ymp-144) | P1 | Research recovery of sessions after one or more agent failures | 2026-09-13 14:36 |
 | `[x]` | [YMP-145](#ymp-145) | P1 | Unify full-row popup selection and verify stable scrolling geometry | 2026-09-13 16:31 |
-| `[~]` | [YMP-146](#ymp-146) | P0 | Recover interrupted session stages and let the owner change the active team | 2026-09-13 19:31 |
+| `[~]` | [YMP-146](#ymp-146) | P0 | Recover interrupted session stages and let the owner change the active team | 2026-09-13 19:38 |
 | `[x]` | [YMP-147](#ymp-147) | P1 | Translate product goals into a focused comparative trial program | 2026-09-13 15:38 |
 | `[=]` | [YMP-148](#ymp-148) | P1 | Make session coordination replaceable through a typed strategy contract | 2026-09-13 16:13 |
 | `[x]` | [YMP-149](#ymp-149) | P1 | Use concise professional terminology throughout the interface | 2026-09-13 18:44 |
@@ -2202,9 +2202,9 @@ Recover interrupted session stages and let the owner change the active team
 
 **State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P0
 
-**Last update (UTC):** 2026-09-13 19:31
+**Last update (UTC):** 2026-09-13 19:38
 
-**Current reason:** Author delivered second-round candidate 743543f with executable source edc779a, clean tree and 624 passing tests, two ignored. Claimed end-to-end current-files continuation preserves legacy uncertainty through restart and actual task completion. Dispatched bounded executable re-review to 52111c72 and authority/CAS/hold review to 332e0b99 against the owner-approved YMP-153 contract. Candidate is not integrated or accepted; UI and installed delivery remain pending.
+**Current reason:** Second-round static authority review accepted 743543f with no required findings; recorded actual limits including context size and separate conversation admission. Executable reviewer 52111c72 remains responsible for scenario acceptance. Prepared the bounded /team recovery/live-membership UI contract and assigned read-only integration mapping to Claude 8d8b7748; no UI implementation or integration before backend acceptance.
 
 **Owner:** Background backend author and Claude Code claude-opus-5 high UI author; maintainer owns contracts and acceptance
 
@@ -2234,6 +2234,8 @@ Saved proposals cannot resume at failed pre-task review, provider failures do no
 - ymp-docs/evidence/ymp-146/independent-recovery/manifest.json
 - ymp-docs/evidence/ymp-146/acceptance-round2.md
 - ymp-docs/product/recovery-owner-decision.md
+- ymp-docs/evidence/ymp-146/authority-round2.md
+- ymp-docs/architecture/session-recovery-ui.md
 
 ## YMP-147
 

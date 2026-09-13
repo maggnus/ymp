@@ -3994,7 +3994,9 @@
         "ymp-docs/evidence/ymp-146/acceptance-round1.md",
         "ymp-docs/evidence/ymp-146/independent-recovery/manifest.json",
         "ymp-docs/evidence/ymp-146/acceptance-round2.md",
-        "ymp-docs/product/recovery-owner-decision.md"
+        "ymp-docs/product/recovery-owner-decision.md",
+        "ymp-docs/evidence/ymp-146/authority-round2.md",
+        "ymp-docs/architecture/session-recovery-ui.md"
       ],
       "history": [
         {
@@ -4086,6 +4088,11 @@
           "at": "2026-09-13T19:31:33.486117+00:00",
           "status": "in_progress",
           "note": "Author delivered second-round candidate 743543f with executable source edc779a, clean tree and 624 passing tests, two ignored. Claimed end-to-end current-files continuation preserves legacy uncertainty through restart and actual task completion. Dispatched bounded executable re-review to 52111c72 and authority/CAS/hold review to 332e0b99 against the owner-approved YMP-153 contract. Candidate is not integrated or accepted; UI and installed delivery remain pending."
+        },
+        {
+          "at": "2026-09-13T19:38:13.331438+00:00",
+          "status": "in_progress",
+          "note": "Second-round static authority review accepted 743543f with no required findings; recorded actual limits including context size and separate conversation admission. Executable reviewer 52111c72 remains responsible for scenario acceptance. Prepared the bounded /team recovery/live-membership UI contract and assigned read-only integration mapping to Claude 8d8b7748; no UI implementation or integration before backend acceptance."
         }
       ]
     },
@@ -4386,7 +4393,7 @@
       ]
     }
   ],
-  "updated_at": "2026-09-13T19:31:33.486117+00:00",
+  "updated_at": "2026-09-13T19:38:13.331438+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",
