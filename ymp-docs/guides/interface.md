@@ -1,29 +1,29 @@
 # Interface
 
 `ymp` opens a chat-first terminal workspace: the conversation fills the main column, and a
-right sidebar carries navigation, live team activity, and the current session's context.
+right sidebar carries the current session's context and live team activity.
 
 ## Layout
 
 ```text
 ymp  project  /path/to/project      3fa27c81  ✓ completed  154.9k+ tokens  12 / 200 turns
 ──────────────────────────────────────────────────────────────────────────────────────────
-  ▌ you                                                    12:04  │ NAVIGATE
-  ▌ Add validation and tests for the import command                │ ● Conversation
-                                                                   │   Tasks            3
-  · gpt-5.6-sol high proposed a plan · 2 tasks · Validate…   12:04 │   Token usage 154.9k+
-  · glm-5.2 max review · accepted · Empty rows are rejected  12:07 │   Sessions
-                                                                   │   …
-  ◆ gpt-5.6-sol high · final result                         12:09  │ SESSION
-    Added `validate_row` and six tests. `cargo test` passes.       │ 3fa27c81 ✓ completed
+  ▌ you                                                    12:04  │ SESSION
+  ▌ Add validation and tests for the import command                │ 3fa27c81 ✓ completed
                                                                    │ turns this session 12 / 200
-                                                                   │ dir  …/project
+  · gpt-5.6-sol high proposed a plan · 2 tasks · Validate…   12:04 │ dir  …/project
+  · glm-5.2 max review · accepted · Empty rows are rejected  12:07 │
                                                                    │ TOKENS       154.9k+
-                                                                   │ gpt-5.6-sol   131.8k
-                                                                   │ glm-5.2       23.1k+
+  ◆ gpt-5.6-sol high · final result                         12:09  │ gpt-5.6-sol   131.8k
+    Added `validate_row` and six tests. `cargo test` passes.       │ glm-5.2       23.1k+
+                                                                   │
                                                                    │ TEAM
                                                                    │ ○ gpt-5.6-sol   idle
                                                                    │ ○ glm-5.2       idle
+                                                                   │
+                                                                   │ TASKS
+                                                                   │ accepted        2 / 2
+                                                                   │
 ──────────────────────────────────────────────────────────────────────────────────────────
 › Describe a task, or type / for commands.
 Ready                                     composer  Enter send  Ctrl+P commands  Tab focus
@@ -82,10 +82,10 @@ reading is appended below without moving your position.
 
 ## Keyboard
 
-One region owns the keyboard at a time, and the status row names it. `Tab` cycles composer →
-transcript or page → sidebar. `Esc` always removes the topmost thing: an open overlay, then
-the command completion list, then the open page, then a focus that is not the composer, and
-finally the draft in the composer.
+One region owns the keyboard at a time, and the status row names it. `Tab` moves between the
+composer and the transcript or page; the sidebar never takes the keyboard. `Esc` always removes
+the topmost thing: an open overlay, then the command completion list, then the open page, then a
+focus that is not the composer, and finally the draft in the composer.
 
 | Key | Action |
 | --- | --- |
@@ -127,9 +127,10 @@ Esc discards what was typed or pasted into it.
 
 ## Pages
 
-Every destination in the sidebar is a read-only projection. Opening one never starts an
-agent and never writes to your working directory. Each page is a list with the detail of the
-selected row underneath it, and states its own keys in the status row.
+Every page is a read-only projection. A page opens with its command, such as `/tasks`, or from
+the command palette; opening one never starts an agent and never writes to your working
+directory. Each page is a list with the detail of the selected row underneath it, and states its
+own keys in the status row.
 
 - **Tasks** — the task graph, with state, assignee, reviewer, attempts, checks, results, the
   access each task declared, and any wait the runtime recorded against it. Each task also

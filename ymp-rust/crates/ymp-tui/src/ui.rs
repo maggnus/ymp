@@ -55,7 +55,7 @@ pub fn render(frame: &mut Frame, app: &mut App) {
     }
 
     if let Some((rule, panel)) = side {
-        frame::vertical_rule(frame, rule, &theme, app.focus == Focus::Sidebar);
+        frame::vertical_rule(frame, rule, &theme);
         frame::fill_surface(frame, panel, &theme);
         let inner = Rect {
             x: panel.x + 1,
@@ -63,12 +63,7 @@ pub fn render(frame: &mut Frame, app: &mut App) {
             width: panel.width.saturating_sub(2),
             height: panel.height,
         };
-        let lines = sidebar::lines(
-            app,
-            inner.width as usize,
-            inner.height as usize,
-            app.focus == Focus::Sidebar,
-        );
+        let lines = sidebar::lines(app, inner.width as usize, inner.height as usize);
         frame::paint(frame, inner, lines);
     }
 
@@ -271,7 +266,6 @@ fn hints(
     page_hints: &[(&'static str, &'static str)],
 ) -> Vec<(&'static str, &'static str)> {
     match (app.view, app.focus) {
-        (_, Focus::Sidebar) => vec![("Enter", "open"), ("Tab", "focus"), ("Esc", "composer")],
         (View::Chat, Focus::Composer) => {
             vec![("Enter", "send"), ("Ctrl+P", "commands"), ("Tab", "focus")]
         }
@@ -447,7 +441,7 @@ fn welcome_lines(app: &App, width: usize) -> Vec<Line<'static>> {
         "Describe a task and press Enter. Agents create and change files in this directory itself.",
         "ymp records a path and a hash for each change, never earlier content, so it cannot put a file back. /diff states what a run recorded and where.",
         "Ctrl+P opens the command palette. Ctrl+T changes the colour theme.",
-        "Every page reachable from the sidebar is read-only; none of them start an agent.",
+        "Every page opens with its command, such as /tasks, or from the palette. Pages are read-only; none of them start an agent.",
     ] {
         for piece in text::wrap(hint, width.saturating_sub(4).max(8)) {
             lines.push(Line::from(vec![

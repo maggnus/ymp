@@ -1,4 +1,4 @@
-//! The right sidebar: where you are, what the team is doing, and what the session is.
+//! The right sidebar: what the session is, what it spent and what the team is doing.
 //!
 //! The sidebar is built as a list of sections with a minimum height each. When the terminal
 //! is short the sections shrink in a defined order instead of being clipped, so the context
@@ -8,7 +8,7 @@ use crate::state::App;
 use crate::text;
 use crate::theme::Theme;
 use crate::usage;
-use crate::views::{self, View};
+use crate::views;
 use ratatui::text::{Line, Span};
 use ymp_core::TaskState;
 
@@ -22,23 +22,18 @@ struct Section {
 }
 
 /// Compose the sidebar. `width` is the inner width available for text.
-pub fn lines(app: &App, width: usize, height: usize, focused: bool) -> Vec<Line<'static>> {
+///
+/// The sidebar lists no destinations and never takes the keyboard: a page opens with its command
+/// or from the palette. Sections give way from the bottom, so the session stays longest.
+pub fn lines(app: &App, width: usize, height: usize) -> Vec<Line<'static>> {
     let theme = &app.theme;
     let sections = vec![
-        navigation(app, width, focused),
         session(app, width),
         tokens(app, width),
         team(app, width),
         tasks(app, width),
     ];
-    // When the sidebar owns the keyboard the navigation list must stay whole; otherwise the
-    // live context is worth more than the full list of destinations.
-    let shrink_order: [usize; 5] = if focused {
-        [4, 3, 2, 1, 0]
-    } else {
-        [0, 4, 3, 2, 1]
-    };
-    fit(sections, height, &shrink_order, theme)
+    fit(sections, height, &[3, 2, 1, 0], theme)
 }
 
 /// Fit the sections into `height` rows.
@@ -126,67 +121,13 @@ fn hidden_row(hidden: usize, theme: &Theme) -> Line<'static> {
     ))
 }
 
-fn title(theme: &Theme, text: &str, focused: bool) -> Line<'static> {
-    let mut spans = vec![Span::styled(text.to_uppercase(), theme.muted())];
-    if focused {
-        spans.push(Span::styled("  focus".to_owned(), theme.accent()));
-    }
-    Line::from(spans)
-}
-
-fn navigation(app: &App, width: usize, focused: bool) -> Section {
-    let theme = &app.theme;
-    let mut lines = vec![title(theme, "navigate", focused)];
-    for (index, view) in views::NAV.iter().enumerate() {
-        let current = *view == app.view;
-        let selected = focused && index == app.nav;
-        let marker = if selected {
-            theme.markers.selection
-        } else if current {
-            theme.markers.busy
-        } else {
-            " "
-        };
-        let style = if selected {
-            theme.selected()
-        } else if current {
-            theme.accent()
-        } else {
-            theme.body()
-        };
-        let badge = match view {
-            View::Tasks if !app.tasks.is_empty() => app.tasks.len().to_string(),
-            // The session total stays reachable from the list even when the statistics
-            // section below has been shortened away.
-            View::Usage if usage::present(app.session.as_deref(), &app.stats) => {
-                usage::headline(app.stats.total(), theme)
-            }
-            View::Team => app.config.members().len().to_string(),
-            _ => String::new(),
-        };
-        lines.push(text::row(
-            width,
-            vec![Span::styled(format!("{marker} {}", view.title()), style)],
-            if badge.is_empty() {
-                Vec::new()
-            } else {
-                vec![Span::styled(badge, theme.faint())]
-            },
-        ));
-    }
-    Section {
-        // The title is row zero, so the selected destination sits one row below its index.
-        anchor: focused.then(|| app.nav.min(views::NAV.len() - 1) + 1),
-        // While the list is being driven it keeps room for a few neighbours, so the
-        // selection has context instead of sitting alone above a counter.
-        keep: if focused { 5 } else { 2 },
-        lines,
-    }
+fn title(theme: &Theme, text: &str) -> Line<'static> {
+    Line::from(Span::styled(text.to_uppercase(), theme.muted()))
 }
 
 fn session(app: &App, width: usize) -> Section {
     let theme = &app.theme;
-    let mut lines = vec![title(theme, "session", false)];
+    let mut lines = vec![title(theme, "session")];
     match &app.session {
         Some(id) => {
             let (status, style) = views::session_status(app.live_status(), theme);
@@ -391,7 +332,7 @@ fn activity(status: Option<&str>, theme: &Theme) -> (&'static str, ratatui::styl
 
 fn tasks(app: &App, width: usize) -> Section {
     let theme = &app.theme;
-    let mut lines = vec![title(theme, "tasks", false)];
+    let mut lines = vec![title(theme, "tasks")];
     if app.tasks.is_empty() {
         lines.push(Line::from(Span::styled(
             "no task graph yet".to_owned(),

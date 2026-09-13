@@ -29,7 +29,7 @@ use ymp_core::{
 use ymp_storage::Store;
 use ymp_workspace::repository::Repository;
 
-/// Every destination the sidebar and the commands can reach.
+/// Every page a command can open.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum View {
     Chat,
@@ -49,26 +49,6 @@ pub enum View {
     Limits,
     Help,
 }
-
-/// Navigation order, used by the sidebar and by the help page.
-pub const NAV: &[View] = &[
-    View::Chat,
-    View::Tasks,
-    View::Usage,
-    View::Sessions,
-    View::Files,
-    View::Changes,
-    View::Checks,
-    View::Assignments,
-    View::Decisions,
-    View::Team,
-    View::Agents,
-    View::Providers,
-    View::Memory,
-    View::Reputation,
-    View::Limits,
-    View::Help,
-];
 
 impl View {
     pub fn title(self) -> &'static str {

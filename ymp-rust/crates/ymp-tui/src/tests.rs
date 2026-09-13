@@ -359,11 +359,10 @@ fn tab_cycles_one_focus_owner_and_esc_walks_back_to_the_composer() {
     app.on_key(key(KeyCode::Tab), 120);
     assert_eq!(app.focus, Focus::Main);
     app.on_key(key(KeyCode::Tab), 120);
-    assert_eq!(app.focus, Focus::Sidebar);
-    app.on_key(key(KeyCode::Tab), 120);
-    assert_eq!(app.focus, Focus::Composer);
+    assert_eq!(app.focus, Focus::Composer, "the sidebar takes no focus");
+    app.on_key(key(KeyCode::BackTab), 120);
+    assert_eq!(app.focus, Focus::Main);
 
-    app.on_key(key(KeyCode::Tab), 120);
     app.on_key(key(KeyCode::Esc), 120);
     assert_eq!(app.focus, Focus::Composer);
 }
@@ -392,19 +391,44 @@ fn esc_closes_the_topmost_surface_in_order() {
     assert!(app.input.is_empty(), "the draft is cleared last");
 }
 
+/// Every page, in the order the commands list them.
+const PAGES: &[View] = &[
+    View::Chat,
+    View::Tasks,
+    View::Usage,
+    View::Sessions,
+    View::Files,
+    View::Changes,
+    View::Checks,
+    View::Assignments,
+    View::Decisions,
+    View::Team,
+    View::Agents,
+    View::Providers,
+    View::Memory,
+    View::Reputation,
+    View::Limits,
+    View::Help,
+];
+
 #[test]
-fn the_sidebar_opens_a_destination_without_leaving_the_keyboard() {
+fn the_sidebar_lists_no_destinations() {
     let fixture = fixture();
     let mut app = fixture.app();
-    app.viewport.width = 120;
-    app.on_key(key(KeyCode::Tab), 120);
-    app.on_key(key(KeyCode::Tab), 120);
-    assert_eq!(app.focus, Focus::Sidebar);
-    app.on_key(key(KeyCode::Down), 120);
-    let actions = app.on_key(key(KeyCode::Enter), 120);
-    assert!(actions.is_empty());
-    assert_eq!(app.view, View::Tasks);
-    assert_eq!(app.focus, Focus::Main);
+    let width = 120u16;
+    let side = crate::frame::sidebar_width(width) as usize;
+    let sidebar = screen_rows(&mut app, width, 40)
+        .iter()
+        .map(|row| row.chars().skip(width as usize - side).collect::<String>())
+        .collect::<Vec<_>>()
+        .join("\n");
+    assert!(sidebar.contains("SESSION"), "{sidebar}");
+    for view in PAGES {
+        assert!(
+            !sidebar.contains(view.title()),
+            "the sidebar still lists {view:?}:\n{sidebar}"
+        );
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -560,11 +584,10 @@ fn ctrl_c_asks_the_same_question_from_every_region() {
     let start = Instant::now();
     let later = start + Duration::from_millis(300);
     type Open = fn(&mut App);
-    let regions: [(&str, Open); 5] = [
+    let regions: [(&str, Open); 4] = [
         ("composer", |_| {}),
         ("transcript", |app| app.focus = Focus::Main),
         ("page", |app| app.set_view(View::Tasks)),
-        ("sidebar", |app| app.focus = Focus::Sidebar),
         ("theme chooser", |app| {
             app.on_key(control('t'), 120);
         }),
@@ -861,7 +884,7 @@ fn read_only_pages_never_produce_a_run_action() {
     let fixture = fixture();
     fixture.seed_session("Build a landing page");
     let mut app = fixture.app();
-    for view in crate::views::NAV {
+    for view in PAGES {
         app.set_view(*view);
         for code in [
             KeyCode::Down,
@@ -1190,14 +1213,14 @@ fn the_sidebar_is_present_from_eighty_columns_and_can_be_hidden() {
     for width in [80u16, 100, 120, 180] {
         let rendered = draw(&mut app, width, 24);
         assert!(
-            rendered.contains("NAVIGATE"),
+            rendered.contains("SESSION"),
             "no sidebar at {width} columns"
         );
         assert!(rendered.contains("TEAM"), "no team activity at {width}");
     }
     app.command("/sidebar", 100);
     let rendered = draw(&mut app, 120, 30);
-    assert!(!rendered.contains("NAVIGATE"));
+    assert!(!rendered.contains("SESSION"));
     assert!(!Prefs::load(&fixture.store).sidebar);
 }
 
@@ -1206,7 +1229,7 @@ fn every_page_renders_at_the_smallest_supported_size() {
     let fixture = fixture();
     fixture.seed_session("Build a landing page");
     let mut app = fixture.app();
-    for view in crate::views::NAV {
+    for view in PAGES {
         app.set_view(*view);
         for (width, height) in [(80u16, 24u16), (40, 12), (120, 40)] {
             let rendered = draw(&mut app, width, height);
@@ -1328,11 +1351,11 @@ fn every_theme_renders_a_complete_screen() {
         app.command(&format!("/theme {}", palette.id), 120);
         assert_eq!(app.theme.id, palette.id);
         conversation(&mut app, 6);
-        for view in crate::views::NAV {
+        for view in PAGES {
             app.set_view(*view);
             let rendered = draw(&mut app, 100, 30);
             assert!(
-                rendered.contains("NAVIGATE"),
+                rendered.contains("SESSION"),
                 "{} lost the sidebar on {view:?}",
                 palette.id
             );
@@ -1586,38 +1609,6 @@ fn browsing_sessions_during_a_run_stays_available() {
     let rendered = draw(&mut app, 110, 30);
     assert!(rendered.contains("A different saved session"), "{rendered}");
     assert!(rendered.contains("The run that is active"));
-}
-
-// ---------------------------------------------------------------------------
-// Sidebar selection
-// ---------------------------------------------------------------------------
-
-#[test]
-fn the_focused_sidebar_keeps_its_selection_visible_at_every_size() {
-    let fixture = fixture();
-    for (width, height) in [(80u16, 24u16), (100, 24), (120, 30), (80, 14)] {
-        let mut app = fixture.app();
-        app.viewport.width = width as usize;
-        draw(&mut app, width, height);
-        app.on_key(key(KeyCode::Tab), width);
-        app.on_key(key(KeyCode::Tab), width);
-        assert_eq!(app.focus, Focus::Sidebar);
-
-        app.on_key(key(KeyCode::End), width);
-        assert_eq!(app.nav, crate::views::NAV.len() - 1);
-        let rendered = draw(&mut app, width, height);
-        assert!(
-            rendered.contains("› Help"),
-            "the selected destination vanished at {width}x{height}:\n{rendered}"
-        );
-
-        app.on_key(key(KeyCode::Home), width);
-        let rendered = draw(&mut app, width, height);
-        assert!(
-            rendered.contains("› Conversation"),
-            "the selection vanished at the top at {width}x{height}"
-        );
-    }
 }
 
 // ---------------------------------------------------------------------------
@@ -5911,7 +5902,7 @@ async fn no_row_puts_more_in_its_right_column_than_the_narrowest_column_holds() 
     let mut app = run.app();
     app.load_session(&run.session).unwrap();
     let mut checked = 0;
-    for view in crate::views::NAV.iter().copied() {
+    for view in PAGES.iter().copied() {
         // Help is the one page whose right side is prose rather than a state word: it sizes a
         // description to the column it was built for and truncates it itself.
         if view == crate::views::View::Help {
@@ -5941,7 +5932,7 @@ async fn no_row_puts_more_in_its_right_column_than_the_narrowest_column_holds() 
         PathBuf::from(run.project.path()),
     );
     let mut refusals = 0;
-    for view in crate::views::NAV.iter().copied() {
+    for view in PAGES.iter().copied() {
         if view == crate::views::View::Help {
             continue;
         }

@@ -173,10 +173,9 @@ pub fn hairline_with(frame: &mut Frame, area: Rect, theme: &Theme, style: ratatu
     );
 }
 
-/// The rule between the main column and the sidebar. It brightens when the sidebar owns
-/// the keyboard, which is one of the two signals that the focus is there.
-pub fn vertical_rule(frame: &mut Frame, area: Rect, theme: &Theme, focused: bool) {
-    let style = theme.border(focused);
+/// The rule between the main column and the sidebar.
+pub fn vertical_rule(frame: &mut Frame, area: Rect, theme: &Theme) {
+    let style = theme.border(false);
     let lines = (0..area.height)
         .map(|_| Line::from(Span::styled(theme.markers.vline.to_owned(), style)))
         .collect::<Vec<_>>();
