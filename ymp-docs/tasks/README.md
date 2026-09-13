@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-13 07:01 UTC.
+Updated: 2026-09-13 07:19 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -14,7 +14,7 @@ A planned task is not implemented functionality. Completed research and planning
 | design | 1 | 1 |
 | documentation | 4 | 4 |
 | experiment | 0 | 4 |
-| implementation | 29 | 32 |
+| implementation | 29 | 34 |
 | research | 8 | 8 |
 | verification | 2 | 2 |
 
@@ -75,6 +75,8 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-133](#ymp-133) | P1 | Present non-popup data collections as consistent keyboard-navigable tables | 2026-09-13 07:01 |
 | `[x]` | [YMP-134](#ymp-134) | P1 | Finish sidebar, Detailed mode and floating-surface corrections requested directly in Paseo | 2026-09-13 07:01 |
 | `[x]` | [YMP-135](#ymp-135) | P1 | Show model-only labels when native effort is unknown or only a thinking toggle is reported | 2026-09-13 07:01 |
+| `[~]` | [YMP-136](#ymp-136) | P1 | Upgrade the terminal stack to the latest stable Ratatui release | 2026-09-13 07:19 |
+| `[=]` | [YMP-137](#ymp-137) | P1 | Keep Ember and Slate and add the sixteen requested library themes | 2026-09-13 07:19 |
 
 ## YMP-001
 
@@ -1854,6 +1856,64 @@ The shared label helper appends none for all missing reported effort and present
 
 - ymp-docs/releases/0.4.3.md
 - ymp-docs/research/evidence/release-043/verification.json
+
+## YMP-136
+
+Upgrade the terminal stack to the latest stable Ratatui release
+
+**State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P1
+
+**Last update (UTC):** 2026-09-13 07:19
+
+**Current reason:** Verified upstream releases and local manifests. Latest Ratatui0.30.2 and ratatui-themes0.3.0 are compatible; the current workspace remains0.29 until implementation is reviewed. UI work uses Claude Opus5 high.
+
+**Owner:** Claude Code Opus 5 high; maintainer integrates and verifies
+
+**Authorization:** Owner explicitly requires the latest available Ratatui release. Official upstream latest release verified as0.30.2 on2026-09-13.
+
+**Depends on:** [YMP-133](#ymp-133), [YMP-134](#ymp-134), [YMP-135](#ymp-135)
+
+The workspace uses Ratatui0.29; the current ratatui-themes0.3.0 uses0.30.2. Upgrade the terminal dependency coherently instead of pinning an obsolete theme library or duplicating Ratatui versions.
+
+**Acceptance criteria:**
+
+- Use stable Ratatui0.30.2 and compatible terminal backend dependencies, with the lockfile updated and no unintended duplicate Ratatui runtime.
+- Preserve terminal restoration, double Ctrl+C, paste/input handling, table selection and model attribution; adapt only the API changes necessary for compatibility.
+- Run required fmt, strict workspace Clippy and workspace tests, then exercise the actual terminal and installed release. Do not call real providers as tests.
+
+**Evidence:**
+
+- Pending.
+
+## YMP-137
+
+Keep Ember and Slate and add the sixteen requested library themes
+
+**State:** `[=]` (planned) · **Type:** implementation · **Priority:** P1
+
+**Last update (UTC):** 2026-09-13 07:19
+
+**Current reason:** Needs YMP-136
+
+**Owner:** Claude Code Opus 5 high; maintainer integrates and verifies
+
+**Authorization:** Owner requested preserving Ember and State (interpreted as the existing Slate theme), replacing other themes using ratatui-themes, and supplied the exact16-theme list. Owner also requested evaluating the library; use it as a palette source behind the existing semantic Theme interface.
+
+**Depends on:** [YMP-136](#ymp-136)
+
+Reuse maintained palettes without coupling application rendering and preferences directly to the third-party theme model.
+
+**Latest progress note:** Positive integration assessment: use the library for palette data and retain ymp semantic roles and chooser behavior. Ratatui migration is a separate prerequisite. Original themes request has not yet changed application code.
+
+**Acceptance criteria:**
+
+- Retain Ember and Slate including their styles; replace selectable Paper, Contrast and Terminal with Dracula, One Dark Pro, Nord, Catppuccin Mocha, Catppuccin Latte, Gruvbox Dark, Gruvbox Light, Tokyo Night, Solarized Dark, Solarized Light, Monokai Pro, Rosé Pine, Kanagawa, Everforest, Cyberpunk and Midnight Commander.
+- Use ratatui-themes0.3.0 through one small semantic palette adapter; no machine-specific path dependency. Retain stable theme IDs, readable selection and state colors, preview/cancel/save behavior and safe loading of removed or unknown saved theme IDs.
+- Make all18 themes accessible in short windows, preserve current table/input behavior, update English interface documentation and verify representative dark/light themes in the installed executable.
+
+**Evidence:**
+
+- Pending.
 
 ## Intent coverage
 

@@ -3395,9 +3395,63 @@
           "note": "Installed0.4.3 with model-only labels when effort is absent or a binary thinking toggle is reported. Actual graded native effort, including an explicitly reported none, stays factual. TUI and headless share the helper; four actual CLI fixture variants and final terminal checks pass. No execution settings or stored native metadata were rewritten."
         }
       ]
+    },
+    {
+      "id": "YMP-136",
+      "title": "Upgrade the terminal stack to the latest stable Ratatui release",
+      "type": "implementation",
+      "priority": "P1",
+      "status": "in_progress",
+      "owner": "Claude Code Opus 5 high; maintainer integrates and verifies",
+      "authorization": "Owner explicitly requires the latest available Ratatui release. Official upstream latest release verified as0.30.2 on2026-09-13.",
+      "depends_on": [
+        "YMP-133",
+        "YMP-134",
+        "YMP-135"
+      ],
+      "reason": "The workspace uses Ratatui0.29; the current ratatui-themes0.3.0 uses0.30.2. Upgrade the terminal dependency coherently instead of pinning an obsolete theme library or duplicating Ratatui versions.",
+      "acceptance": [
+        "Use stable Ratatui0.30.2 and compatible terminal backend dependencies, with the lockfile updated and no unintended duplicate Ratatui runtime.",
+        "Preserve terminal restoration, double Ctrl+C, paste/input handling, table selection and model attribution; adapt only the API changes necessary for compatibility.",
+        "Run required fmt, strict workspace Clippy and workspace tests, then exercise the actual terminal and installed release. Do not call real providers as tests."
+      ],
+      "evidence": [],
+      "history": [
+        {
+          "at": "2026-09-13T07:19:30.422157+00:00",
+          "status": "in_progress",
+          "note": "Verified upstream releases and local manifests. Latest Ratatui0.30.2 and ratatui-themes0.3.0 are compatible; the current workspace remains0.29 until implementation is reviewed. UI work uses Claude Opus5 high."
+        }
+      ]
+    },
+    {
+      "id": "YMP-137",
+      "title": "Keep Ember and Slate and add the sixteen requested library themes",
+      "type": "implementation",
+      "priority": "P1",
+      "status": "planned",
+      "owner": "Claude Code Opus 5 high; maintainer integrates and verifies",
+      "authorization": "Owner requested preserving Ember and State (interpreted as the existing Slate theme), replacing other themes using ratatui-themes, and supplied the exact16-theme list. Owner also requested evaluating the library; use it as a palette source behind the existing semantic Theme interface.",
+      "depends_on": [
+        "YMP-136"
+      ],
+      "reason": "Reuse maintained palettes without coupling application rendering and preferences directly to the third-party theme model.",
+      "acceptance": [
+        "Retain Ember and Slate including their styles; replace selectable Paper, Contrast and Terminal with Dracula, One Dark Pro, Nord, Catppuccin Mocha, Catppuccin Latte, Gruvbox Dark, Gruvbox Light, Tokyo Night, Solarized Dark, Solarized Light, Monokai Pro, Rosé Pine, Kanagawa, Everforest, Cyberpunk and Midnight Commander.",
+        "Use ratatui-themes0.3.0 through one small semantic palette adapter; no machine-specific path dependency. Retain stable theme IDs, readable selection and state colors, preview/cancel/save behavior and safe loading of removed or unknown saved theme IDs.",
+        "Make all18 themes accessible in short windows, preserve current table/input behavior, update English interface documentation and verify representative dark/light themes in the installed executable."
+      ],
+      "evidence": [],
+      "history": [
+        {
+          "at": "2026-09-13T07:19:30.422157+00:00",
+          "status": "planned",
+          "note": "Positive integration assessment: use the library for palette data and retain ymp semantic roles and chooser behavior. Ratatui migration is a separate prerequisite. Original themes request has not yet changed application code."
+        }
+      ]
     }
   ],
-  "updated_at": "2026-09-13T07:01:31.793139+00:00",
+  "updated_at": "2026-09-13T07:19:30.422157+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",
