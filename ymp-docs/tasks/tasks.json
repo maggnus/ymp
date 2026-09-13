@@ -3938,11 +3938,16 @@
           "at": "2026-09-13T14:52:47.796184+00:00",
           "status": "in_progress",
           "note": "Owner explicitly prioritizes orchestration of a failed/problematic agent. Backend author 98b3d512-de44-4679-8a59-fdf3d0d20112 instructed to deliver a reviewable same-session recovery slice first: saved-stage continuation, bounded safe retry/reassignment, honest waiting, no duplicate planning or lost evidence. Remaining live-team controls and strategy comparison follow; minimal owner replacement may belong to recovery. Existing invariants, tests and authorization remain unchanged."
+        },
+        {
+          "at": "2026-09-13T14:58:01.310061+00:00",
+          "status": "in_progress",
+          "note": "Owner prefers the term fork for delegated background work. Renamed existing executing agent 98b3d512-de44-4679-8a59-fdf3d0d20112 to [Fork] YMP-146 recovery backend and recorded terminology in AGENTS.md. Execution settings, scope, priority and parent accountability are unchanged."
         }
       ]
     }
   ],
-  "updated_at": "2026-09-13T14:52:47.796184+00:00",
+  "updated_at": "2026-09-13T14:58:01.310061+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",

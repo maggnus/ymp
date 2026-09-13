@@ -1,6 +1,6 @@
 # Delivery plan and progress
 
-Updated: 2026-09-13 14:52 UTC.
+Updated: 2026-09-13 14:58 UTC.
 
 [Approved intent](../../intent.md) · [Task details and evidence](README.md) · [Canonical register](tasks.json)
 
@@ -34,7 +34,7 @@ A planned task automatically shows `[=]` while prerequisites remain unfinished a
 
 - `[+]` [YMP-130](README.md#ymp-130) — Show active agent work during headless session runs (2026-09-13 00:54). Read-only diagnosis: poker checks passed at 2026-09-13T00:52:09Z; the following claude-opus-5 review invocation was active. Earlier attempts were cancelled. No active run was stopped or restarted by this investigation.
 - `[~]` [YMP-145](README.md#ymp-145) — Unify full-row popup selection and verify stable scrolling geometry (2026-09-13 14:19). Confirmed installed command is 0.4.6 at main 4e68c55. Shared frame::render_modal already derives height from full body; GitChoice text::row inserts unstyled inter-column padding. Requested the specific shrinking popup while preparing an isolated background UI assignment. No product fix is accepted yet.
-- `[~]` [YMP-146](README.md#ymp-146) — Recover interrupted session stages and let the owner change the active team (2026-09-13 14:52). Owner explicitly prioritizes orchestration of a failed/problematic agent. Backend author 98b3d512-de44-4679-8a59-fdf3d0d20112 instructed to deliver a reviewable same-session recovery slice first: saved-stage continuation, bounded safe retry/reassignment, honest waiting, no duplicate planning or lost evidence. Remaining live-team controls and strategy comparison follow; minimal owner replacement may belong to recovery. Existing invariants, tests and authorization remain unchanged.
+- `[~]` [YMP-146](README.md#ymp-146) — Recover interrupted session stages and let the owner change the active team (2026-09-13 14:58). Owner prefers the term fork for delegated background work. Renamed existing executing agent 98b3d512-de44-4679-8a59-fdf3d0d20112 to [Fork] YMP-146 recovery backend and recorded terminology in AGENTS.md. Execution settings, scope, priority and parent accountability are unchanged.
 
 ## Ready next
 
@@ -143,7 +143,7 @@ Deferred and post-MVP work:
 
 | Time (UTC) | Task | State | Update |
 | --- | --- | --- | --- |
-| 2026-09-13 14:52 | [YMP-146](README.md#ymp-146) | `[~]` | Owner explicitly prioritizes orchestration of a failed/problematic agent. Backend author 98b3d512-de44-4679-8a59-fdf3d0d20112 instructed to deliver a reviewable same-session recovery slice first: saved-stage continuation, bounded safe retry/reassignment, honest waiting, no duplicate planning or lost evidence. Remaining live-team controls and strategy comparison follow; minimal owner replacement may belong to recovery. Existing invariants, tests and authorization remain unchanged. |
+| 2026-09-13 14:58 | [YMP-146](README.md#ymp-146) | `[~]` | Owner prefers the term fork for delegated background work. Renamed existing executing agent 98b3d512-de44-4679-8a59-fdf3d0d20112 to [Fork] YMP-146 recovery backend and recorded terminology in AGENTS.md. Execution settings, scope, priority and parent accountability are unchanged. |
 | 2026-09-13 14:36 | [YMP-144](README.md#ymp-144) | `[x]` | Owner approved implementation and live team changes; follow-up recorded as YMP-146. Parent current-team inspection clarified that SessionPolicy.eligible_pool is initial evidence, while effective eligibility is rebuilt from engine configuration under captured team constraints; it is not itself an immutable allowed-list enforcement path. Original diagnostic conclusions remain valid. |
 | 2026-09-13 14:19 | [YMP-145](README.md#ymp-145) | `[~]` | Confirmed installed command is 0.4.6 at main 4e68c55. Shared frame::render_modal already derives height from full body; GitChoice text::row inserts unstyled inter-column padding. Requested the specific shrinking popup while preparing an isolated background UI assignment. No product fix is accepted yet. |
 | 2026-09-13 14:04 | [YMP-141](README.md#ymp-141) | `[x]` | Installed 0.4.6 accepted after independent source/terminal verification. macOS ARM64 and Linux ARM64 each pass fmt, strict Clippy and 576 tests (2 ignored). Both platforms pass Git9+9, popup9+9, files12 and output2 terminal cases; macOS also tables19 and exit5. Installed command repeats Git9 and popups9 successfully. Embedded Git works with empty app PATH; Linux artifact is static, macOS uses only OS libraries. Previous executable backed up; ARM64 artifacts retained. Providers/runtimes remain the explicit exception; no x86_64 runtime claim. |
