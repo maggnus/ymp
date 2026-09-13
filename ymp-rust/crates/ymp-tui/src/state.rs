@@ -283,6 +283,10 @@ pub struct App {
 
     pub page_selected: usize,
     pub page_top: usize,
+    /// The filter and the sorts the reader applied to the open page's tables.
+    pub table: crate::table::Controls,
+    /// The row the selection stays on while the page is filtered or sorted again.
+    table_anchor: Option<String>,
     pub memory_query: String,
 
     pub tick: u64,
@@ -336,6 +340,8 @@ impl App {
             viewport: Viewport::default(),
             page_selected: 0,
             page_top: 0,
+            table: Default::default(),
+            table_anchor: None,
             memory_query: String::new(),
             tick: 0,
             dirty: true,
@@ -435,7 +441,7 @@ impl App {
         if stale {
             let theme = self.theme;
             let (team, team_captured) = self.active_team();
-            let page = views::build(
+            let mut page = views::build(
                 self.view,
                 &Ctx {
                     store: &self.store,
@@ -455,10 +461,70 @@ impl App {
                     width: width as usize,
                 },
             );
+            // Keys, the selection and Inspect act on the rows on screen, so the filter and the
+            // sorts are applied to the page itself rather than only when it is painted.
+            let is_row = |item: &views::Item| item.kind == views::ItemKind::Row;
+            self.table.unfiltered = page.items.iter().filter(|item| is_row(item)).count();
+            let view = self.view;
+            let controls = &self.table;
+            page.items = crate::table::arrange(
+                page.items,
+                &controls.filter,
+                view.sort_reserved(),
+                |title| controls.sort(view, title),
+            );
+            if let Some(key) = self.table_anchor.take() {
+                // The row the reader was on, or the first row when the filter removed it.
+                self.page_selected = page
+                    .items
+                    .iter()
+                    .position(|item| is_row(item) && item.key == key)
+                    .unwrap_or(0);
+            }
             self.page_cache = Some((self.view, width, self.revision, page));
             self.select_a_row();
         }
         &self.page_cache.as_ref().expect("page was just built").3
+    }
+
+    /// Build the open page again under a changed filter or sort, keeping the selected row.
+    fn rearrange(&mut self) {
+        self.table_anchor = self.page_anchor();
+        self.page_cache = None;
+        self.page_top = 0;
+        self.dirty = true;
+    }
+
+    /// Shift and a letter: sort the table holding the selection by the column that letter
+    /// names, cycling ascending, descending and the page's own order. Returns false when no
+    /// column of that table answers the letter, so a page key can still take it.
+    fn sort_by_key(&mut self, letter: char, width: u16) -> bool {
+        let width = self.page_width(width);
+        let view = self.view;
+        let selected = self.page_selected;
+        let page = self.page(width);
+        let is_heading = |item: &views::Item| item.kind == views::ItemKind::Heading;
+        let end = selected.min(page.items.len());
+        let heading = page.items[..end]
+            .iter()
+            .rposition(is_heading)
+            .or_else(|| page.items.iter().position(is_heading));
+        let Some(heading) = heading.map(|index| &page.items[index]) else {
+            return false;
+        };
+        let Some(column) = heading
+            .sort_keys
+            .iter()
+            .position(|key| *key == Some(letter))
+        else {
+            return false;
+        };
+        let table = heading.title.clone();
+        let column = heading.columns[column].title;
+        let sort = crate::table::Sort::cycle(self.table.sort(view, &table), column);
+        self.table.set_sort(view, &table, sort);
+        self.rearrange();
+        true
     }
 
     /// Point the selection at a row rather than at a heading.
@@ -759,6 +825,9 @@ impl App {
         self.view = view;
         self.page_selected = 0;
         self.page_top = 0;
+        // A filter belongs to the page it was typed on. Sorts are kept per page and table.
+        self.table.clear_filter();
+        self.table_anchor = None;
         self.focus = if view == View::Chat {
             Focus::Composer
         } else {
@@ -1088,8 +1157,9 @@ impl App {
         }
     }
 
-    /// Esc always removes the topmost thing: the overlay, then the completion list, then
-    /// the open page, then a focus that is not the composer, and finally the draft.
+    /// Esc always removes the topmost thing: the overlay, then the completion list, then the
+    /// page's filter, then the open page, then a focus that is not the composer, and finally
+    /// the draft.
     fn escape(&mut self) {
         if self.overlay.take().is_some() {
             return;
@@ -1097,6 +1167,11 @@ impl App {
         if !self.completions().is_empty() {
             self.input.clear();
             self.completion = 0;
+            return;
+        }
+        if self.view != View::Chat && (self.table.typing || !self.table.filter.is_empty()) {
+            self.table.clear_filter();
+            self.rearrange();
             return;
         }
         if self.view != View::Chat {
@@ -1252,6 +1327,27 @@ impl App {
             }
             return Vec::new();
         }
+        let plain = !key
+            .modifiers
+            .intersects(KeyModifiers::CONTROL | KeyModifiers::ALT);
+        if self.table.typing {
+            // Typing a filter: letters go into it, and only the arrows still move the selection.
+            match key.code {
+                KeyCode::Enter => self.table.typing = false,
+                KeyCode::Up => self.move_page_selection(-1, width),
+                KeyCode::Down => self.move_page_selection(1, width),
+                KeyCode::Backspace => {
+                    self.table.filter.pop();
+                    self.rearrange();
+                }
+                KeyCode::Char(ch) if plain => {
+                    self.table.filter.push(ch);
+                    self.rearrange();
+                }
+                _ => {}
+            }
+            return Vec::new();
+        }
         match key.code {
             KeyCode::Up | KeyCode::Char('k') => self.move_page_selection(-1, width),
             KeyCode::Down | KeyCode::Char('j') => self.move_page_selection(1, width),
@@ -1260,6 +1356,10 @@ impl App {
                 self.move_page_selection(0, width);
             }
             KeyCode::End => self.move_page_selection(isize::MAX / 2, width),
+            KeyCode::Char('/') if plain => self.table.typing = true,
+            KeyCode::Char('d') if plain => self.inspect_selected_row(width),
+            KeyCode::Char(letter)
+                if plain && letter.is_ascii_uppercase() && self.sort_by_key(letter, width) => {}
             _ => return self.page_action(key, width),
         }
         Vec::new()
@@ -1434,7 +1534,7 @@ impl App {
                     ))
                 });
             }
-            (View::Memory, KeyCode::Char('/')) => {
+            (View::Memory, KeyCode::Char('s')) => {
                 self.overlay = Some(Overlay::Prompt {
                     target: PromptTarget::MemorySearch,
                     label: "Search memory".into(),
@@ -1485,15 +1585,29 @@ impl App {
 
     /// Open the selected row as a read-only record.
     ///
-    /// The record is built again for the width of the surface that shows it, which is wider
-    /// than the detail pane and narrower than the terminal. Reusing the lines the pane was
-    /// given would wrap them for the wrong rect, and the right edge of each one would be cut
-    /// off when it is painted.
+    /// The record is built again for the width of the surface that shows it, which is
+    /// narrower than the terminal. Reusing lines wrapped for the page would wrap them for the
+    /// wrong rect, and the right edge of each one would be cut off when it is painted.
     fn inspect_selected_row(&mut self, total: u16) {
         let theme = self.theme;
         let room = frame::inspect_content_width(total);
         let Some(item) = self.selected_item_at(room) else {
             return;
+        };
+        // The popup is titled by the row's flexible cell, the text that names the record, and
+        // by its key where that cell is empty or the row is a note.
+        let title = {
+            let selected = self.page_selected;
+            let page = self.page(room);
+            page.items[..selected.min(page.items.len())]
+                .iter()
+                .rfind(|heading| heading.kind == views::ItemKind::Heading)
+                .and_then(|heading| heading.columns.iter().position(|column| column.flex))
+                .filter(|_| item.cells.len() > 1)
+                .and_then(|column| item.cells.get(column))
+                .map(|cell| text::one_line(cell.plain().trim()))
+                .filter(|title| !title.is_empty())
+                .unwrap_or_else(|| item.key.clone())
         };
         let body = if item.detail.is_empty() {
             text::wrap(&item.key, room as usize)
@@ -1504,7 +1618,7 @@ impl App {
             item.detail
         };
         self.overlay = Some(Overlay::Inspect {
-            title: item.key,
+            title,
             body,
             scroll: 0,
         });

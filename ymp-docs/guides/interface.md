@@ -77,9 +77,10 @@ session, and never by the names or aliases of the profiles the session captured.
 The sidebar's `TOKENS`, `TEAM` and `TASKS` lists are compact tables: column titles over aligned
 rows, with token figures aligned right and the accepted task count beside the `TASKS` title. A
 short terminal shortens a section without separating its column titles from its rows, and a
-narrow sidebar cuts a long cell rather than wrapping it. The sidebar's team section names the
-profiles the loaded session captured when it started, and says so. With no session loaded it describes the team the next run would use instead; the
-two are never presented as the same thing. The turn counter works the same way: a loaded
+narrow sidebar cuts a long cell rather than wrapping it. In `TEAM` the word for what a member is
+doing gives way before its model and effort. The sidebar's team section names the profiles the
+loaded session captured when it started, and says so. With no session loaded it describes the
+team the next run would use instead; the two are never presented as the same thing. The turn counter works the same way: a loaded
 session is measured against the limit it captured, not against a limit edited afterwards.
 
 - `Tab` moves the focus into the transcript, then `Up`/`Down` select an entry.
@@ -98,8 +99,8 @@ reading is appended below without moving your position.
 
 One region owns the keyboard at a time, and the status row names it. `Tab` moves between the
 composer and the transcript or page; the sidebar never takes the keyboard. `Esc` always removes
-the topmost thing: an open overlay, then the command completion list, then the open page, then a
-focus that is not the composer, and finally the draft in the composer.
+the topmost thing: an open overlay, then the command completion list, then a page filter, then
+the open page, then a focus that is not the composer, and finally the draft in the composer.
 
 | Key | Action |
 | --- | --- |
@@ -113,6 +114,9 @@ focus that is not the composer, and finally the draft in the composer.
 | `Ctrl+L` | Toggle detailed agent messages |
 | `PageUp` / `PageDown` | Scroll the transcript or the current list |
 | `Home` / `End` | Jump to the oldest or the newest message |
+| `/` | Filter the rows of the open page; a leading `!` keeps the rows that do not match |
+| `Shift`+letter | Sort a page table by the column whose title has that letter underlined |
+| `d` | Inspect the selected page row |
 | `Ctrl+C` | Press twice within two seconds to leave ymp; active work is stopped first |
 
 The first `Ctrl+C` only asks: the status row reads `Press Ctrl-C again to exit`, and nothing is
@@ -143,8 +147,24 @@ Esc discards what was typed or pasted into it.
 
 Every page is a read-only projection. A page opens with its command, such as `/tasks`, or from
 the command palette; opening one never starts an agent and never writes to your working
-directory. Each page is a list with the detail of the selected row underneath it, and states its
-own keys in the status row.
+directory. Each page states its own keys in the status row.
+
+A page's records are tables in the style of k9s: upper-case column titles over aligned rows,
+figures aligned right, and the column titles kept on screen while the rows scroll. A page may
+open with a note that says what it is; a note spans its table and is not sorted. On a narrow
+terminal the flexible column gives up width first, then columns of lesser importance are
+hidden, and a table is never drawn wider than the page. The full record of a row opens in a
+popup with `Enter` or `d`; there is no detail pane under the list.
+
+- `/` starts a filter. Typed text is matched without regard to case against every cell, and a
+  filter that starts with `!` keeps the rows that do not match. `Enter` keeps the filter and
+  returns the keys to the page, `Esc` clears it, and opening another page clears it too. The
+  page title reads `Tasks</text>[3]`: the filter, then the rows shown. When nothing matches,
+  the page says so rather than showing its empty state.
+- `Shift` and the underlined letter of a column title sort that table by the column: ascending,
+  then descending, then back to the page's own order. The sorted column shows its direction.
+  Figures sort as numbers, and a value nobody recorded sorts after every known one in either
+  direction. The selection stays on the row it was on.
 
 - **Tasks** — the task graph, with state, assignee, reviewer, attempts, checks, results, the
   access each task declared, and any wait the runtime recorded against it. Each task also
@@ -225,8 +245,8 @@ own keys in the status row.
   names its replacement, the replacement names what it replaced, and each carries the
   acceptance, the trusted contract and the policy the correction was authorised by, with its
   own evidence. The page reads under the conditions in `knowledge_scope`, the same ones a run
-  asks under, and every entry says what those were. `/` searches, `f` retires an entry after
-  a confirmation.
+  asks under, and every entry says what those were. `s` searches the recorded memory, `/`
+  filters the rows already listed, and `f` retires an entry after a confirmation.
 - **Reputation** — the observations behind competence estimates, with their evidence, their
   evidence status, and what credit toward selection requires.
 - **Limits** — the limits the loaded session captured, shown apart from the ones the next run

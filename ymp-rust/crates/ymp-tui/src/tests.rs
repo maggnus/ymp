@@ -1328,7 +1328,7 @@ async fn the_sidebar_lists_tokens_team_and_open_tasks_as_aligned_tables() {
 
     // Activity words start under their title.
     let team = section("TEAM");
-    let activity = column_of(&team[1], "ACTIVITY").expect("the team table has no activity column");
+    let activity = column_of(&team[1], "STATE").expect("the team table has no activity column");
     assert!(column_of(&team[1], "AGENT").is_some());
     assert_eq!(team.len(), 4, "{}", team.join("\n"));
     for row in &team[2..] {
@@ -2503,10 +2503,10 @@ fn invocations_with_no_agent_leave_the_agent_figures_incomplete() {
         .map(|item| {
             (
                 item.key.clone(),
-                item.right
-                    .iter()
-                    .map(|span| span.content.as_ref())
-                    .collect::<String>(),
+                item.cells
+                    .last()
+                    .map(|cell| cell.plain())
+                    .unwrap_or_default(),
             )
         })
         .collect();
@@ -2561,7 +2561,7 @@ fn invocations_with_no_agent_leave_the_agent_figures_incomplete() {
 }
 
 #[test]
-fn opening_the_statistics_page_shows_the_session_breakdown_at_once() {
+fn opening_the_statistics_page_selects_the_session_and_inspects_its_breakdown() {
     let fixture = fixture();
     let id = fixture.seed_with_team("Landing page", Config::default().members());
     fixture.record(&id, 1, "codex", Some((9_000, 900)), Some("completed"));
@@ -2569,13 +2569,21 @@ fn opening_the_statistics_page_shows_the_session_breakdown_at_once() {
     app.load_session(&id).unwrap();
     app.command("/usage", 120);
 
-    // The first frame, before any key is pressed, already carries the detail.
+    // The first frame is the table, with the session row selected and no detail pane under it.
     let rendered = draw(&mut app, 120, 34);
     assert!(
-        rendered.contains("cache read"),
-        "the breakdown was missing from the first frame:\n{rendered}"
+        rendered.contains("session total") && !rendered.contains("cache read"),
+        "the first frame is not the token table alone:\n{rendered}"
     );
     assert_eq!(app.selected_item(118).unwrap().key, "session");
+    // d opens the selected row's record, which carries the breakdown.
+    app.on_key(key(KeyCode::Char('d')), 120);
+    let record = modal_prose(&mut app, 120, 34);
+    assert!(
+        record.contains("cache read"),
+        "the breakdown was missing from the record:\n{record}"
+    );
+    app.on_key(key(KeyCode::Esc), 120);
 
     // The first press of Down moves on to the first agent, not onto the session row.
     app.on_key(key(KeyCode::Down), 120);
@@ -2840,11 +2848,13 @@ fn the_change_view_states_that_previous_content_was_never_recorded() {
         assert_eq!(forbidden(text), None, "in:\n{text}");
     }
 
-    // At the smallest supported size the statement is on the first frame, unselected.
-    let rendered = draw(&mut app, 80, 24);
+    // At the smallest supported size the statement opens from the first row with one key.
+    app.set_view(View::Changes);
+    app.on_key(key(KeyCode::Char('d')), 80);
+    let record = modal_prose(&mut app, 80, 24);
     assert!(
-        rendered.contains("cannot restore"),
-        "the statement was not visible at 80x24:\n{rendered}"
+        record.contains("cannot restore"),
+        "the statement was not readable at 80x24:\n{record}"
     );
 }
 
@@ -3241,7 +3251,7 @@ fn seed_change(fixture: &Fixture, session: &str, name: &str, status: &str) {
 }
 
 #[test]
-fn the_detail_pane_paints_prose_whole_at_every_supported_size() {
+fn a_page_has_no_detail_pane_and_its_record_opens_whole_at_every_supported_size() {
     let fixture = fixture();
     let id = fixture.seed_session("Build a landing page");
     seed_change(&fixture, &id, "index.html", "created");
@@ -3251,8 +3261,14 @@ fn the_detail_pane_paints_prose_whole_at_every_supported_size() {
         app.set_view(View::Changes);
         let prose = main_prose(&mut app, width, height);
         assert!(
+            !prose.contains(RECOVERY_SENTENCE),
+            "at {width}x{height} the selected row's record is painted under the table:\n{prose}"
+        );
+        app.on_key(key(KeyCode::Char('d')), width);
+        let prose = modal_prose(&mut app, width, height);
+        assert!(
             prose.contains(RECOVERY_SENTENCE),
-            "at {width}x{height} the detail pane lost words from its statement:\n{prose}"
+            "at {width}x{height} the record lost words from its statement:\n{prose}"
         );
     }
 }
@@ -3430,23 +3446,18 @@ fn keys_of(app: &mut App, width: u16) -> Vec<String> {
     app.page(width)
         .items
         .iter()
+        .filter(|item| item.kind == crate::views::ItemKind::Row)
         .map(|item| item.key.clone())
         .collect()
 }
 
-/// The detail of the first row whose left text contains `needle`, as one line.
+/// The detail of the first row that mentions `needle`, as one line.
 fn row_prose(app: &mut App, width: u16, needle: &str) -> String {
     let page = app.page(width);
     let item = page
         .items
         .iter()
-        .find(|item| {
-            item.left
-                .iter()
-                .map(|span| span.content.as_ref())
-                .collect::<String>()
-                .contains(needle)
-        })
+        .find(|item| item.text().contains(needle))
         .unwrap_or_else(|| {
             panic!(
                 "no row mentions {needle}: {:?}",
@@ -3456,34 +3467,48 @@ fn row_prose(app: &mut App, width: u16, needle: &str) -> String {
     text::one_line(&lines_text(&item.detail))
 }
 
-/// The right-hand text of the row with this key, which names one record exactly.
+/// The cells of the row with this key, which names one record exactly, as one line.
 fn right_of_key(app: &mut App, width: u16, key: &str) -> String {
     let page = app.page(width);
     page.items
         .iter()
         .find(|item| item.key == key)
-        .map(|item| {
-            item.right
-                .iter()
-                .map(|span| span.content.as_ref())
-                .collect::<String>()
-        })
+        .map(|item| item.text())
         .unwrap_or_else(|| panic!("no row has the key {key}"))
 }
 
-/// The left-hand text of the row with this key, the mark it carries included.
+/// The cells of the row with this key, the mark it carries included, as one line.
 fn left_of_key(app: &mut App, width: u16, key: &str) -> String {
     let page = app.page(width);
     page.items
         .iter()
         .find(|item| item.key == key)
-        .map(|item| {
-            item.left
-                .iter()
-                .map(|span| span.content.as_ref())
-                .collect::<String>()
-        })
+        .map(|item| item.text())
         .unwrap_or_else(|| panic!("no row has the key {key}"))
+}
+
+/// The cell of the row with this key under the column titled `column` in its table.
+fn cell_of_key(app: &mut App, width: u16, key: &str, column: &str) -> String {
+    let page = app.page(width);
+    let row = page
+        .items
+        .iter()
+        .position(|item| item.kind == crate::views::ItemKind::Row && item.key == key)
+        .unwrap_or_else(|| panic!("no row has the key {key}"));
+    let heading = page.items[..row]
+        .iter()
+        .rfind(|item| item.kind == crate::views::ItemKind::Heading)
+        .unwrap_or_else(|| panic!("the row {key} is in no table"));
+    let index = heading
+        .columns
+        .iter()
+        .position(|title| title.title == column)
+        .unwrap_or_else(|| panic!("the table of {key} has no column {column}"));
+    page.items[row]
+        .cells
+        .get(index)
+        .map(|cell| cell.plain())
+        .unwrap_or_default()
 }
 
 /// The detail of the row with this key, as one line.
@@ -3497,24 +3522,13 @@ fn detail_of_key(app: &mut App, width: u16, key: &str) -> String {
     text::one_line(&lines_text(&item.detail))
 }
 
-/// The right-hand text of the first row whose left text contains `needle`.
+/// The cells of the first row that mentions `needle`, as one line.
 fn row_right(app: &mut App, width: u16, needle: &str) -> String {
     let page = app.page(width);
     page.items
         .iter()
-        .find(|item| {
-            item.left
-                .iter()
-                .map(|span| span.content.as_ref())
-                .collect::<String>()
-                .contains(needle)
-        })
-        .map(|item| {
-            item.right
-                .iter()
-                .map(|span| span.content.as_ref())
-                .collect::<String>()
-        })
+        .find(|item| item.text().contains(needle))
+        .map(|item| item.text())
         .unwrap_or_else(|| panic!("no row mentions {needle}"))
 }
 
@@ -4159,7 +4173,7 @@ async fn a_reopened_session_shows_the_token_policy_it_captured_and_not_todays() 
         ("captured:denial", "unknown_usage".to_owned()),
     ] {
         assert_eq!(
-            right_of_key(&mut app, 65, key),
+            cell_of_key(&mut app, 65, key, "VALUE"),
             value,
             "{key} does not show what the session captured"
         );
@@ -4206,11 +4220,11 @@ async fn a_reopened_session_shows_the_token_policy_it_captured_and_not_todays() 
     app.load_session(&bounded.session).unwrap();
     app.command("/limits", 100);
     assert_eq!(
-        right_of_key(&mut app, 65, "captured:unknown-usage"),
+        cell_of_key(&mut app, 65, "captured:unknown-usage", "VALUE"),
         "admit on reported"
     );
     assert_eq!(
-        right_of_key(&mut app, 65, "captured:token-ceiling"),
+        cell_of_key(&mut app, 65, "captured:token-ceiling", "VALUE"),
         "100000"
     );
     let policy = detail_of_key(&mut app, 65, "captured:unknown-usage");
@@ -4249,7 +4263,7 @@ async fn a_reopened_session_shows_the_token_policy_it_captured_and_not_todays() 
     );
     if keys_of(&mut app, 65).contains(&"captured:denial".to_owned()) {
         assert_ne!(
-            right_of_key(&mut app, 65, "captured:denial"),
+            cell_of_key(&mut app, 65, "captured:denial", "VALUE"),
             "unknown_usage",
             "a session that went on admitting shows a stop on incomplete counts"
         );
@@ -4314,13 +4328,13 @@ async fn a_session_without_a_token_ceiling_names_no_allowance_and_protects_nothi
         "captured:review-tokens",
     ] {
         assert_eq!(
-            right_of_key(&mut app, 65, key),
+            cell_of_key(&mut app, 65, key, "VALUE"),
             "none",
             "{key} shows a figure the session never captured"
         );
     }
     assert_eq!(
-        right_of_key(&mut app, 65, "captured:unknown-usage"),
+        cell_of_key(&mut app, 65, "captured:unknown-usage", "VALUE"),
         "stop admitting"
     );
     let policy = detail_of_key(&mut app, 65, "captured:unknown-usage");
@@ -4365,7 +4379,7 @@ async fn a_session_that_captured_no_resource_limits_shows_no_token_policy_in_the
         "a capture without resource limits was given today's token rows: {keys:?}"
     );
     assert_eq!(
-        right_of_key(&mut app, 65, "captured:token-policy"),
+        cell_of_key(&mut app, 65, "captured:token-policy", "VALUE"),
         "not captured"
     );
     let detail = detail_of_key(&mut app, 65, "captured:token-policy");
@@ -4381,7 +4395,7 @@ fn headings_of(app: &mut App, width: u16) -> Vec<String> {
         .items
         .iter()
         .filter(|item| item.kind == crate::views::ItemKind::Heading)
-        .map(|item| lines_prose(&[ratatui::text::Line::from(item.left.clone())]))
+        .map(|item| item.title.to_uppercase())
         .collect()
 }
 
@@ -4905,21 +4919,25 @@ async fn the_record_pages_paint_their_statements_whole_at_every_supported_size()
         app.load_session(&run.session).unwrap();
 
         app.set_view(View::Team);
-        let prose = main_prose(&mut app, width, height);
+        app.on_key(key(KeyCode::Char('d')), width);
+        let prose = modal_prose(&mut app, width, height);
         assert!(
             prose.contains("A session holds a roster of the members a turn may be given to now"),
             "at {width}x{height} the team page lost words from what a roster is:\n{prose}"
         );
+        app.on_key(key(KeyCode::Esc), width);
 
         app.set_view(View::Memory);
         app.on_key(key(KeyCode::Down), width);
-        let prose = main_prose(&mut app, width, height);
+        app.on_key(key(KeyCode::Char('d')), width);
+        let prose = modal_prose(&mut app, width, height);
         assert!(
             prose.contains("no passing evidence is attached")
                 || prose.contains("carried passing checks")
                 || prose.contains("recorded without a grade"),
             "at {width}x{height} the memory page lost words from an entry's basis:\n{prose}"
         );
+        app.on_key(key(KeyCode::Esc), width);
 
         // The workspace statement is longer than the detail pane at the smallest size, and
         // the surface Enter opens is where the whole of it is read.
@@ -5788,8 +5806,9 @@ async fn a_decision_is_named_by_the_turn_it_links_and_not_by_a_later_turn_of_its
         !row.contains("gpt-5.6-terra") && !detail.contains("gpt-5.6-terra"),
         "a later turn renamed the actor of an earlier decision:\n{row}\n{detail}"
     );
+    let named = cell_of_key(&mut app, 100, &key, "ACTOR");
     assert!(
-        row.ends_with(&format!(" · {actor}")),
+        format!(" · {named}").ends_with(&format!(" · {actor}")),
         "the decision is not named by the fixture turn it links: {row}"
     );
 }
@@ -5820,7 +5839,7 @@ async fn an_old_unlinked_record_stays_unknown_after_a_known_native_turn_of_its_a
         "an unlinked record borrowed the model of a later turn:\n{row}\n{detail}"
     );
     assert!(
-        row.ends_with(&format!(" · {}", crate::label::UNKNOWN_MODEL))
+        cell_of_key(&mut app, 100, &key, "ACTOR") == crate::label::UNKNOWN_MODEL
             && detail.contains(&format!("{} · {actor}", crate::label::UNKNOWN_MODEL)),
         "an unlinked record does not say its model is unknown:\n{row}\n{detail}"
     );
@@ -5878,7 +5897,9 @@ fn a_record_binds_only_to_the_exact_invocation_it_names() {
         .push(decision("missing-call", Some("not-recorded")));
     trace.decisions.push(decision("no-call-named", None));
 
-    let row = |app: &mut App, id: &str| left_of_key(app, 100, &text::short_id(id));
+    let row = |app: &mut App, id: &str| {
+        format!(" · {}", cell_of_key(app, 100, &text::short_id(id), "ACTOR"))
+    };
     let exact = row(&mut app, "exact-call");
     assert!(
         exact.ends_with(" · glm-5.2 low"),
@@ -6413,9 +6434,9 @@ fn asking_a_disabled_installation_is_refused_with_its_reason() {
 
 #[tokio::test]
 async fn no_row_puts_more_in_its_right_column_than_the_narrowest_column_holds() {
-    // The right-hand side of a row is never truncated: a row that cannot fit it wraps, which
-    // breaks the list. So every state word has to fit the narrowest supported column with room
-    // left for the row's own name.
+    // The last cell of a record is its state word. It has to fit the narrowest supported page
+    // with room left for the row's own name, or the table gives way on the name instead. A note
+    // spans its table and is not a record.
     let room = crate::frame::page_content_width(crate::frame::main_width(
         80,
         crate::frame::sidebar_width(80),
@@ -6433,11 +6454,14 @@ async fn no_row_puts_more_in_its_right_column_than_the_narrowest_column_holds() 
         }
         app.set_view(view);
         for item in app.page(80).items.iter() {
+            if item.cells.len() < 2 {
+                continue;
+            }
             let right = item
-                .right
-                .iter()
-                .map(|span| span.content.as_ref())
-                .collect::<String>();
+                .cells
+                .last()
+                .map(|cell| cell.plain())
+                .unwrap_or_default();
             assert!(
                 text::width(&right) <= budget,
                 "{:?} has a row whose right side needs {} of {budget} cells: {right:?}",
@@ -6461,11 +6485,14 @@ async fn no_row_puts_more_in_its_right_column_than_the_narrowest_column_holds() 
         }
         fresh.set_view(view);
         for item in fresh.page(80).items.iter() {
+            if item.cells.len() < 2 {
+                continue;
+            }
             let right = item
-                .right
-                .iter()
-                .map(|span| span.content.as_ref())
-                .collect::<String>();
+                .cells
+                .last()
+                .map(|cell| cell.plain())
+                .unwrap_or_default();
             assert!(
                 text::width(&right) <= budget,
                 "{:?} has a row whose right side needs {} of {budget} cells: {right:?}",
@@ -7020,7 +7047,7 @@ async fn a_decision_that_changed_the_plan_reads_as_its_own_outcome() {
         );
     }
     // The list row is what a reader sees first, and it must not say less than the record.
-    let row = right_of_key(&mut app, 100, &key);
+    let row = cell_of_key(&mut app, 100, &key, "OUTCOME");
     assert!(
         row == "committed",
         "the row of a committed plan change contradicts the record it opens: {row:?}"
@@ -7043,7 +7070,7 @@ async fn a_decision_that_changed_the_plan_reads_as_its_own_outcome() {
         detail.contains("plan change rejected") && detail.contains("the plan was left unchanged"),
         "a rejected plan change does not read as one:\n{detail}"
     );
-    let row = right_of_key(&mut app, 100, &key);
+    let row = cell_of_key(&mut app, 100, &key, "OUTCOME");
     assert!(
         row == "rejected",
         "the row of a rejected plan change contradicts the record it opens: {row:?}"
@@ -7397,7 +7424,7 @@ async fn a_correction_reads_as_applied_in_its_row_and_in_its_record() {
     app.command("/decisions", 100);
 
     let key = text::short_id(&correction.id);
-    let row = right_of_key(&mut app, 100, &key);
+    let row = cell_of_key(&mut app, 100, &key, "OUTCOME");
     assert!(
         row == "entry replaced",
         "the row of an applied correction contradicts the record it opens: {row:?}"
@@ -8067,6 +8094,86 @@ fn a_live_stream_and_the_sidebar_name_the_invocation_that_is_running() {
 }
 
 #[test]
+fn a_narrow_sidebar_cuts_what_a_member_is_doing_before_its_model_and_effort() {
+    let fixture = fixture();
+    let config = native_label_config();
+    let session = native_label_session(&fixture, &config);
+    let store = &fixture.store;
+    store
+        .message(&session, "you", None, "user", "Report the fixture fact")
+        .unwrap();
+    let earlier = native_turn(
+        &fixture,
+        &session,
+        "transport-two",
+        captured("Latest release", "claude-opus-5", None),
+        (Some("claude-opus-5"), None),
+    );
+    store
+        .finish_invocation(
+            &session,
+            &earlier,
+            ymp_core::InvocationState::Completed,
+            None,
+        )
+        .unwrap();
+    let mut app = app_with(&fixture, config);
+    app.load_session(&session).unwrap();
+    app.active = true;
+    native_turn(
+        &fixture,
+        &session,
+        "transport-one",
+        captured("Default (recommended)", "default", Some("claude-opus-5")),
+        (Some("claude-opus-5"), Some("max")),
+    );
+    // The inner widths of the sidebar at 72 to 99 and at 100 to 139 terminal columns.
+    for (width, status) in [
+        (24, "execute"),
+        (24, "synthesis"),
+        (28, "execute"),
+        (28, "synthesis"),
+    ] {
+        app.event(UiEvent::AgentStatus {
+            agent: "transport-one".into(),
+            status: status.into(),
+        });
+        let lines = sidebar_text(&app, width, 80);
+        let team: Vec<&String> = lines
+            .iter()
+            .skip_while(|line| !line.starts_with("TEAM"))
+            .take_while(|line| !line.is_empty())
+            .collect();
+        let shown = team
+            .iter()
+            .map(|line| line.as_str())
+            .collect::<Vec<_>>()
+            .join("\n");
+        assert_eq!(team.len(), 4, "{shown}");
+        assert!(
+            team[2].contains("claude-opus-5 max") && team[3].contains("claude-opus-5  "),
+            "a member's model or effort was cut at {width} cells while it was {status}:\n{shown}"
+        );
+        for line in &team {
+            assert!(text::width(line) <= width, "{line:?} overflows {width}");
+        }
+    }
+    // With room for its word, what the member is doing is shown whole.
+    app.event(UiEvent::AgentStatus {
+        agent: "transport-one".into(),
+        status: "execute".into(),
+    });
+    let lines = sidebar_text(&app, 28, 80);
+    assert!(
+        lines
+            .iter()
+            .any(|line| line.contains("claude-opus-5 max  working")),
+        "{}",
+        lines.join("\n")
+    );
+}
+
+#[test]
 fn tool_activity_names_the_running_invocation_and_keeps_the_members_purpose() {
     let fixture = fixture();
     let config = native_label_config();
@@ -8208,18 +8315,13 @@ fn scanned_selection_config() -> Config {
 
 /// The rows under the pool heading of the team page, by key and left-hand text.
 fn pool_choices(app: &mut App, width: u16) -> Vec<(String, String)> {
-    let left = |item: &crate::views::Item| {
-        item.left
-            .iter()
-            .map(|span| span.content.as_ref())
-            .collect::<String>()
-    };
+    let left = |item: &crate::views::Item| item.text();
     app.page(width)
         .items
         .iter()
         .skip_while(|item| {
             !(item.kind == crate::views::ItemKind::Heading
-                && left(item) == "AVAILABLE ON THIS MACHINE")
+                && item.title.eq_ignore_ascii_case("Available on this machine"))
         })
         .skip(1)
         .filter(|item| item.kind == crate::views::ItemKind::Row)
@@ -8604,4 +8706,232 @@ fn a_shared_chat_post_is_named_by_the_invocation_its_team_operation_committed() 
     let mut app = app_with(&fixture, config);
     app.load_session(&session).unwrap();
     assert_eq!(author_of(&mut app, &posted.text), "glm-5.2 max");
+}
+
+/// Type text into whatever owns the keyboard, one key at a time.
+fn type_keys(app: &mut App, width: u16, text: &str) {
+    for ch in text.chars() {
+        app.on_key(key(KeyCode::Char(ch)), width);
+    }
+}
+
+#[test]
+fn table_filter_keeps_matching_rows_inverts_on_bang_and_clears_before_the_page_closes() {
+    let fixture = fixture();
+    let mut app = fixture.app();
+    app.set_view(View::Help);
+    let width = app.page_width(100);
+    let rows = |app: &mut App| -> Vec<String> {
+        app.page(width)
+            .items
+            .iter()
+            .filter(|item| item.kind == crate::views::ItemKind::Row)
+            .map(|item| item.text().to_lowercase())
+            .collect()
+    };
+    let all = rows(&mut app).len();
+
+    app.on_key(key(KeyCode::Char('/')), 100);
+    assert!(app.table.typing, "/ did not start a filter");
+    type_keys(&mut app, 100, "THEME");
+    let kept = rows(&mut app);
+    assert!(
+        !kept.is_empty() && kept.len() < all && kept.iter().all(|row| row.contains("theme")),
+        "the filter did not keep exactly the rows that mention it: {kept:?}"
+    );
+    let rendered = draw(&mut app, 100, 30);
+    assert!(
+        rendered.contains(&format!("{}</THEME>[{}]", View::Help.title(), kept.len())),
+        "the page title does not carry the filter and the rows shown:\n{rendered}"
+    );
+    // Enter keeps the filter and gives the keys back to the page.
+    app.on_key(key(KeyCode::Enter), 100);
+    assert!(!app.table.typing);
+    app.on_key(key(KeyCode::Char('j')), 100);
+    assert_eq!(
+        app.table.filter, "THEME",
+        "a page key was typed into the kept filter"
+    );
+
+    // Esc clears the filter first and leaves the page open.
+    app.on_key(key(KeyCode::Esc), 100);
+    assert_eq!(app.view, View::Help);
+    assert!(app.table.filter.is_empty() && rows(&mut app).len() == all);
+
+    app.on_key(key(KeyCode::Char('/')), 100);
+    type_keys(&mut app, 100, "!theme");
+    let others = rows(&mut app);
+    assert!(
+        !others.is_empty() && others.iter().all(|row| !row.contains("theme")),
+        "a leading ! did not keep the rows that do not match: {others:?}"
+    );
+    assert_eq!(others.len() + kept.len(), all);
+
+    app.on_key(key(KeyCode::Esc), 100);
+    app.on_key(key(KeyCode::Char('/')), 100);
+    type_keys(&mut app, 100, "zzqx");
+    let rendered = draw(&mut app, 100, 30);
+    assert!(
+        rendered.contains("Nothing on this page matches /zzqx"),
+        "a filter that removed every row reads as an empty page:\n{rendered}"
+    );
+    app.on_key(key(KeyCode::Esc), 100);
+    app.on_key(key(KeyCode::Esc), 100);
+    assert_eq!(
+        app.view,
+        View::Chat,
+        "the second Esc did not close the page"
+    );
+
+    // A filter belongs to the page it was typed on.
+    app.set_view(View::Help);
+    app.on_key(key(KeyCode::Char('/')), 100);
+    type_keys(&mut app, 100, "theme");
+    app.set_view(View::Tasks);
+    assert!(app.table.filter.is_empty() && !app.table.typing);
+
+    // With the composer focused, / is text for the composer.
+    app.set_view(View::Help);
+    app.on_key(key(KeyCode::Tab), 100);
+    app.on_key(key(KeyCode::Char('/')), 100);
+    assert!(!app.table.typing && app.input.value == "/");
+}
+
+#[test]
+fn table_sort_orders_figures_as_numbers_keeps_unknown_last_and_the_selection() {
+    let fixture = fixture();
+    let mut members = Config::default().members();
+    let mut third = members[0].clone();
+    third.id = "gemini".into();
+    members.push(third);
+    let id = fixture.seed_with_team("Landing page", members);
+    fixture.record(&id, 1, "codex", Some((12_000, 345)), Some("completed"));
+    fixture.record(&id, 2, "claude", Some((80, 9)), Some("completed"));
+    // A turn whose installation reported no count: its figure is unknown, not zero.
+    fixture.record(&id, 3, "gemini", None, None);
+    let mut app = fixture.app();
+    app.load_session(&id).unwrap();
+    app.command("/usage", 120);
+    let width = app.page_width(120);
+    let agents = |app: &mut App| -> Vec<String> {
+        row_keys(app, width)
+            .into_iter()
+            .filter(|key| key != "session")
+            .collect()
+    };
+    assert_eq!(agents(&mut app), ["codex", "claude", "gemini"]);
+    app.on_key(key(KeyCode::Down), 120);
+    assert_eq!(app.selected_item(120).unwrap().key, "codex");
+
+    // T is the underlined letter of TOKENS. As text, "12345" would sort before "89".
+    app.on_key(key(KeyCode::Char('T')), 120);
+    assert_eq!(agents(&mut app), ["claude", "codex", "gemini"]);
+    assert_eq!(
+        app.selected_item(120).unwrap().key,
+        "codex",
+        "sorting moved the selection off its row"
+    );
+    let rendered = screen_rows(&mut app, 120, 34);
+    let arrow = app.theme.markers.ascending;
+    assert!(
+        rendered
+            .iter()
+            .any(|row| row.contains("AGENT") && row.contains(&format!("TOKENS {arrow}"))),
+        "the sorted column does not show its direction:\n{}",
+        rendered.join("\n")
+    );
+    assert!(
+        rendered
+            .iter()
+            .filter(|row| row.contains("SCOPE"))
+            .all(|row| !row.contains(arrow)),
+        "sorting one table sorted the other"
+    );
+    app.on_key(key(KeyCode::Char('T')), 120);
+    assert_eq!(
+        agents(&mut app),
+        ["codex", "claude", "gemini"],
+        "an unknown figure did not stay last when descending"
+    );
+    app.on_key(key(KeyCode::Char('T')), 120);
+    assert_eq!(agents(&mut app), ["codex", "claude", "gemini"]);
+    assert!(app.page(width).items.iter().all(|item| item.sort.is_none()));
+    assert_eq!(app.selected_item(120).unwrap().key, "codex");
+}
+
+#[tokio::test]
+async fn table_keys_inspect_without_acting_and_memory_search_moves_to_s() {
+    let fixture = fixture();
+    fixture.seed_session("Build a landing page");
+    let mut app = fixture.app();
+    app.set_view(View::Sessions);
+    app.on_key(key(KeyCode::Char('d')), 100);
+    match &app.overlay {
+        Some(Overlay::Inspect { title, .. }) => assert_eq!(title, "Build a landing page"),
+        other => panic!("d did not inspect the session row: {other:?}"),
+    }
+    assert!(app.session.is_none(), "inspecting a session loaded it");
+    app.on_key(key(KeyCode::Esc), 100);
+    assert_eq!(app.view, View::Sessions);
+
+    let run = mock_run("Create a greeting", |_| {}).await;
+    let mut app = run.app();
+    app.command("/memory", 100);
+    app.on_key(key(KeyCode::Char('s')), 100);
+    assert!(
+        matches!(app.overlay, Some(Overlay::Prompt { .. })),
+        "s did not open the memory search"
+    );
+    app.on_key(key(KeyCode::Esc), 100);
+    app.on_key(key(KeyCode::Char('/')), 100);
+    assert!(
+        app.overlay.is_none() && app.table.typing,
+        "/ on the memory page did not start a filter"
+    );
+}
+
+#[test]
+fn table_sessions_hide_lesser_columns_on_a_narrow_terminal() {
+    let fixture = fixture();
+    fixture.seed_session("Build a landing page");
+    let mut app = fixture.app();
+    app.set_view(View::Sessions);
+    let header = |app: &mut App, width: u16, height: u16| -> String {
+        screen_rows(app, width, height)
+            .into_iter()
+            .find(|row| row.contains("SESSION") && row.contains("TITLE"))
+            .unwrap_or_else(|| panic!("no column titles at {width}x{height}"))
+    };
+    let wide = header(&mut app, 120, 30);
+    assert!(
+        ["STATUS", "TURNS", "CREATED"]
+            .iter()
+            .all(|title| wide.contains(title)),
+        "{wide}"
+    );
+    let narrow = header(&mut app, 40, 12);
+    assert!(
+        narrow.contains("STATUS") && !narrow.contains("TURNS") && !narrow.contains("CREATED"),
+        "a narrow terminal did not hide the lesser columns: {narrow:?}"
+    );
+}
+
+#[test]
+fn table_column_titles_stay_on_screen_while_the_rows_scroll() {
+    let fixture = fixture();
+    let mut app = fixture.app();
+    app.set_view(View::Help);
+    app.on_key(key(KeyCode::End), 80);
+    let rows = screen_rows(&mut app, 80, 24);
+    let shown = rows.join("\n");
+    let last = crate::commands::KEYS.last().unwrap().0;
+    assert!(
+        rows.iter().any(|row| row.contains(last)),
+        "the last row is not on screen:\n{shown}"
+    );
+    assert!(
+        rows.iter()
+            .any(|row| row.contains(" KEY ") && row.contains("ACTION")),
+        "the column titles scrolled away with the rows:\n{shown}"
+    );
 }

@@ -27,16 +27,10 @@ struct Section {
 }
 
 const TOKEN_COLUMNS: [Column; 2] = [Column::left("AGENT").flex(), Column::right("TOKENS")];
-const TEAM_COLUMNS: [Column; 3] = [
-    Column::left(""),
-    Column::left("AGENT").flex(),
-    Column::left("ACTIVITY"),
-];
-const TASK_COLUMNS: [Column; 3] = [
-    Column::left(""),
-    Column::left("TASK").flex(),
-    Column::left("STATE"),
-];
+// A member's model and effort matter more than what it is doing, so the activity word gives way
+// first. The marker opens the agent cell rather than taking a column and a gap of its own.
+const TEAM_COLUMNS: [Column; 2] = [Column::left("AGENT"), Column::left("STATE").flex()];
+const TASK_COLUMNS: [Column; 2] = [Column::left("TASK").flex(), Column::left("STATE")];
 
 /// Compose the sidebar. `width` is the inner width available for text.
 ///
@@ -110,13 +104,18 @@ fn shorten(section: Section, rows: usize, theme: &Theme) -> Vec<Line<'static>> {
     }
     let mut body = section.lines;
     let fixed = section.fixed.clamp(1, body.len());
-    let head: Vec<Line<'static>> = body.drain(..fixed).collect();
+    let mut head: Vec<Line<'static>> = body.drain(..fixed).collect();
+    if rows < fixed + 2 {
+        // Column titles over no rows say nothing, so a section too short for titles, a row and
+        // the counter gives the row of titles to a record.
+        head.truncate(1);
+    }
     // One row reports what is not shown, so the body gets what is left.
-    let capacity = rows.saturating_sub(fixed + 1);
+    let capacity = rows.saturating_sub(head.len() + 1);
     if capacity == 0 {
-        // A section never draws more rows than it was given, and column titles over no rows
-        // say nothing, so a section this short is its title, with a counter when there is room.
-        let mut out: Vec<Line<'static>> = head.into_iter().take(1).collect();
+        // A section never draws more rows than it was given: this one is its title, with a
+        // counter when there is room.
+        let mut out = head;
         if rows > 1 {
             out.push(hidden_row(body.len(), theme));
         }
@@ -155,8 +154,14 @@ fn compact_table(
     theme: &Theme,
 ) -> Vec<Line<'static>> {
     let borrowed: Vec<&[Cell]> = rows.iter().map(Vec::as_slice).collect();
-    let widths = table::widths(columns, &borrowed, width);
-    let mut lines = vec![Line::from(table::titles(columns, &widths, theme))];
+    let widths = table::widths(columns, &borrowed, None, width);
+    let mut lines = vec![Line::from(table::titles(
+        columns,
+        &widths,
+        &[],
+        None,
+        theme,
+    ))];
     lines.extend(
         rows.iter()
             .map(|cells| Line::from(table::aligned(columns, &widths, cells))),
@@ -343,8 +348,10 @@ fn team(app: &App, width: usize) -> Section {
                 Some(_) => theme.markers.busy,
             };
             vec![
-                Cell::text(marker, style),
-                Cell::text(app.agent_label(&member.id), theme.body()),
+                Cell::spans(vec![
+                    Span::styled(format!("{marker} "), style),
+                    Span::styled(app.agent_label(&member.id), theme.body()),
+                ]),
                 Cell::text(word, style),
             ]
         })
@@ -411,8 +418,10 @@ fn tasks(app: &App, width: usize) -> Section {
         .map(|task| {
             let (marker, word, style) = views::task_state(task.state, theme);
             vec![
-                Cell::text(marker, style),
-                Cell::text(text::one_line(&task.title), theme.body()),
+                Cell::spans(vec![
+                    Span::styled(format!("{marker} "), style),
+                    Span::styled(text::one_line(&task.title), theme.body()),
+                ]),
                 Cell::text(word, style),
             ]
         })
