@@ -1,0 +1,45 @@
+ymp  project  /private/var/folders/cw/7pn8sb3x6bj69g7j2d8f_ss00000gn/T/ymp133-term…  be5d2923  ✓ completed  — tokens  8 / 200 turns captured
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ Files  /files /private/var/folders/cw/7pn8sb3x6bj69g7j2d8f_ss00000gn/T/ymp133-terminal-hhsrhl_f/project │ SESSION
+─────────────────────────────────────────────────────────────────────────────────────────────────────────│ be5d2923             ✓ completed
+ › a-large.txt                                                                                  1.0 kB   │ turns this session       8 / 200
+   greeting.txt                                                                                   15 B   │ dir …3-terminal-hhsrhl_f/project
+   m-small.txt                                                                                     3 B   │
+   z-medium.txt                                                                                   80 B   │ TOKENS                         —
+                                                                                                         │ Atlas                          —
+                                                                                                         │ Cygnus                         —
+                                                                                                         │
+                                                                                                         │ TEAM                this session
+                                                                                                         │ ○ Atlas                     idle
+                                                                                                         │ ○ Cygnus                    idle
+                                                                                                         │
+                                                                                                         │ TASKS
+                                                                                                         │ accepted                   1 / 1
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+─────────────────────────────────────────────────────────────────────────────────────────────────────────│
+  path              /private/var/folders/cw/7pn8sb3x6bj69g7j2d8f_ss00000gn/T/ymp133-terminal-hhsrhl_f/p  │
+                    roject/a-large.txt                                                                   │
+  kind              file                                                                                 │
+  size              1.0 kB                                                                               │
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+› Describe a task, or type / for commands.
+Ready                                                                                                main Enter show the full path  Esc back

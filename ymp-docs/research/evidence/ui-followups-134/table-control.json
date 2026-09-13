@@ -1,0 +1,12 @@
+{
+  "binary": "/private/tmp/ymp133-look/ymp-tables2",
+  "native_inference": false,
+  "cases": [
+    {
+      "case": "sidebar-without-navigation",
+      "passed": true
+    }
+  ],
+  "passed": false,
+  "error": "missing table headers"
+}

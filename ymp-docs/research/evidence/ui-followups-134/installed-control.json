@@ -1,0 +1,7 @@
+{
+  "binary": "/Users/maggnus/Code/ymp2/target/release/ymp",
+  "native_inference": false,
+  "cases": [],
+  "passed": false,
+  "error": "sidebar still contains NAVIGATE"
+}

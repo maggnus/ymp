@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-13 05:04 UTC.
+Updated: 2026-09-13 05:08 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -73,7 +73,7 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-131](#ymp-131) | P1 | Support deliberate double Ctrl+C exit and print session reopening command | 2026-09-13 04:25 |
 | `[x]` | [YMP-132](#ymp-132) | P1 | Attribute chat output to the actual agent invocation instead of provider-shaped actor IDs | 2026-09-13 04:25 |
 | `[~]` | [YMP-133](#ymp-133) | P1 | Present non-popup data collections as consistent keyboard-navigable tables | 2026-09-13 05:04 |
-| `[~]` | [YMP-134](#ymp-134) | P1 | Finish sidebar, Detailed mode and floating-surface corrections requested directly in Paseo | 2026-09-13 05:03 |
+| `[~]` | [YMP-134](#ymp-134) | P1 | Finish sidebar, Detailed mode and floating-surface corrections requested directly in Paseo | 2026-09-13 05:08 |
 
 ## YMP-001
 
@@ -1794,9 +1794,9 @@ Finish sidebar, Detailed mode and floating-surface corrections requested directl
 
 **State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P1
 
-**Last update (UTC):** 2026-09-13 05:03
+**Last update (UTC):** 2026-09-13 05:08
 
-**Current reason:** Discovered completed author work during the owner-requested message audit: 56c9d05 (spacing), 6fd4401 (sidebar navigation), 5c3dda8 (Detailed expansion), 5e14f6e (80x24 margin correction), clean branch feat/ymp133-tables. Existing author evidence reports 462 passing tests and two ignored. Independent acceptance, integration and installation remain; current installed release is 0.4.2. No new agent was started by this audit.
+**Current reason:** Combined the four authored UI fixes with current main in b01ffe7 without conflicts. Independent Claude Code Opus 5 max review is active. The table author is working from that combined base; completion still requires final integrated checks and installation.
 
 **Owner:** Maintainer integrates and verifies; Claude Code Opus 5 max implements UI
 
