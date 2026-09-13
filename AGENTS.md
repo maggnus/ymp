@@ -7,7 +7,7 @@ The owner-approved intent.md is the authoritative product definition. Preserve i
 
 On 2026-09-12 the owner approved the final intent and requested tasks and a work plan. ymp-docs/tasks/plan.md now replaces the earlier product-definition pause; follow task dependencies, scope and acceptance criteria. YMP-010 records product approval, while YMP-116 specifies executable contracts. Agents have no permanent hierarchy: roles and permissions last for one assignment. The trusted runtime commits assignments, grants and final acceptance. An independently accepted result without confirmation stays unconfirmed and does not increase reputation. Terms are defined in ymp-docs/product/entities.md and the detailed policy in ymp-docs/architecture/team-and-effort-policy.md. Historical reviews and unproven optimization proposals do not override approved intent.
 
-UI work must be delegated to Claude Code using claude-opus-5 with thinking level max; use Paseo CLI when available. The parent owns backend contracts, integration, and independent verification.
+UI work must be delegated to Claude Code using claude-opus-5 with thinking level high; use Paseo CLI when available. On 2026-09-13 the owner changed future Claude Code launches from max to high; already-running assignments keep their launch settings. This supersedes older UI effort requirements in task text and plans. The parent owns backend contracts, integration, and independent verification.
 
 Agents are the working units and form each session's captured team. Providers and models are execution backends. Attribute usage to agent IDs within the session, never group team statistics by provider.
 

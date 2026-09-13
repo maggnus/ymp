@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-13 05:16 UTC.
+Updated: 2026-09-13 05:18 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -72,8 +72,8 @@ A planned task is not implemented functionality. Completed research and planning
 | `[+]` | [YMP-130](#ymp-130) | P1 | Show active agent work during headless session runs | 2026-09-13 00:54 |
 | `[x]` | [YMP-131](#ymp-131) | P1 | Support deliberate double Ctrl+C exit and print session reopening command | 2026-09-13 04:25 |
 | `[x]` | [YMP-132](#ymp-132) | P1 | Attribute chat output to the actual agent invocation instead of provider-shaped actor IDs | 2026-09-13 04:25 |
-| `[~]` | [YMP-133](#ymp-133) | P1 | Present non-popup data collections as consistent keyboard-navigable tables | 2026-09-13 05:04 |
-| `[~]` | [YMP-134](#ymp-134) | P1 | Finish sidebar, Detailed mode and floating-surface corrections requested directly in Paseo | 2026-09-13 05:16 |
+| `[~]` | [YMP-133](#ymp-133) | P1 | Present non-popup data collections as consistent keyboard-navigable tables | 2026-09-13 05:18 |
+| `[~]` | [YMP-134](#ymp-134) | P1 | Finish sidebar, Detailed mode and floating-surface corrections requested directly in Paseo | 2026-09-13 05:18 |
 
 ## YMP-001
 
@@ -1764,9 +1764,9 @@ Present non-popup data collections as consistent keyboard-navigable tables
 
 **State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P1
 
-**Last update (UTC):** 2026-09-13 05:04
+**Last update (UTC):** 2026-09-13 05:18
 
-**Current reason:** Owner explicitly requested implementing the tables and integrating all fixes. YMP-133 and YMP-134 will ship together; table implementation starts from the combined 0.4.2 plus authored UI corrections. Claude Code Opus 5 max owns implementation, with independent review and installed-binary verification before completion.
+**Current reason:** Owner changed future Claude Code launches from max to high. The current author and reviewer were already running at max; subsequent assignments, including review follow-ups, must use claude-opus-5 high. Historical execution settings remain accurate.
 
 **Owner:** Maintainer
 
@@ -1780,7 +1780,7 @@ Collection pages need consistent rows, columns and selection without changing th
 
 - Render non-popup data collections in aligned tables with relevant columns and readable selection, taking interaction inspiration from k9s without copying its implementation.
 - Preserve chat conversation, popup flows, keyboard access, model-only scan labels, invocation model/effort labels, truthful unknown values and responsive terminal layouts. Keep the sidebar navigation removed and Detailed expansion supplied by YMP-134.
-- Delegate UI implementation to Claude Code Opus 5 max; verify representative populated/empty/narrow tables with offline fixtures, PTY checks and required Rust checks.
+- Delegate UI implementation to Claude Code Opus 5 high; verify representative populated/empty/narrow tables with offline fixtures, PTY checks and required Rust checks.
 - Resolve historical session, decision and board actor labels from their own captured model/assignment evidence when available; do not rename old rows from current provider kind or a later invocation. Preserve unknown values where the old record has no resolution.
 
 **Evidence:**
@@ -1794,11 +1794,11 @@ Finish sidebar, Detailed mode and floating-surface corrections requested directl
 
 **State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P1
 
-**Last update (UTC):** 2026-09-13 05:16
+**Last update (UTC):** 2026-09-13 05:18
 
-**Current reason:** Independent source review continues on b01ffe7. Parent terminal checks on the existing author binary confirm full Detailed report expansion and visible theme, model-prompt and confirmation controls at 80 and 60 columns. Captures retained under evidence/ui-followups-134/parent-surfaces; final combined source and installed executable remain pending.
+**Current reason:** Owner changed future Claude Code launches from max to high. The current author and reviewer were already running at max; subsequent assignments, including review follow-ups, must use claude-opus-5 high. Historical execution settings remain accurate.
 
-**Owner:** Maintainer integrates and verifies; Claude Code Opus 5 max implements UI
+**Owner:** Maintainer integrates and verifies; Claude Code Opus 5 high implements UI
 
 **Authorization:** Direct owner messages to Paseo agent 1e1a7a7b require removing sidebar navigation, preventing collapsed agent messages in Detailed mode, and improving slash-panel/popup formatting using the earlier ymp as reference. The owner explicitly authorized continuing with these changes together or as additions.
 
@@ -1811,7 +1811,7 @@ These accepted UI requirements were absent from the central register, and the ta
 - Remove the sidebar navigation list while retaining session, token, team and task context. Keep every page accessible through commands and the command palette, with consistent keyboard focus and help.
 - Detailed mode renders stored agent conversation messages in full, including plans, reviews and long execution reports. Preserve normal-mode summaries, attribution and Inspect; document bounded streaming previews and the handling of runtime notices.
 - Give slash completions, command palette and popup surfaces consistent padding, aligned labels/values and readable truncation. Preserve header/body rules and usable Prompt, Confirm, theme and Inspect surfaces at narrow terminal sizes. Use the earlier ymp as a design reference.
-- Independently review the four authored commits and integrate with current main without losing 0.4.2 attribution-cache or exit fixes. Verify offline terminal behavior and required fmt, strict workspace Clippy and workspace tests before installation. UI corrections remain delegated to Claude Code Opus 5 max; no real provider inference in tests.
+- Independently review the four authored commits and integrate with current main without losing 0.4.2 attribution-cache or exit fixes. Verify offline terminal behavior and required fmt, strict workspace Clippy and workspace tests before installation. UI corrections remain delegated to Claude Code Opus 5 high; no real provider inference in tests.
 - Update the interface guide and release evidence, verify the installed binary, and keep the unfinished YMP-133 table conversion separate from completion of these fixes.
 
 **Evidence:**
