@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-13 19:38 UTC.
+Updated: 2026-09-13 19:40 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -86,7 +86,7 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-143](#ymp-143) | P1 | Provide a separate /git changes view modeled on Paseo | 2026-09-13 14:04 |
 | `[x]` | [YMP-144](#ymp-144) | P1 | Research recovery of sessions after one or more agent failures | 2026-09-13 14:36 |
 | `[x]` | [YMP-145](#ymp-145) | P1 | Unify full-row popup selection and verify stable scrolling geometry | 2026-09-13 16:31 |
-| `[~]` | [YMP-146](#ymp-146) | P0 | Recover interrupted session stages and let the owner change the active team | 2026-09-13 19:38 |
+| `[~]` | [YMP-146](#ymp-146) | P0 | Recover interrupted session stages and let the owner change the active team | 2026-09-13 19:40 |
 | `[x]` | [YMP-147](#ymp-147) | P1 | Translate product goals into a focused comparative trial program | 2026-09-13 15:38 |
 | `[=]` | [YMP-148](#ymp-148) | P1 | Make session coordination replaceable through a typed strategy contract | 2026-09-13 16:13 |
 | `[x]` | [YMP-149](#ymp-149) | P1 | Use concise professional terminology throughout the interface | 2026-09-13 18:44 |
@@ -2202,9 +2202,9 @@ Recover interrupted session stages and let the owner change the active team
 
 **State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P0
 
-**Last update (UTC):** 2026-09-13 19:38
+**Last update (UTC):** 2026-09-13 19:40
 
-**Current reason:** Second-round static authority review accepted 743543f with no required findings; recorded actual limits including context size and separate conversation admission. Executable reviewer 52111c72 remains responsible for scenario acceptance. Prepared the bounded /team recovery/live-membership UI contract and assigned read-only integration mapping to Claude 8d8b7748; no UI implementation or integration before backend acceptance.
+**Current reason:** Both independent reviews accepted 743543f. Executable review passed 49 checks, including actual same-session completion and nonzero/unknown historical usage; parent retained hash-verified controls and integrated all 13 backend commits through c28f501 without conflicts. Backend files match accepted source and UI/CLI/evals remain accepted149. A single combined-source fmt/Clippy/workspace sequence is delegated to 52111c72; minimal Claude UI integration remains required. Installed executable is still 0.4.6, and no real session or model trial ran.
 
 **Owner:** Background backend author and Claude Code claude-opus-5 high UI author; maintainer owns contracts and acceptance
 
@@ -2236,6 +2236,8 @@ Saved proposals cannot resume at failed pre-task review, provider failures do no
 - ymp-docs/product/recovery-owner-decision.md
 - ymp-docs/evidence/ymp-146/authority-round2.md
 - ymp-docs/architecture/session-recovery-ui.md
+- ymp-docs/evidence/ymp-146/backend-acceptance.md
+- ymp-docs/evidence/ymp-146/independent-round2/review-result.json
 
 ## YMP-147
 

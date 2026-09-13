@@ -1,0 +1,56 @@
+   Compiling ymp-core v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-review-findings/ymp-rust/crates/ymp-core)
+   Compiling ymp-storage v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-review-findings/ymp-rust/crates/ymp-storage)
+   Compiling ymp-providers v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-review-findings/ymp-rust/crates/ymp-providers)
+   Compiling ymp-workspace v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-review-findings/ymp-rust/crates/ymp-workspace)
+   Compiling ymp-runtime v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-review-findings/ymp-rust/crates/ymp-runtime)
+   Compiling ymp146-recovery-round2-probe v0.0.0 (/tmp/ymp146-recovery-round2-review/probe)
+warning: variants `Transient`, `Auth`, and `Negative` are never constructed
+  --> tests/inspection.rs:18:5
+   |
+16 | enum Mode {
+   |      ---- variants in this enum
+17 |     Unknown,
+18 |     Transient,
+   |     ^^^^^^^^^
+19 |     Auth,
+   |     ^^^^
+20 |     Negative,
+   |     ^^^^^^^^
+   |
+   = note: `Mode` has a derived impl for the trait `Clone`, but this is intentionally ignored during dead code analysis
+   = note: `#[warn(dead_code)]` on by default
+
+warning: field `original` is never read
+  --> tests/native.rs:18:5
+   |
+11 | struct Fixture {
+   |        ------- field in this struct
+...
+18 |     original: SessionTrace,
+   |     ^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` on by default
+
+warning: `ymp146-recovery-round2-probe` (test "inspection") generated 1 warning
+warning: `ymp146-recovery-round2-probe` (test "native") generated 1 warning
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 7.48s
+     Running tests/inspection.rs (/tmp/ymp146-recovery-review/target/debug/deps/inspection-62aa412bf5e013f5)
+
+running 2 tests
+SCOPED malformed=true invocation=Completed class=MalformedResponse termination=BackendEnded inspection=Ok(RecoveryInspectionReceipt { command: RecoveryInspectionCommand { session_id: "e9469c32-1b3c-46ca-b30d-42477d776a4e", stage_id: "plan-review-f46ef6ba-0f3a-4a68-9974-1ad79a499d57-1", expected_revision: 7, command_id: "0a1f47fa-8266-45df-a477-a8be75380f58" }, inspection_id: "cd139e28-a6b9-4234-ba9a-a66b927eee65", resulting_revision: 8 })
+SCOPED malformed=false invocation=Failed class=Unknown termination=BackendEnded inspection=Ok(RecoveryInspectionReceipt { command: RecoveryInspectionCommand { session_id: "3f053582-07d5-4364-98cf-5d1d49eb9236", stage_id: "plan-review-6230db16-9288-408a-9608-4c808e84ff74-1", expected_revision: 6, command_id: "a782e9b1-bd79-42f2-a89f-125115c1ed78" }, inspection_id: "a59ef0b8-61f3-4e8c-a694-07e4a3b70611", resulting_revision: 7 })
+test scoped_completed_malformed_review_can_be_inspected ... ok
+test scoped_failed_invocation_positive_control ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.48s
+
+     Running tests/native.rs (/tmp/ymp146-recovery-review/target/debug/deps/native-460a6b13449d1b97)
+
+running 2 tests
+INDEPENDENT negative=false completed; plans=1, verdicts=1, known historical input=21/output=3/cache=7 retained; failed ACP usage remains unknown
+test independent_known_and_unknown_usage_survive_authorized_restart ... ok
+INDEPENDENT negative=true completed; plans=2, verdicts=2, known historical input=21/output=3/cache=7 retained; failed ACP usage remains unknown
+test independent_negative_verdict_requires_revision_even_after_owner_authorization ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 23.28s
+

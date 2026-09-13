@@ -3996,7 +3996,9 @@
         "ymp-docs/evidence/ymp-146/acceptance-round2.md",
         "ymp-docs/product/recovery-owner-decision.md",
         "ymp-docs/evidence/ymp-146/authority-round2.md",
-        "ymp-docs/architecture/session-recovery-ui.md"
+        "ymp-docs/architecture/session-recovery-ui.md",
+        "ymp-docs/evidence/ymp-146/backend-acceptance.md",
+        "ymp-docs/evidence/ymp-146/independent-round2/review-result.json"
       ],
       "history": [
         {
@@ -4093,6 +4095,11 @@
           "at": "2026-09-13T19:38:13.331438+00:00",
           "status": "in_progress",
           "note": "Second-round static authority review accepted 743543f with no required findings; recorded actual limits including context size and separate conversation admission. Executable reviewer 52111c72 remains responsible for scenario acceptance. Prepared the bounded /team recovery/live-membership UI contract and assigned read-only integration mapping to Claude 8d8b7748; no UI implementation or integration before backend acceptance."
+        },
+        {
+          "at": "2026-09-13T19:40:32.913275+00:00",
+          "status": "in_progress",
+          "note": "Both independent reviews accepted 743543f. Executable review passed 49 checks, including actual same-session completion and nonzero/unknown historical usage; parent retained hash-verified controls and integrated all 13 backend commits through c28f501 without conflicts. Backend files match accepted source and UI/CLI/evals remain accepted149. A single combined-source fmt/Clippy/workspace sequence is delegated to 52111c72; minimal Claude UI integration remains required. Installed executable is still 0.4.6, and no real session or model trial ran."
         }
       ]
     },
@@ -4393,7 +4400,7 @@
       ]
     }
   ],
-  "updated_at": "2026-09-13T19:38:13.331438+00:00",
+  "updated_at": "2026-09-13T19:40:32.913275+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",
