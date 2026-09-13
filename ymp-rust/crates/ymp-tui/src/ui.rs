@@ -94,7 +94,7 @@ pub fn render(frame: &mut Frame, app: &mut App) {
             )
         });
     if app.overlay.is_some() {
-        cursor = overlay(frame, area, app);
+        cursor = overlay(frame, area, rows.body, app);
     }
     if let Some((x, y)) = cursor {
         if x < area.right() && y < area.bottom() {
@@ -732,7 +732,7 @@ fn command_line(
 }
 
 /// Draw whichever floating surface is open, and return where its cursor belongs.
-fn overlay(frame: &mut Frame, area: Rect, app: &App) -> Option<(u16, u16)> {
+fn overlay(frame: &mut Frame, area: Rect, bounds: Rect, app: &App) -> Option<(u16, u16)> {
     let theme = &app.theme;
     let overlay = app.overlay.as_ref()?;
     match overlay {
@@ -785,6 +785,7 @@ fn overlay(frame: &mut Frame, area: Rect, app: &App) -> Option<(u16, u16)> {
             frame::render_modal(
                 frame,
                 area,
+                bounds,
                 &ModalSpec {
                     title: "Colour theme".into(),
                     badge: "saved on Enter".into(),
@@ -845,6 +846,7 @@ fn overlay(frame: &mut Frame, area: Rect, app: &App) -> Option<(u16, u16)> {
             let rect = frame::render_modal(
                 frame,
                 area,
+                bounds,
                 &ModalSpec {
                     title: "Commands".into(),
                     badge: format!("{} of {}", matches.len(), crate::commands::COMMANDS.len()),
@@ -869,6 +871,7 @@ fn overlay(frame: &mut Frame, area: Rect, app: &App) -> Option<(u16, u16)> {
             frame::render_modal(
                 frame,
                 area,
+                bounds,
                 &ModalSpec {
                     title: title.clone(),
                     badge: "read only".into(),
@@ -920,6 +923,7 @@ fn overlay(frame: &mut Frame, area: Rect, app: &App) -> Option<(u16, u16)> {
             let rect = frame::render_modal(
                 frame,
                 area,
+                bounds,
                 &ModalSpec {
                     title: label.clone(),
                     badge: "saved on Enter".into(),
@@ -953,6 +957,7 @@ fn overlay(frame: &mut Frame, area: Rect, app: &App) -> Option<(u16, u16)> {
             frame::render_modal(
                 frame,
                 area,
+                bounds,
                 &ModalSpec {
                     title: "Confirm".into(),
                     badge: "cannot be undone".into(),

@@ -350,6 +350,37 @@ fn command_lists_align_their_summaries_and_keep_text_off_the_border() {
 }
 
 #[test]
+fn a_floating_surface_leaves_the_rules_around_the_body_intact() {
+    let fixture = fixture();
+    // At 80x24 the palette starts on the first row of the body, so the margin cleared around
+    // it falls on the rule under the header unless the margin is kept inside the body.
+    let (width, height) = (80u16, 24u16);
+    let rules = [1, height as usize - 3];
+    type Open = fn(&mut App);
+    let surfaces: [(&str, Open); 2] = [
+        ("palette", |app| {
+            app.on_key(control('p'), 80);
+        }),
+        ("theme chooser", |app| {
+            app.on_key(control('t'), 80);
+        }),
+    ];
+    for (name, open) in surfaces {
+        let mut app = fixture.app();
+        open(&mut app);
+        assert!(app.overlay.is_some(), "the {name} did not open");
+        let rows = screen_rows(&mut app, width, height);
+        for rule in rules {
+            assert!(
+                rows[rule].chars().all(|ch| ch == '─'),
+                "the {name} cut into the rule on row {rule}:\n{}",
+                rows.join("\n")
+            );
+        }
+    }
+}
+
+#[test]
 fn tab_cycles_one_focus_owner_and_esc_walks_back_to_the_composer() {
     let fixture = fixture();
     let mut app = fixture.app();

@@ -289,7 +289,16 @@ pub fn clear_around(frame: &mut Frame, rect: Rect, bounds: Rect, theme: &Theme) 
 
 /// Draw a floating surface. Returns the rect its body is painted in, inside the border and the
 /// padding, so a caller can place a cursor in it.
-pub fn render_modal(frame: &mut Frame, area: Rect, spec: &ModalSpec, theme: &Theme) -> Rect {
+///
+/// The surface is placed in `area`, but the margin around it is cleared only inside `bounds`,
+/// the body between the rules: a margin that reached a rule would cut a gap into it.
+pub fn render_modal(
+    frame: &mut Frame,
+    area: Rect,
+    bounds: Rect,
+    spec: &ModalSpec,
+    theme: &Theme,
+) -> Rect {
     dim(frame, area, theme);
     let width = spec
         .width
@@ -314,7 +323,7 @@ pub fn render_modal(frame: &mut Frame, area: Rect, spec: &ModalSpec, theme: &The
         width,
         height: height.min(area.height),
     };
-    clear_around(frame, rect, area, theme);
+    clear_around(frame, rect, bounds, theme);
     frame.render_widget(Clear, rect);
     let border = match spec.role {
         ModalRole::Choice => theme.accent(),
