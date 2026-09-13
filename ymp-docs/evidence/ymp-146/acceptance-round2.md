@@ -64,7 +64,7 @@ and the existing distinction between interruption review and blind replay.
   budget and acceptance checks. No generic permission to replay uncertain writes
   follows from a successful read-only review.
 - Unknown historical external effects remain explicit. Where subsequent work
-  actually depends on unresolved effects, do not silently treat the handoff as
+  actually depends on unresolved effects, do not silently treat the fresh review as
   their resolution; retain a concrete unmet condition and report the missing
   information. Do not claim the entire session is recovered from a plan-only test.
 
@@ -96,3 +96,15 @@ additional implementation agent is needed. Preserve accepted R1/R2/R4 behavior,
 run focused controls, then the required final checks after source changes. Native
 process guarantees, Linux and the actual owner session remain unverified unless
 separately checked. Parent owns integration, minimal UI sequencing and acceptance.
+
+## Subsequent owner decision (2026-09-14)
+
+The owner explicitly approved `Continue with current files`; see
+[the bounded command contract](../../product/recovery-owner-decision.md).
+The write-dependency refusal described above remains the default and remains a
+negative control. The new explicit owner authorization permits ordinary new work
+for its acknowledged failures while preserving historical uncertainty. Complete
+this behavior in the current implementation fork, with no duplicate planning or
+blind replay. A plan-only intermediate result no longer defines the authorized
+completion boundary. This is a product approval, not evidence that the behavior
+has been implemented or that the real owner session has been resumed.

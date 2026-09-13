@@ -166,3 +166,14 @@ are allowed and must be listed. Do not edit ymp-tui, Git/navigation/highlighting
 task metadata, this contract, intent.md, release files, Cargo dependencies,
 installed binaries or unrelated request documents. Parent will sequence the UI
 and independent acceptance after the actual typed API is available.
+
+## Owner-approved continuation from current files (2026-09-14)
+
+The owner approved an explicit local `Continue with current files` action after
+verified termination of prior local execution. The bounded contract is in
+[the owner decision](../product/recovery-owner-decision.md). This action permits
+new work under existing constraints despite the specifically acknowledged
+historical uncertainty. It does not permit blind replay, resolve old effects,
+clear unrelated owner holds or reset resources. Absence of this authorization
+retains the earlier conservative continuation rule. Implementation and an actual
+same-session completion test remain required by YMP-146.

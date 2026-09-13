@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-13 18:36 UTC.
+Updated: 2026-09-13 18:42 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -10,7 +10,7 @@ A planned task is not implemented functionality. Completed research and planning
 
 | Type | Completed | Total |
 | --- | ---: | ---: |
-| decision | 1 | 3 |
+| decision | 2 | 3 |
 | design | 2 | 2 |
 | documentation | 4 | 4 |
 | experiment | 0 | 4 |
@@ -86,14 +86,14 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-143](#ymp-143) | P1 | Provide a separate /git changes view modeled on Paseo | 2026-09-13 14:04 |
 | `[x]` | [YMP-144](#ymp-144) | P1 | Research recovery of sessions after one or more agent failures | 2026-09-13 14:36 |
 | `[x]` | [YMP-145](#ymp-145) | P1 | Unify full-row popup selection and verify stable scrolling geometry | 2026-09-13 16:31 |
-| `[~]` | [YMP-146](#ymp-146) | P0 | Recover interrupted session stages and let the owner change the active team | 2026-09-13 18:36 |
+| `[~]` | [YMP-146](#ymp-146) | P0 | Recover interrupted session stages and let the owner change the active team | 2026-09-13 18:42 |
 | `[x]` | [YMP-147](#ymp-147) | P1 | Translate product goals into a focused comparative trial program | 2026-09-13 15:38 |
 | `[=]` | [YMP-148](#ymp-148) | P1 | Make session coordination replaceable through a typed strategy contract | 2026-09-13 16:13 |
 | `[~]` | [YMP-149](#ymp-149) | P1 | Use concise professional terminology throughout the interface | 2026-09-13 17:36 |
 | `[=]` | [YMP-150](#ymp-150) | P1 | Make /team the session control page and separate the /agents catalog | 2026-09-13 16:13 |
 | `[=]` | [YMP-151](#ymp-151) | P1 | Prepare reproducible offline comparisons of coordination strategies | 2026-09-13 16:17 |
 | `[+]` | [YMP-152](#ymp-152) | P2 | Keep the selected palette command visible in very short terminals | 2026-09-13 16:25 |
-| `[?]` | [YMP-153](#ymp-153) | P0 | Decide explicit owner continuation from current files after unverified effects | 2026-09-13 18:36 |
+| `[x]` | [YMP-153](#ymp-153) | P0 | Decide explicit owner continuation from current files after unverified effects | 2026-09-13 18:42 |
 
 ## YMP-001
 
@@ -2199,9 +2199,9 @@ Recover interrupted session stages and let the owner change the active team
 
 **State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P0
 
-**Last update (UTC):** 2026-09-13 18:36
+**Last update (UTC):** 2026-09-13 18:42
 
-**Current reason:** Parent approved separate typed saved-verdict consumption, with no retry permit or effect resolution, as an interim outcome. Write execution remains stopped where effect dependencies are unknown. Explicit owner holds need a reachable release path that itself authorizes no unsafe call. Owner policy decision 153 now addresses possible new work from current files; it is not assumed approved, and a plan-only result is not full P0 completion.
+**Current reason:** Owner approved YMP-153. Extend the current correction fork with the bounded explicit owner authorization and same-session completion tests; preserve the existing inspection and fresh-review work. Plan-only progress is no longer the completion boundary. Real providers, the live failed session and comparative trials remain outside authorization.
 
 **Owner:** Background backend author and Claude Code claude-opus-5 high UI author; maintainer owns contracts and acceptance
 
@@ -2222,6 +2222,7 @@ Saved proposals cannot resume at failed pre-task review, provider failures do no
 - Implement recovery and team-control choices through existing typed strategy interfaces where applicable; identify and justify only the missing replacement boundary. Keep shared runtime constraints, accounting, authority and acceptance enforcement outside replaceable algorithms.
 - For a newly introduced replacement point, prove materially different strategies through the same consumer and acceptance conditions, recording strategy identity/version/configuration and actual decisions. Reuse existing substitution evidence; do not redesign unrelated subsystems.
 - Strategy selection belongs only on /team through backend YMP-148 and UI YMP-150. Preserve session-level policy revision and actual strategy provenance; do not expand this P0 backend recovery assignment into the selector UI or whole coordination strategy.
+- Implement the YMP-153 owner-approved Continue with current files action after verified prior termination. Preserve historical uncertainty and existing constraints; prove ordinary new work can complete in the same legacy-shaped session without duplicate planning or blind replay. Authorization is scoped and durable, and does not clear unrelated owner holds or authorize later unrelated uncertain failures.
 
 **Evidence:**
 
@@ -2229,6 +2230,7 @@ Saved proposals cannot resume at failed pre-task review, provider failures do no
 - ymp-docs/evidence/ymp-146/acceptance-round1.md
 - ymp-docs/evidence/ymp-146/independent-recovery/manifest.json
 - ymp-docs/evidence/ymp-146/acceptance-round2.md
+- ymp-docs/product/recovery-owner-decision.md
 
 ## YMP-147
 
@@ -2425,15 +2427,15 @@ At60x8, palette search and separator use the entire two-row modal body, hiding e
 
 Decide explicit owner continuation from current files after unverified effects
 
-**State:** `[?]` (owner_question) · **Type:** decision · **Priority:** P0
+**State:** `[x]` (done) · **Type:** decision · **Priority:** P0
 
-**Last update (UTC):** 2026-09-13 18:36
+**Last update (UTC):** 2026-09-13 18:42
 
-**Current reason:** Concrete owner question: allow an explicit Continue with current files action after known local termination, preserving unverified effects and history, or keep write refusal until effects are verified? No answer is recorded. Safe read-only recovery implementation continues independently.
+**Current reason:** Owner answered yes to the concrete Continue with current files action. Recorded a bounded local owner command preserving unknown effects, holds, history, resources and ordinary acceptance. Decision completed; implementation and same-session completion evidence remain in YMP-146. No live-session operation or comparative trial is authorized.
 
 **Owner:** Project owner; maintainer supplies concrete behavior and preserves the safe implementation boundary
 
-**Authorization:** Owner approval is required for the proposed change to the maintainer-defined conservative write-continuation rule. Existing approval covers recovery and live team changes, but is not recorded as acceptance of unknown historical effects.
+**Authorization:** On 2026-09-14 the owner explicitly approved Continue with current files by an explicit owner decision, after confirmed termination of prior execution and within existing constraints. This is product authorization only; live-session actions and comparative trials remain separate.
 
 **Depends on:** [YMP-144](#ymp-144)
 

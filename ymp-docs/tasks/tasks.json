@@ -3964,13 +3964,15 @@
         "Define and verify behavior for single/multiple failures, restart, unavailable final reviewer, negative versus malformed review, unknown usage and owner changes during active work. Keep actual provider availability and uncertain writes explicit; do not infer rollback.",
         "Implement recovery and team-control choices through existing typed strategy interfaces where applicable; identify and justify only the missing replacement boundary. Keep shared runtime constraints, accounting, authority and acceptance enforcement outside replaceable algorithms.",
         "For a newly introduced replacement point, prove materially different strategies through the same consumer and acceptance conditions, recording strategy identity/version/configuration and actual decisions. Reuse existing substitution evidence; do not redesign unrelated subsystems.",
-        "Strategy selection belongs only on /team through backend YMP-148 and UI YMP-150. Preserve session-level policy revision and actual strategy provenance; do not expand this P0 backend recovery assignment into the selector UI or whole coordination strategy."
+        "Strategy selection belongs only on /team through backend YMP-148 and UI YMP-150. Preserve session-level policy revision and actual strategy provenance; do not expand this P0 backend recovery assignment into the selector UI or whole coordination strategy.",
+        "Implement the YMP-153 owner-approved Continue with current files action after verified prior termination. Preserve historical uncertainty and existing constraints; prove ordinary new work can complete in the same legacy-shaped session without duplicate planning or blind replay. Authorization is scoped and durable, and does not clear unrelated owner holds or authorize later unrelated uncertain failures."
       ],
       "evidence": [
         "ymp-docs/architecture/session-recovery-contract.md",
         "ymp-docs/evidence/ymp-146/acceptance-round1.md",
         "ymp-docs/evidence/ymp-146/independent-recovery/manifest.json",
-        "ymp-docs/evidence/ymp-146/acceptance-round2.md"
+        "ymp-docs/evidence/ymp-146/acceptance-round2.md",
+        "ymp-docs/product/recovery-owner-decision.md"
       ],
       "history": [
         {
@@ -4052,6 +4054,11 @@
           "at": "2026-09-13T18:36:43.674643+00:00",
           "status": "in_progress",
           "note": "Parent approved separate typed saved-verdict consumption, with no retry permit or effect resolution, as an interim outcome. Write execution remains stopped where effect dependencies are unknown. Explicit owner holds need a reachable release path that itself authorizes no unsafe call. Owner policy decision 153 now addresses possible new work from current files; it is not assumed approved, and a plan-only result is not full P0 completion."
+        },
+        {
+          "at": "2026-09-13T18:42:36.879969+00:00",
+          "status": "in_progress",
+          "note": "Owner approved YMP-153. Extend the current correction fork with the bounded explicit owner authorization and same-session completion tests; preserve the existing inspection and fresh-review work. Plan-only progress is no longer the completion boundary. Real providers, the live failed session and comparative trials remain outside authorization."
         }
       ]
     },
@@ -4287,9 +4294,9 @@
       "title": "Decide explicit owner continuation from current files after unverified effects",
       "type": "decision",
       "priority": "P0",
-      "status": "owner_question",
+      "status": "done",
       "owner": "Project owner; maintainer supplies concrete behavior and preserves the safe implementation boundary",
-      "authorization": "Owner approval is required for the proposed change to the maintainer-defined conservative write-continuation rule. Existing approval covers recovery and live team changes, but is not recorded as acceptance of unknown historical effects.",
+      "authorization": "On 2026-09-14 the owner explicitly approved Continue with current files by an explicit owner decision, after confirmed termination of prior execution and within existing constraints. This is product authorization only; live-session actions and comparative trials remain separate.",
       "depends_on": [
         "YMP-144"
       ],
@@ -4307,11 +4314,16 @@
           "at": "2026-09-13T18:36:43.674643+00:00",
           "status": "owner_question",
           "note": "Concrete owner question: allow an explicit Continue with current files action after known local termination, preserving unverified effects and history, or keep write refusal until effects are verified? No answer is recorded. Safe read-only recovery implementation continues independently."
+        },
+        {
+          "at": "2026-09-13T18:42:36.879969+00:00",
+          "status": "done",
+          "note": "Owner answered yes to the concrete Continue with current files action. Recorded a bounded local owner command preserving unknown effects, holds, history, resources and ordinary acceptance. Decision completed; implementation and same-session completion evidence remain in YMP-146. No live-session operation or comparative trial is authorized."
         }
       ]
     }
   ],
-  "updated_at": "2026-09-13T18:36:43.674643+00:00",
+  "updated_at": "2026-09-13T18:42:36.879969+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",

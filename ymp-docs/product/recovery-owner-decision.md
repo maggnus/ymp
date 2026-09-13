@@ -1,50 +1,77 @@
 # Owner decision: new work after unverified historical effects
 
-Status: proposed, awaiting an explicit owner answer. This does not authorize a
-live-session action or a comparative model trial.
+Status: approved by the owner on 2026-09-14. The owner explicitly selected the
+option allowing the action by an explicit owner decision. YMP-153 records this
+product decision; implementation and verification remain part of YMP-146.
+This approval does not authorize operating on a real session or conducting a
+comparative model trial.
 
-## Why a decision is needed
+## Problem and approved behavior
 
-The current maintainer-authored recovery contract refuses write continuation
-while earlier effects remain unverified. Genuine old ACP sessions do not contain
-the new complete local-effect declaration. A fresh independent read-only review
-can assess the saved proposal, but does not establish that every later write is
-independent of those historical effects. The current task model only records task
-dependencies, not a complete machine-verifiable causal map of unknown effects.
+Genuine old ACP sessions do not contain the new complete local-effect declaration.
+A fresh independent read-only review can assess a saved proposal, but cannot
+establish that all later writes are independent of unknown historical effects.
+The task model does not contain a complete causal map of those effects.
 
-Without an additional owner decision or sufficient recovered evidence, the safe
-implementation can retain the new verdict and task graph but must stop before
-write execution. That is useful partial progress, not completion of the owner's
-session-recovery goal.
+The owner approved an explicit `Continue with current files` action after prior
+local execution has verifiably ended and conflicting ownership is released. It
+allows new work from the current workspace within existing constraints, retaining
+unknown historical effects without claiming that they are safe or resolved.
+This supersedes the unconditional write refusal in the earlier maintainer-authored
+recovery contract only when this particular owner authorization is present.
 
-## Proposed explicit owner action
+## Command and authority
 
-UI wording: `Continue with current files`.
+- Expose the action only through the trusted local owner API. Agents and providers
+  cannot assert owner identity or issue this authorization.
+- Present a reviewable context identifying the session, affected failed execution
+  records, current saved stage/result and current workspace state. Explain the
+  unresolved effects before the owner chooses the action.
+- Bind the command to that context, the expected revision and a durable command
+  ID. Validate it atomically; stale or foreign requests have no partial effect.
+  Repeating an already handled command returns its recorded outcome rather than
+  authorizing or starting another attempt. Persist the decision across restart.
+- Require verified termination of prior local execution and release of conflicting
+  access. Acquiring a lock alone is not termination evidence. Unknown or active
+  prior execution still refuses continuation.
+- Record a distinct owner authorization, not `manual_permit` for replay and not
+  `effect_resolution`. Scope it to the acknowledged historical failures; a later
+  unrelated uncertain failure does not inherit this permission.
 
-The owner could authorize new work from the observed current workspace after
-prior local execution has verifiably ended and conflicting ownership is released.
-The action would be scoped to the particular session, failures and current state,
-recorded with a version and command ID. It would not silently repeat the old
-native invocation or reuse its failed context.
+## What continuation may do
 
-Keep historical effects unknown where they remain unknown. An owner authorization
-is not independent effect confirmation, does not populate effect_resolution,
-does not award reputation and does not claim rollback or universal safety.
-Existing team, permission, resource and acceptance constraints continue to apply;
-no consumed resources or user data are reset. Explain unresolved historical
-effects in the reviewable action context before the owner chooses it.
+The ordinary runtime may consume the saved review and task graph and admit new
+work from the current files under this authorization. Retain the exact saved
+proposal, accepted results, objections, usage and authorship. Do not repeat
+completed planning or turn a negative verdict into approval.
 
-This is a proposed change to the conservative continuation rule, not an already
-approved interpretation of team replacement. Its API and execution scope must
-follow the owner's decision; no generic unsafe-retry switch is proposed.
+Use fresh assignments and native contexts where an uncertain invocation is being
+replaced. Do not blindly retry the old invocation or revive its native context
+or grants. Preserve ordinary independent review, resource admission, team
+constraints and serialization of conflicting or unbounded writes.
 
-## Current authorized work
+An authorization command must not silently clear an existing owner Wait/Pause or
+global pause. Use a reachable explicit hold-release transition where required;
+releasing a hold alone does not authorize uncertain replay. Keep authorization,
+hold release and actual task admission distinguishable in the recorded history.
 
-Implement the fresh read-only review, saved-verdict consumption and malformed
-completed-response correction. Preserve the write refusal where dependencies on
-unknown effects are not established. Ensure explicit owner holds can be released
-through a typed path without accidentally permitting unsafe replay; a hold and an
-effect refusal are different conditions.
+Historical uncertainty stays visible. The owner decision does not fill
+`effect_resolution`, increase reputation, certify external effects, reset consumed
+resources, enlarge budgets or permissions, or imply rollback. Existing evidence
+inspection remains a separate operation with its original requirements.
 
-Question: should the owner have the explicit `Continue with current files` action
-described above, or should writes remain refused until the effects are verified?
+## Acceptance of implementation
+
+Exercise the public owner action and ordinary continuation on temporary data with
+genuine legacy-shaped records and no `local_effect_scope`. Through a controlled
+native-protocol fixture or a justified equivalent, show that new task execution
+can finish in the same session with no duplicate planner, no blind replay and no
+loss of history. A plan-only result or a new waiting label is insufficient.
+
+Cover absence of owner authorization, active or unknown prior execution, stale or
+foreign commands, replay after restart, explicit holds, exhausted resources,
+independence, and a new uncertain failure outside the acknowledged scope. Assert
+that historical uncertainty remains unresolved after successful continuation.
+No actual native inference, live session change or comparative trial is authorized
+by these engineering tests. Linux and real-provider behavior must be reported
+separately if unverified.
