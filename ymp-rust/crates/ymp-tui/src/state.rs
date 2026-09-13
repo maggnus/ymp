@@ -35,7 +35,6 @@ const TOOL_ACTIVITY: &str = "tool: ";
 pub enum Focus {
     Composer,
     Main,
-    Sidebar,
 }
 
 impl Focus {
@@ -43,7 +42,6 @@ impl Focus {
         match self {
             Focus::Composer => "composer",
             Focus::Main => "main",
-            Focus::Sidebar => "sidebar",
         }
     }
 }
@@ -246,7 +244,6 @@ pub struct App {
     pub focus: Focus,
     pub view: View,
     pub overlay: Option<Overlay>,
-    pub nav: usize,
     pub completion: usize,
 
     pub messages: Vec<Message>,
@@ -314,7 +311,6 @@ impl App {
             focus: Focus::Composer,
             view: View::Chat,
             overlay: None,
-            nav: 0,
             completion: 0,
             messages: Vec::new(),
             notices: Vec::new(),
@@ -763,10 +759,6 @@ impl App {
         self.view = view;
         self.page_selected = 0;
         self.page_top = 0;
-        self.nav = views::NAV
-            .iter()
-            .position(|v| *v == view)
-            .unwrap_or(self.nav);
         self.focus = if view == View::Chat {
             Focus::Composer
         } else {
@@ -810,10 +802,6 @@ impl App {
         label::agent(id, trace, pooled, &self.config)
     }
 
-    pub fn sidebar_visible(&self, width: u16) -> bool {
-        self.prefs.sidebar && frame::sidebar_width(width) > 0
-    }
-
     /// The width a page is wrapped for in a terminal `total` cells wide.
     ///
     /// Key handling reads the page the frame painted, so it has to ask for the same width.
@@ -829,20 +817,13 @@ impl App {
         frame::page_content_width(frame::main_width(total, sidebar))
     }
 
-    fn cycle_focus(&mut self, forward: bool) {
-        let sidebar = self.sidebar_visible(self.viewport.width as u16);
-        let order: Vec<Focus> = if sidebar {
-            vec![Focus::Composer, Focus::Main, Focus::Sidebar]
-        } else {
-            vec![Focus::Composer, Focus::Main]
+    /// Tab and Shift+Tab. The composer and the transcript or page are the only regions that take
+    /// the keyboard, so either key moves the focus to the other one.
+    fn cycle_focus(&mut self) {
+        self.focus = match self.focus {
+            Focus::Composer => Focus::Main,
+            Focus::Main => Focus::Composer,
         };
-        let index = order.iter().position(|f| *f == self.focus).unwrap_or(0);
-        let next = if forward {
-            (index + 1) % order.len()
-        } else {
-            (index + order.len() - 1) % order.len()
-        };
-        self.focus = order[next];
         self.dirty = true;
     }
 
@@ -1029,9 +1010,6 @@ impl App {
             }
             KeyCode::Char('b') if control => {
                 self.prefs.sidebar = !self.prefs.sidebar;
-                if !self.prefs.sidebar && self.focus == Focus::Sidebar {
-                    self.focus = Focus::Composer;
-                }
                 self.save_prefs();
                 return Vec::new();
             }
@@ -1051,14 +1029,14 @@ impl App {
             }
             KeyCode::Tab => {
                 if self.completions().is_empty() {
-                    self.cycle_focus(true);
+                    self.cycle_focus();
                 } else {
                     self.accept_completion();
                 }
                 return Vec::new();
             }
             KeyCode::BackTab => {
-                self.cycle_focus(false);
+                self.cycle_focus();
                 return Vec::new();
             }
             KeyCode::PageUp => {
@@ -1074,7 +1052,6 @@ impl App {
         match self.focus {
             Focus::Composer => self.composer_key(key, width),
             Focus::Main => self.main_key(key, width),
-            Focus::Sidebar => self.sidebar_key(key),
         }
     }
 
@@ -1260,7 +1237,8 @@ impl App {
                     self.reveal_entry();
                 }
                 KeyCode::End => self.jump_to_latest(),
-                KeyCode::Char(' ') => {
+                // Detailed mode already draws every entry in full, so Space has nothing to expand.
+                KeyCode::Char(' ') if !self.prefs.details => {
                     let index = self.selected_entry;
                     if let Some(seq) = self.entries().get(index).and_then(|entry| entry.seq) {
                         if !self.expanded.remove(&seq) {
@@ -1283,26 +1261,6 @@ impl App {
             }
             KeyCode::End => self.move_page_selection(isize::MAX / 2, width),
             _ => return self.page_action(key, width),
-        }
-        Vec::new()
-    }
-
-    fn sidebar_key(&mut self, key: KeyEvent) -> Vec<Action> {
-        match key.code {
-            KeyCode::Up | KeyCode::Char('k') => self.nav = self.nav.saturating_sub(1),
-            KeyCode::Down | KeyCode::Char('j') => {
-                self.nav = (self.nav + 1).min(views::NAV.len() - 1)
-            }
-            KeyCode::Home => self.nav = 0,
-            KeyCode::End => self.nav = views::NAV.len() - 1,
-            KeyCode::Enter | KeyCode::Char(' ') => {
-                let view = views::NAV[self.nav.min(views::NAV.len() - 1)];
-                self.set_view(view);
-                if view != View::Chat {
-                    self.focus = Focus::Main;
-                }
-            }
-            _ => {}
         }
         Vec::new()
     }
@@ -2014,9 +1972,6 @@ impl App {
             }
             "/sidebar" => {
                 self.prefs.sidebar = !self.prefs.sidebar;
-                if !self.prefs.sidebar && self.focus == Focus::Sidebar {
-                    self.focus = Focus::Composer;
-                }
                 self.save_prefs();
                 self.notice(if self.prefs.sidebar {
                     "Sidebar shown."

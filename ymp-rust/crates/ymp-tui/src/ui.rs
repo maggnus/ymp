@@ -55,7 +55,7 @@ pub fn render(frame: &mut Frame, app: &mut App) {
     }
 
     if let Some((rule, panel)) = side {
-        frame::vertical_rule(frame, rule, &theme, app.focus == Focus::Sidebar);
+        frame::vertical_rule(frame, rule, &theme);
         frame::fill_surface(frame, panel, &theme);
         let inner = Rect {
             x: panel.x + 1,
@@ -63,12 +63,7 @@ pub fn render(frame: &mut Frame, app: &mut App) {
             width: panel.width.saturating_sub(2),
             height: panel.height,
         };
-        let lines = sidebar::lines(
-            app,
-            inner.width as usize,
-            inner.height as usize,
-            app.focus == Focus::Sidebar,
-        );
+        let lines = sidebar::lines(app, inner.width as usize, inner.height as usize);
         frame::paint(frame, inner, lines);
     }
 
@@ -99,7 +94,12 @@ pub fn render(frame: &mut Frame, app: &mut App) {
             )
         });
     if app.overlay.is_some() {
-        cursor = overlay(frame, area, app);
+        // A surface may blank the main column and the sidebar around itself, but never the rules
+        // around and between them.
+        let regions: Vec<Rect> = std::iter::once(main)
+            .chain(side.map(|(_, panel)| panel))
+            .collect();
+        cursor = overlay(frame, area, &regions, app);
     }
     if let Some((x, y)) = cursor {
         if x < area.right() && y < area.bottom() {
@@ -271,9 +271,12 @@ fn hints(
     page_hints: &[(&'static str, &'static str)],
 ) -> Vec<(&'static str, &'static str)> {
     match (app.view, app.focus) {
-        (_, Focus::Sidebar) => vec![("Enter", "open"), ("Tab", "focus"), ("Esc", "composer")],
         (View::Chat, Focus::Composer) => {
             vec![("Enter", "send"), ("Ctrl+P", "commands"), ("Tab", "focus")]
+        }
+        // Detailed mode draws every entry in full, so there is nothing left to expand.
+        (View::Chat, Focus::Main) if app.prefs.details => {
+            vec![("Enter", "inspect"), ("Esc", "composer")]
         }
         (View::Chat, Focus::Main) => vec![
             ("Enter", "inspect"),
@@ -357,6 +360,8 @@ fn transcript_view(frame: &mut Frame, area: Rect, app: &mut App) {
     let selected = app.selected_entry;
     let focus_main = app.focus == Focus::Main;
     let expanded = app.expanded.clone();
+    // Detailed mode collapses nothing, so every entry is drawn as if it had been expanded.
+    let details = app.prefs.details;
     let welcome = welcome_lines(app, width);
 
     let mut lines: Vec<Line<'static>> = Vec::new();
@@ -369,7 +374,7 @@ fn transcript_view(frame: &mut Frame, area: Rect, app: &mut App) {
             for (index, entry) in entries.iter().enumerate() {
                 let start = lines.len();
                 let is_selected = focus_main && index == selected;
-                let is_expanded = entry.seq.is_some_and(|seq| expanded.contains(&seq));
+                let is_expanded = details || entry.seq.is_some_and(|seq| expanded.contains(&seq));
                 let rendered = transcript::render(entry, width, &theme, is_selected, is_expanded);
                 offsets.push((start, rendered.len()));
                 lines.extend(rendered);
@@ -447,7 +452,7 @@ fn welcome_lines(app: &App, width: usize) -> Vec<Line<'static>> {
         "Describe a task and press Enter. Agents create and change files in this directory itself.",
         "ymp records a path and a hash for each change, never earlier content, so it cannot put a file back. /diff states what a run recorded and where.",
         "Ctrl+P opens the command palette. Ctrl+T changes the colour theme.",
-        "Every page reachable from the sidebar is read-only; none of them start an agent.",
+        "Every page opens with its command, such as /tasks, or from the palette. Pages are read-only; none of them start an agent.",
     ] {
         for piece in text::wrap(hint, width.saturating_sub(4).max(8)) {
             lines.push(Line::from(vec![
@@ -644,12 +649,12 @@ fn completion_popup(frame: &mut Frame, main: Rect, composer: Rect, app: &App) ->
         return false;
     }
     let theme = &app.theme;
-    let visible = matches.len().min(6);
+    let visible = matches.len().min(COMPLETION_ROWS);
     let height = visible as u16 + 2;
     if composer.y <= main.y + height || main.width < 30 {
         return false;
     }
-    let width = main.width.min(64);
+    let width = main.width.saturating_sub(2).min(COMPLETION_MAX_WIDTH);
     let area = Rect {
         x: main.x + 1,
         y: composer.y.saturating_sub(height + 1),
@@ -658,58 +663,95 @@ fn completion_popup(frame: &mut Frame, main: Rect, composer: Rect, app: &App) ->
     };
     let selected = app.completion.min(matches.len() - 1);
     let first = selected.saturating_sub(visible - 1);
+    let room = frame::modal_content_width(width) as usize;
+    let name_width = command_name_width();
     let body = matches
         .iter()
         .enumerate()
         .skip(first)
         .take(visible)
-        .map(|(index, command)| {
-            let chosen = index == selected;
-            let style = if chosen {
-                theme.selected()
-            } else {
-                theme.body()
-            };
-            text::row(
-                width.saturating_sub(2) as usize,
-                vec![Span::styled(
-                    format!(
-                        "{} {}",
-                        if chosen { theme.markers.selection } else { " " },
-                        command.name
-                    ),
-                    style,
-                )],
-                vec![Span::styled(
-                    text::truncate(command.summary, width as usize / 2),
-                    if chosen { style } else { theme.faint() },
-                )],
-            )
-        })
+        .map(|(index, command)| command_line(command, name_width, room, index == selected, theme))
         .collect::<Vec<_>>();
+    frame::clear_around(frame, area, &[main], theme);
     frame.render_widget(ratatui::widgets::Clear, area);
     let block = ratatui::widgets::Block::default()
         .borders(ratatui::widgets::Borders::ALL)
         .border_style(theme.rule())
         .style(theme.surface())
         .title_top(Line::from(Span::styled(
-            format!(" {} commands ", matches.len()),
+            " Commands ".to_owned(),
             theme.muted(),
-        )));
-    let inner = block.inner(area);
+        )))
+        .title_top(
+            Line::from(Span::styled(
+                format!(" {} of {} ", selected + 1, matches.len()),
+                theme.faint(),
+            ))
+            .right_aligned(),
+        );
+    let inner = frame::padded(block.inner(area));
     frame.render_widget(block, area);
     frame::paint(frame, inner, body);
     false
 }
 
+/// Rows of commands the inline completion list shows at once.
+const COMPLETION_ROWS: usize = 6;
+/// The widest the inline completion list grows, border included.
+const COMPLETION_MAX_WIDTH: u16 = 88;
+/// The most commands the palette lists at once, when the terminal has the rows for them.
+const PALETTE_ROWS: usize = 10;
+
+/// Cells the longest command name takes, so every summary in a list starts in one column
+/// however the list is filtered.
+fn command_name_width() -> usize {
+    crate::commands::COMMANDS
+        .iter()
+        .map(|command| text::width(command.name))
+        .max()
+        .unwrap_or(0)
+}
+
+/// One command in a list `width` cells wide: the selection marker, the name in a column
+/// `name_width` cells wide, then as much of the summary as fits. The chosen row is
+/// highlighted across its whole width.
+fn command_line(
+    command: &crate::commands::Command,
+    name_width: usize,
+    width: usize,
+    chosen: bool,
+    theme: &Theme,
+) -> Line<'static> {
+    let style = if chosen {
+        theme.selected()
+    } else {
+        theme.body()
+    };
+    let marker = if chosen { theme.markers.selection } else { " " };
+    let lead = text::truncate(&format!("{marker} {:<name_width$}  ", command.name), width);
+    let summary = text::truncate(command.summary, width.saturating_sub(text::width(&lead)));
+    let fill = width.saturating_sub(text::width(&lead) + text::width(&summary));
+    Line::from(vec![
+        Span::styled(lead, style),
+        Span::styled(summary, if chosen { style } else { theme.faint() }),
+        Span::styled(" ".repeat(fill), style),
+    ])
+}
+
 /// Draw whichever floating surface is open, and return where its cursor belongs.
-fn overlay(frame: &mut Frame, area: Rect, app: &App) -> Option<(u16, u16)> {
+fn overlay(frame: &mut Frame, area: Rect, regions: &[Rect], app: &App) -> Option<(u16, u16)> {
     let theme = &app.theme;
     let overlay = app.overlay.as_ref()?;
     match overlay {
         Overlay::Themes { selected, .. } => {
             let width = 58u16.min(area.width.saturating_sub(4));
-            let inner = width.saturating_sub(2) as usize;
+            let inner = frame::modal_content_width(width) as usize;
+            // Names are padded to the longest, so every kind starts in one column.
+            let name_width = theme::THEMES
+                .iter()
+                .map(|palette| text::width(palette.name))
+                .max()
+                .unwrap_or(0);
             let mut body = Vec::new();
             for (index, palette) in theme::THEMES.iter().enumerate() {
                 let chosen = index == *selected;
@@ -723,7 +765,7 @@ fn overlay(frame: &mut Frame, area: Rect, app: &App) -> Option<(u16, u16)> {
                     vec![
                         Span::styled(
                             format!(
-                                "{} {}",
+                                "{} {:<name_width$}",
                                 if chosen { theme.markers.selection } else { " " },
                                 palette.name
                             ),
@@ -734,9 +776,9 @@ fn overlay(frame: &mut Frame, area: Rect, app: &App) -> Option<(u16, u16)> {
                     swatches(palette),
                 ));
                 if chosen {
-                    for piece in text::wrap(palette.summary, inner.saturating_sub(4)) {
+                    for piece in text::wrap(palette.summary, inner.saturating_sub(2)) {
                         body.push(Line::from(vec![
-                            Span::raw("    ".to_owned()),
+                            Span::raw("  ".to_owned()),
                             Span::styled(piece, theme.faint()),
                         ]));
                     }
@@ -747,9 +789,14 @@ fn overlay(frame: &mut Frame, area: Rect, app: &App) -> Option<(u16, u16)> {
                 "The whole interface previews as you move.".to_owned(),
                 theme.faint(),
             )));
+            // Each theme's row sits at its own index, because only the chosen theme's summary
+            // follows its row. On a terminal too short for the list, the list scrolls only as far
+            // as the chosen row needs to stay in view.
+            let scroll = (*selected + 1).saturating_sub(frame::modal_body_rows(area.height, true));
             frame::render_modal(
                 frame,
                 area,
+                regions,
                 &ModalSpec {
                     title: "Colour theme".into(),
                     badge: "saved on Enter".into(),
@@ -757,7 +804,7 @@ fn overlay(frame: &mut Frame, area: Rect, app: &App) -> Option<(u16, u16)> {
                     width,
                     body,
                     footer: vec![("Up/Down", "preview"), ("Enter", "keep"), ("Esc", "cancel")],
-                    scroll: 0,
+                    scroll,
                 },
                 theme,
             );
@@ -765,12 +812,16 @@ fn overlay(frame: &mut Frame, area: Rect, app: &App) -> Option<(u16, u16)> {
         }
         Overlay::Palette { field, selected } => {
             let width = 72u16.min(area.width.saturating_sub(4));
-            let inner = width.saturating_sub(2) as usize;
+            let inner = frame::modal_content_width(width) as usize;
             let matches = crate::commands::search(&field.value);
             let mut body = vec![
                 Line::from(vec![
                     Span::styled(format!("{} ", theme.markers.prompt), theme.accent_bold()),
-                    Span::styled(field.value.clone(), theme.text()),
+                    if field.value.is_empty() {
+                        Span::styled("Type to search commands".to_owned(), theme.faint())
+                    } else {
+                        Span::styled(field.value.clone(), theme.text())
+                    },
                 ]),
                 Line::from(Span::styled(
                     theme.markers.hline.repeat(inner),
@@ -784,34 +835,36 @@ fn overlay(frame: &mut Frame, area: Rect, app: &App) -> Option<(u16, u16)> {
                 )));
             }
             let selected = (*selected).min(matches.len().saturating_sub(1));
-            let visible = 10usize;
+            // The list takes no more rows than the surface shows under the search line, keeping
+            // one for the count of the commands below when they do not all fit, so the selection
+            // never sits on a row the surface cuts off.
+            let rows = frame::modal_body_rows(area.height, true).saturating_sub(body.len());
+            let mut visible = PALETTE_ROWS.min(matches.len());
+            if visible + usize::from(matches.len() > visible) > rows {
+                visible = rows.saturating_sub(1).max(1);
+            }
             let first = selected.saturating_sub(visible.saturating_sub(1));
+            let name_width = command_name_width();
             for (index, command) in matches.iter().enumerate().skip(first).take(visible) {
-                let chosen = index == selected;
-                let style = if chosen {
-                    theme.selected()
-                } else {
-                    theme.body()
-                };
-                body.push(text::row(
+                body.push(command_line(
+                    command,
+                    name_width,
                     inner,
-                    vec![Span::styled(
-                        format!(
-                            "{} {}",
-                            if chosen { theme.markers.selection } else { " " },
-                            command.name
-                        ),
-                        style,
-                    )],
-                    vec![Span::styled(
-                        text::truncate(command.summary, inner / 2),
-                        if chosen { style } else { theme.faint() },
-                    )],
+                    index == selected,
+                    theme,
                 ));
+            }
+            let below = matches.len().saturating_sub(first + visible);
+            if below > 0 {
+                body.push(Line::from(Span::styled(
+                    format!("{} {below} more", theme.markers.more),
+                    theme.faint(),
+                )));
             }
             let rect = frame::render_modal(
                 frame,
                 area,
+                regions,
                 &ModalSpec {
                     title: "Commands".into(),
                     badge: format!("{} of {}", matches.len(), crate::commands::COMMANDS.len()),
@@ -836,6 +889,7 @@ fn overlay(frame: &mut Frame, area: Rect, app: &App) -> Option<(u16, u16)> {
             frame::render_modal(
                 frame,
                 area,
+                regions,
                 &ModalSpec {
                     title: title.clone(),
                     badge: "read only".into(),
@@ -856,7 +910,7 @@ fn overlay(frame: &mut Frame, area: Rect, app: &App) -> Option<(u16, u16)> {
             field,
         } => {
             let width = 76u16.min(area.width.saturating_sub(4));
-            let inner = width.saturating_sub(2) as usize;
+            let inner = frame::modal_content_width(width) as usize;
             let (field_lines, (cursor_row, cursor_col)) =
                 text::compose(&field.value, inner.saturating_sub(2).max(1), field.cursor);
             let visible_rows = usize::from(area.height.saturating_sub(8).clamp(1, 10));
@@ -887,6 +941,7 @@ fn overlay(frame: &mut Frame, area: Rect, app: &App) -> Option<(u16, u16)> {
             let rect = frame::render_modal(
                 frame,
                 area,
+                regions,
                 &ModalSpec {
                     title: label.clone(),
                     badge: "saved on Enter".into(),
@@ -913,13 +968,14 @@ fn overlay(frame: &mut Frame, area: Rect, app: &App) -> Option<(u16, u16)> {
         }
         Overlay::Confirm { question, .. } => {
             let width = 68u16.min(area.width.saturating_sub(4));
-            let body = text::wrap(question, width.saturating_sub(2) as usize)
+            let body = text::wrap(question, frame::modal_content_width(width) as usize)
                 .into_iter()
                 .map(|piece| Line::from(Span::styled(piece, theme.body())))
                 .collect();
             frame::render_modal(
                 frame,
                 area,
+                regions,
                 &ModalSpec {
                     title: "Confirm".into(),
                     badge: "cannot be undone".into(),

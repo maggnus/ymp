@@ -297,6 +297,243 @@ fn typing_a_command_offers_completions_and_tab_accepts_one() {
 }
 
 #[test]
+fn command_lists_align_their_summaries_and_keep_text_off_the_border() {
+    let fixture = fixture();
+    // The column each of the first commands' summaries starts in, on the row that lists it.
+    let columns = |rows: &[String]| -> Vec<usize> {
+        crate::commands::COMMANDS
+            .iter()
+            .take(4)
+            .map(|command| {
+                let head: String = command.summary.chars().take(12).collect();
+                let row = rows
+                    .iter()
+                    .find(|row| row.contains('│') && row.contains(&format!(" {} ", command.name)))
+                    .unwrap_or_else(|| {
+                        panic!("{} is not listed:\n{}", command.name, rows.join("\n"))
+                    });
+                let at = row
+                    .find(&head)
+                    .unwrap_or_else(|| panic!("{} lost its summary:\n{row}", command.name));
+                row[..at].chars().count()
+            })
+            .collect()
+    };
+
+    let mut app = fixture.app();
+    typed(&mut app, "/");
+    let rows = screen_rows(&mut app, 120, 40);
+    let inline = columns(&rows);
+    assert!(
+        inline.windows(2).all(|pair| pair[0] == pair[1]),
+        "completion summaries start in different columns: {inline:?}"
+    );
+    assert!(
+        rows.iter().any(|row| row.contains("│ › /chat")),
+        "the completion list runs into its border:\n{}",
+        rows.join("\n")
+    );
+
+    let mut app = fixture.app();
+    app.on_key(control('p'), 120);
+    let rows = screen_rows(&mut app, 120, 40);
+    let palette = columns(&rows);
+    assert!(
+        palette.windows(2).all(|pair| pair[0] == pair[1]),
+        "palette summaries start in different columns: {palette:?}"
+    );
+    assert!(
+        rows.iter().any(|row| row.contains("│ › /chat")),
+        "the palette runs into its border:\n{}",
+        rows.join("\n")
+    );
+}
+
+#[test]
+fn a_floating_surface_leaves_the_rules_around_the_body_intact() {
+    let fixture = fixture();
+    // At 80x24 the palette starts on the first row of the body, so the margin cleared around
+    // it falls on the rule under the header unless the margin is kept inside the body.
+    let (width, height) = (80u16, 24u16);
+    let rules = [1, height as usize - 3];
+    type Open = fn(&mut App);
+    let surfaces: [(&str, Open); 2] = [
+        ("palette", |app| {
+            app.on_key(control('p'), 80);
+        }),
+        ("theme chooser", |app| {
+            app.on_key(control('t'), 80);
+        }),
+    ];
+    for (name, open) in surfaces {
+        let mut app = fixture.app();
+        open(&mut app);
+        assert!(app.overlay.is_some(), "the {name} did not open");
+        let rows = screen_rows(&mut app, width, height);
+        for rule in rules {
+            assert!(
+                rows[rule].chars().all(|ch| ch == '─'),
+                "the {name} cut into the rule on row {rule}:\n{}",
+                rows.join("\n")
+            );
+        }
+    }
+}
+
+#[test]
+fn a_floating_surface_keeps_the_sidebar_rule_whole_outside_itself() {
+    let fixture = fixture();
+    // The rule between the main column and the sidebar is the column right after the main
+    // column. At 120 columns the theme chooser ends one column short of it, and at 134 the
+    // palette does, so the margin cleared beside either falls on the rule. At 120 columns the
+    // palette covers the rule, and the margin rows above and below it fall on the rule instead.
+    let height = 36u16;
+    type Open = fn(&mut App, u16);
+    let cases: [(&str, &str, u16, Open); 3] = [
+        ("theme chooser", " Colour theme ", 120, |app, width| {
+            app.on_key(control('t'), width);
+        }),
+        ("palette", " Commands ", 134, |app, width| {
+            app.on_key(control('p'), width);
+        }),
+        ("palette", " Commands ", 120, |app, width| {
+            app.on_key(control('p'), width);
+        }),
+    ];
+    let mut cuts = Vec::new();
+    for (name, title, width, open) in cases {
+        let mut app = fixture.app();
+        open(&mut app, width);
+        assert!(app.overlay.is_some(), "the {name} did not open");
+        let screen = screen_rows(&mut app, width, height);
+        let rows: Vec<Vec<char>> = screen.iter().map(|row| row.chars().collect()).collect();
+        let rule = crate::frame::main_width(width, crate::frame::sidebar_width(width)) as usize;
+        let top = screen
+            .iter()
+            .position(|row| row.contains(title) && row.contains('┌'))
+            .unwrap_or_else(|| panic!("the {name} has no top border:\n{}", screen.join("\n")));
+        let left = rows[top].iter().position(|&ch| ch == '┌').unwrap();
+        let right = rows[top].iter().position(|&ch| ch == '┐').unwrap();
+        let bottom = (top..rows.len())
+            .find(|&y| rows[y][left] == '└')
+            .unwrap_or_else(|| panic!("the {name} has no bottom border:\n{}", screen.join("\n")));
+        // The body runs from the row under the header rule to the row above the composer rule.
+        let sidebar_rule: Vec<usize> = rows
+            .iter()
+            .enumerate()
+            .take(height as usize - 3)
+            .skip(2)
+            .filter(|(y, row)| {
+                let covered = (top..=bottom).contains(y) && (left..=right).contains(&rule);
+                !covered && row[rule] != '│'
+            })
+            .map(|(y, _)| y)
+            .collect();
+        let rules: Vec<usize> = [1, height as usize - 3]
+            .into_iter()
+            .filter(|&y| rows[y].iter().any(|&ch| ch != '─'))
+            .collect();
+        if !sidebar_rule.is_empty() || !rules.is_empty() {
+            cuts.push(format!(
+                "the {name} at {width}x{height} cut the sidebar rule on rows {sidebar_rule:?} \
+                 and the rules on rows {rules:?}:\n{}",
+                screen.join("\n")
+            ));
+        }
+    }
+    assert!(cuts.is_empty(), "{}", cuts.join("\n\n"));
+}
+
+/// Move a list surface down `moves` rows and back up again, checking after every move that each
+/// row `in_view` describes is painted at `width`x`height`. Returns the first move that left one
+/// out of view, with the screen at that moment.
+fn walk_selection(
+    app: &mut App,
+    width: u16,
+    height: u16,
+    moves: usize,
+    in_view: fn(&App) -> Vec<String>,
+) -> Option<String> {
+    let steps = std::iter::once(None)
+        .chain(std::iter::repeat_n(Some(KeyCode::Down), moves))
+        .chain(std::iter::repeat_n(Some(KeyCode::Up), moves));
+    for (step, code) in steps.enumerate() {
+        if let Some(code) = code {
+            app.on_key(key(code), width);
+        }
+        let wanted = in_view(app);
+        let rows = screen_rows(app, width, height);
+        let missing: Vec<&String> = wanted
+            .iter()
+            .filter(|row| !rows.iter().any(|painted| painted.contains(row.as_str())))
+            .collect();
+        if !missing.is_empty() {
+            return Some(format!(
+                "{missing:?} out of view at {width}x{height} after {step} moves:\n{}",
+                rows.join("\n")
+            ));
+        }
+    }
+    None
+}
+
+#[test]
+fn the_palette_keeps_its_selection_in_view_on_a_short_terminal() {
+    let fixture = fixture();
+    // Past the rows a short palette shows at first and past the ten it lists at most. Ten rows
+    // is the lowest height that keeps the whole layout. The search line stays in view as well,
+    // because the cursor is placed on it.
+    let moves = crate::commands::search("").len().min(12);
+    let failures: Vec<String> = [(40u16, 12u16), (80, 16), (80, 10)]
+        .into_iter()
+        .filter_map(|(width, height)| {
+            let mut app = fixture.app();
+            app.on_key(control('p'), width);
+            walk_selection(&mut app, width, height, moves, |app| match &app.overlay {
+                Some(Overlay::Palette { selected, .. }) => vec![
+                    "Type to search commands".to_owned(),
+                    format!(
+                        "{} {} ",
+                        app.theme.markers.selection,
+                        crate::commands::search("")[*selected].name
+                    ),
+                ],
+                _ => panic!("the palette closed"),
+            })
+        })
+        .collect();
+    assert!(failures.is_empty(), "{}", failures.join("\n\n"));
+}
+
+#[test]
+fn the_theme_chooser_keeps_its_selection_in_view_on_a_short_terminal() {
+    let fixture = fixture();
+    let failures: Vec<String> = [(40u16, 12u16), (80, 16), (80, 10)]
+        .into_iter()
+        .filter_map(|(width, height)| {
+            let mut app = fixture.app();
+            app.on_key(control('t'), width);
+            app.on_key(key(KeyCode::Home), width);
+            walk_selection(
+                &mut app,
+                width,
+                height,
+                theme::THEMES.len() - 1,
+                |app| match &app.overlay {
+                    Some(Overlay::Themes { selected, .. }) => vec![format!(
+                        "{} {}",
+                        app.theme.markers.selection,
+                        theme::THEMES[*selected].name
+                    )],
+                    _ => panic!("the theme chooser closed"),
+                },
+            )
+        })
+        .collect();
+    assert!(failures.is_empty(), "{}", failures.join("\n\n"));
+}
+
+#[test]
 fn tab_cycles_one_focus_owner_and_esc_walks_back_to_the_composer() {
     let fixture = fixture();
     let mut app = fixture.app();
@@ -306,11 +543,10 @@ fn tab_cycles_one_focus_owner_and_esc_walks_back_to_the_composer() {
     app.on_key(key(KeyCode::Tab), 120);
     assert_eq!(app.focus, Focus::Main);
     app.on_key(key(KeyCode::Tab), 120);
-    assert_eq!(app.focus, Focus::Sidebar);
-    app.on_key(key(KeyCode::Tab), 120);
-    assert_eq!(app.focus, Focus::Composer);
+    assert_eq!(app.focus, Focus::Composer, "the sidebar takes no focus");
+    app.on_key(key(KeyCode::BackTab), 120);
+    assert_eq!(app.focus, Focus::Main);
 
-    app.on_key(key(KeyCode::Tab), 120);
     app.on_key(key(KeyCode::Esc), 120);
     assert_eq!(app.focus, Focus::Composer);
 }
@@ -339,19 +575,44 @@ fn esc_closes_the_topmost_surface_in_order() {
     assert!(app.input.is_empty(), "the draft is cleared last");
 }
 
+/// Every page, in the order the commands list them.
+const PAGES: &[View] = &[
+    View::Chat,
+    View::Tasks,
+    View::Usage,
+    View::Sessions,
+    View::Files,
+    View::Changes,
+    View::Checks,
+    View::Assignments,
+    View::Decisions,
+    View::Team,
+    View::Agents,
+    View::Providers,
+    View::Memory,
+    View::Reputation,
+    View::Limits,
+    View::Help,
+];
+
 #[test]
-fn the_sidebar_opens_a_destination_without_leaving_the_keyboard() {
+fn the_sidebar_lists_no_destinations() {
     let fixture = fixture();
     let mut app = fixture.app();
-    app.viewport.width = 120;
-    app.on_key(key(KeyCode::Tab), 120);
-    app.on_key(key(KeyCode::Tab), 120);
-    assert_eq!(app.focus, Focus::Sidebar);
-    app.on_key(key(KeyCode::Down), 120);
-    let actions = app.on_key(key(KeyCode::Enter), 120);
-    assert!(actions.is_empty());
-    assert_eq!(app.view, View::Tasks);
-    assert_eq!(app.focus, Focus::Main);
+    let width = 120u16;
+    let side = crate::frame::sidebar_width(width) as usize;
+    let sidebar = screen_rows(&mut app, width, 40)
+        .iter()
+        .map(|row| row.chars().skip(width as usize - side).collect::<String>())
+        .collect::<Vec<_>>()
+        .join("\n");
+    assert!(sidebar.contains("SESSION"), "{sidebar}");
+    for view in PAGES {
+        assert!(
+            !sidebar.contains(view.title()),
+            "the sidebar still lists {view:?}:\n{sidebar}"
+        );
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -507,11 +768,10 @@ fn ctrl_c_asks_the_same_question_from_every_region() {
     let start = Instant::now();
     let later = start + Duration::from_millis(300);
     type Open = fn(&mut App);
-    let regions: [(&str, Open); 5] = [
+    let regions: [(&str, Open); 4] = [
         ("composer", |_| {}),
         ("transcript", |app| app.focus = Focus::Main),
         ("page", |app| app.set_view(View::Tasks)),
-        ("sidebar", |app| app.focus = Focus::Sidebar),
         ("theme chooser", |app| {
             app.on_key(control('t'), 120);
         }),
@@ -808,7 +1068,7 @@ fn read_only_pages_never_produce_a_run_action() {
     let fixture = fixture();
     fixture.seed_session("Build a landing page");
     let mut app = fixture.app();
-    for view in crate::views::NAV {
+    for view in PAGES {
         app.set_view(*view);
         for code in [
             KeyCode::Down,
@@ -1137,14 +1397,14 @@ fn the_sidebar_is_present_from_eighty_columns_and_can_be_hidden() {
     for width in [80u16, 100, 120, 180] {
         let rendered = draw(&mut app, width, 24);
         assert!(
-            rendered.contains("NAVIGATE"),
+            rendered.contains("SESSION"),
             "no sidebar at {width} columns"
         );
         assert!(rendered.contains("TEAM"), "no team activity at {width}");
     }
     app.command("/sidebar", 100);
     let rendered = draw(&mut app, 120, 30);
-    assert!(!rendered.contains("NAVIGATE"));
+    assert!(!rendered.contains("SESSION"));
     assert!(!Prefs::load(&fixture.store).sidebar);
 }
 
@@ -1153,7 +1413,7 @@ fn every_page_renders_at_the_smallest_supported_size() {
     let fixture = fixture();
     fixture.seed_session("Build a landing page");
     let mut app = fixture.app();
-    for view in crate::views::NAV {
+    for view in PAGES {
         app.set_view(*view);
         for (width, height) in [(80u16, 24u16), (40, 12), (120, 40)] {
             let rendered = draw(&mut app, width, height);
@@ -1275,11 +1535,11 @@ fn every_theme_renders_a_complete_screen() {
         app.command(&format!("/theme {}", palette.id), 120);
         assert_eq!(app.theme.id, palette.id);
         conversation(&mut app, 6);
-        for view in crate::views::NAV {
+        for view in PAGES {
             app.set_view(*view);
             let rendered = draw(&mut app, 100, 30);
             assert!(
-                rendered.contains("NAVIGATE"),
+                rendered.contains("SESSION"),
                 "{} lost the sidebar on {view:?}",
                 palette.id
             );
@@ -1536,38 +1796,6 @@ fn browsing_sessions_during_a_run_stays_available() {
 }
 
 // ---------------------------------------------------------------------------
-// Sidebar selection
-// ---------------------------------------------------------------------------
-
-#[test]
-fn the_focused_sidebar_keeps_its_selection_visible_at_every_size() {
-    let fixture = fixture();
-    for (width, height) in [(80u16, 24u16), (100, 24), (120, 30), (80, 14)] {
-        let mut app = fixture.app();
-        app.viewport.width = width as usize;
-        draw(&mut app, width, height);
-        app.on_key(key(KeyCode::Tab), width);
-        app.on_key(key(KeyCode::Tab), width);
-        assert_eq!(app.focus, Focus::Sidebar);
-
-        app.on_key(key(KeyCode::End), width);
-        assert_eq!(app.nav, crate::views::NAV.len() - 1);
-        let rendered = draw(&mut app, width, height);
-        assert!(
-            rendered.contains("› Help"),
-            "the selected destination vanished at {width}x{height}:\n{rendered}"
-        );
-
-        app.on_key(key(KeyCode::Home), width);
-        let rendered = draw(&mut app, width, height);
-        assert!(
-            rendered.contains("› Conversation"),
-            "the selection vanished at the top at {width}x{height}"
-        );
-    }
-}
-
-// ---------------------------------------------------------------------------
 // Whitespace fidelity
 // ---------------------------------------------------------------------------
 
@@ -1708,6 +1936,92 @@ fn a_single_line_stream_cannot_fill_the_transcript() {
     assert!(
         stream.1 <= 5,
         "one line of JSON occupied {} rows of the transcript",
+        stream.1
+    );
+}
+
+#[test]
+fn detailed_mode_collapses_no_agent_message() {
+    let fixture = fixture();
+    let mut app = fixture.app();
+    post(
+        &mut app,
+        1,
+        "codex",
+        "plan",
+        &serde_json::json!({"summary": "Split the parser", "tasks": [{"title": "Tokenise the input"}]})
+            .to_string(),
+    );
+    post(
+        &mut app,
+        2,
+        "claude",
+        "review",
+        &serde_json::json!({"approved": true, "reason": "The tokens match", "evidence": "tokenise passes"})
+            .to_string(),
+    );
+    let report = (1..=12)
+        .map(|step| format!("Step {step} of the report."))
+        .collect::<Vec<_>>()
+        .join("\n\n");
+    post(&mut app, 3, "codex", "execute", &report);
+    let hidden_by_default = [
+        "Tokenise the input",
+        "tokenise passes",
+        "Step 12 of the report.",
+    ];
+
+    app.focus = Focus::Main;
+    let collapsed = draw(&mut app, 160, 60);
+    assert!(
+        collapsed.contains("proposed a plan · 1 task · Split the parser"),
+        "{collapsed}"
+    );
+    assert!(collapsed.contains("more lines · Enter to read the full report"));
+    assert!(collapsed.contains("Space expand"), "{collapsed}");
+    for text in hidden_by_default {
+        assert!(
+            !collapsed.contains(text),
+            "{text:?} was not collapsed:\n{collapsed}"
+        );
+    }
+
+    app.command("/details", 160);
+    app.focus = Focus::Main;
+    let detailed = draw(&mut app, 160, 60);
+    assert!(
+        detailed.contains("proposed a plan · 1 task · Split the parser"),
+        "detailed mode lost the sentence that names the plan:\n{detailed}"
+    );
+    for text in hidden_by_default {
+        assert!(
+            detailed.contains(text),
+            "detailed mode collapsed {text:?}:\n{detailed}"
+        );
+    }
+    assert!(!detailed.contains("more lines"), "{detailed}");
+    assert!(!detailed.contains("Space expand"), "{detailed}");
+    app.on_key(key(KeyCode::Char(' ')), 160);
+    assert!(
+        app.expanded.is_empty(),
+        "Space has nothing to expand in detailed mode"
+    );
+
+    // Text still arriving is not a message yet, so its preview stays bounded here as well.
+    app.event(UiEvent::Delta {
+        agent: "codex".into(),
+        text: "word ".repeat(2000),
+    });
+    draw(&mut app, 160, 60);
+    let stream = app
+        .viewport
+        .entries
+        .last()
+        .copied()
+        .expect("the stream entry is rendered");
+    assert!(
+        stream.1 <= 5,
+        "a stream occupied {} rows in detailed mode",
         stream.1
     );
 }
@@ -2897,20 +3211,21 @@ fn main_prose(app: &mut App, width: u16, height: u16) -> String {
 }
 
 /// What the floating read-only surface says, as one line. It is centred and 86 columns
-/// wide, or the terminal less four, and its border takes the first and the last column.
+/// wide, or the terminal less four, and its border and a cell of padding take the first two
+/// and the last two columns.
 fn modal_prose(app: &mut App, width: u16, height: u16) -> String {
     let surface = 86u16.min(width.saturating_sub(4)).max(12);
-    let left = (width.saturating_sub(surface) / 2 + 1) as usize;
+    let left = (width.saturating_sub(surface) / 2 + 2) as usize;
     column_prose(&screen_rows(app, width, height), left, inspect_room(width))
 }
 
 /// Columns the read-only inspect surface has for its body: it is 86 columns wide, or the
-/// terminal less four, and its own frame takes one column on each side.
+/// terminal less four, and its frame and padding take two columns on each side.
 fn inspect_room(total: u16) -> usize {
     86u16
         .min(total.saturating_sub(4))
-        .saturating_sub(2)
-        .max(8)
+        .max(12)
+        .saturating_sub(4)
         .into()
 }
 
@@ -5857,7 +6172,7 @@ async fn no_row_puts_more_in_its_right_column_than_the_narrowest_column_holds() 
     let mut app = run.app();
     app.load_session(&run.session).unwrap();
     let mut checked = 0;
-    for view in crate::views::NAV.iter().copied() {
+    for view in PAGES.iter().copied() {
         // Help is the one page whose right side is prose rather than a state word: it sizes a
         // description to the column it was built for and truncates it itself.
         if view == crate::views::View::Help {
@@ -5887,7 +6202,7 @@ async fn no_row_puts_more_in_its_right_column_than_the_narrowest_column_holds() 
         PathBuf::from(run.project.path()),
     );
     let mut refusals = 0;
-    for view in crate::views::NAV.iter().copied() {
+    for view in PAGES.iter().copied() {
         if view == crate::views::View::Help {
             continue;
         }

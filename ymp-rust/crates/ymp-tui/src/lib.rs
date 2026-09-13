@@ -1,7 +1,7 @@
 //! The ymp terminal interface.
 //!
 //! A chat-first layout with a right sidebar: the conversation fills the main column, and
-//! the sidebar carries navigation, live team activity and the current session's context.
+//! the sidebar carries the current session's context and live team activity.
 //! The event loop here does three things and nothing else. It applies runtime events to
 //! [`state::App`], it executes the [`state::Action`]s the keyboard produced, and it decides
 //! when a frame is worth drawing. Everything else lives in a module of its own.
