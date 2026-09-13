@@ -3745,7 +3745,7 @@
       "priority": "P1",
       "status": "new",
       "owner": "Maintainer defines Git data contracts; Claude Code high owns future UI implementation",
-      "authorization": "Owner wants live visibility of committed/uncommitted files with branch or worktree selection and explicitly clarified that this must be separate from the file manager. Current authorization is research and scope definition only; do not begin implementation under the existing research-only instruction. Owner further proposed /git, an empty view until differences exist, branch switching and commit/uncommit, and asked to inspect Paseo as the reference. Source review identifies Committed/Uncommitted as comparison modes; an optional clarification about actual commit/undo operations remains pending. Research-only scope still applies.",
+      "authorization": "Owner wants live visibility of committed/uncommitted files with branch or worktree selection and explicitly clarified that this must be separate from the file manager. Current authorization is research and scope definition only; do not begin implementation under the existing research-only instruction. Owner further proposed /git, an empty view until differences exist, branch switching and commit/uncommit, and asked to inspect Paseo as the reference. Source review identifies Committed/Uncommitted as comparison modes; owner confirmed that actual commit/undo operations are not requested. Research-only scope still applies. Owner explicitly answered that Committed/Uncommitted are view modes, not creation or undo of commits.",
       "depends_on": [
         "YMP-139",
         "YMP-140"
@@ -3753,7 +3753,7 @@
       "reason": "The current Git-marker discovery and session changes page do not expose actual staged/unstaged status or committed history.",
       "acceptance": [
         "Keep /git separate from /files. /files remains a read-only filesystem navigator with current highlighting.",
-        "Provide Uncommitted working changes and Committed branch-versus-base differences, changed-file counts and highlighted diff opening. Empty/loading/error/non-Git states must be distinct. Preserve appropriate mode and selection through live updates.",
+        "Provide Uncommitted working changes and Committed branch-versus-base differences, changed-file counts and highlighted diff opening. Empty/loading/error/non-Git states must be distinct. Preserve appropriate mode and selection through live updates. The Committed/Uncommitted controls change only the comparison view; do not add commit creation or undo operations for this request.",
         "Support inspecting existing worktrees. Treat actual branch switching as an explicit checkout operation, separate from comparison selection, with dirty-tree handling and coordination with active agent writes. Do not infer undo-commit, discard or remote operations from the Committed/Uncommitted labels.",
         "Refresh visible Git data asynchronously with bounded work and honest stale/error state. Use actual Git objects for historical content and verify Git edge-case fixtures.",
         "Delegate future UI implementation to Claude Code high and independently verify source and terminal behavior. Current task remains unimplemented under the owner research-only restriction.",
@@ -3778,11 +3778,16 @@
           "at": "2026-09-13T11:52:29.208823+00:00",
           "status": "new",
           "note": "Owner set library unification as a general project rule. Recorded in AGENTS.md and subsystem-interfaces.md; the /git proposal must reuse existing highlighting/display infrastructure and justify any new dependency. Research-only scope and unimplemented status remain unchanged."
+        },
+        {
+          "at": "2026-09-13T11:53:08.289204+00:00",
+          "status": "new",
+          "note": "Owner confirmed Committed/Uncommitted view modes. Removed the pending scope question; commit creation and undo are outside this request. The shared-library policy and research-only restriction remain in effect."
         }
       ]
     }
   ],
-  "updated_at": "2026-09-13T11:52:29.208823+00:00",
+  "updated_at": "2026-09-13T11:53:08.289204+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",

@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-13 11:52 UTC.
+Updated: 2026-09-13 11:53 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -83,7 +83,7 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-140](#ymp-140) | P1 | Render agent code and explicit diffs clearly using established AI-chat patterns | 2026-09-13 11:13 |
 | `[=]` | [YMP-141](#ymp-141) | P1 | Keep popup geometry stable while scrolling content | 2026-09-13 11:37 |
 | `[x]` | [YMP-142](#ymp-142) | P1 | Assess ratatui-code-editor for opening files inside ymp | 2026-09-13 11:52 |
-| `[+]` | [YMP-143](#ymp-143) | P1 | Provide a separate /git changes view modeled on Paseo | 2026-09-13 11:52 |
+| `[+]` | [YMP-143](#ymp-143) | P1 | Provide a separate /git changes view modeled on Paseo | 2026-09-13 11:53 |
 
 ## YMP-001
 
@@ -2090,13 +2090,13 @@ Provide a separate /git changes view modeled on Paseo
 
 **State:** `[+]` (new) · **Type:** implementation · **Priority:** P1
 
-**Last update (UTC):** 2026-09-13 11:52
+**Last update (UTC):** 2026-09-13 11:53
 
-**Current reason:** Owner set library unification as a general project rule. Recorded in AGENTS.md and subsystem-interfaces.md; the /git proposal must reuse existing highlighting/display infrastructure and justify any new dependency. Research-only scope and unimplemented status remain unchanged.
+**Current reason:** Owner confirmed Committed/Uncommitted view modes. Removed the pending scope question; commit creation and undo are outside this request. The shared-library policy and research-only restriction remain in effect.
 
 **Owner:** Maintainer defines Git data contracts; Claude Code high owns future UI implementation
 
-**Authorization:** Owner wants live visibility of committed/uncommitted files with branch or worktree selection and explicitly clarified that this must be separate from the file manager. Current authorization is research and scope definition only; do not begin implementation under the existing research-only instruction. Owner further proposed /git, an empty view until differences exist, branch switching and commit/uncommit, and asked to inspect Paseo as the reference. Source review identifies Committed/Uncommitted as comparison modes; an optional clarification about actual commit/undo operations remains pending. Research-only scope still applies.
+**Authorization:** Owner wants live visibility of committed/uncommitted files with branch or worktree selection and explicitly clarified that this must be separate from the file manager. Current authorization is research and scope definition only; do not begin implementation under the existing research-only instruction. Owner further proposed /git, an empty view until differences exist, branch switching and commit/uncommit, and asked to inspect Paseo as the reference. Source review identifies Committed/Uncommitted as comparison modes; owner confirmed that actual commit/undo operations are not requested. Research-only scope still applies. Owner explicitly answered that Committed/Uncommitted are view modes, not creation or undo of commits.
 
 **Depends on:** [YMP-139](#ymp-139), [YMP-140](#ymp-140)
 
@@ -2105,7 +2105,7 @@ The current Git-marker discovery and session changes page do not expose actual s
 **Acceptance criteria:**
 
 - Keep /git separate from /files. /files remains a read-only filesystem navigator with current highlighting.
-- Provide Uncommitted working changes and Committed branch-versus-base differences, changed-file counts and highlighted diff opening. Empty/loading/error/non-Git states must be distinct. Preserve appropriate mode and selection through live updates.
+- Provide Uncommitted working changes and Committed branch-versus-base differences, changed-file counts and highlighted diff opening. Empty/loading/error/non-Git states must be distinct. Preserve appropriate mode and selection through live updates. The Committed/Uncommitted controls change only the comparison view; do not add commit creation or undo operations for this request.
 - Support inspecting existing worktrees. Treat actual branch switching as an explicit checkout operation, separate from comparison selection, with dirty-tree handling and coordination with active agent writes. Do not infer undo-commit, discard or remote operations from the Committed/Uncommitted labels.
 - Refresh visible Git data asynchronously with bounded work and honest stale/error state. Use actual Git objects for historical content and verify Git edge-case fixtures.
 - Delegate future UI implementation to Claude Code high and independently verify source and terminal behavior. Current task remains unimplemented under the owner research-only restriction.

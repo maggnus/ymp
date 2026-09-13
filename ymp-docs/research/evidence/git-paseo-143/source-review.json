@@ -34,9 +34,7 @@
     "uncommit": "No dedicated uncommit/undo-commit/reset-soft command found in searched app and server source. Do not infer this operation from Committed/Uncommitted labels.",
     "live_updates": "Filesystem and Git metadata observers,1-second debounce,5-second degraded polling fallback."
   },
-  "scope_questions": [
-    "Owner clarification pending: view toggle versus actual commit/uncommit operations."
-  ],
+  "scope_questions": [],
   "not_verified": [
     "Installed app interaction by clicking",
     "Execution of branch switch, stash, commit or undo operations",
@@ -56,5 +54,6 @@
       "Keep /files independent and read-only; adapt the Changes panel as /git."
     ]
   },
-  "current_interpretation": "Treat owner commit/uncommit wording as Committed/Uncommitted view labels for this proposal; optional clarification is pending. Do not infer authorization to undo commits."
+  "current_interpretation": "Owner explicitly confirmed Committed/Uncommitted comparison modes; commit creation and undo are outside this request.",
+  "owner_clarification_at": "2026-09-13T11:53:08.289204+00:00"
 }

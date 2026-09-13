@@ -36,9 +36,8 @@ were clicked and no Git mutation was executed during this research.
 - Filesystem and Git metadata observation drive asynchronous updates with a 1-second debounce;
   a 5-second polling fallback is used when watching is unavailable. Manual Refresh also exists.
 
-The owner's phrase `commit uncommit` is interpreted here as the observed Committed/Uncommitted
-view selector. A clarification was offered; it must not be treated as authorization to reset
-commits. Actual commit/undo operations require their own explicit scope if that was intended.
+The owner explicitly confirmed that `commit uncommit` means the Committed/Uncommitted view
+selector. Creating or undoing commits is not part of this request.
 
 ## Proposed ymp behavior
 
