@@ -1,0 +1,122 @@
+[
+  {
+    "method": "run",
+    "prompt": "hook-stop:high",
+    "response": {
+      "jsonrpc": "2.0",
+      "id": 1,
+      "error": {
+        "code": -32000,
+        "message": "Claude reported a different effort than requested"
+      }
+    },
+    "execution_and_tool_events": [
+      {
+        "method": "execution",
+        "params": {
+          "sent": {
+            "model": "opus",
+            "effort": "max",
+            "permission_mode": "default"
+          }
+        }
+      },
+      {
+        "method": "execution",
+        "params": {
+          "sent": {
+            "model": "opus",
+            "effort": "max",
+            "permission_mode": "default"
+          },
+          "reported": {
+            "model": "claude-opus-5",
+            "effort": null,
+            "permission_mode": "default"
+          },
+          "native_session_id": "fixture-session",
+          "native_version": "fixture-version"
+        }
+      },
+      {
+        "method": "execution",
+        "params": {
+          "reported": {
+            "model": null,
+            "effort": "high",
+            "permission_mode": null
+          }
+        }
+      }
+    ],
+    "native_user_messages": 1,
+    "hook_response": [
+      {
+        "type": "control_response",
+        "response": {
+          "subtype": "success",
+          "request_id": "fixture-hook",
+          "response": {
+            "continue": false,
+            "stopReason": "Claude reported a different effort than requested"
+          }
+        }
+      }
+    ]
+  },
+  {
+    "method": "capabilities",
+    "prompt": "hook-effort:xhigh",
+    "response": {
+      "jsonrpc": "2.0",
+      "id": 1,
+      "result": {
+        "source": {
+          "kind": "native_metadata",
+          "method": "Claude Query.supportedModels()",
+          "observed_at": "2026-09-13T03:43:03.298Z"
+        },
+        "models_complete": false,
+        "models": [
+          {
+            "id": "opus[1m]",
+            "display_name": "Fixture",
+            "resolved_model": "claude-opus-5[1m]",
+            "controls": [
+              {
+                "id": "effort",
+                "values": {
+                  "kind": "choices",
+                  "options": [
+                    "low",
+                    "xhigh",
+                    "max"
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "id": "small",
+            "display_name": "Small",
+            "controls": []
+          }
+        ]
+      }
+    },
+    "execution_and_tool_events": [
+      {
+        "method": "execution",
+        "params": {
+          "sent": {
+            "model": null,
+            "effort": null,
+            "permission_mode": "default"
+          }
+        }
+      }
+    ],
+    "native_user_messages": 0,
+    "hook_response": []
+  }
+]

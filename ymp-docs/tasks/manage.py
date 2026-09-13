@@ -168,6 +168,8 @@ def render_plan(data):
         final_task = by_id[release['final_verification_task']]
         stage = f" ({release['stage']})" if release.get('stage') else ''
         lines += [f"Target release: **{release['target_version']}{stage}**. Final acceptance: {task_link(final_task, 'README.md')}, with independent review at **{release['final_verification_reasoning']}** reasoning. The version is not released until that task is complete.", '']
+    if installed := data.get('installed_release'):
+        lines += [f"Installed maintenance release: **{installed['version']}**. The target above records the initial MVP baseline; current patch verification is in [{installed['version']} release notes](../releases/{installed['version']}.md).", '']
     lines += ['## Status key', '', '| Marker | Meaning |', '| --- | --- |']
     lines += [f'| `{symbol}` | {meaning} |' for symbol, meaning in STATES.values()]
     lines += ['', 'A planned task automatically shows `[=]` while prerequisites remain unfinished and returns to `[ ]` when they are complete. `[?]` is reserved for an explicit unresolved owner question recorded in the latest note.', '',

@@ -1,0 +1,11 @@
+   Compiling ymp-core v0.4.1 (/private/tmp/ymp132-agent-attribution/ymp-rust/crates/ymp-core)
+   Compiling ymp-storage v0.4.1 (/private/tmp/ymp132-agent-attribution/ymp-rust/crates/ymp-storage)
+    Finished `test` profile [unoptimized] target(s) in 4.90s
+     Running unittests src/lib.rs (/tmp/ymp132-test-target/debug/deps/ymp_storage-f7dfb7d214a782ce)
+
+running 2 tests
+test provenance_tests::message_attribution_reads_existing_team_operation_links_without_time_guesses ... ok
+test provenance_tests::message_attribution_keeps_exact_origin_across_model_changes_and_reopening ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 37 filtered out; finished in 0.03s
+

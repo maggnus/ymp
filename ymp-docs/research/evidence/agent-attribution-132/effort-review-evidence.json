@@ -1,0 +1,36 @@
+{
+  "source": "449e2fef1ac3cf046ec0de3bc08334963a175a60",
+  "integrated_main": "5899589",
+  "source_matches_main": true,
+  "files": {
+    "ymp-bridges/claude/src/effort.ts": "c1cacb37cc86f00395238bc553f6634375765dfda36960f5edf3885bf227425f",
+    "ymp-bridges/claude/src/index.ts": "4b95e08a2040811bf4790595e88b73610bc55ad401b4374d3162fca668c7ec56",
+    "ymp-rust/crates/ymp-providers/src/rpc.rs": "dcbc706369dc199fca652219285eb341552edbf7ec15ef084b28fcbbad428fb4"
+  },
+  "sdk_version": "0.3.246",
+  "sdk_types_sha256": "c53c3613d55d5147f4e4f9ae5174a2b675286c478798e8a635de74f722142a62",
+  "logs": {
+    "/tmp/ymp132-independent-effort-focused.log": "290dcfbc44e57462dbb94af909776a2b060a57229deb0f8077bc335532976311",
+    "/tmp/ymp132-independent-effort-types.log": "0e2731dd88a26e6fefd98927034c2fd0548d7965a615ebf520215e01e8a19303",
+    "/tmp/ymp132-independent-effort-sdk-controls.json": "1b2c9544b24a2c9b4b21eb804b1473962bf284e53ce731c17bf2bcb089f5f606",
+    "/tmp/ymp132-effort-tests.log": "83373f00b29f3ca1b66bcb93356140af9e07e2812cbe6320e4f5e150f4d3cf9a",
+    "/tmp/ymp132-effort-negative.log": "d620370fcc547906b041e860f1680c99c71e9c75c61a50146a0eb60315210caf",
+    "/tmp/ymp132-tool-tests.log": "8ba2386bd895232d6dac95f979f244a3beed47ba5fcaef7fd195c49163b65584",
+    "/tmp/ymp042-tests-final.log": "08b50759b06fc1631dee4d92a63fe368845420f3a897f21c413d14fe4f06d29d",
+    "/tmp/ymp042-bridge-tests.log": "7e897e0be7e119cfc13d64fef6f506a31d1fc9267624887dfdc2dfa66d94e771"
+  },
+  "native_inference_calls": 0,
+  "scope": "Hook metadata and RPC forwarding only; no UI/full-release audit",
+  "direct_observer_controls": {
+    "named_main_agent_type_without_agent_id_observed": true,
+    "native_child_ignored": true,
+    "matching_hook_returns_empty_permission_neutral_output": true,
+    "mismatch_remains_failed_after_later_matching_level": true,
+    "emitted_values": [
+      "max",
+      "high",
+      "max"
+    ]
+  },
+  "report_sha256": "24d484775377495fd9387842b47a6566335d03b9fd22068eb3af31945a4193af"
+}

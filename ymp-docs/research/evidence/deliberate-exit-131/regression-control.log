@@ -1,0 +1,48 @@
+   Compiling ymp-core v0.4.2 (/private/tmp/ymp131-double-ctrl-c/ymp-rust/crates/ymp-core)
+   Compiling ymp-storage v0.4.2 (/private/tmp/ymp131-double-ctrl-c/ymp-rust/crates/ymp-storage)
+   Compiling ymp-providers v0.4.2 (/private/tmp/ymp131-double-ctrl-c/ymp-rust/crates/ymp-providers)
+   Compiling ymp-workspace v0.4.2 (/private/tmp/ymp131-double-ctrl-c/ymp-rust/crates/ymp-workspace)
+   Compiling ymp-runtime v0.4.2 (/private/tmp/ymp131-double-ctrl-c/ymp-rust/crates/ymp-runtime)
+   Compiling ymp-tui v0.4.2 (/private/tmp/ymp131-double-ctrl-c/ymp-rust/crates/ymp-tui)
+    Finished `test` profile [unoptimized] target(s) in 7.63s
+     Running unittests src/lib.rs (/tmp/ymp129-review-limit/target/debug/deps/ymp_tui-cbec3e105ef4fde0)
+
+running 3 tests
+test tests::a_first_ctrl_c_leaves_active_work_and_the_draft_untouched ... FAILED
+test tests::a_first_ctrl_c_when_idle_does_not_leave ... FAILED
+test tests::ctrl_c_twice_leaves_from_an_open_overlay_without_closing_it_first ... FAILED
+
+failures:
+
+---- tests::a_first_ctrl_c_leaves_active_work_and_the_draft_untouched stdout ----
+
+thread 'tests::a_first_ctrl_c_leaves_active_work_and_the_draft_untouched' panicked at ymp-rust/crates/ymp-tui/src/tests.rs:367:5:
+assertion `left == right` failed
+  left: [Cancel]
+ right: []
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- tests::a_first_ctrl_c_when_idle_does_not_leave stdout ----
+
+thread 'tests::a_first_ctrl_c_when_idle_does_not_leave' panicked at ymp-rust/crates/ymp-tui/src/tests.rs:378:5:
+assertion `left == right` failed
+  left: [Quit]
+ right: []
+
+---- tests::ctrl_c_twice_leaves_from_an_open_overlay_without_closing_it_first stdout ----
+
+thread 'tests::ctrl_c_twice_leaves_from_an_open_overlay_without_closing_it_first' panicked at ymp-rust/crates/ymp-tui/src/tests.rs:391:5:
+assertion `left == right` failed
+  left: []
+ right: [Quit]
+
+
+failures:
+    tests::a_first_ctrl_c_leaves_active_work_and_the_draft_untouched
+    tests::a_first_ctrl_c_when_idle_does_not_leave
+    tests::ctrl_c_twice_leaves_from_an_open_overlay_without_closing_it_first
+
+test result: FAILED. 0 passed; 3 failed; 0 ignored; 0 measured; 140 filtered out; finished in 0.02s
+
+error: test failed, to rerun pass `-p ymp-tui --lib`
+exit=101

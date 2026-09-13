@@ -1,0 +1,28 @@
+{
+  "binary": "/private/tmp/ymp129-review-limit/target/debug/ymp",
+  "fixture_directory": "/var/folders/cw/7pn8sb3x6bj69g7j2d8f_ss00000gn/T/ymp131-pty-j0017u7y",
+  "session": "9c275609-4894-486a-a2e2-47bbdd53e0ec",
+  "cases": [
+    {
+      "case": "double",
+      "passed": true
+    },
+    {
+      "case": "input-reset",
+      "passed": true
+    },
+    {
+      "case": "expiry",
+      "passed": true
+    },
+    {
+      "case": "quit",
+      "passed": true
+    },
+    {
+      "case": "sessionless",
+      "passed": true
+    }
+  ],
+  "native_inference": false
+}

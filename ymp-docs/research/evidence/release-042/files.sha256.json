@@ -1,0 +1,16 @@
+{
+  "active-exit.log": "06b5cbf64cd1f5dffa231ab22f756d0ef6c8768171de53e5219cf5906d20203f",
+  "bridge-check.log": "0e2731dd88a26e6fefd98927034c2fd0548d7965a615ebf520215e01e8a19303",
+  "bridge-tests.log": "7e897e0be7e119cfc13d64fef6f506a31d1fc9267624887dfdc2dfa66d94e771",
+  "clippy.log": "501aa20e96adddbe9b7a671ebbc7c7975a2cd59e1a68340633fd64a44d871a90",
+  "exit.log": "69cf797276a8d2796cba9072d3d03ffddd2efe2543296a089c18f2740956461e",
+  "fmt.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "help.log": "c4f474311cf06896a02e65c29cd7aef214e3752a997ea8baa007a604b0a4257a",
+  "installed-version.log": "5dcbc9f3990fd668d5608c91aa474aa322fc96458c6240570b03fc4f71ccbb20",
+  "labels.log": "a0e853307cabf8a605e7f6d52e88d1a6bb0d16f98f221580a94d3f132955ad5b",
+  "release-build.log": "54c53724a34a5c3ecf850bb44395960f29c86426b3fc95ca6401ffc2034f4955",
+  "staged-verification.json": "3d0a3a0bbe743985e62cf00a1b922e77d30d40b737b415a71c174cb0f1efdeff",
+  "verification.json": "7fc9acf9bdc6d9e0e406b4aa42a3b01c889a42c1b53c6e761a16cefc64372ab1",
+  "version.log": "5dcbc9f3990fd668d5608c91aa474aa322fc96458c6240570b03fc4f71ccbb20",
+  "workspace-tests.log": "164c51990d491028c8dda623cfa662c48c3d312834cc9c6ea006aaa88878b516"
+}

@@ -1,0 +1,23 @@
+    Blocking waiting for file lock on build directory
+   Compiling ymp-runtime v0.4.1 (/private/tmp/ymp132-agent-attribution/ymp-rust/crates/ymp-runtime)
+    Finished `test` profile [unoptimized] target(s) in 4.40s
+     Running unittests src/lib.rs (/tmp/ymp132-test-target/debug/deps/ymp_runtime-42decbcad667e790)
+
+running 1 test
+test engine::tests::backend_contract_tests::backend_public_engine_executes_a_distinct_workflow_and_records_actual_identity ... FAILED
+
+failures:
+
+---- engine::tests::backend_contract_tests::backend_public_engine_executes_a_distinct_workflow_and_records_actual_identity stdout ----
+
+thread 'engine::tests::backend_contract_tests::backend_public_engine_executes_a_distinct_workflow_and_records_actual_identity' panicked at ymp-rust/crates/ymp-runtime/src/backend_tests.rs:331:61:
+Native response lost its invocation origin
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    engine::tests::backend_contract_tests::backend_public_engine_executes_a_distinct_workflow_and_records_actual_identity
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 109 filtered out; finished in 0.24s
+
+error: test failed, to rerun pass `-p ymp-runtime --lib`

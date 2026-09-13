@@ -1,0 +1,27 @@
+A local team of AI agents that works together and learns from experience
+
+Usage: ymp [OPTIONS] [COMMAND]
+
+Commands:
+  init          Create configuration and discover existing local agent installations
+  doctor        Show executable availability. --probe sends a small read-only model request
+  run           Run an autonomous team without opening the TUI
+  catalog       Read the stored selectable pool, or refresh native metadata without model prompts
+  capabilities  Inspect native models and controls without sending a model prompt
+  resume        Resume an interrupted team session
+  ask           Send a request to a single configured agent (read-only by default)
+  sessions      List saved sessions for the current project
+  trace         Export a saved session's structured state and complete history as JSON
+  config        Show configuration, profile information, or the configuration file path
+  reputation    Inspect stored competence observations
+  memory        Search verified memory for the current project
+  relocate      Reassociate an existing project with a relocated source directory
+  demo          Run an entirely local demonstration with three deterministic test agents
+  mcp           Public project-scoped MCP server over stdio (read-only unless enabled)
+  help          Print this message or the help of the given subcommand(s)
+
+Options:
+      --home <HOME>  
+  -C, --cwd <CWD>    
+  -h, --help         Print help
+  -V, --version      Print version

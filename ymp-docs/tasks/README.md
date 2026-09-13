@@ -14,7 +14,7 @@ A planned task is not implemented functionality. Completed research and planning
 | design | 1 | 1 |
 | documentation | 4 | 4 |
 | experiment | 0 | 4 |
-| implementation | 24 | 29 |
+| implementation | 26 | 30 |
 | research | 8 | 8 |
 | verification | 2 | 2 |
 
@@ -70,8 +70,9 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-128](#ymp-128) | P1 | Support internal team transport with long metadata paths | 2026-09-12 21:24 |
 | `[x]` | [YMP-129](#ymp-129) | P1 | Recover bounded independent reviews after ACP output exhaustion | 2026-09-13 00:34 |
 | `[+]` | [YMP-130](#ymp-130) | P1 | Show active agent work during headless session runs | 2026-09-13 00:54 |
-| `[~]` | [YMP-131](#ymp-131) | P1 | Support deliberate double Ctrl+C exit and print session reopening command | 2026-09-13 01:12 |
-| `[~]` | [YMP-132](#ymp-132) | P1 | Attribute chat output to the actual agent invocation instead of provider-shaped actor IDs | 2026-09-13 01:27 |
+| `[x]` | [YMP-131](#ymp-131) | P1 | Support deliberate double Ctrl+C exit and print session reopening command | 2026-09-13 04:25 |
+| `[x]` | [YMP-132](#ymp-132) | P1 | Attribute chat output to the actual agent invocation instead of provider-shaped actor IDs | 2026-09-13 04:25 |
+| `[+]` | [YMP-133](#ymp-133) | P1 | Present non-popup data collections as consistent keyboard-navigable tables | 2026-09-13 04:25 |
 
 ## YMP-001
 
@@ -1695,11 +1696,11 @@ The headless event consumer prints Status and Message but discards AgentStatus, 
 
 Support deliberate double Ctrl+C exit and print session reopening command
 
-**State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P1
+**State:** `[x]` (done) · **Type:** implementation · **Priority:** P1
 
-**Last update (UTC):** 2026-09-13 01:12
+**Last update (UTC):** 2026-09-13 04:25
 
-**Current reason:** Claude Code Opus 5 max is implementing the clarified double-press behavior in an isolated worktree. Independent PTY control confirms the installed version lacks confirmation and exits on the first idle Ctrl+C.
+**Current reason:** Installed ymp 0.4.2 after independent Opus UI acceptance and review corrections. First Ctrl+C only prompts; second exits gracefully. Printed resume commands always include the saved metadata home. Final integration passes 461 Rust tests, 18 bridge tests and idle/active release-binary PTY checks.
 
 **Owner:** Maintainer
 
@@ -1717,17 +1718,21 @@ Idle Ctrl+C currently exits immediately, active Ctrl+C only cancels, and exit pr
 
 **Evidence:**
 
-- Pending.
+- ymp-docs/releases/0.4.2.md
+- ymp-docs/research/evidence/release-042/verification.json
+- ymp-docs/research/evidence/deliberate-exit-131/implementation.md
+- ymp-evals/scripts/check-tui-exit.py
+- ymp-evals/scripts/check-active-exit.py
 
 ## YMP-132
 
 Attribute chat output to the actual agent invocation instead of provider-shaped actor IDs
 
-**State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P1
+**State:** `[x]` (done) · **Type:** implementation · **Priority:** P1
 
-**Last update (UTC):** 2026-09-13 01:27
+**Last update (UTC):** 2026-09-13 04:25
 
-**Current reason:** Local Paseo source review confirmed separate model ID/label/description and runtime model capture; no copied manifest. Existing native ymp catalog already resolves Claude default to claude-opus-5[1m], sonnet to claude-sonnet-5 and haiku to its concrete ID. Presentation must use resolved_model, then bound runtime reports. Independent backend review found decoded follow-up answers lacked origin; dcaebd1 fixes it and a failing-before/passing-after test covers the visible answer.
+**Current reason:** Installed ymp 0.4.2 with raw resolved model scan labels and invocation model/effort work labels; undefined effort displays none by explicit owner preference. Captions do not identify agents. Exact origins survive follow-up and cross-session display; late settings refresh unsettled cached links. Public Claude hooks capture applied main-turn effort and tool activity. Independent backend/UI reviews and final physical CLI/PTY checks pass. Non-message historical table-view observations remain explicitly tracked in YMP-133.
 
 **Owner:** Maintainer
 
@@ -1742,6 +1747,40 @@ Headless output prints Message.author directly. Stable actor IDs such as claude 
 - Display raw concrete model identifiers (for example claude-opus-5, gpt-5.6-sol, glm-5.2) as native agent names across selectable agents, team/sidebar, assignments and chat. Never show default or Default (recommended) as a displayed model/agent; omit unresolved default aliases from concrete-model choices. Show observed effort separately when known and existing unresolved actors without inventing a model.
 - Bind attribution to the originating invocation so a later model/effort change cannot relabel earlier messages. Preserve legacy unknown attribution explicitly; avoid timestamp guesses when an exact linkage exists.
 - Use the same attribution contract for headless output and TUI transcript, with offline coverage of two invocations using different settings, native default-alias resolution, unknown effort and system/user messages. UI changes use the delegated Claude Code implementer.
+- Use none as the owner-requested display placeholder for undefined effort while retaining absent versus actual none distinctly in stored settings. Capture applied Claude effort from public native hook metadata where init frames omit it; do not attribute native child settings to the parent.
+
+**Evidence:**
+
+- ymp-docs/releases/0.4.2.md
+- ymp-docs/research/evidence/release-042/verification.json
+- ymp-docs/research/evidence/agent-attribution-132/ui-review-final.md
+- ymp-docs/research/evidence/agent-attribution-132/effort-review.md
+- ymp-evals/scripts/check-agent-labels.py
+
+## YMP-133
+
+Present non-popup data collections as consistent keyboard-navigable tables
+
+**State:** `[+]` (new) · **Type:** implementation · **Priority:** P1
+
+**Last update (UTC):** 2026-09-13 04:25
+
+**Current reason:** Bounded plan saved in ymp-docs/tasks/ymp-133-table-plan.md. This is the next UI increment after installed 0.4.2. The delegated agent also has a separate popup-spacing draft commit 56c9d05; it is not part of the installed patch. Historical non-message label observations F3/F4 are included in this follow-up.
+
+**Owner:** Maintainer
+
+**Authorization:** Owner explicitly requested k9s-style tabular presentation for all list data outside popups in the delegated Paseo conversation.
+
+**Depends on:** [YMP-131](#ymp-131), [YMP-132](#ymp-132)
+
+Collection pages need consistent rows, columns and selection without changing the chat-first product or runtime data contracts.
+
+**Acceptance criteria:**
+
+- Render non-popup data collections in aligned tables with relevant columns and readable selection, taking interaction inspiration from k9s without copying its implementation.
+- Preserve chat conversation, popup flows, keyboard navigation, model-only scan labels, invocation model/effort labels, truthful unknown values and responsive terminal layouts.
+- Delegate UI implementation to Claude Code Opus 5 max; verify representative populated/empty/narrow tables with offline fixtures, PTY checks and required Rust checks.
+- Resolve historical session, decision and board actor labels from their own captured model/assignment evidence when available; do not rename old rows from current provider kind or a later invocation. Preserve unknown values where the old record has no resolution.
 
 **Evidence:**
 

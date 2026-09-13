@@ -1,0 +1,51 @@
+{
+  "source_commit": "0c1c1353a52c10decc81c943e597ed69f5baf294",
+  "source_directory": "/Users/maggnus/Code/ymp2",
+  "staged_binary": "/tmp/ymp042-integrated-target/release/ymp",
+  "binary_sha256": "fb9a4e5afe267de88b802a29113d0b3d3c4508d0d3241386144f84f2ee1acfc5",
+  "bridge_sha256": "5b9c0d15d4b54e4af5f05eac5c8495d7dba78470c40a6e55f126e0e886f22ba7",
+  "checks": [
+    {
+      "name": "version",
+      "exit_code": 0
+    },
+    {
+      "name": "help",
+      "exit_code": 0
+    },
+    {
+      "name": "exit",
+      "exit_code": 0
+    },
+    {
+      "name": "active-exit",
+      "exit_code": 0
+    },
+    {
+      "name": "labels",
+      "exit_code": 0
+    }
+  ],
+  "rust_tests": {
+    "passed": 461,
+    "existing_ignored": 2
+  },
+  "bridge_tests": {
+    "passed": 18
+  },
+  "native_inference": false,
+  "installed_at": "2026-09-13T04:24:37.114496+00:00",
+  "installed_binary": "/Users/maggnus/Code/ymp2/target/release/ymp",
+  "installed_command": "/Users/maggnus/.local/bin/ymp",
+  "installed_version": "ymp 0.4.2",
+  "previous_binary": "/Users/maggnus/.ymp2/backups/release-0.4.2-20260913T042436Z/ymp.previous",
+  "previous_sha256": "84831d6ada7374916f1343bce6385d0303090e7cbe3e4e99b4159fb6787cb278",
+  "bridge_files": {
+    "index.js": "5b9c0d15d4b54e4af5f05eac5c8495d7dba78470c40a6e55f126e0e886f22ba7",
+    "usage.js": "01e350f8f83a5ebe9db0bf46eac0e0340ddc139ab8ca9847f4e4e300c37d3627",
+    "effort.js": "a81f89895aacf720efddc7e93a82e44e9b9b6499e0db132c5a9b4ba04c116e3c",
+    "resources.js": "a4a3e96434a7e7035cddde2baa0db0d03f11f7c3b896fd53338da61de7cb73cc",
+    "settings.js": "df647d25243ad034c8747d5fcd8ccbc08f7e40afd33a2d57103354d3446f4ca8"
+  },
+  "intent_sha256": "4479e919c5b47934e69e81ac493d16e90a0dc420a9a370382e79bca3f3c754d9"
+}

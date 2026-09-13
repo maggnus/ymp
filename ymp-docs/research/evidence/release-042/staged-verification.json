@@ -1,0 +1,37 @@
+{
+  "source_commit": "0c1c1353a52c10decc81c943e597ed69f5baf294",
+  "source_directory": "/Users/maggnus/Code/ymp2",
+  "staged_binary": "/tmp/ymp042-integrated-target/release/ymp",
+  "binary_sha256": "fb9a4e5afe267de88b802a29113d0b3d3c4508d0d3241386144f84f2ee1acfc5",
+  "bridge_sha256": "5b9c0d15d4b54e4af5f05eac5c8495d7dba78470c40a6e55f126e0e886f22ba7",
+  "checks": [
+    {
+      "name": "version",
+      "exit_code": 0
+    },
+    {
+      "name": "help",
+      "exit_code": 0
+    },
+    {
+      "name": "exit",
+      "exit_code": 0
+    },
+    {
+      "name": "active-exit",
+      "exit_code": 0
+    },
+    {
+      "name": "labels",
+      "exit_code": 0
+    }
+  ],
+  "rust_tests": {
+    "passed": 461,
+    "existing_ignored": 2
+  },
+  "bridge_tests": {
+    "passed": 18
+  },
+  "native_inference": false
+}

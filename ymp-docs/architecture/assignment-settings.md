@@ -65,6 +65,20 @@ The runtime reuses a native session only from a typed marker written after succe
 
 Requested settings, settings actually sent, and reported model/effort remain distinct in each invocation. A missing report remains unknown; an ACP empty `set_model` acknowledgement is not a provider-reported model. SDK options already sent during metadata initialization are recorded even if capability validation then prevents a user prompt.
 
+The Claude bridge also observes applied effort through the public SDK
+`PreToolUse` and `Stop` hook inputs. Ordinary SDK hosts may omit effort from their
+initialization frame while these hooks expose the applied level. Repeated equal
+reports are deduplicated; missing hook data stays missing. The level becomes known
+at the first relevant hook; a response without tools may report it only at Stop. Native child-agent
+effort and assistant model reports do not replace the outer invocation's settings.
+An observed effort that conflicts with an explicit request stops the native turn
+and fails the invocation. Hook inputs and tool arguments are not copied into
+application storage. Tool names are forwarded as activity metadata.
+
+The interface uses `none` for an undefined effort, as explicitly requested by the
+owner. This is a display placeholder: stored missing reports remain null and
+distinct from an actual reported native effort named `none`.
+
 `execution_config_version` separates requested execution configurations from legacy profile-only observations. Effective versions also include the actual sent/reported settings and observed native version. The runtime maps a request configuration to its most recently observed effective version for selection lookup and attributes competence to the original producing invocation, not to a later reviewer configuration. Unknown values stay explicit, and no legacy competence is silently relabeled. Selection before a new native observation uses the last known effective configuration; a newly observed backend/default change creates a separate version. Evidence qualification is YMP-117's responsibility.
 
 ## Verification

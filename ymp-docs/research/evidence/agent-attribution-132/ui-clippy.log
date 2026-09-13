@@ -1,0 +1,5 @@
+    Checking ymp-tui v0.4.1 (/private/tmp/ymp132-agent-attribution/ymp-rust/crates/ymp-tui)
+   Compiling ymp-eval-driver v0.4.1 (/private/tmp/ymp132-agent-attribution/ymp-rust/crates/ymp-eval-driver)
+    Checking ymp-cli v0.4.1 (/private/tmp/ymp132-agent-attribution/ymp-rust/crates/ymp-cli)
+    Finished `dev` profile [unoptimized] target(s) in 3.53s
+clippy-exit=0

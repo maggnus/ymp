@@ -1,0 +1,10 @@
+{
+  "binary": "/private/tmp/ymp129-review-limit/target/debug/ymp",
+  "directory": "/var/folders/cw/7pn8sb3x6bj69g7j2d8f_ss00000gn/T/ymp-active-exit-jktnplev",
+  "first_press": "invocation remained running",
+  "second_press": "graceful exit",
+  "session_status": "paused",
+  "cancelled_invocations": 1,
+  "revoked_grants": 1,
+  "native_inference": false
+}

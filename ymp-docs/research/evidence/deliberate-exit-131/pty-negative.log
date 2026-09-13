@@ -1,0 +1,14 @@
+{
+  "binary": "/Users/maggnus/Code/ymp2/target/release/ymp",
+  "fixture_directory": "/var/folders/cw/7pn8sb3x6bj69g7j2d8f_ss00000gn/T/ymp131-pty-6oix1a7j",
+  "session": "4699a3b4-a168-4628-862c-66ed9dda8d54",
+  "cases": [
+    {
+      "case": "double",
+      "expected_old_failure": "first Ctrl+C has no confirmation hint",
+      "process_exited": true,
+      "alternate_screen_restored": true
+    }
+  ],
+  "native_inference": false
+}

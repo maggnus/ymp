@@ -1,0 +1,35 @@
+   Compiling ymp-tui v0.4.2 (/private/tmp/ymp132-agent-attribution/ymp-rust/crates/ymp-tui)
+    Finished `test` profile [unoptimized] target(s) in 2.28s
+     Running unittests src/lib.rs (/tmp/ymp132-test-target/debug/deps/ymp_tui-cbec3e105ef4fde0)
+
+running 3 tests
+test tests::a_shared_chat_post_is_named_by_the_invocation_its_team_operation_committed ... ok
+test tests::a_model_and_effort_reported_after_a_message_was_linked_rename_that_message ... FAILED
+test tests::a_conversation_that_moves_to_a_new_session_keeps_naming_the_earlier_messages ... FAILED
+
+failures:
+
+---- tests::a_model_and_effort_reported_after_a_message_was_linked_rename_that_message stdout ----
+
+thread 'tests::a_model_and_effort_reported_after_a_message_was_linked_rename_that_message' panicked at ymp-rust/crates/ymp-tui/src/tests.rs:7853:5:
+assertion `left == right` failed: a message linked before its invocation reported kept the settings read first
+  left: "glm-5.2 none"
+ right: "glm-5.2 max"
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- tests::a_conversation_that_moves_to_a_new_session_keeps_naming_the_earlier_messages stdout ----
+
+thread 'tests::a_conversation_that_moves_to_a_new_session_keeps_naming_the_earlier_messages' panicked at ymp-rust/crates/ymp-tui/src/tests.rs:7802:5:
+assertion `left == right` failed: the earlier session's message lost the invocation it is linked to
+  left: "unknown model"
+ right: "claude-opus-5 none"
+
+
+failures:
+    tests::a_conversation_that_moves_to_a_new_session_keeps_naming_the_earlier_messages
+    tests::a_model_and_effort_reported_after_a_message_was_linked_rename_that_message
+
+test result: FAILED. 1 passed; 2 failed; 0 ignored; 0 measured; 167 filtered out; finished in 0.03s
+
+error: test failed, to rerun pass `-p ymp-tui --lib`
+negative exit=101

@@ -1,0 +1,34 @@
+
+> @ymp/claude-bridge@0.1.0 test
+> npm run build && node --test dist/*.test.js
+
+
+> @ymp/claude-bridge@0.1.0 build
+> tsc
+
+✔ effort observations ignore missing values and native children and deduplicate repeats (0.823375ms)
+✔ physical SDK transport receives assignment settings, and metadata precedes prompt (836.824333ms)
+✔ unsupported model effort never releases a user prompt (498.847625ms)
+✔ metadata-only discovery never releases a prompt and native defaults remain omitted (253.212917ms)
+✔ plain Opus 5 retains its exact version pin against a native 1m catalog row (125.978917ms)
+✔ an incomplete native list does not forbid an unlisted explicit model (127.685542ms)
+✔ native resume receives a fresh MCP credential and read tool restriction each time (261.997334ms)
+✔ captured native loop allowance reaches the physical SDK transport (132.487542ms)
+✔ ordinary SDK hosts report applied main effort through native hooks (275.243ms)
+✔ hook-reported effort downgrade fails a fixed request (132.473666ms)
+✔ native child model and effort never replace the parent observations (135.312ms)
+✔ native loop limit is passed to SDK without inventing token controls (0.735333ms)
+✔ Claude efforts use advertised model capabilities, including xhigh/max (1.72075ms)
+✔ native labels and resolved aliases survive without duplicate selectable rows (0.130667ms)
+✔ stream counters are cumulative per API response and repeated blocks do not add (0.693167ms)
+✔ parallel streams and final whole-query totals replace partial counts (0.135458ms)
+✔ a zeroed crash result does not erase observed usage (0.865125ms)
+✔ a missing counter in one model is partial even if another model reports it (0.161708ms)
+ℹ tests 18
+ℹ suites 0
+ℹ pass 18
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2837.473084

@@ -1,0 +1,11 @@
+{
+  "session_id": "0b24eea4-0c01-4d9e-b137-0f432cd7d2ac",
+  "message_seq": 163,
+  "agent_id": "claude",
+  "purpose": "execute",
+  "captured_caption": "Default (recommended)",
+  "reported_model": "claude-opus-5",
+  "reported_effort": null,
+  "exact_origin": "TeamOperationCommitted.message_seq",
+  "native_inference_by_investigation": false
+}
