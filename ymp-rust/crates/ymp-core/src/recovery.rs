@@ -46,6 +46,21 @@ pub enum RecoveryStatus {
     Paused,
     Complete,
 }
+/// Durable cause of a stopped stage. Display text never authorizes continuation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RecoveryWaitReason {
+    OwnerWait,
+    OwnerPause,
+    /// Reconsider through ordinary recovery/allocation after membership changes.
+    ParticipantAvailability,
+    /// Includes strategy waits/stops and exhausted policy/runtime recovery limits.
+    RecoveryPolicy,
+    Admission,
+    UncertainEffects,
+    Cancelled,
+    LegacyUnbound,
+}
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SavedResponse {
     pub text: String,
@@ -76,6 +91,9 @@ pub struct RecoveryStage {
     pub manual_permit: bool,
     pub admission_denial: Option<BudgetDenial>,
     pub status: RecoveryStatus,
+    /// Missing legacy metadata is unknown, never implicitly an availability wait.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub wait_reason: Option<RecoveryWaitReason>,
     pub condition: Option<String>,
     pub updated_at: String,
 }

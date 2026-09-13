@@ -97,6 +97,7 @@ impl Engine {
             manual_permit: false,
             admission_denial: None,
             status: RecoveryStatus::Pending,
+            wait_reason: None,
             condition: None,
             updated_at: now(),
         };
@@ -161,6 +162,7 @@ impl Engine {
             }
             if !stage.failures.is_empty() {
                 stage.status = RecoveryStatus::OwnerAction;
+                stage.wait_reason = Some(RecoveryWaitReason::LegacyUnbound);
                 stage.condition=Some("Unbound legacy plan review: inspect prior invocation effects and evidence before issuing a new review; no completion or acceptance was inferred".into());
             }
         }
@@ -171,9 +173,11 @@ impl Engine {
         &self,
         stage: &mut RecoveryStage,
         status: RecoveryStatus,
+        wait_reason: RecoveryWaitReason,
         reason: impl Into<String>,
     ) -> Result<()> {
         stage.status = status;
+        stage.wait_reason = Some(wait_reason);
         stage.condition = Some(reason.into());
         self.save_stage(stage, None)
     }
@@ -312,13 +316,14 @@ impl Engine {
         } else {
             RecoveryStatus::Waiting
         };
+        stage.wait_reason = (!(accepted && effect)).then_some(RecoveryWaitReason::RecoveryPolicy);
         stage.condition = Some(reason.clone());
         self.save_stage(stage, Some(&record))?;
         ensure!(accepted, "{reason}");
         match proposal {
             RecoveryAction::Retry { delay_ms } => {
                 tokio::select! {
-                    _ = self.cancel.cancelled() => { self.wait_stage(stage, RecoveryStatus::Paused, "Cancelled during recovery delay")?; bail!("Cancelled"); },
+                    _ = self.cancel.cancelled() => { self.wait_stage(stage, RecoveryStatus::Paused, RecoveryWaitReason::Cancelled, "Cancelled during recovery delay")?; bail!("Cancelled"); },
                     _ = tokio::time::sleep(std::time::Duration::from_millis(delay_ms)) => {}
                 }
             }
@@ -335,7 +340,7 @@ impl Engine {
                     .cloned()
                     .collect::<Vec<_>>();
                 if candidates.is_empty() {
-                    self.wait_stage(stage, RecoveryStatus::Waiting, "No eligible independent replacement on an unaffected provider; owner action or provider recovery required")?;
+                    self.wait_stage(stage, RecoveryStatus::Waiting, RecoveryWaitReason::ParticipantAvailability, "No eligible independent replacement on an unaffected provider; owner action or provider recovery required")?;
                     bail!("{}", stage.condition.as_deref().unwrap());
                 }
                 let mut engine = self.clone();
@@ -359,21 +364,36 @@ impl Engine {
                         self.save_stage(stage, None)?;
                     }
                     Err(error) => {
-                        self.wait_stage(stage, RecoveryStatus::Waiting, error.to_string())?;
+                        self.wait_stage(
+                            stage,
+                            RecoveryStatus::Waiting,
+                            RecoveryWaitReason::Admission,
+                            error.to_string(),
+                        )?;
                         return Err(error);
                     }
                 }
             }
             RecoveryAction::InspectEffects => {
-                self.wait_stage(stage, RecoveryStatus::OwnerAction, "Uncertain execution effects: establish termination and inspect actual effects before replay; no rollback is available")?;
+                self.wait_stage(stage, RecoveryStatus::OwnerAction, RecoveryWaitReason::UncertainEffects, "Uncertain execution effects: establish termination and inspect actual effects before replay; no rollback is available")?;
                 bail!("{}", stage.condition.as_deref().unwrap());
             }
             RecoveryAction::Wait { condition } => {
-                self.wait_stage(stage, RecoveryStatus::Waiting, &condition)?;
+                self.wait_stage(
+                    stage,
+                    RecoveryStatus::Waiting,
+                    RecoveryWaitReason::RecoveryPolicy,
+                    &condition,
+                )?;
                 bail!("{condition}");
             }
             RecoveryAction::RequestOwner { reason } | RecoveryAction::Stop { reason } => {
-                self.wait_stage(stage, RecoveryStatus::OwnerAction, &reason)?;
+                self.wait_stage(
+                    stage,
+                    RecoveryStatus::OwnerAction,
+                    RecoveryWaitReason::RecoveryPolicy,
+                    &reason,
+                )?;
                 bail!("{reason}");
             }
         }
@@ -459,6 +479,7 @@ impl Engine {
             };
             if stage.status != RecoveryStatus::Complete {
                 stage.status = RecoveryStatus::Complete;
+                stage.wait_reason = None;
                 stage.condition = None;
                 if !stage.review_ids.contains(&review.id) {
                     stage.review_ids.push(review.id.clone());
@@ -550,6 +571,11 @@ impl Engine {
                             self.wait_stage(
                                 &mut stage,
                                 RecoveryStatus::Waiting,
+                                if peers.is_empty() {
+                                    RecoveryWaitReason::ParticipantAvailability
+                                } else {
+                                    RecoveryWaitReason::Admission
+                                },
                                 error.to_string(),
                             )?;
                             return Err(error);
@@ -564,11 +590,13 @@ impl Engine {
                     self.wait_stage(
                         &mut stage,
                         RecoveryStatus::Waiting,
+                        RecoveryWaitReason::ParticipantAvailability,
                         "Selected independent reviewer is unavailable; owner replacement required",
                     )?;
                     bail!("{}", stage.condition.as_deref().unwrap());
                 };
                 stage.status = RecoveryStatus::Running;
+                stage.wait_reason = None;
                 stage.manual_permit = false;
                 self.save_stage(&mut stage, None)?;
                 // Exactly one attempt; all repeats pass the same recorded recovery consumer.
@@ -645,6 +673,7 @@ impl Engine {
                             self.wait_stage(
                                 &mut stage,
                                 RecoveryStatus::Waiting,
+                                RecoveryWaitReason::Admission,
                                 error.to_string(),
                             )?;
                             return Err(error);
@@ -656,6 +685,7 @@ impl Engine {
                             self.wait_stage(
                                 &mut stage,
                                 RecoveryStatus::Paused,
+                                RecoveryWaitReason::Cancelled,
                                 "Cancelled; explicit continuation required",
                             )?;
                             return Err(error);
@@ -688,6 +718,7 @@ impl Engine {
                     )?;
                     stage.review_ids.push(review_id.clone());
                     stage.status = RecoveryStatus::Complete;
+                    stage.wait_reason = None;
                     stage.condition = None;
                     self.save_stage(&mut stage, None)?;
                     return Ok((saved.agent_id, response, review, review_id));

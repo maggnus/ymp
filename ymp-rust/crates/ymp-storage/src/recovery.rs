@@ -153,6 +153,7 @@ impl Store {
                 );
                 stage.manual_permit = true;
                 stage.status = RecoveryStatus::Pending;
+                stage.wait_reason = None;
                 stage.condition = None;
             }
             RecoveryControl::Wait { condition } => {
@@ -162,11 +163,13 @@ impl Store {
                 );
                 stage.manual_permit = false;
                 stage.status = RecoveryStatus::Waiting;
+                stage.wait_reason = Some(RecoveryWaitReason::OwnerWait);
                 stage.condition = Some(condition.clone());
             }
             RecoveryControl::Pause => {
                 stage.manual_permit = false;
                 stage.status = RecoveryStatus::Paused;
+                stage.wait_reason = Some(RecoveryWaitReason::OwnerPause);
                 stage.condition = Some("Owner paused recovery".into());
             }
         }

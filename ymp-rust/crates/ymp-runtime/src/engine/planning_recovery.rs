@@ -53,6 +53,7 @@ impl Engine {
                 manual_permit: false,
                 admission_denial: None,
                 status: RecoveryStatus::Pending,
+                wait_reason: None,
                 condition: None,
                 updated_at: now(),
             };
@@ -120,6 +121,7 @@ impl Engine {
                 .context("Planning participant unavailable after recovery")?
                 .clone();
             stage.status = RecoveryStatus::Running;
+            stage.wait_reason = None;
             stage.manual_permit = false;
             self.save_stage(&mut stage, None)?;
             let mut engine = self.clone();
@@ -149,6 +151,7 @@ impl Engine {
                             RecoveryStatus::Paused | RecoveryStatus::Waiting
                         ) {
                             stage.status = RecoveryStatus::Complete;
+                            stage.wait_reason = None;
                         }
                         self.save_stage(&mut stage, None)?;
                         ensure!(
@@ -224,7 +227,12 @@ impl Engine {
                         stage.status = RecoveryStatus::Pending;
                         self.save_stage(&mut stage, None)?;
                     } else {
-                        self.wait_stage(&mut stage, RecoveryStatus::Waiting, error.to_string())?;
+                        self.wait_stage(
+                            &mut stage,
+                            RecoveryStatus::Waiting,
+                            RecoveryWaitReason::Admission,
+                            error.to_string(),
+                        )?;
                         return Err(error);
                     }
                     if stage.admission_denial.is_some() {
@@ -234,6 +242,7 @@ impl Engine {
                         self.wait_stage(
                             &mut stage,
                             RecoveryStatus::Paused,
+                            RecoveryWaitReason::Cancelled,
                             "Cancelled; explicit planning continuation required",
                         )?;
                         return Err(error);

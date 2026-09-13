@@ -234,7 +234,7 @@ async fn r1_replace_releases_ready_commitment_and_continues() -> Result<()> {
     ready_departure(true).await
 }
 
-async fn membership_preserves_stop(exhausted: bool, replace: bool) -> Result<()> {
+async fn membership_preserves_stop(exhausted: bool, replace: bool, paused: bool) -> Result<()> {
     let temp = tempfile::tempdir()?;
     let path = temp.path().join("work");
     std::fs::create_dir(&path)?;
@@ -272,8 +272,12 @@ async fn membership_preserves_stop(exhausted: bool, replace: bool) -> Result<()>
             stage_id: stage.id.clone(),
             expected_revision: stage.revision,
             command_id: new_id(),
-            action: RecoveryControl::Wait {
-                condition: "Owner is inspecting the proposal".into(),
+            action: if paused {
+                RecoveryControl::Pause
+            } else {
+                RecoveryControl::Wait {
+                    condition: "Owner is inspecting the proposal".into(),
+                }
             },
         })?;
         stage = engine
@@ -326,6 +330,8 @@ async fn membership_preserves_stop(exhausted: bool, replace: bool) -> Result<()>
         .find(|s| s.id == stage.id)
         .unwrap();
     assert_eq!(retained.status, stage.status);
+    assert_eq!(retained.wait_reason, stage.wait_reason);
+    assert!(retained.selected_agent.is_none());
     assert_eq!(retained.condition, stage.condition);
     assert!(!retained.manual_permit);
     assert_eq!(retained.recovery_attempts, stage.recovery_attempts);
@@ -369,14 +375,160 @@ async fn membership_preserves_stop(exhausted: bool, replace: bool) -> Result<()>
 #[tokio::test]
 async fn r2_membership_preserves_explicit_owner_wait() -> Result<()> {
     for replace in [false, true] {
-        membership_preserves_stop(false, replace).await?;
+        membership_preserves_stop(false, replace, false).await?;
     }
     Ok(())
 }
 #[tokio::test]
 async fn r2_membership_preserves_exhausted_policy() -> Result<()> {
     for replace in [false, true] {
-        membership_preserves_stop(true, replace).await?;
+        membership_preserves_stop(true, replace, false).await?;
+    }
+    Ok(())
+}
+
+#[tokio::test]
+async fn r2_membership_preserves_explicit_owner_pause() -> Result<()> {
+    membership_preserves_stop(false, true, true).await
+}
+
+#[tokio::test]
+async fn r2_availability_change_reconsiders_policy_without_resetting_counters() -> Result<()> {
+    for max_attempts in [1, 2] {
+        let temp = tempfile::tempdir()?;
+        let path = temp.path().join("work");
+        std::fs::create_dir(&path)?;
+        let store = Store::open(&temp.path().join("state"))?;
+        let script = Arc::new(Script {
+            failure_purpose: "review_plan",
+            gate: None,
+            mode: Mode::Auth,
+            writes: false,
+            failures: AtomicUsize::new(1),
+            calls: Mutex::new(vec![]),
+        });
+        let mut engine = engine(store.clone(), script.clone()).with_recovery_policy(Arc::new(
+            BoundedRecoveryPolicy(RecoveryConfiguration {
+                max_attempts,
+                max_provider_failures: 2,
+                delay_ms: 0,
+            }),
+        ))?;
+        let mut provider = engine.config.providers[0].clone();
+        provider.id = "healthy".into();
+        engine.config.providers.push(provider);
+        engine
+            .config
+            .agents
+            .iter_mut()
+            .find(|a| a.id == "reserve")
+            .unwrap()
+            .provider = "healthy".into();
+        engine.config.team_constraints.fixed_roster =
+            Some(vec!["author".into(), "reviewer".into()]);
+        let first = engine.run(&path, "Inspect", None).await?;
+        let session = &first.session.id;
+        let stage = engine
+            .recovery_stages(session)?
+            .into_iter()
+            .find(|s| s.purpose == "review_plan")
+            .unwrap();
+        assert_eq!(
+            stage.wait_reason,
+            Some(RecoveryWaitReason::ParticipantAvailability)
+        );
+        assert_eq!(stage.recovery_attempts, 1);
+        let calls_before = script.calls.lock().unwrap().len();
+        let mut command = team_command(
+            &engine.team_control(session)?,
+            OwnerTeamAction::Replace {
+                agent_id: stage.selected_agent.clone().unwrap(),
+                replacement_id: "reserve".into(),
+            },
+        );
+        command.revise_pinned_roster = true;
+        let receipt = engine.owner_team_command(&command)?;
+        let pending = engine
+            .recovery_stages(session)?
+            .into_iter()
+            .find(|s| s.id == stage.id)
+            .unwrap();
+        assert_eq!(pending.status, RecoveryStatus::Pending);
+        assert!(!pending.manual_permit);
+        assert_eq!(pending.recovery_attempts, stage.recovery_attempts);
+        assert_eq!(pending.failures, stage.failures);
+        assert_eq!(engine.owner_team_command(&command)?, receipt);
+        assert_eq!(
+            engine
+                .recovery_stages(session)?
+                .into_iter()
+                .find(|s| s.id == stage.id)
+                .unwrap(),
+            pending
+        );
+        assert!(engine
+            .control_recovery(&RecoveryControlCommand {
+                session_id: session.clone(),
+                stage_id: stage.id.clone(),
+                expected_revision: stage.revision,
+                command_id: new_id(),
+                action: RecoveryControl::Continue,
+            })
+            .unwrap_err()
+            .to_string()
+            .contains("stale_recovery"));
+        let result = engine.run(&path, "Inspect", Some(session)).await?;
+        let after = engine
+            .recovery_stages(session)?
+            .into_iter()
+            .find(|s| s.id == stage.id)
+            .unwrap();
+        assert_eq!(after.failures, stage.failures);
+        let trace = store.trace(session)?;
+        let decisions = trace
+            .decisions
+            .iter()
+            .filter_map(|d| d.links.recovery.as_ref())
+            .filter(|r| r.input.stage.id == stage.id)
+            .collect::<Vec<_>>();
+        assert_eq!(decisions.last().unwrap().input.stage.recovery_attempts, 1);
+        assert_eq!(decisions.last().unwrap().input.provider_failures, 1);
+        assert!(!decisions.last().unwrap().input.stage.manual_permit);
+        if max_attempts == 1 {
+            assert_ne!(result.session.status, "completed");
+            assert_eq!(script.calls.lock().unwrap().len(), calls_before);
+            assert_eq!(after.recovery_attempts, 1);
+            assert_eq!(after.wait_reason, Some(RecoveryWaitReason::RecoveryPolicy));
+            engine.control_recovery(&RecoveryControlCommand {
+                session_id: session.clone(),
+                stage_id: after.id,
+                expected_revision: after.revision,
+                command_id: new_id(),
+                action: RecoveryControl::Continue,
+            })?;
+            assert_eq!(
+                engine
+                    .run(&path, "Inspect", Some(session))
+                    .await?
+                    .session
+                    .status,
+                "completed"
+            );
+        } else {
+            assert_eq!(result.session.status, "completed", "{}", result.summary);
+            assert_eq!(after.recovery_attempts, 2);
+            assert!(matches!(
+                decisions.last().unwrap().proposal,
+                RecoveryAction::Reassign
+            ));
+        }
+        assert_eq!(
+            script.calls.lock().unwrap()[calls_before..]
+                .iter()
+                .filter(|r| r.purpose == "review_plan" && r.profile.id == "reserve")
+                .count(),
+            1
+        );
     }
     Ok(())
 }

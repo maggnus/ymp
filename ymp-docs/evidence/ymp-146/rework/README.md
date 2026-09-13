@@ -52,9 +52,32 @@ No provider-facing release operation or fabricated board proposal is introduced.
 The initial successful R1 continuation check is in `r1-after-initial.log`.
 The focused run was repeated only after adding version/history/CAS assertions.
 
+## R2: membership is not recovery permission
+
+`RecoveryStage.wait_reason: Option<RecoveryWaitReason>` separates owner Wait/Pause,
+policy stops/ceilings, participant availability, admission, effect uncertainty,
+cancellation and unbound legacy records. Missing legacy metadata remains unknown.
+Membership edits clear a departing selection in non-running stages, retaining
+owner/policy holds, failure history, attempt counters and manual permission state.
+Only a typed participant-availability wait becomes Pending for reconsideration;
+it receives no manual permit. The runtime still validates policy and admission.
+Stage revisions and history change atomically with the owner command.
+
+`r2-focused.json` binds source hashes to
+`cargo test -p ymp-runtime --test session_recovery rework::r2_`, exit **0**
+(four tests). Both remove/add and replacement retain owner Wait and exhausted
+policy stops with zero calls until explicit continuation. Pause is retained too.
+Availability replacement exercises both actual successful reassignment and a
+policy-limit denial: the original provider failure and recovery count reach the
+policy unchanged. Stale stage continuation is rejected; idempotent membership
+replay does not change the stage. Explicit continuation admits exactly one saved
+plan review, preserving the proposal and all prior failures/counters.
+The initial two-control success is retained in `r2-after-initial.log`.
+
 ## Limits and remaining work
 
-R2 correction and its availability/explicit-continuation controls are pending.
+R3 and R4 were added by the completed parallel review. Their common model and
+bounded evidence issue are in [responsibility-model.md](responsibility-model.md).
 The final fmt, strict Clippy and workspace-test sequence is reserved for the
 final corrected source. Only scripted providers and temporary app homes are used.
 The frozen original worktree is used solely through its ignored target build

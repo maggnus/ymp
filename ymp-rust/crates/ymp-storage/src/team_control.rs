@@ -382,7 +382,7 @@ impl Store {
                 }
             }
         }
-        if let Some(departing) = depart {
+        if depart.is_some() || join.is_some() {
             let mut q = tx.prepare("SELECT key,value FROM kv WHERE substr(key,1,?1)=?2")?;
             let prefix = format!("recovery:v1:{session_id}:");
             let rows = q
@@ -393,27 +393,42 @@ impl Store {
             drop(q);
             for (key, raw) in rows {
                 let mut stage: RecoveryStage = serde_json::from_str(&raw)?;
-                if stage.selected_agent.as_ref() == Some(departing)
+                let invalidate = depart.is_some()
+                    && stage.selected_agent.as_ref() == depart
                     && matches!(
                         stage.status,
                         RecoveryStatus::Waiting
                             | RecoveryStatus::OwnerAction
                             | RecoveryStatus::Pending
-                    )
+                            | RecoveryStatus::Paused
+                    );
+                let reconsider = stage.status == RecoveryStatus::Waiting
+                    && stage.wait_reason == Some(RecoveryWaitReason::ParticipantAvailability)
+                    && stage.admission_denial.is_none()
                     && stage.failures.iter().all(|f| {
                         f.effective_access.is_read_only()
                             && f.termination == TerminationEvidence::BackendEnded
-                    })
-                {
+                    });
+                if invalidate {
                     stage.selected_agent = None;
-                    stage.manual_permit = true;
+                }
+                if reconsider {
+                    // Membership is readiness information, not an owner retry permit.
+                    // The runtime must reconsider policy with the original counters.
                     stage.status = RecoveryStatus::Pending;
-                    stage.condition=Some("Owner changed membership; pending review retains its exact result and objections".into());
+                    stage.wait_reason = None;
+                    stage.condition = None;
+                }
+                if invalidate || reconsider {
                     stage.revision += 1;
                     stage.updated_at = now();
                     tx.execute(
                         "UPDATE kv SET value=? WHERE key=?",
                         params![serde_json::to_string(&stage)?, key],
+                    )?;
+                    tx.execute(
+                        "INSERT INTO events(session_id,kind,data,created_at) VALUES (?,'recovery_stage',?,?)",
+                        params![session_id, serde_json::to_string(&stage)?, now()],
                     )?;
                 }
             }
