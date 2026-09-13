@@ -447,17 +447,18 @@ pub fn render(
                 vec![],
             );
             lines.push(prepend(gutter.clone(), head));
-            // Whatever shape the stream has, the preview occupies a fixed number of rows.
-            let wrapped = text::wrap(
-                entry.body.as_deref().unwrap_or_default(),
+            // Whatever shape the stream has, the preview occupies a fixed number of rows. It reads
+            // the whole buffer, so a code block that opened many lines ago still shows as code.
+            let rows = text::stream_preview(
+                &entry.raw,
+                STREAM_PREVIEW_LINES,
+                STREAM_PREVIEW_CELLS,
                 inner.saturating_sub(2),
+                theme,
             );
-            let first = wrapped.len().saturating_sub(STREAM_PREVIEW_ROWS);
-            for piece in wrapped.into_iter().skip(first) {
-                lines.push(Line::from(vec![
-                    Span::raw("    ".to_owned()),
-                    Span::styled(piece, theme.faint()),
-                ]));
+            let first = rows.len().saturating_sub(STREAM_PREVIEW_ROWS);
+            for row in rows.into_iter().skip(first) {
+                lines.push(prepend(Span::raw("    ".to_owned()), row));
             }
         }
     }

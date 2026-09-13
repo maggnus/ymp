@@ -14,12 +14,21 @@
 //! The work is bounded. Lines are highlighted one at a time, and after a line longer than
 //! [`LINE_BYTES`], or once [`BUDGET`] is spent, the remaining lines are returned as plain text
 //! with the reason, so a long or hostile file costs at most one bounded line beyond the budget.
+//!
+//! A text is highlighted once. [`highlight_cached`] keeps a bounded number of results, and a
+//! [`Frame`] limits the new highlighting one frame of the interface starts, so a conversation laid
+//! out again on every change pays for each code block only once, and opens without waiting for it.
 
 use crate::theme::{contrast, Theme};
 use ratatui::style::{Color, Style};
+use std::cell::Cell;
+use std::collections::hash_map::DefaultHasher;
+use std::collections::{HashMap, VecDeque};
+use std::hash::{Hash, Hasher};
 use std::path::Path;
 use std::str::FromStr;
-use std::sync::LazyLock;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Arc, LazyLock, Mutex, PoisonError};
 use std::time::{Duration, Instant};
 use syntect::easy::HighlightLines;
 use syntect::highlighting::{
@@ -206,6 +215,196 @@ pub fn highlight(
         }
     }
     highlighted
+}
+
+/// At most this many highlighted texts are kept by [`highlight_cached`].
+const CACHE_ENTRIES: usize = 1024;
+
+/// And they hold at most this much source between them.
+const CACHE_BYTES: usize = 8 * 1024 * 1024;
+
+/// New highlighting one frame may start, beyond what is already kept.
+pub const FRAME_WORK: Duration = Duration::from_millis(50);
+
+/// A highlighted text and the time highlighting it took.
+#[derive(Clone, Debug)]
+pub struct Cached {
+    pub highlighted: Arc<Highlighted>,
+    pub cost: Duration,
+}
+
+/// A kept result and everything it was highlighted from.
+struct Kept {
+    theme: &'static str,
+    background: Color,
+    base: Style,
+    language: &'static str,
+    text: Arc<str>,
+    result: Cached,
+    /// The last frame that used it, or 0 when none did.
+    used: u64,
+}
+
+#[derive(Default)]
+struct Cache {
+    kept: HashMap<u64, Kept>,
+    order: VecDeque<u64>,
+    bytes: usize,
+}
+
+impl Cache {
+    /// Keep `kept`, then forget the oldest results until the cache is within its bounds. A result
+    /// frame `current` used is passed over while any other can go. Returns whether one it used
+    /// had to go all the same.
+    fn keep(&mut self, key: u64, kept: Kept, current: u64) -> bool {
+        self.bytes += kept.text.len();
+        match self.kept.insert(key, kept) {
+            Some(replaced) => self.bytes -= replaced.text.len(),
+            None => self.order.push_back(key),
+        }
+        let mut passed = 0;
+        let mut overfull = false;
+        while self.kept.len() > CACHE_ENTRIES || self.bytes > CACHE_BYTES {
+            let Some(oldest) = self.order.pop_front() else {
+                break;
+            };
+            let in_use = |kept: &Kept| current != 0 && kept.used == current;
+            if passed <= self.order.len() && self.kept.get(&oldest).is_some_and(in_use) {
+                self.order.push_back(oldest);
+                passed += 1;
+                continue;
+            }
+            if let Some(forgotten) = self.kept.remove(&oldest) {
+                overfull |= in_use(&forgotten);
+                self.bytes -= forgotten.text.len();
+            }
+        }
+        overfull
+    }
+}
+
+static CACHE: LazyLock<Mutex<Cache>> = LazyLock::new(Mutex::default);
+
+/// Frames are numbered from one, so a result no frame used is never taken for one that did.
+static FRAMES: AtomicU64 = AtomicU64::new(0);
+
+/// The frame a thread is drawing.
+#[derive(Clone, Copy)]
+struct Drawing {
+    id: u64,
+    /// The new highlighting it may still start.
+    left: Duration,
+    /// It left some code plain for a later frame.
+    deferred: bool,
+    /// It had to forget a result it used: it shows more code than the cache holds.
+    overfull: bool,
+}
+
+thread_local! {
+    static FRAME: Cell<Option<Drawing>> = const { Cell::new(None) };
+}
+
+/// A frame being drawn. While it lasts, [`highlight_cached`] starts new work on this thread only
+/// until `work` is spent and leaves the rest for a later frame. Without one, only the bounds of
+/// each text apply.
+pub struct Frame(());
+
+impl Frame {
+    pub fn begin(work: Duration) -> Frame {
+        let id = FRAMES.fetch_add(1, Ordering::Relaxed) + 1;
+        FRAME.set(Some(Drawing {
+            id,
+            left: work,
+            deferred: false,
+            overfull: false,
+        }));
+        Frame(())
+    }
+
+    /// Whether another frame should be drawn for the code this one left plain. Not when the frame
+    /// shows more code than the cache holds: frames drawn only to highlight would then never end,
+    /// and the rest is highlighted a frame's share at a time as other changes draw frames.
+    pub fn deferred(&self) -> bool {
+        FRAME
+            .get()
+            .is_some_and(|drawing| drawing.deferred && !drawing.overfull)
+    }
+}
+
+impl Drop for Frame {
+    fn drop(&mut self) {
+        FRAME.set(None);
+    }
+}
+
+/// [`highlight`] within [`BUDGET`], kept for later calls with the same text, language, theme and
+/// styles. The transcript lays out every entry again whenever anything changes, and this is what
+/// lets it highlight messages without paying for each code block again. A result that stopped is
+/// kept with its reason, so the same text reads the same way in every frame. `None` when a
+/// [`Frame`] has no work left for a text not highlighted before.
+pub fn highlight_cached(
+    text: &str,
+    language: Language,
+    theme: &Theme,
+    background: Color,
+    base: Style,
+) -> Option<Cached> {
+    let key = {
+        let mut hasher = DefaultHasher::new();
+        (theme.id, background, base, language.name(), text).hash(&mut hasher);
+        hasher.finish()
+    };
+    let current = FRAME.get().map_or(0, |drawing| drawing.id);
+    let cache = || CACHE.lock().unwrap_or_else(PoisonError::into_inner);
+    {
+        let mut cache = cache();
+        let found = cache.kept.get_mut(&key).filter(|kept| {
+            kept.theme == theme.id
+                && kept.background == background
+                && kept.base == base
+                && kept.language == language.name()
+                && *kept.text == *text
+        });
+        if let Some(kept) = found {
+            kept.used = current;
+            return Some(kept.result.clone());
+        }
+    }
+    if let Some(mut drawing) = FRAME.get() {
+        if drawing.left.is_zero() {
+            drawing.deferred = true;
+            FRAME.set(Some(drawing));
+            return None;
+        }
+    }
+    // The grammars load once, and that is not work any one text did.
+    LazyLock::force(&SYNTAXES);
+    let started = Instant::now();
+    let highlighted = Arc::new(highlight(text, language, theme, background, base, BUDGET));
+    let result = Cached {
+        highlighted,
+        cost: started.elapsed(),
+    };
+    let overfull = text.len() <= CACHE_BYTES
+        && cache().keep(
+            key,
+            Kept {
+                theme: theme.id,
+                background,
+                base,
+                language: language.name(),
+                text: Arc::from(text),
+                result: result.clone(),
+                used: current,
+            },
+            current,
+        );
+    if let Some(mut drawing) = FRAME.get() {
+        drawing.left = drawing.left.saturating_sub(result.cost);
+        drawing.overfull |= overfull;
+        FRAME.set(Some(drawing));
+    }
+    Some(result)
 }
 
 /// A line without its `\n` or `\r\n` ending.
@@ -422,6 +621,89 @@ mod tests {
             assert!(syntax_theme(theme, theme.surface).is_some(), "{}", theme.id);
         }
         assert!(unreadable.is_empty(), "{}", unreadable.join("\n"));
+    }
+
+    #[test]
+    fn a_kept_result_is_reused_for_the_same_text_theme_and_styles_only() {
+        let theme = crate::theme::theme("ember");
+        let language = for_token("rust").unwrap();
+        let text = "fn kept_result_marker() {}\n";
+        let first = highlight_cached(text, language, theme, theme.raised, theme.code()).unwrap();
+        let again = highlight_cached(text, language, theme, theme.raised, theme.code()).unwrap();
+        assert!(Arc::ptr_eq(&first.highlighted, &again.highlighted));
+        let light = crate::theme::theme("catppuccin-latte");
+        let other = highlight_cached(text, language, light, light.raised, light.code()).unwrap();
+        assert!(!Arc::ptr_eq(&first.highlighted, &other.highlighted));
+    }
+
+    fn kept(text: String, used: u64) -> Kept {
+        Kept {
+            theme: "theme",
+            background: Color::Reset,
+            base: Style::new(),
+            language: "language",
+            text: Arc::from(text),
+            result: Cached {
+                highlighted: Arc::default(),
+                cost: Duration::ZERO,
+            },
+            used,
+        }
+    }
+
+    #[test]
+    fn the_cache_forgets_its_oldest_results_to_stay_within_bounds() {
+        let mut cache = Cache::default();
+        let entries = CACHE_ENTRIES as u64;
+        for key in 0..entries + 20 {
+            assert!(!cache.keep(key, kept(format!("text {key}"), 0), 0));
+        }
+        assert_eq!(cache.kept.len(), CACHE_ENTRIES);
+        assert!(!cache.kept.contains_key(&19) && cache.kept.contains_key(&20));
+        let half = "x".repeat(CACHE_BYTES / 2 + 1);
+        cache.keep(u64::MAX - 1, kept(half.clone(), 0), 0);
+        cache.keep(u64::MAX, kept(half, 0), 0);
+        assert!(cache.bytes <= CACHE_BYTES, "{}", cache.bytes);
+        assert!(!cache.kept.contains_key(&(u64::MAX - 1)) && cache.kept.contains_key(&u64::MAX));
+        let bytes: usize = cache.kept.values().map(|kept| kept.text.len()).sum();
+        assert_eq!(bytes, cache.bytes);
+        assert_eq!(cache.order.len(), cache.kept.len());
+    }
+
+    #[test]
+    fn a_result_the_frame_used_goes_last_and_the_frame_hears_when_it_must_go() {
+        let mut cache = Cache::default();
+        let entries = CACHE_ENTRIES as u64;
+        // The oldest ten were used by frame 2, the rest by frame 1.
+        for key in 0..entries {
+            let used = if key < 10 { 2 } else { 1 };
+            cache.keep(key, kept(format!("text {key}"), used), 0);
+        }
+        assert!(!cache.keep(entries, kept("new".into(), 2), 2));
+        assert!(cache.kept.contains_key(&0) && !cache.kept.contains_key(&10));
+        // When the frame used every result, one goes all the same, and the frame is told.
+        for kept in cache.kept.values_mut() {
+            kept.used = 3;
+        }
+        assert!(cache.keep(entries + 1, kept("newer".into(), 3), 3));
+        assert_eq!(cache.kept.len(), CACHE_ENTRIES);
+        assert_eq!(cache.order.len(), cache.kept.len());
+    }
+
+    #[test]
+    fn a_frame_with_no_work_left_defers_new_text_but_not_kept_text() {
+        let theme = crate::theme::theme("slate");
+        let language = for_token("rust").unwrap();
+        let kept = "fn frame_kept_marker() {}\n";
+        let fresh = "fn frame_fresh_marker() {}\n";
+        assert!(highlight_cached(kept, language, theme, theme.raised, theme.code()).is_some());
+        let frame = Frame::begin(Duration::ZERO);
+        assert!(highlight_cached(kept, language, theme, theme.raised, theme.code()).is_some());
+        assert!(!frame.deferred());
+        assert!(highlight_cached(fresh, language, theme, theme.raised, theme.code()).is_none());
+        assert!(frame.deferred());
+        drop(frame);
+        assert!(highlight_cached(fresh, language, theme, theme.raised, theme.code()).is_some());
     }
 
     #[test]

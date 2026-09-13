@@ -1,0 +1,42 @@
+    Finished `test` profile [unoptimized] target(s) in 0.07s
+     Running unittests src/lib.rs (target/debug/deps/ymp_tui-a9398aba2724fc33)
+
+running 28 tests
+test diff::tests::a_patch_ends_after_its_last_complete_hunk ... ok
+test diff::tests::a_declared_block_is_classified_without_counts ... ok
+test diff::tests::every_line_of_a_git_patch_has_its_role ... ok
+test diff::tests::text_that_only_looks_like_a_patch_is_not_one ... ok
+test files::tests::tabs_stop_every_four_columns_and_controls_are_written_out ... ok
+test diff::tests::every_role_reads_in_every_theme ... ok
+test highlight::tests::the_notice_names_the_bundled_version ... ok
+test highlight::tests::a_result_the_frame_used_goes_last_and_the_frame_hears_when_it_must_go ... ok
+test highlight::tests::every_role_reads_on_panels_and_code_in_every_theme ... ok
+test highlight::tests::the_cache_forgets_its_oldest_results_to_stay_within_bounds ... ok
+test tests::a_single_line_stream_cannot_fill_the_transcript ... ok
+test tests::a_raw_git_patch_is_styled_but_a_list_of_plus_and_minus_lines_is_not ... ok
+test tests::a_declared_diff_is_styled_by_line_role_and_keeps_its_markers ... ok
+test tests::fences_close_only_on_a_matching_fence_and_keep_every_code_character ... ok
+test tests::a_long_stream_keeps_the_fence_of_the_code_block_it_is_inside ... ok
+test tests::a_code_row_keeps_trailing_spaces_tabs_and_writes_control_characters_out ... ok
+test highlight::tests::a_language_is_found_by_name_extension_first_line_or_token ... ok
+test tests::wrapping_keeps_whitespace_that_carries_meaning ... ok
+test highlight::tests::a_kept_result_is_reused_for_the_same_text_theme_and_styles_only ... ok
+test highlight::tests::a_frame_with_no_work_left_defers_new_text_but_not_kept_text ... ok
+test highlight::tests::highlighting_keeps_the_text_and_colours_it_by_role ... ok
+test highlight::tests::a_long_line_or_a_spent_budget_leaves_the_rest_plain ... ok
+test tests::detailed_mode_and_a_narrow_window_keep_code_whole_and_highlighted ... ok
+test tests::a_streamed_code_block_is_shown_unfinished_without_moving_the_reader ... ok
+test tests::rendering_leaves_the_stored_message_and_its_origin_unchanged ... ok
+test tests::mixed_prose_and_code_take_syntax_colours_inline_in_dark_and_light_themes ... ok
+test tests::a_fenced_code_block_is_rendered_character_for_character ... ok
+test tests::highlighting_stops_at_the_message_limit_and_every_block_stays_whole ... ok
+
+test result: ok. 28 passed; 0 failed; 0 ignored; 0 measured; 230 filtered out; finished in 0.29s
+
+   Doc-tests ymp_tui
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+highlighting run 3 exit 0

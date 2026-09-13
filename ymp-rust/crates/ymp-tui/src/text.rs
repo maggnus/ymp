@@ -1,13 +1,18 @@
 //! Text measurement, sanitising, wrapping, and a small Markdown renderer.
 //!
 //! Every string that reaches the screen from a provider, the file system, or a stored
-//! message passes through [`sanitize`] first: payload is data, never instructions for the
-//! terminal. Wrapping is computed here rather than delegated to `Paragraph`, because the
-//! transcript needs to know how tall an entry is before it can be scrolled or selected.
+//! message passes through [`sanitize`] first, or, when it is code, through [`literal`], which
+//! writes each control character out instead of removing it: payload is data, never
+//! instructions for the terminal. Wrapping is computed here rather than delegated to
+//! `Paragraph`, because the transcript needs to know how tall an entry is before it can be
+//! scrolled or selected.
 
+use crate::diff;
+use crate::highlight;
 use crate::theme::Theme;
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
+use std::time::Duration;
 use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
 
 /// Display width of a string in terminal cells.
@@ -177,34 +182,6 @@ pub fn wrap(text: &str, width: usize) -> Vec<String> {
     lines
 }
 
-/// Wrap `text` to `width` cells without losing a single character.
-///
-/// Code is wrapped this way. A word-wrapped line may drop the space it broke on, which is
-/// harmless in prose and wrong in a command line or a literal string.
-pub fn wrap_exact(text: &str, width: usize) -> Vec<String> {
-    let width = width.max(1);
-    let mut lines = vec![String::new()];
-    let mut used = 0usize;
-    for (index, paragraph) in text.split('\n').enumerate() {
-        if index > 0 {
-            lines.push(String::new());
-            used = 0;
-        }
-        for ch in paragraph.chars() {
-            let cell = UnicodeWidthChar::width(ch).unwrap_or(0);
-            if used + cell > width {
-                lines.push(String::new());
-                used = 0;
-            }
-            if let Some(line) = lines.last_mut() {
-                line.push(ch);
-            }
-            used += cell;
-        }
-    }
-    lines
-}
-
 fn split_to_width(word: &str, width: usize) -> Vec<String> {
     let mut pieces = Vec::new();
     let mut piece = String::new();
@@ -224,8 +201,11 @@ fn split_to_width(word: &str, width: usize) -> Vec<String> {
     pieces
 }
 
-/// Wrap styled pieces to `width` cells without losing a character, as [`wrap_exact`] wraps
-/// plain text. Every row is returned, including an empty one for empty input.
+/// Wrap styled pieces to `width` cells without losing a single character. Every row is returned,
+/// including an empty one for empty input.
+///
+/// Code is wrapped this way. A word-wrapped line may drop the space it broke on, which is
+/// harmless in prose and wrong in a command line or a literal string.
 pub fn wrap_styled(pieces: &[(Style, String)], width: usize) -> Vec<Vec<Span<'static>>> {
     let width = width.max(1);
     let mut rows: Vec<Vec<Span<'static>>> = vec![Vec::new()];
@@ -255,77 +235,153 @@ pub fn wrap_styled(pieces: &[(Style, String)], width: usize) -> Vec<Vec<Span<'st
     rows
 }
 
-/// Render a small, well-behaved subset of Markdown: headings, bullets, ordered items,
-/// fenced code, inline code, and bold runs. Anything else is shown verbatim.
-pub fn markdown(text: &str, width: usize, theme: &Theme, base: Style) -> Vec<Line<'static>> {
-    render_markdown(text, width, theme, base, false)
+/// Code beyond this much source in one message is not highlighted.
+pub const MESSAGE_CODE_BYTES: usize = 64 * 1024;
+
+/// Tab stops in code are this many columns apart.
+pub const TAB: usize = 4;
+
+/// A part of a message as [`markdown`] reads it. Lines carry no line ending.
+#[derive(Debug, PartialEq, Eq)]
+pub enum Block<'a> {
+    Prose(&'a str),
+    /// A fenced code block. `closed` is false when the text ends inside it.
+    Code {
+        opening: &'a str,
+        info: &'a str,
+        lines: Vec<&'a str>,
+        closed: bool,
+    },
+    /// A complete unified or Git patch that no fence declares.
+    Patch(Vec<&'a str>),
 }
 
-/// [`markdown`], with fenced code that names a language the highlighter knows drawn in the
-/// theme's syntax colours. Only a surface that shows one message at a time uses it: the
-/// transcript lays out every entry again as it changes, and highlighting costs far more.
-pub fn markdown_highlighted(
-    text: &str,
-    width: usize,
-    theme: &Theme,
-    base: Style,
-) -> Vec<Line<'static>> {
-    render_markdown(text, width, theme, base, true)
+/// The fence that opened a code block.
+struct Fence<'a> {
+    mark: char,
+    count: usize,
+    indent: usize,
+    info: &'a str,
 }
 
-fn render_markdown(
-    text: &str,
-    width: usize,
-    theme: &Theme,
-    base: Style,
-    highlighted: bool,
-) -> Vec<Line<'static>> {
-    let markers = theme.markers;
-    let mut lines = Vec::new();
-    // The info string of the open fence, and the code under it so far.
-    let mut fence: Option<(String, Vec<String>)> = None;
-    for raw in sanitize(text).split('\n') {
-        let trimmed = raw.trim_end();
-        if let Some(info) = trimmed.trim_start().strip_prefix("```") {
-            match fence.take() {
-                Some((info, code)) => {
-                    push_code(&mut lines, &info, &code, width, theme, highlighted)
+fn indentation(line: &str) -> usize {
+    line.len() - line.trim_start_matches(' ').len()
+}
+
+/// A line that opens a fenced code block: three or more backticks or tildes, then an info string,
+/// which after backticks may not contain one, so a line of inline code opens nothing. Unlike
+/// CommonMark, any indentation is accepted, because a fence inside a list item is indented with
+/// the item.
+fn opening(line: &str) -> Option<Fence<'_>> {
+    let indent = indentation(line);
+    let rest = &line[indent..];
+    let mark = rest.chars().next().filter(|ch| matches!(ch, '`' | '~'))?;
+    let count = rest.len() - rest.trim_start_matches(mark).len();
+    let info = rest[count..].trim_matches([' ', '\t']);
+    (count >= 3 && !(mark == '`' && info.contains('`'))).then_some(Fence {
+        mark,
+        count,
+        indent,
+        info,
+    })
+}
+
+/// Whether `line` closes the block `fence` opened: the same character at least as many times,
+/// nothing after it but spaces and tabs, indented no more than three columns past the fence.
+fn closes(line: &str, fence: &Fence) -> bool {
+    let indent = indentation(line);
+    let rest = &line[indent..];
+    let count = rest.len() - rest.trim_start_matches(fence.mark).len();
+    indent <= fence.indent + 3
+        && count >= fence.count
+        && rest[count..].trim_matches([' ', '\t']).is_empty()
+}
+
+/// Split a message into prose lines, fenced code blocks and patches.
+///
+/// A line ends at `\n`, and one `\r` before it belongs to the ending. A code line keeps
+/// everything else, trailing whitespace included, less the indentation of its fence. A fence left
+/// open runs to the end of the text. A patch outside a fence must be complete by its own
+/// structure; a list of lines that begin with `+` or `-` is prose.
+pub fn blocks(text: &str) -> Vec<Block<'_>> {
+    let lines: Vec<&str> = text
+        .split('\n')
+        .map(|line| line.strip_suffix('\r').unwrap_or(line))
+        .collect();
+    let mut blocks = Vec::new();
+    let mut index = 0;
+    // Lines before this one have been read looking for a patch, and are not read again.
+    let mut scanned = 0;
+    while index < lines.len() {
+        let line = lines[index];
+        if let Some(fence) = opening(line) {
+            let mut code = Vec::new();
+            let mut closed = false;
+            index += 1;
+            while let Some(&next) = lines.get(index) {
+                index += 1;
+                if closes(next, &fence) {
+                    closed = true;
+                    break;
                 }
-                None => fence = Some((info.trim().to_owned(), Vec::new())),
+                code.push(&next[indentation(next).min(fence.indent)..]);
             }
+            blocks.push(Block::Code {
+                opening: line,
+                info: fence.info,
+                lines: code,
+                closed,
+            });
             continue;
         }
-        if let Some((_, code)) = fence.as_mut() {
-            code.push(trimmed.to_owned());
-            continue;
+        if index >= scanned && (line.starts_with("diff --git ") || line.starts_with("--- ")) {
+            let found = diff::scan(&lines[index..]);
+            scanned = index + found.read;
+            if let Some(length) = found.patch {
+                blocks.push(Block::Patch(lines[index..index + length].to_vec()));
+                index += length;
+                continue;
+            }
         }
-        if trimmed.trim().is_empty() {
-            lines.push(Line::default());
-            continue;
-        }
-        let body = trimmed.trim_start();
-        if let Some(heading) = body.strip_prefix("### ").or(body.strip_prefix("## ")) {
-            push_wrapped(&mut lines, heading, width, theme, theme.bold(), "");
-            continue;
-        }
-        if let Some(heading) = body.strip_prefix("# ") {
-            push_wrapped(&mut lines, heading, width, theme, theme.accent_bold(), "");
-            continue;
-        }
-        if let Some(item) = body
-            .strip_prefix("- ")
-            .or(body.strip_prefix("* "))
-            .or(body.strip_prefix("+ "))
-        {
-            let bullet = format!("{} ", markers.bullet);
-            push_wrapped(&mut lines, item, width, theme, base, &bullet);
-            continue;
-        }
-        push_wrapped(&mut lines, trimmed, width, theme, base, "");
+        blocks.push(Block::Prose(line));
+        index += 1;
     }
-    // A fence left open runs to the end of the text.
-    if let Some((info, code)) = fence.take() {
-        push_code(&mut lines, &info, &code, width, theme, highlighted);
+    blocks
+}
+
+/// The line that opened the fenced code block `text` ends inside, if it ends inside one.
+pub fn open_fence(text: &str) -> Option<&str> {
+    match blocks(text).pop() {
+        Some(Block::Code {
+            opening,
+            closed: false,
+            ..
+        }) => Some(opening),
+        _ => None,
+    }
+}
+
+/// Render a small, well-behaved subset of Markdown: headings, bullets, inline code, bold runs,
+/// fenced code and patches. Anything else is shown verbatim.
+///
+/// Prose is sanitised line by line, and inline code in it stays literal. Code is drawn with
+/// [`literal`] and wrapped without losing a character. A fence that names a language the
+/// highlighter knows is drawn in the theme's syntax colours; a block declared `diff` or `patch`,
+/// an unlabelled block that holds only a patch, and a complete patch in the prose are drawn by the
+/// role of each line, which keeps its own marker. Highlighting one message is bounded by
+/// [`MESSAGE_CODE_BYTES`] and [`highlight::BUDGET`]: code beyond either is plain, and a note under
+/// the first block affected says so. No text is dropped, and the message itself is not changed.
+pub fn markdown(text: &str, width: usize, theme: &Theme, base: Style) -> Vec<Line<'static>> {
+    let mut lines = Vec::new();
+    let mut allowance = Allowance::default();
+    for block in blocks(text) {
+        match block {
+            Block::Prose(line) => push_prose(&mut lines, line, width, theme, base),
+            Block::Code {
+                info, lines: code, ..
+            } => push_code(&mut lines, info, &code, width, theme, &mut allowance),
+            Block::Patch(patch) => push_patch(&mut lines, &patch, width, theme),
+        }
     }
     if lines.is_empty() {
         lines.push(Line::default());
@@ -333,57 +389,168 @@ fn render_markdown(
     lines
 }
 
-/// Fenced code under a gutter, wrapped exactly: indentation and repeated spaces are content.
+fn push_prose(lines: &mut Vec<Line<'static>>, raw: &str, width: usize, theme: &Theme, base: Style) {
+    let line = sanitize(raw);
+    let trimmed = line.trim_end();
+    if trimmed.is_empty() {
+        lines.push(Line::default());
+        return;
+    }
+    let body = trimmed.trim_start();
+    if let Some(heading) = body.strip_prefix("### ").or(body.strip_prefix("## ")) {
+        push_wrapped(lines, heading, width, theme, theme.bold(), "");
+        return;
+    }
+    if let Some(heading) = body.strip_prefix("# ") {
+        push_wrapped(lines, heading, width, theme, theme.accent_bold(), "");
+        return;
+    }
+    if let Some(item) = body
+        .strip_prefix("- ")
+        .or(body.strip_prefix("* "))
+        .or(body.strip_prefix("+ "))
+    {
+        let bullet = format!("{} ", theme.markers.bullet);
+        push_wrapped(lines, item, width, theme, base, &bullet);
+        return;
+    }
+    push_wrapped(lines, trimmed, width, theme, base, "");
+}
+
+/// What highlighting one message may still do. Both limits are checked as a block starts, so the
+/// block that reaches one may overrun it, by at most [`highlight::BUDGET`].
+#[derive(Default)]
+struct Allowance {
+    bytes: usize,
+    spent: Duration,
+    /// A limit was reached, and the rest of the message's code is plain.
+    over: bool,
+    /// A frame had no work left, and the rest of the message's code waits for a later frame.
+    deferred: bool,
+}
+
+impl Allowance {
+    /// Whether a block of `bytes` may be highlighted. When it may not, the sentence that says why,
+    /// for the first such block only.
+    fn admit(&mut self, bytes: usize) -> Result<(), Option<String>> {
+        if self.over || self.deferred {
+            return Err(None);
+        }
+        let limit = if self.bytes + bytes > MESSAGE_CODE_BYTES {
+            format!("{} kB", MESSAGE_CODE_BYTES / 1024)
+        } else if self.spent >= highlight::BUDGET {
+            format!("{} ms", highlight::BUDGET.as_millis())
+        } else {
+            return Ok(());
+        };
+        self.over = true;
+        Err(Some(format!(
+            "Highlighting this message reached its {limit} limit, so this block and the code after it are plain text."
+        )))
+    }
+}
+
+/// A fenced block under the gutter.
 fn push_code(
     lines: &mut Vec<Line<'static>>,
     info: &str,
-    code: &[String],
+    code: &[&str],
     width: usize,
     theme: &Theme,
-    highlighted: bool,
+    allowance: &mut Allowance,
 ) {
-    let gutter = format!("{} ", theme.markers.gutter);
-    let room = width.saturating_sub(gutter.len() + 1).max(1);
-    let language = if highlighted && !code.is_empty() {
-        crate::highlight::for_token(info)
-    } else {
-        None
-    };
-    let Some(language) = language else {
-        for line in code {
-            for piece in wrap_exact(line, room) {
-                lines.push(Line::from(vec![
-                    Span::styled(gutter.clone(), theme.faint()),
-                    Span::styled(piece, theme.code()),
-                ]));
-            }
-        }
+    if diff::declared(info) || (info.is_empty() && diff::scan(code).patch == Some(code.len())) {
+        push_patch(lines, code, width, theme);
         return;
+    }
+    let (gutter, room) = code_gutter(width, theme);
+    // The highlighter would take a second `\r` at the end of a line for part of its ending, and
+    // it is content, so such a block stays plain.
+    let language = if code.is_empty() || code.iter().any(|line| line.ends_with('\r')) {
+        None
+    } else {
+        highlight::for_token(info)
     };
-    let mut source = code.join("\n");
-    source.push('\n');
-    let result = crate::highlight::highlight(
-        &source,
-        language,
-        theme,
-        theme.raised,
-        theme.code(),
-        crate::highlight::BUDGET,
-    );
-    for pieces in &result.lines {
-        for row in wrap_styled(pieces, room) {
-            let mut spans = vec![Span::styled(gutter.clone(), theme.faint())];
-            if row.is_empty() {
-                spans.push(Span::styled(String::new(), theme.code()));
-            }
-            spans.extend(row);
-            lines.push(Line::from(spans));
+    let mut highlighted = None;
+    let mut note = None;
+    if let Some(language) = language {
+        let mut source = code.join("\n");
+        source.push('\n');
+        match allowance.admit(source.len()) {
+            Ok(()) => match highlight::highlight_cached(
+                &source,
+                language,
+                theme,
+                theme.raised,
+                theme.code(),
+            ) {
+                Some(cached) => {
+                    allowance.bytes += source.len();
+                    allowance.spent += cached.cost;
+                    highlighted = Some(cached.highlighted);
+                }
+                None => allowance.deferred = true,
+            },
+            Err(sentence) => note = sentence,
         }
     }
-    if let Some(stop) = &result.stopped {
-        for piece in wrap(&stop.sentence(), width.max(1)) {
-            lines.push(Line::from(Span::styled(piece, theme.faint())));
+    match &highlighted {
+        Some(result) => {
+            for pieces in &result.lines {
+                push_code_line(lines, pieces, &gutter, room, theme);
+            }
+            if let Some(stop) = &result.stopped {
+                note = Some(stop.sentence());
+            }
         }
+        None => {
+            for line in code {
+                let pieces = [(theme.code(), (*line).to_owned())];
+                push_code_line(lines, &pieces, &gutter, room, theme);
+            }
+        }
+    }
+    for piece in note.iter().flat_map(|note| wrap(note, width.max(1))) {
+        lines.push(Line::from(Span::styled(piece, theme.faint())));
+    }
+}
+
+/// The lines of a patch under the gutter, each in the style of its role and with its own marker.
+fn push_patch(lines: &mut Vec<Line<'static>>, patch: &[&str], width: usize, theme: &Theme) {
+    let (gutter, room) = code_gutter(width, theme);
+    for (line, role) in patch.iter().zip(diff::roles(patch)) {
+        let pieces = [(role.style(theme), (*line).to_owned())];
+        push_code_line(lines, &pieces, &gutter, room, theme);
+    }
+}
+
+/// The gutter drawn before code, and the cells left for the code beside it.
+fn code_gutter(width: usize, theme: &Theme) -> (String, usize) {
+    let gutter = format!("{} ", theme.markers.gutter);
+    let room = width.saturating_sub(self::width(&gutter) + 1).max(1);
+    (gutter, room)
+}
+
+/// One line of code under the gutter, drawn with [`literal`] and wrapped without losing a
+/// character: indentation, repeated and trailing spaces are content.
+fn push_code_line(
+    lines: &mut Vec<Line<'static>>,
+    pieces: &[(Style, String)],
+    gutter: &str,
+    room: usize,
+    theme: &Theme,
+) {
+    let escapes = theme
+        .code()
+        .fg(highlight::legible(theme, theme.warn, theme.raised));
+    let (shown, _) = literal(pieces, escapes, usize::MAX);
+    for row in wrap_styled(&shown, room) {
+        let mut spans = vec![Span::styled(gutter.to_owned(), theme.faint())];
+        if row.is_empty() {
+            spans.push(Span::styled(String::new(), theme.code()));
+        }
+        spans.extend(row);
+        lines.push(Line::from(spans));
     }
 }
 
@@ -608,4 +775,138 @@ pub fn last_cells(text: &str, cells: usize) -> String {
     }
     kept.reverse();
     format!("…{}", kept.into_iter().collect::<String>())
+}
+
+/// The end of `text`, at most `chars` characters of it.
+fn last_chars(text: &str, chars: usize) -> &str {
+    if chars == 0 {
+        return "";
+    }
+    match text.char_indices().rev().nth(chars - 1) {
+        Some((start, _)) => &text[start..],
+        None => text,
+    }
+}
+
+/// Text still arriving, as its preview draws it: the last `count` lines, each cut to its last
+/// `cells` characters, with prose sanitised and wrapped, code drawn with [`literal`] under the
+/// gutter and a patch by the role of each line. Nothing is highlighted while it arrives. Fence
+/// lines are not drawn, as in [`markdown`], and a block the text has not closed yet is shown as
+/// far as it has arrived, with nothing added to end it.
+pub fn stream_preview(
+    text: &str,
+    count: usize,
+    cells: usize,
+    width: usize,
+    theme: &Theme,
+) -> Vec<Line<'static>> {
+    // A line ending that has arrived starts no line yet.
+    let text = text.strip_suffix('\n').unwrap_or(text);
+    let mut shown: Vec<(Option<Style>, &str)> = Vec::new();
+    for block in blocks(text) {
+        match block {
+            Block::Prose(line) => shown.push((None, line)),
+            Block::Code { info, lines, .. } if diff::declared(info) => shown.extend(
+                lines
+                    .iter()
+                    .zip(diff::roles(&lines))
+                    .map(|(line, role)| (Some(role.style(theme)), *line)),
+            ),
+            Block::Code { lines, .. } => {
+                shown.extend(lines.iter().map(|line| (Some(theme.code()), *line)))
+            }
+            Block::Patch(patch) => shown.extend(
+                patch
+                    .iter()
+                    .zip(diff::roles(&patch))
+                    .map(|(line, role)| (Some(role.style(theme)), *line)),
+            ),
+        }
+    }
+    let (gutter, room) = code_gutter(width, theme);
+    let mut rows = Vec::new();
+    for (style, line) in &shown[shown.len().saturating_sub(count)..] {
+        let kept = last_chars(line, cells);
+        let cut = kept.len() < line.len();
+        match style {
+            None => {
+                let prose = sanitize(kept);
+                let prose = if cut { format!("…{prose}") } else { prose };
+                for piece in wrap(&prose, width.max(1)) {
+                    rows.push(Line::from(Span::styled(piece, theme.faint())));
+                }
+            }
+            Some(style) => {
+                let mut pieces = Vec::new();
+                if cut {
+                    pieces.push((theme.faint(), "…".to_owned()));
+                }
+                pieces.push((*style, kept.to_owned()));
+                push_code_line(&mut rows, &pieces, &gutter, room, theme);
+            }
+        }
+    }
+    rows
+}
+
+/// Pieces of a line of code as they are drawn: tabs expanded to the next stop of every [`TAB`]
+/// columns, and control and bidirectional formatting characters written as visible escapes in the
+/// `escapes` style, so no character reaches the terminal as an instruction. The text itself is
+/// untouched. At most `limit` characters are kept; the count of the rest is returned with them.
+pub fn literal(
+    pieces: &[(Style, String)],
+    escapes: Style,
+    limit: usize,
+) -> (Vec<(Style, String)>, usize) {
+    let mut shown = Vec::new();
+    let mut column = 0usize;
+    let mut kept = 0usize;
+    let mut hidden = 0usize;
+    for (style, piece) in pieces {
+        let mut run = String::new();
+        for ch in piece.chars() {
+            if kept == limit {
+                hidden += 1;
+                continue;
+            }
+            kept += 1;
+            if ch == '\t' {
+                let spaces = TAB - column % TAB;
+                run.extend(std::iter::repeat_n(' ', spaces));
+                column += spaces;
+            } else if let Some(escape) = escape(ch) {
+                if !run.is_empty() {
+                    shown.push((*style, std::mem::take(&mut run)));
+                }
+                column += escape.len();
+                shown.push((escapes, escape));
+            } else {
+                run.push(ch);
+                column += char_width(ch);
+            }
+        }
+        if !run.is_empty() {
+            shown.push((*style, run));
+        }
+    }
+    (shown, hidden)
+}
+
+/// How a control character is written in code: caret notation for the C0 controls and DEL, and
+/// the code point for the rest and for bidirectional formatting characters.
+pub fn escape(ch: char) -> Option<String> {
+    match ch {
+        '\u{7f}' => Some("^?".into()),
+        ch if (ch as u32) < 0x20 => Some(format!("^{}", char::from(ch as u8 + 0x40))),
+        ch if ch.is_control() || is_format_control(ch) => Some(format!("<U+{:04X}>", ch as u32)),
+        _ => None,
+    }
+}
+
+/// Characters that reorder the text around them when a terminal applies bidirectional layout.
+pub fn is_format_control(ch: char) -> bool {
+    matches!(
+        ch,
+        '\u{061C}' | '\u{200E}' | '\u{200F}' | '\u{202A}'..='\u{202E}' | '\u{2066}'..='\u{2069}'
+    )
 }

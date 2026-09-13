@@ -302,6 +302,8 @@ pub struct App {
 
     pub tick: u64,
     pub dirty: bool,
+    /// The last frame left work for a later one, such as code it had no time to highlight.
+    pub redraw: bool,
     revision: u64,
     entries: Vec<Entry>,
     entries_revision: u64,
@@ -357,6 +359,7 @@ impl App {
             memory_query: String::new(),
             tick: 0,
             dirty: true,
+            redraw: false,
             revision: 1,
             entries: Vec::new(),
             entries_revision: 0,
@@ -628,7 +631,21 @@ impl App {
                         .map(|(index, _)| index)
                         .find(|&index| index >= buffer.len() - 80_000)
                         .unwrap_or(0);
+                    // Whole lines are dropped where a line ends close by, and the fence of a code
+                    // block the dropped text leaves open is kept, so the preview still reads what
+                    // follows as code. A fence line longer than a kilobyte is not kept.
+                    let cut = buffer.as_bytes()[cut..]
+                        .iter()
+                        .take(4096)
+                        .position(|&byte| byte == b'\n')
+                        .map_or(cut, |end| cut + end + 1);
+                    let fence = text::open_fence(&buffer[..cut])
+                        .filter(|line| line.len() <= 1024)
+                        .map(|line| format!("{line}\n"));
                     buffer.drain(..cut);
+                    if let Some(fence) = fence {
+                        buffer.insert_str(0, &fence);
+                    }
                 }
                 if started {
                     // A stream is named by the invocation running it, which this reads.
@@ -1439,12 +1456,7 @@ impl App {
             )));
         }
         body.push(Line::default());
-        body.extend(text::markdown_highlighted(
-            &entry.raw,
-            width,
-            &theme,
-            theme.body(),
-        ));
+        body.extend(text::markdown(&entry.raw, width, &theme, theme.body()));
         self.overlay = Some(Overlay::Inspect {
             title: entry.author.clone(),
             body,

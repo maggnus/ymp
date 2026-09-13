@@ -19,6 +19,7 @@ use ymp_runtime::{Engine, RunOutcome};
 use ymp_storage::Store;
 
 mod commands;
+mod diff;
 mod exit;
 mod files;
 mod frame;
@@ -311,7 +312,8 @@ pub async fn run(
 
         if app.dirty && last_draw.elapsed() >= FRAME_BUDGET {
             terminal.draw(|frame| ui::render(frame, &mut app))?;
-            app.dirty = false;
+            // A frame that left work for later is drawn again on a following pass.
+            app.dirty = std::mem::take(&mut app.redraw);
             last_draw = Instant::now();
         }
     };

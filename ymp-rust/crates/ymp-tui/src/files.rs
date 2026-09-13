@@ -28,7 +28,6 @@ use std::fmt::Write as _;
 use std::io;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, PoisonError, RwLock};
-use unicode_width::UnicodeWidthChar;
 use ymp_workspace::preview::{self, Kind, Preview, Special};
 
 /// Names that are not listed in any directory: version control, dependencies, build output and
@@ -40,9 +39,6 @@ pub const PREVIEW_LINES: usize = 5_000;
 
 /// The most characters of one line a preview shows before it says how many more there are.
 pub const LINE_CHARS: usize = 1_000;
-
-/// Columns from one tab stop to the next.
-pub const TAB: usize = 4;
 
 /// The name the explorer gives the row that leads to the parent directory. No entry a directory
 /// lists can have it, because a name never contains `/`.
@@ -376,7 +372,7 @@ pub fn display_name(name: &OsStr) -> String {
                 '\n' => shown.push_str("\\n"),
                 '\r' => shown.push_str("\\r"),
                 '\t' => shown.push_str("\\t"),
-                ch if ch.is_control() || is_format_control(ch) => {
+                ch if ch.is_control() || text::is_format_control(ch) => {
                     let _ = write!(shown, "\\u{{{:X}}}", ch as u32);
                 }
                 ch => shown.push(ch),
@@ -392,14 +388,6 @@ pub fn display_name(name: &OsStr) -> String {
 /// A whole path as it reads on screen, escaped as [`display_name`] escapes a name.
 pub fn display_path(path: &Path) -> String {
     display_name(path.as_os_str())
-}
-
-/// Characters that reorder the text around them when a terminal applies bidirectional layout.
-pub fn is_format_control(ch: char) -> bool {
-    matches!(
-        ch,
-        '\u{061C}' | '\u{200E}' | '\u{200F}' | '\u{202A}'..='\u{202E}' | '\u{2066}'..='\u{2069}'
-    )
 }
 
 /// Everything the page knows about an entry, read now, for the popup `d` opens.
@@ -642,7 +630,8 @@ fn source_lines(
         .saturating_sub(digits + text::width(gutter) + 2)
         .max(1);
     for (index, pieces) in highlighted.lines.iter().enumerate() {
-        let (visible, hidden) = visible(pieces, theme);
+        // Tabs and control characters are written out as the transcript writes them in code.
+        let (visible, hidden) = text::literal(pieces, theme.warn(), LINE_CHARS);
         for (row, spans) in text::wrap_styled(&visible, room).into_iter().enumerate() {
             let number = if row == 0 {
                 (index + 1).to_string()
@@ -674,56 +663,6 @@ fn source_lines(
         )));
     }
     lines
-}
-
-/// Pieces of a line as they are drawn: tabs expanded to the next stop, and control and
-/// bidirectional formatting characters written as visible escapes in the warning colour, so no
-/// character of the file reaches the terminal as an instruction. The file itself is untouched.
-/// At most [`LINE_CHARS`] characters are kept; the count of the rest is returned with them.
-fn visible(pieces: &[(Style, String)], theme: &Theme) -> (Vec<(Style, String)>, usize) {
-    let mut shown = Vec::new();
-    let mut column = 0usize;
-    let mut kept = 0usize;
-    let mut hidden = 0usize;
-    for (style, piece) in pieces {
-        let mut run = String::new();
-        for ch in piece.chars() {
-            if kept == LINE_CHARS {
-                hidden += 1;
-                continue;
-            }
-            kept += 1;
-            if ch == '\t' {
-                let spaces = TAB - column % TAB;
-                run.extend(std::iter::repeat_n(' ', spaces));
-                column += spaces;
-            } else if let Some(escape) = escape(ch) {
-                if !run.is_empty() {
-                    shown.push((*style, std::mem::take(&mut run)));
-                }
-                column += escape.len();
-                shown.push((theme.warn(), escape));
-            } else {
-                run.push(ch);
-                column += UnicodeWidthChar::width(ch).unwrap_or(0);
-            }
-        }
-        if !run.is_empty() {
-            shown.push((*style, run));
-        }
-    }
-    (shown, hidden)
-}
-
-/// How a control character is written in a preview: caret notation for the C0 controls and
-/// DEL, and the code point for the rest and for bidirectional formatting characters.
-fn escape(ch: char) -> Option<String> {
-    match ch {
-        '\u{7f}' => Some("^?".into()),
-        ch if (ch as u32) < 0x20 => Some(format!("^{}", char::from(ch as u8 + 0x40))),
-        ch if ch.is_control() || is_format_control(ch) => Some(format!("<U+{:04X}>", ch as u32)),
-        _ => None,
-    }
 }
 
 #[cfg(test)]
@@ -762,7 +701,7 @@ mod tests {
             theme.body(),
             "a\tbc\td\u{1b}[31m\u{7}\u{202E}é\u{7f}".to_owned(),
         )];
-        let (shown, hidden) = visible(&pieces, theme);
+        let (shown, hidden) = text::literal(&pieces, theme.warn(), LINE_CHARS);
         assert_eq!(hidden, 0);
         assert_eq!(plain_text(&shown), "a   bc  d^[[31m^G<U+202E>é^?");
         assert!(shown
@@ -770,7 +709,7 @@ mod tests {
             .filter(|(_, piece)| piece.starts_with('^') || piece.starts_with('<'))
             .all(|(style, _)| *style == theme.warn()));
         // Wide characters count two columns towards the next stop.
-        let (shown, _) = visible(&[(theme.body(), "日\tx".to_owned())], theme);
+        let (shown, _) = text::literal(&[(theme.body(), "日\tx".to_owned())], theme.warn(), 9);
         assert_eq!(plain_text(&shown), "日  x");
     }
 
@@ -778,7 +717,7 @@ mod tests {
     fn a_long_line_keeps_its_first_characters_and_counts_the_rest() {
         let theme = crate::theme::theme("ember");
         let pieces = vec![(theme.body(), "x".repeat(LINE_CHARS + 25))];
-        let (shown, hidden) = visible(&pieces, theme);
+        let (shown, hidden) = text::literal(&pieces, theme.warn(), LINE_CHARS);
         assert_eq!(plain_text(&shown).len(), LINE_CHARS);
         assert_eq!(hidden, 25);
     }

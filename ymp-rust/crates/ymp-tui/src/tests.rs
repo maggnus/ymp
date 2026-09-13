@@ -2028,14 +2028,18 @@ fn wrapping_keeps_whitespace_that_carries_meaning() {
         "double-width text keeps its spacing"
     );
     // Exact wrapping loses nothing at all, which is what code needs.
-    let exact = text::wrap_exact("a  b   c", 4);
-    assert_eq!(exact.concat(), "a  b   c");
-    assert!(exact.iter().all(|line| text::width(line) <= 4));
-    let wide = text::wrap_exact("界面测试", 4);
-    assert_eq!(wide, vec!["界面".to_owned(), "测试".to_owned()]);
-    assert_eq!(
-        text::wrap_exact("\nb", 4),
-        vec![String::new(), "b".to_owned()],
+    let exact = |text: &str, width| -> Vec<String> {
+        text::wrap_styled(&[(ratatui::style::Style::new(), text.to_owned())], width)
+            .iter()
+            .map(|row| row.iter().map(|span| span.content.as_ref()).collect())
+            .collect()
+    };
+    let rows = exact("a  b   c", 4);
+    assert_eq!(rows.concat(), "a  b   c");
+    assert!(rows.iter().all(|line| text::width(line) <= 4));
+    assert_eq!(exact("界面测试", 4), ["界面", "测试"]);
+    assert!(
+        matches!(&text::blocks("```\n\nb\n```")[0], text::Block::Code { lines, .. } if lines == &["", "b"]),
         "a leading blank line is a line"
     );
 }
@@ -2062,6 +2066,519 @@ fn a_fenced_code_block_is_rendered_character_for_character() {
         rendered.contains("if x:  pass"),
         "the indented line lost its spacing:\n{rendered}"
     );
+}
+
+// ---------------------------------------------------------------------------
+// Agent output highlighting
+// ---------------------------------------------------------------------------
+
+/// The drawn terminal, for reading styles as well as text. Like the event loop, it draws again
+/// while a frame leaves code to highlight, which a cold grammar in a debug build can make it do.
+fn buffer(app: &mut App, width: u16, height: u16) -> ratatui::buffer::Buffer {
+    let mut terminal = Terminal::new(TestBackend::new(width, height)).unwrap();
+    for _ in 0..100 {
+        terminal.draw(|frame| ui::render(frame, app)).unwrap();
+        if !std::mem::take(&mut app.redraw) {
+            return terminal.backend().buffer().clone();
+        }
+    }
+    panic!("frames kept asking to be drawn again");
+}
+
+/// The foreground of the first drawn cell of `needle`.
+fn foreground(buffer: &ratatui::buffer::Buffer, needle: &str) -> ratatui::style::Color {
+    let (x, y) = cell_of(buffer, needle).unwrap_or_else(|| panic!("{needle:?} is not drawn"));
+    buffer[(x, y)].fg
+}
+
+/// A role colour as code shows it.
+fn on_code(theme: &theme::Theme, color: ratatui::style::Color) -> ratatui::style::Color {
+    crate::highlight::legible(theme, color, theme.raised)
+}
+
+/// Every drawn row, as text.
+fn rows_of(buffer: &ratatui::buffer::Buffer) -> Vec<String> {
+    let area = buffer.area;
+    (0..area.height)
+        .map(|y| (0..area.width).map(|x| buffer[(x, y)].symbol()).collect())
+        .collect()
+}
+
+#[test]
+fn fences_close_only_on_a_matching_fence_and_keep_every_code_character() {
+    use text::Block;
+    let code = |text| match text::blocks(text).into_iter().next() {
+        Some(Block::Code {
+            info,
+            lines,
+            closed,
+            ..
+        }) => (info.to_owned(), lines.join("\n"), closed),
+        other => panic!("{text:?} opened no code block: {other:?}"),
+    };
+    // A longer fence holds a shorter one, and a tilde fence holds backticks.
+    assert_eq!(
+        code("````md\n```rust\nfn x() {}\n```\n````"),
+        ("md".into(), "```rust\nfn x() {}\n```".into(), true)
+    );
+    assert_eq!(
+        code("~~~python\nprint(1)\n```\n~~~"),
+        ("python".into(), "print(1)\n```".into(), true)
+    );
+    // Text after a fence means it is not a closing one.
+    assert_eq!(
+        code("```rust\ncode\n```not a close\n```"),
+        ("rust".into(), "code\n```not a close".into(), true)
+    );
+    // Inside a list item the fence's own indentation is removed, and trailing spaces and tabs stay.
+    let item = "- run it:\n    ```sh\n    ls  -la \t\n      nested\n    ```";
+    let blocks = text::blocks(item);
+    assert_eq!(blocks[0], Block::Prose("- run it:"));
+    assert_eq!(
+        blocks[1],
+        Block::Code {
+            opening: "    ```sh",
+            info: "sh",
+            lines: vec!["ls  -la \t", "  nested"],
+            closed: true,
+        }
+    );
+    // A carriage return belongs to the line ending; a second one is content.
+    assert_eq!(
+        code("```rust\r\nlet a = 1;  \r\nlet b\r\r\n```\r\n"),
+        ("rust".into(), "let a = 1;  \nlet b\r".into(), true)
+    );
+    // Backticks in the info string make it inline code, and nothing opens.
+    assert!(text::blocks("``` a`b\ntext")
+        .iter()
+        .all(|block| matches!(block, Block::Prose(_))));
+    // The text may end inside a block; nothing closes it.
+    assert_eq!(
+        code("```rust\nfn main() {"),
+        ("rust".into(), "fn main() {".into(), false)
+    );
+    assert_eq!(
+        text::open_fence("text\n~~~~ toml\nkey = 1"),
+        Some("~~~~ toml")
+    );
+    assert_eq!(text::open_fence("```\ncode\n```"), None);
+}
+
+#[test]
+fn mixed_prose_and_code_take_syntax_colours_inline_in_dark_and_light_themes() {
+    let fixture = fixture();
+    let mut app = fixture.app();
+    post(
+        &mut app,
+        1,
+        "codex",
+        "answer",
+        "The fix keeps `let raw` untouched.\n\n```rust\nfn main() {\n    let s = \"a  b\";\n}\n```\n\nAnd the script:\n\n```python\ndef check():\n    return 42\n```",
+    );
+    for id in ["ember", "catppuccin-latte"] {
+        app.apply_theme(id);
+        let theme = app.theme;
+        let screen = buffer(&mut app, 110, 40);
+        assert_eq!(
+            foreground(&screen, "fn main"),
+            on_code(&theme, theme.accent),
+            "{id}"
+        );
+        assert_eq!(
+            foreground(&screen, "\"a  b\""),
+            on_code(&theme, theme.good),
+            "{id}"
+        );
+        assert_eq!(
+            foreground(&screen, "def check"),
+            on_code(&theme, theme.accent),
+            "{id}"
+        );
+        assert_eq!(
+            foreground(&screen, "42"),
+            on_code(&theme, theme.warn),
+            "{id}"
+        );
+        // Prose keeps its Markdown presentation, and inline code is literal, not highlighted.
+        assert_eq!(foreground(&screen, "The fix keeps"), theme.body, "{id}");
+        assert_eq!(foreground(&screen, "let raw"), theme.text, "{id}");
+        let (x, y) = cell_of(&screen, "let raw").unwrap();
+        assert_eq!(screen[(x, y)].bg, theme.raised, "{id}");
+        // The fence lines themselves are not drawn.
+        assert!(
+            !rows_of(&screen).iter().any(|row| row.contains("```")),
+            "{id}"
+        );
+    }
+}
+
+#[test]
+fn a_code_row_keeps_trailing_spaces_tabs_and_writes_control_characters_out() {
+    let fixture = fixture();
+    let mut app = fixture.app();
+    post(
+        &mut app,
+        1,
+        "codex",
+        "answer",
+        "Output:\n\n```text\nend  \na\tb\nred \u{1b}[31mtext\u{7}\n```",
+    );
+    let theme = app.theme;
+    let screen = buffer(&mut app, 110, 30);
+    let (x, y) = cell_of(&screen, "end").expect("the code row is drawn");
+    for offset in 3..5 {
+        let cell = &screen[(x + offset, y)];
+        assert_eq!(cell.symbol(), " ");
+        assert_eq!(
+            cell.bg, theme.raised,
+            "trailing space {offset} was not drawn as code"
+        );
+    }
+    assert!(
+        cell_of(&screen, "a   b").is_some(),
+        "the tab did not reach its stop"
+    );
+    let (x, _) = cell_of(&screen, "red ^[[31mtext^G").expect("the controls are written out");
+    let (_, y) = cell_of(&screen, "red ^[").unwrap();
+    assert_eq!(screen[(x + 4, y)].fg, on_code(&theme, theme.warn));
+    assert_eq!(screen[(x + 5, y)].fg, on_code(&theme, theme.warn));
+}
+
+#[test]
+fn a_declared_diff_is_styled_by_line_role_and_keeps_its_markers() {
+    let fixture = fixture();
+    let mut app = fixture.app();
+    post(
+        &mut app,
+        1,
+        "codex",
+        "answer",
+        "The agent reported this patch:\n\n```diff\ndiff --git a/src/lib.rs b/src/lib.rs\nindex 3b18e51..a9c1f2d 100644\n--- a/src/lib.rs\n+++ b/src/lib.rs\n@@ -1,3 +1,3 @@\n fn keep() {}\n-fn old_name() {}\n+fn new_name() {}\n\\ No newline at end of file\n```",
+    );
+    for id in ["slate", "solarized-light"] {
+        app.apply_theme(id);
+        let theme = app.theme;
+        let screen = buffer(&mut app, 110, 30);
+        let rows = rows_of(&screen);
+        for marked in [
+            "-fn old_name() {}",
+            "+fn new_name() {}",
+            " fn keep() {}",
+            "@@ -1,3 +1,3 @@",
+            "--- a/src/lib.rs",
+            "+++ b/src/lib.rs",
+            "\\ No newline at end of file",
+        ] {
+            assert!(
+                rows.iter().any(|row| row.contains(marked)),
+                "{id}: {marked:?} lost its marker:\n{}",
+                rows.join("\n")
+            );
+        }
+        assert_eq!(
+            foreground(&screen, "-fn old_name"),
+            on_code(&theme, theme.bad),
+            "{id}"
+        );
+        assert_eq!(
+            foreground(&screen, "+fn new_name"),
+            on_code(&theme, theme.good),
+            "{id}"
+        );
+        assert_eq!(
+            foreground(&screen, "@@ -1,3"),
+            on_code(&theme, theme.info),
+            "{id}"
+        );
+        assert_eq!(
+            foreground(&screen, "index 3b18e51"),
+            on_code(&theme, theme.muted),
+            "{id}"
+        );
+        assert_eq!(foreground(&screen, " fn keep"), theme.text, "{id}");
+        let (x, y) = cell_of(&screen, "+++ b/src").unwrap();
+        assert!(
+            screen[(x, y)]
+                .modifier
+                .contains(ratatui::style::Modifier::BOLD),
+            "{id}"
+        );
+        // A reported patch is not presented as a change that was made.
+        assert!(!rows.iter().any(|row| row.contains("applied")), "{id}");
+    }
+}
+
+#[test]
+fn a_raw_git_patch_is_styled_but_a_list_of_plus_and_minus_lines_is_not() {
+    let fixture = fixture();
+    let mut app = fixture.app();
+    post(
+        &mut app,
+        1,
+        "codex",
+        "answer",
+        "Here is the change:\ndiff --git a/src/lib.rs b/src/lib.rs\n--- a/src/lib.rs\n+++ b/src/lib.rs\n@@ -1 +1 @@\n-let a = 1;\n+let a = 2;\nThat is all.",
+    );
+    post(
+        &mut app,
+        2,
+        "claude",
+        "answer",
+        "Points to weigh:\n- slower start\n+ smaller binary\n-- not a patch either",
+    );
+    let theme = app.theme;
+    let screen = buffer(&mut app, 110, 40);
+    assert_eq!(
+        foreground(&screen, "+let a = 2;"),
+        on_code(&theme, theme.good)
+    );
+    assert_eq!(
+        foreground(&screen, "-let a = 1;"),
+        on_code(&theme, theme.bad)
+    );
+    assert_eq!(foreground(&screen, "That is all."), theme.body);
+    assert_eq!(foreground(&screen, "Here is the change:"), theme.body);
+    for prose in ["slower start", "smaller binary", "-- not a patch either"] {
+        assert_eq!(
+            foreground(&screen, prose),
+            theme.body,
+            "{prose:?} was styled as a patch"
+        );
+    }
+}
+
+#[test]
+fn a_streamed_code_block_is_shown_unfinished_without_moving_the_reader() {
+    let fixture = fixture();
+    let mut app = fixture.app();
+    conversation(&mut app, 40);
+    draw(&mut app, 100, 24);
+    app.on_key(key(KeyCode::PageUp), 100);
+    draw(&mut app, 100, 24);
+    let anchored = app.top;
+    for chunk in [
+        "Writing the fix:\n```rust\n",
+        "fn main() {\n",
+        "    let a  =  1;",
+    ] {
+        app.event(UiEvent::Delta {
+            agent: "codex".into(),
+            text: chunk.into(),
+        });
+        draw(&mut app, 100, 24);
+    }
+    assert_eq!(app.top, anchored, "streamed code moved the reader");
+    app.on_key(key(KeyCode::End), 100);
+    let screen = buffer(&mut app, 100, 24);
+    let rows = rows_of(&screen);
+    let gutter = app.theme.markers.gutter;
+    let code = rows
+        .iter()
+        .position(|row| row.contains(&format!("{gutter} fn main() {{")))
+        .unwrap_or_else(|| panic!("the open block is not drawn as code:\n{}", rows.join("\n")));
+    assert!(
+        rows[code + 1].contains(&format!("{gutter}     let a  =  1;")),
+        "{}",
+        rows.join("\n")
+    );
+    let stream: String = rows[code - 3..].join("\n");
+    assert!(!stream.contains("```"), "a fence line was drawn:\n{stream}");
+    assert!(
+        !rows[code + 2..].iter().any(|row| row.contains('}')),
+        "an ending was invented:\n{stream}"
+    );
+    assert!(stream.contains("Writing the fix:"), "{stream}");
+
+    // The block closes as the rest arrives, and the stored message replaces the preview.
+    let full = "Writing the fix:\n```rust\nfn main() {\n    let a  =  1;\n}\n```\nDone.";
+    app.event(UiEvent::Delta {
+        agent: "codex".into(),
+        text: "\n}\n```\nDone.".into(),
+    });
+    let rows = rows_of(&buffer(&mut app, 100, 24));
+    assert!(rows.iter().any(|row| row.contains(&format!("{gutter} }}"))));
+    assert!(
+        rows.iter().any(|row| row.contains("    Done.")),
+        "{}",
+        rows.join("\n")
+    );
+    post(&mut app, 99, "codex", "answer", full);
+    let theme = app.theme;
+    let screen = buffer(&mut app, 100, 24);
+    assert_eq!(
+        foreground(&screen, "fn main"),
+        on_code(&theme, theme.accent)
+    );
+    assert!(app.entries().iter().all(|entry| entry.kind != "streaming"));
+}
+
+#[test]
+fn a_long_stream_keeps_the_fence_of_the_code_block_it_is_inside() {
+    let fixture = fixture();
+    let mut app = fixture.app();
+    app.event(UiEvent::Delta {
+        agent: "codex".into(),
+        text: "Plan first.\n~~~~toml\n".into(),
+    });
+    for index in 0..12_000 {
+        app.event(UiEvent::Delta {
+            agent: "codex".into(),
+            text: format!("key_{index} = {index}\n"),
+        });
+    }
+    let raw = app
+        .entries()
+        .iter()
+        .find(|entry| entry.kind == "streaming")
+        .map(|entry| entry.raw.clone())
+        .expect("the stream is an entry");
+    assert!(raw.len() <= 100_000, "{}", raw.len());
+    assert!(raw.starts_with("~~~~toml\nkey_"), "{:?}", &raw[..40]);
+    let rows = rows_of(&buffer(&mut app, 100, 24));
+    let gutter = app.theme.markers.gutter;
+    assert!(
+        rows.iter()
+            .any(|row| row.contains(&format!("{gutter} key_11999 = 11999"))),
+        "{}",
+        rows.join("\n")
+    );
+}
+
+#[test]
+fn highlighting_stops_at_the_message_limit_and_every_block_stays_whole() {
+    let theme = theme::theme("ember");
+    let block = |index: usize| {
+        let body = format!("    let value_{index} = \"{}\";\n", "x".repeat(60)).repeat(60);
+        format!("```rust\nfn block_{index}() {{\n{body}}}\n```\n")
+    };
+    let message: String = (0..20).map(block).collect();
+    assert!(message.len() > text::MESSAGE_CODE_BYTES);
+    let lines = text::markdown(&message, 200, theme, theme.body());
+    let rows: Vec<String> = lines
+        .iter()
+        .map(|line| {
+            line.spans
+                .iter()
+                .map(|span| span.content.as_ref())
+                .collect()
+        })
+        .collect();
+    for index in 0..20 {
+        assert!(
+            rows.iter()
+                .any(|row| row.ends_with(&format!("fn block_{index}() {{"))),
+            "block {index} was dropped"
+        );
+    }
+    let notes: Vec<&String> = rows
+        .iter()
+        .filter(|row| row.contains("so this block and the code after it are plain text"))
+        .collect();
+    assert_eq!(notes.len(), 1, "{notes:?}");
+    let colour = |needle: &str| {
+        lines
+            .iter()
+            .flat_map(|line| line.spans.iter())
+            .find(|span| span.content.contains(needle))
+            .and_then(|span| span.style.fg)
+    };
+    assert_eq!(colour("fn"), Some(on_code(theme, theme.accent)));
+    assert_eq!(
+        colour("block_19"),
+        Some(theme.text),
+        "code after the limit is plain"
+    );
+}
+
+#[test]
+fn rendering_leaves_the_stored_message_and_its_origin_unchanged() {
+    let fixture = fixture();
+    let mut app = fixture.app();
+    let original = "Result:\r\n```rust\r\nlet tab\t= \"\u{1b}[2J\";   \r\n```\r\n- item  \n";
+    post(&mut app, 1, "codex", "answer", original);
+    draw(&mut app, 40, 12);
+    // The popup is as wide as the last frame allows.
+    draw(&mut app, 110, 30);
+    app.focus = Focus::Main;
+    app.on_key(key(KeyCode::Enter), 110);
+    let Some(Overlay::Inspect { body, .. }) = &app.overlay else {
+        panic!("Enter did not open the message");
+    };
+    let inspected: Vec<String> = body
+        .iter()
+        .map(|line| {
+            line.spans
+                .iter()
+                .map(|span| span.content.as_ref())
+                .collect()
+        })
+        .collect();
+    assert!(
+        inspected
+            .iter()
+            .any(|row| row
+                .contains("agent codex · no recorded invocation is linked to this message")),
+        "{inspected:?}"
+    );
+    assert!(
+        inspected
+            .iter()
+            .any(|row| row.contains("let tab = \"^[[2J\";   ")),
+        "{inspected:?}"
+    );
+    let theme = app.theme;
+    assert!(body
+        .iter()
+        .flat_map(|line| line.spans.iter())
+        .any(|span| span.content.contains("let")
+            && span.style.fg == Some(on_code(&theme, theme.accent))));
+    assert_eq!(app.messages[0].text, original);
+    assert_eq!(app.entries()[0].raw, original);
+}
+
+#[test]
+fn detailed_mode_and_a_narrow_window_keep_code_whole_and_highlighted() {
+    let fixture = fixture();
+    let mut app = fixture.app();
+    let report = (1..=8)
+        .map(|step| format!("Step {step}."))
+        .collect::<Vec<_>>()
+        .join("\n")
+        + "\n```rust\nfn narrow_window_check() { let spaced  =  \"a  b\"; }\n```";
+    post(&mut app, 1, "codex", "execute", &report);
+    app.command("/details", 40);
+    let theme = app.theme;
+    let screen = buffer(&mut app, 40, 40);
+    assert!(
+        cell_of(&screen, "Step 8.").is_some(),
+        "detailed mode collapsed the report"
+    );
+    assert_eq!(
+        foreground(&screen, "fn narrow"),
+        on_code(&theme, theme.accent)
+    );
+    // However narrow, code rows fit, and together they hold the line exactly.
+    let gutter = format!("{} ", theme.markers.gutter);
+    for width in [12, 30] {
+        let rows: Vec<String> = text::markdown(&report, width, &theme, theme.body())
+            .iter()
+            .map(|line| {
+                line.spans
+                    .iter()
+                    .map(|span| span.content.as_ref())
+                    .collect()
+            })
+            .collect();
+        assert!(rows.iter().all(|row| text::width(row) <= width), "{rows:?}");
+        let code: String = rows
+            .iter()
+            .filter_map(|row| row.strip_prefix(gutter.as_str()))
+            .collect();
+        assert_eq!(
+            code, "fn narrow_window_check() { let spaced  =  \"a  b\"; }",
+            "{width}"
+        );
+    }
 }
 
 // ---------------------------------------------------------------------------

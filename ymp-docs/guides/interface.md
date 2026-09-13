@@ -40,8 +40,20 @@ Your prompts and the team's final answers are the content. The coordination that
 them is summarised: a plan, a bid or a review becomes one line of readable activity instead
 of the structured payload the agents exchanged. Internal conversation routing is not shown.
 An execution turn is labelled an execution report, because such a turn may conclude that
-nothing needed changing. Code keeps its exact spacing and indentation, so a rendered message
-can be compared against a file.
+nothing needed changing. Code keeps its exact spacing, indentation and trailing whitespace, so a
+rendered message can be compared against a file. A tab moves to the next four-column stop and a
+control character is written out, such as `^[` for an escape; the stored message is unchanged.
+
+Fenced code that names a language is highlighted in the theme's colours, in the transcript as
+well as in the popup `Enter` opens; a block in a language no grammar covers stays plain. A block
+declared `diff` or `patch`, and a complete unified or Git patch written without a fence, show
+additions, deletions, context, file names and hunk headers in styles of their own. Every line
+keeps its `+`, `-` or space, so the roles read without colour too. A list whose lines begin with
+`+` or `-` is not a patch. A patch shown this way is what the message reported, not a change
+ymp applied or recorded. Highlighting one message stops after 64 kB of code or 250 ms, and the
+message then says that the rest of its code is plain text. A long conversation opens at once
+and its code takes its colours over the next frames. While an agent is still writing, the
+preview shows a code block that has not closed yet as code, without adding an end to it.
 
 A member the runtime reports as waiting is shown as waiting and not as busy: a turn held up
 by coordination is not work in flight, and the code it waited under is on the task and on the
@@ -422,8 +434,9 @@ that no grammar matched. Highlighting is bounded: after a line longer than 4 kB,
 the rest of the file is plain text, and the preview says where highlighting stopped and why.
 
 Fenced code that names a language, such as a block opened with ```` ```rust ````, is highlighted
-the same way in the popup `Enter` opens for a message. The transcript itself does not highlight
-code. `/help` links the licences and notices of the bundled syntax definitions.
+the same way in the transcript and in the popup `Enter` opens for a message, as
+[Reading the conversation](#reading-the-conversation) describes. `/help` links the licences and
+notices of the bundled syntax definitions.
 
 ## Themes
 

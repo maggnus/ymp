@@ -6,6 +6,7 @@
 
 use crate::exit;
 use crate::frame::{self, ModalRole, ModalSpec};
+use crate::highlight;
 use crate::sidebar;
 use crate::state::{App, Focus, Overlay, PromptTarget};
 use crate::table::{self, Cell, Column};
@@ -385,6 +386,9 @@ fn transcript_view(frame: &mut Frame, area: Rect, app: &mut App) {
 
     let mut lines: Vec<Line<'static>> = Vec::new();
     let mut offsets: Vec<(usize, usize)> = Vec::new();
+    // Code no earlier frame highlighted takes a bounded share of each frame, so a long
+    // conversation opens at once and the frames after it complete its colours.
+    let work = highlight::Frame::begin(highlight::FRAME_WORK);
     {
         let entries = app.entries();
         if entries.is_empty() {
@@ -400,6 +404,8 @@ fn transcript_view(frame: &mut Frame, area: Rect, app: &mut App) {
             }
         }
     }
+    app.redraw |= work.deferred();
+    drop(work);
     let height = area.height as usize;
     // A short conversation sits at the bottom, next to the composer, the way a chat reads.
     // The welcome text stays at the top, because it is a page rather than a conversation.

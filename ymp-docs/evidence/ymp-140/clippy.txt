@@ -1,0 +1,5 @@
+    Checking ymp-tui v0.4.3 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp139-file-navigation/ymp-rust/crates/ymp-tui)
+   Compiling ymp-eval-driver v0.4.3 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp139-file-navigation/ymp-rust/crates/ymp-eval-driver)
+    Checking ymp-cli v0.4.3 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp139-file-navigation/ymp-rust/crates/ymp-cli)
+    Finished `dev` profile [unoptimized] target(s) in 3.70s
+clippy exit 0
