@@ -3725,11 +3725,46 @@
           "at": "2026-09-13T11:37:01.822906+00:00",
           "status": "done",
           "note": "Research only completed: parent compiled published0.0.6 on Rust1.89/Ratatui0.30.2 and reproduced light-theme, wide-cursor, CRLF, key-release, Markdown-source and raw-patch limitations. Claude independently reviewed source and agreed: editable file view can be replaced; syntax backend can migrate separately, while navigation/I/O/chat/patch contracts remain. No product integration or installation;0.4.5 unchanged. Compatible transitive version0.1.7 resolved automatically; preserve lockfile."
+        },
+        {
+          "at": "2026-09-13T11:43:40.534902+00:00",
+          "status": "done",
+          "note": "Latest owner direction keeps file opening read-only with the current highlighter for now. Editing is deferred. Live Git inspection is a distinct feature recorded as143, not part of the file manager or justification to replace its highlighter."
+        }
+      ]
+    },
+    {
+      "id": "YMP-143",
+      "title": "Provide a separate live Git status and committed-history view",
+      "type": "implementation",
+      "priority": "P1",
+      "status": "new",
+      "owner": "Maintainer defines Git data contracts; Claude Code high owns future UI implementation",
+      "authorization": "Owner wants live visibility of committed/uncommitted files with branch or worktree selection and explicitly clarified that this must be separate from the file manager. Current authorization is research and scope definition only; do not begin implementation under the existing research-only instruction.",
+      "depends_on": [
+        "YMP-139",
+        "YMP-140"
+      ],
+      "reason": "The current Git-marker discovery and session changes page do not expose actual staged/unstaged status or committed history.",
+      "acceptance": [
+        "Provide Git inspection as a separate section; keep /files as filesystem navigation with the existing read-only highlighted preview.",
+        "Distinguish staged, unstaged, untracked and conflicted files in the selected worktree, and committed history/files for a selected branch or commit. A branch selection for inspection must not perform checkout or change session execution cwd.",
+        "Refresh visible Git data asynchronously with preserved selection, bounded work and explicit stale/error state; use actual committed objects for historical content.",
+        "Delegate future UI implementation to Claude Code high, independently verify Git fixtures and terminal behavior and record implemented versus proposed functionality."
+      ],
+      "evidence": [
+        "ymp-docs/research/separate-git-inspection.md"
+      ],
+      "history": [
+        {
+          "at": "2026-09-13T11:43:40.534902+00:00",
+          "status": "new",
+          "note": "Owner clarified separate Git functionality and narrowed the file manager to simple read-only opening with the existing highlighter. Current source and native Git command shapes were inspected; no UI, Git backend, editor or release change was implemented. Research-only scope remains in force."
         }
       ]
     }
   ],
-  "updated_at": "2026-09-13T11:37:01.822906+00:00",
+  "updated_at": "2026-09-13T11:43:40.534902+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",

@@ -4,6 +4,10 @@ Status: research only, requested on 2026-09-13. YMP-142 records completion; YMP-
 geometry) is paused at the owner's direction. Viewing and editing with explicit saving is the
 intended future capability. No editor integration or replacement is authorized in this stage.
 
+Latest owner direction: keep `/files` read-only with the current highlighter for now. Editing
+is deferred; live Git inspection is a separate feature recorded in
+[separate-git-inspection.md](separate-git-inspection.md). The editor findings below remain research.
+
 ## Finding
 
 `ratatui-code-editor` can supply the buffer and widget for an embedded file editor, including

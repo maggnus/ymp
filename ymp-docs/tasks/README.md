@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-13 11:37 UTC.
+Updated: 2026-09-13 11:43 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -14,7 +14,7 @@ A planned task is not implemented functionality. Completed research and planning
 | design | 1 | 1 |
 | documentation | 4 | 4 |
 | experiment | 0 | 4 |
-| implementation | 33 | 37 |
+| implementation | 33 | 38 |
 | maintenance | 1 | 1 |
 | research | 9 | 9 |
 | verification | 2 | 2 |
@@ -82,7 +82,8 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-139](#ymp-139) | P1 | Integrate a ready-made Ratatui file navigator and code highlighting | 2026-09-13 11:07 |
 | `[x]` | [YMP-140](#ymp-140) | P1 | Render agent code and explicit diffs clearly using established AI-chat patterns | 2026-09-13 11:13 |
 | `[=]` | [YMP-141](#ymp-141) | P1 | Keep popup geometry stable while scrolling content | 2026-09-13 11:37 |
-| `[x]` | [YMP-142](#ymp-142) | P1 | Assess ratatui-code-editor for opening files inside ymp | 2026-09-13 11:37 |
+| `[x]` | [YMP-142](#ymp-142) | P1 | Assess ratatui-code-editor for opening files inside ymp | 2026-09-13 11:43 |
+| `[+]` | [YMP-143](#ymp-143) | P1 | Provide a separate live Git status and committed-history view | 2026-09-13 11:43 |
 
 ## YMP-001
 
@@ -2058,9 +2059,9 @@ Assess ratatui-code-editor for opening files inside ymp
 
 **State:** `[x]` (done) · **Type:** research · **Priority:** P1
 
-**Last update (UTC):** 2026-09-13 11:37
+**Last update (UTC):** 2026-09-13 11:43
 
-**Current reason:** Research only completed: parent compiled published0.0.6 on Rust1.89/Ratatui0.30.2 and reproduced light-theme, wide-cursor, CRLF, key-release, Markdown-source and raw-patch limitations. Claude independently reviewed source and agreed: editable file view can be replaced; syntax backend can migrate separately, while navigation/I/O/chat/patch contracts remain. No product integration or installation;0.4.5 unchanged. Compatible transitive version0.1.7 resolved automatically; preserve lockfile.
+**Current reason:** Latest owner direction keeps file opening read-only with the current highlighter for now. Editing is deferred. Live Git inspection is a distinct feature recorded as143, not part of the file manager or justification to replace its highlighter.
 
 **Owner:** Maintainer and the current Claude UI author compare source findings
 
@@ -2082,6 +2083,35 @@ Determine whether the ready editor widget improves file interaction without dupl
 - ymp-docs/research/evidence/code-editor-142/verification.json
 - ymp-docs/research/evidence/code-editor-142/probe-observations.json
 - ymp-docs/research/evidence/code-editor-142/joint-decision.json
+
+## YMP-143
+
+Provide a separate live Git status and committed-history view
+
+**State:** `[+]` (new) · **Type:** implementation · **Priority:** P1
+
+**Last update (UTC):** 2026-09-13 11:43
+
+**Current reason:** Owner clarified separate Git functionality and narrowed the file manager to simple read-only opening with the existing highlighter. Current source and native Git command shapes were inspected; no UI, Git backend, editor or release change was implemented. Research-only scope remains in force.
+
+**Owner:** Maintainer defines Git data contracts; Claude Code high owns future UI implementation
+
+**Authorization:** Owner wants live visibility of committed/uncommitted files with branch or worktree selection and explicitly clarified that this must be separate from the file manager. Current authorization is research and scope definition only; do not begin implementation under the existing research-only instruction.
+
+**Depends on:** [YMP-139](#ymp-139), [YMP-140](#ymp-140)
+
+The current Git-marker discovery and session changes page do not expose actual staged/unstaged status or committed history.
+
+**Acceptance criteria:**
+
+- Provide Git inspection as a separate section; keep /files as filesystem navigation with the existing read-only highlighted preview.
+- Distinguish staged, unstaged, untracked and conflicted files in the selected worktree, and committed history/files for a selected branch or commit. A branch selection for inspection must not perform checkout or change session execution cwd.
+- Refresh visible Git data asynchronously with preserved selection, bounded work and explicit stale/error state; use actual committed objects for historical content.
+- Delegate future UI implementation to Claude Code high, independently verify Git fixtures and terminal behavior and record implemented versus proposed functionality.
+
+**Evidence:**
+
+- ymp-docs/research/separate-git-inspection.md
 
 ## Intent coverage
 
