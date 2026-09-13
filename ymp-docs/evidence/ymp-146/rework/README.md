@@ -106,9 +106,52 @@ including the saved revision/arbitration controls. The original R4 probe expects
 failed tasks to remain Running until restart; same-run safe inspection intentionally
 supersedes that intermediate expectation. Its original evidence is retained.
 
+## R3: sufficient evidence enables independent inspection and continuation
+
+The parent clarified the acceptance criterion: the original probe's code comment
+about no remote effects is not an input to the runtime. Its unchanged automatic
+completion expectation is not a valid positive safety oracle. The exact original
+probe/results remain preserved. The real missing consumer is implemented by
+`Engine::inspect_recovery`, with a separate positive public-API test and a durable
+negative test of those insufficient historical records. See [API.md](API.md).
+
+A narrow compiled-backend `local_effect_scope` enforcement contract is captured
+with actual admitted access, backend identity and invocation origin. Missing scope
+is never backfilled; native adapters, including Mock, default to unknown. The
+positive fixture's actual implementation performs only one fixed Rust file write
+and supplies its enforced complete local scope. The public historical-format
+reconstruction retains that genuine access evidence without inventing resolution.
+
+Inspection acquires ordinary ownership/access, allocates an independent reviewer,
+uses normal grants/budget admission, and requires actual read-only execution. It
+validates terminal records, bounded effect scope, exact task/plan/result binding,
+observed files and the originating review response. The stored resolution preserves
+all original uncertainty/failures. Owner holds, policy limits and counters remain;
+Continue is separate. Both Continue and atomic replay admission reject changed
+observed state. The replay itself must remain actually read-only.
+
+`r3-focused.json` records six successful public runtime tests (exit **0**). They
+cover sufficient local evidence, preserved stage Wait/Pause, explicit continuation,
+no duplicate planning, no reputation, missing scope, unverified termination,
+foreign/stale command and result binding, changed files during inspection/after
+resolution/before admission, owner-pause races, model safe=true, reviewer rejection,
+write-capable inspector denial, and exhaustion of the original four-call budget.
+The initial compile and four-scenario test successes remain in their original logs.
+
+`r3-observed-state-falsifier.json` records a source-bound mutation removing only
+the current-file check from replay validation. The rejecting test exited **101**
+because Continue incorrectly succeeded. Source restoration is byte-for-byte with
+matching SHA-256; `r3-observed-state-restored.log` records the restored pass (**0**).
+
+`complete-focused.json` records all **31** public session_recovery scenarios and
+both saved revision/arbitration subcases of the unchanged independent probe,
+all exit **0**. After that run, one narrow reason update was restricted to resolved
+uncertainty/legacy holds so inspection also preserves policy-stop explanations.
+The final required chain below checks that final source.
+
 ## Limits and remaining work
 
-R3 remains in progress. R3 and R4 were added by the completed parallel review. Their common model and
+The four required corrections are implemented; full parent acceptance is separate. R3 and R4 were added by the completed parallel review. Their common model and
 bounded evidence issue are in [responsibility-model.md](responsibility-model.md).
 The final fmt, strict Clippy and workspace-test sequence is reserved for the
 final corrected source. Only scripted providers and temporary app homes are used.

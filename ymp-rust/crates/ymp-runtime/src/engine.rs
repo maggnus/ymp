@@ -9,6 +9,7 @@ mod contract_ingress_tests;
 mod knowledge_tests;
 mod planning_recovery;
 mod recovery;
+mod recovery_inspection;
 mod team_control;
 mod workspace_access;
 use crate::mcp::TeamServer;
@@ -80,6 +81,8 @@ pub struct Engine {
     recovery_identity: ExecutionBackendIdentity,
     recovery_configuration: Value,
     recovery_binding: Option<(String, u64)>,
+    recovery_inspection_binding: Option<RecoveryInspectionCommand>,
+    require_recovery_read_only: bool,
 }
 #[derive(Clone)]
 struct RunContext {
@@ -173,6 +176,8 @@ impl Engine {
                 &crate::BoundedRecoveryPolicy::default(),
             ),
             recovery_binding: None,
+            recovery_inspection_binding: None,
+            require_recovery_read_only: false,
             adaptive: true,
             workspace_policy: Arc::new(crate::DirectWorkspaceAccessPolicy),
             workspace_policy_identity: crate::WorkspaceAccessPolicy::identity(
@@ -1334,6 +1339,12 @@ impl Engine {
                 },
             )?;
         }
+        if let Some(command) = &self.recovery_inspection_binding {
+            self.store
+                .bind_recovery_inspection_assignment(&assignment.id, command)?;
+        }
+        anyhow::ensure!(self.execution_backend.local_effect_scope(&request) == access.access().local_effect_scope,
+            "effect_scope_changed: actual continuation changed the backend's declared effect boundary before admission");
         let token = access.admit_reserved(
             ctx.server.clone(),
             &mut assignment,

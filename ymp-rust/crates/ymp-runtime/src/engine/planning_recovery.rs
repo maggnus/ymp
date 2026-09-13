@@ -54,6 +54,7 @@ impl Engine {
                 admission_denial: None,
                 status: RecoveryStatus::Pending,
                 wait_reason: None,
+                effect_resolution: None,
                 condition: None,
                 updated_at: now(),
             };
@@ -126,6 +127,7 @@ impl Engine {
             self.save_stage(&mut stage, None)?;
             let mut engine = self.clone();
             engine.recovery_binding = Some((stage.id.clone(), stage.revision));
+            engine.require_recovery_read_only = stage.effect_resolution.is_some();
             let result = engine
                 .ask_scoped_once(ctx, &agent, cwd, "plan", prompt, true, None, &mut None)
                 .await;

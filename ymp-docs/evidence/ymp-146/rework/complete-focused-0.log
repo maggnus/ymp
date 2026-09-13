@@ -1,0 +1,43 @@
+   Compiling ymp-core v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-review-findings/ymp-rust/crates/ymp-core)
+   Compiling ymp-storage v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-review-findings/ymp-rust/crates/ymp-storage)
+   Compiling ymp-workspace v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-review-findings/ymp-rust/crates/ymp-workspace)
+   Compiling ymp-providers v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-review-findings/ymp-rust/crates/ymp-providers)
+   Compiling ymp-runtime v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-review-findings/ymp-rust/crates/ymp-runtime)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 5.51s
+     Running tests/session_recovery.rs (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp146-recovery-backend/target/debug/deps/session_recovery-87b52712360ee241)
+
+running 31 tests
+test injected_policy_cannot_replay_an_uncertain_writer ... ok
+test inspection_rework::r3_changed_inspected_files_reject_continue_and_atomic_replay_admission ... ok
+test inspection_rework::r3_inspection_consumes_the_captured_budget_and_cannot_create_another_attempt ... ok
+test inspection_rework::r3_inspection_commit_rejects_changed_data_and_racing_owner_pause ... ok
+test interrupted_review_has_no_invented_termination_evidence_after_restart ... ok
+test inspection_rework::r3_missing_scope_and_unverified_termination_do_not_authorize_inspection_or_replay ... ok
+test correlated_provider_failure_has_finite_wait_without_acceptance ... ok
+test legacy_failed_review_without_stage_binding_cannot_replay_a_writer ... ok
+test owner_add_idle_remove_and_no_reviewer_choice_are_atomic ... ok
+test inspection_rework::r3_model_safe_flag_rejection_and_write_capable_inspector_cannot_resolve_effects ... ok
+test initial_planner_failure_uses_bounded_recovery_and_keeps_its_attribution ... ok
+test finite_transient_and_manual_wait_use_the_same_consumer ... ok
+test execution_rework::r4_unknown_write_effects_retain_responsibility_and_claim_busy ... ok
+test owner_pause_idempotence_and_stale_stage_survive_reopen ... ok
+test inspection_rework::r3_bound_local_inspection_preserves_uncertainty_and_enables_explicit_continuation ... ok
+test live_replace_drains_writer_and_running_engine_observes_new_native_member ... ok
+test owner_pause_drains_current_work_and_survives_resume_without_new_admission ... ok
+test permanent_failure_replaces_independent_reviewer_through_allocation ... ok
+test candidate_and_final_review_restart_preserve_production_and_result_version ... ok
+test owner_replacement_racing_completion_is_atomic_or_explicitly_stale ... ok
+test restart_retains_plan_without_duplicate_planning ... ok
+test uncertainty_and_unknown_accounting_block_replay ... ok
+test negative_verdict_requires_revision_but_malformed_response_is_not_a_verdict ... ok
+test rework::r2_membership_preserves_explicit_owner_pause ... ok
+test sole_remaining_independent_reviewer_can_finish_saved_final_review ... ok
+test rework::r1_remove_releases_ready_commitment_and_continues ... ok
+test rework::r1_replace_releases_ready_commitment_and_continues ... ok
+test rework::r2_availability_change_reconsiders_policy_without_resetting_counters ... ok
+test rework::r2_membership_preserves_explicit_owner_wait ... ok
+test rework::r2_membership_preserves_exhausted_policy ... ok
+test execution_rework::r4_free_executor_progresses_before_failed_work_is_inspected_without_restart ... ok
+
+test result: ok. 31 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.90s
+

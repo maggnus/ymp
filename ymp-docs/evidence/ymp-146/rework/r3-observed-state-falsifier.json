@@ -1,0 +1,18 @@
+{
+  "command": [
+    "cargo",
+    "test",
+    "-p",
+    "ymp-runtime",
+    "--test",
+    "session_recovery",
+    "r3_changed_inspected_files_reject_continue_and_atomic_replay_admission",
+    "--",
+    "--nocapture"
+  ],
+  "mutation": "Remove only current inspected-file verification at replay safety check",
+  "before_sha256": "092c784fbcacb68904e36a3dd82e18f93b42b12bad3210ddd9285996a52db4f0",
+  "started": "2026-09-13T17:14:31.950366+00:00",
+  "exit_code": 101,
+  "restored_sha256": "092c784fbcacb68904e36a3dd82e18f93b42b12bad3210ddd9285996a52db4f0"
+}

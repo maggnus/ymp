@@ -36,11 +36,11 @@ amendment to the parent's product/recovery contract.
 
 ## Verification sequence
 
-R1 is committed and focused checks passed. R2 initial owner-wait/policy-limit
-controls pass; availability, stale-state and continuation coverage is next.
-Preserve and rebind the independent reviewer probes, then implement R3 and R4
-with sustainable positive and rejecting controls. Run one final required
-fmt/strict-Clippy/workspace-test chain after all source corrections.
+R1, R2 and R4 are committed with focused checks. R3 now has a working public
+inspection consumer, actual admitted local-scope evidence, six positive/rejecting
+scenarios and a source mutation control. All 31 session recovery scenarios and
+the preserved revision/arbitration probes pass. The final required
+fmt/strict-Clippy/workspace-test chain follows the complete corrected source.
 
 ## Evidence gap in the unchanged R3 probe
 
@@ -50,4 +50,9 @@ complete effect-scope assertion. The unchanged probe also calls no inspection AP
 (none existed). Its original assertions and artifacts remain immutable. A new
 typed trusted evidence boundary must not infer local-only effects from a provider
 name or accept a model's unsupported safe flag merely to make that probe finish.
-This distinction has been raised with the parent while R2/R4 work continues.
+The parent explicitly accepted this distinction: preserve the original probe as
+insufficient-evidence history, and judge recovery by a separate positive API test
+with a supported trusted evidence source plus a durable negative waiting test.
+The implemented source is a compiled backend enforcement declaration captured
+with real invocation/access records, not a model flag, Mock exception or fabricated
+Store resolution. The original uncertainty remains linked to its inspection.

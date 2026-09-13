@@ -246,6 +246,8 @@ pub struct RecordLinks {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub recovery: Option<Box<crate::RecoveryDecision>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub recovery_inspection: Option<Box<crate::RecoveryInspection>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub failure: Option<crate::InvocationFailure>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub knowledge_correction: Option<crate::KnowledgeCorrectionCommit>,

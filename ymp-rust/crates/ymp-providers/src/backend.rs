@@ -23,6 +23,15 @@ pub trait ExecutionBackend: Send + Sync {
         ymp_core::WorkspaceAccess::WriteAll
     }
 
+    /// Optional enforced effect boundary of this compiled backend, captured before
+    /// execution. Return None unless all possible effects are local file changes
+    /// in the complete listed set and all work terminates with the future. This
+    /// must follow implementation enforcement, never request/model assertions.
+    /// Native adapters conservatively inherit None, including the mock adapter.
+    fn local_effect_scope(&self, _request: &TurnRequest) -> Option<ymp_core::LocalEffectScope> {
+        None
+    }
+
     fn execute(
         &self,
         request: TurnRequest,

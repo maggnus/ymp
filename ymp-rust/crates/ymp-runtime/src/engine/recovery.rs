@@ -98,6 +98,7 @@ impl Engine {
             admission_denial: None,
             status: RecoveryStatus::Pending,
             wait_reason: None,
+            effect_resolution: None,
             condition: None,
             updated_at: now(),
         };
@@ -602,6 +603,7 @@ impl Engine {
                 // Exactly one attempt; all repeats pass the same recorded recovery consumer.
                 let mut engine = self.clone();
                 engine.recovery_binding = Some((stage.id.clone(), stage.revision));
+                engine.require_recovery_read_only = stage.effect_resolution.is_some();
                 let mut requested = stage
                     .active_invocation_id
                     .as_ref()

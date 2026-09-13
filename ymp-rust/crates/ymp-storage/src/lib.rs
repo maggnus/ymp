@@ -19,6 +19,7 @@ mod provenance;
 #[cfg(test)]
 mod provenance_tests;
 mod recovery;
+mod recovery_inspection;
 mod team_control;
 mod usage;
 

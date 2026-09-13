@@ -14,6 +14,8 @@ use ymp_storage::Store;
 
 #[path = "session_recovery/execution_rework.rs"]
 mod execution_rework;
+#[path = "session_recovery/inspection_rework.rs"]
+mod inspection_rework;
 #[path = "session_recovery/rework.rs"]
 mod rework;
 

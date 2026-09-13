@@ -60,6 +60,7 @@ pub enum RecoveryWaitReason {
     UncertainEffects,
     Cancelled,
     LegacyUnbound,
+    EffectsInspected,
 }
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SavedResponse {
@@ -94,6 +95,8 @@ pub struct RecoveryStage {
     /// Missing legacy metadata is unknown, never implicitly an availability wait.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub wait_reason: Option<RecoveryWaitReason>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub effect_resolution: Option<RecoveryEffectResolution>,
     pub condition: Option<String>,
     pub updated_at: String,
 }
@@ -189,6 +192,8 @@ pub enum RecoveryControlKind {
     Continue,
     Wait,
     Pause,
+    /// Uses Engine::inspect_recovery, not the synchronous control_recovery API.
+    InspectEffects,
 }
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct StageManualActions {
@@ -197,16 +202,30 @@ pub struct StageManualActions {
     pub controls: Vec<RecoveryControlKind>,
 }
 impl RecoveryStage {
+    pub fn effects_resolved(&self) -> bool {
+        self.failures.iter().all(|f| {
+            f.termination == TerminationEvidence::BackendEnded
+                && (f.effective_access.is_read_only()
+                    || self
+                        .effect_resolution
+                        .as_ref()
+                        .is_some_and(|r| r.failures.contains(f)))
+        })
+    }
     pub fn manual_actions(&self) -> StageManualActions {
         let mut controls = Vec::new();
         if self.status != RecoveryStatus::Complete {
             controls.extend([RecoveryControlKind::Wait, RecoveryControlKind::Pause]);
             if self.status != RecoveryStatus::Running
-                && self.failures.iter().all(|f| {
-                    f.effective_access.is_read_only()
-                        && f.termination == TerminationEvidence::BackendEnded
-                })
+                && !self.failures.is_empty()
+                && self
+                    .failures
+                    .iter()
+                    .all(|f| f.termination == TerminationEvidence::BackendEnded)
             {
+                controls.push(RecoveryControlKind::InspectEffects);
+            }
+            if self.status != RecoveryStatus::Running && self.effects_resolved() {
                 controls.extend([RecoveryControlKind::Continue, RecoveryControlKind::Retry]);
             }
         }
@@ -216,4 +235,41 @@ impl RecoveryStage {
             controls,
         }
     }
+}
+
+/// Trusted local inspection ingress. It neither retries the failed call nor
+/// releases an owner hold. Continue remains a separate versioned owner command.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RecoveryInspectionCommand {
+    pub session_id: String,
+    pub stage_id: String,
+    pub expected_revision: u64,
+    pub command_id: String,
+}
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct InspectedInvocationEffects {
+    pub failure: InvocationFailure,
+    pub access_record_id: String,
+    pub ended_at: String,
+    pub files: Vec<FileSnapshot>,
+}
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RecoveryInspection {
+    pub command: RecoveryInspectionCommand,
+    pub task: Option<TaskAttemptRef>,
+    pub plan: Option<PlanVersion>,
+    pub result: Option<ResultVersion>,
+    pub effects: Vec<InspectedInvocationEffects>,
+    pub reviewer: SavedResponse,
+}
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RecoveryEffectResolution {
+    pub inspection_id: String,
+    pub failures: Vec<InvocationFailure>,
+}
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RecoveryInspectionReceipt {
+    pub command: RecoveryInspectionCommand,
+    pub inspection_id: String,
+    pub resulting_revision: u64,
 }

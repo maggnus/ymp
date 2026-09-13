@@ -1,5 +1,5 @@
 use super::*;
-fn key(session: &str, id: &str) -> String {
+pub(super) fn key(session: &str, id: &str) -> String {
     format!("recovery:v1:{session}:{id}")
 }
 impl Store {
@@ -144,11 +144,7 @@ impl Store {
                 }
                 stage.admission_denial = None;
                 anyhow::ensure!(
-                    stage
-                        .failures
-                        .iter()
-                        .all(|f| f.effective_access.is_read_only()
-                            && f.termination == TerminationEvidence::BackendEnded),
+                    super::recovery_inspection::replay_safe(&tx, &stage)?,
                     "uncertain_effects: inspect effects and establish termination before replay"
                 );
                 stage.manual_permit = true;
@@ -201,6 +197,7 @@ pub(super) fn bind_admission(
     assignment: &AssignmentRecord,
     invocation: &InvocationRecord,
 ) -> Result<()> {
+    super::recovery_inspection::check_admission(tx, assignment)?;
     let binding: Option<String> = tx
         .query_row(
             "SELECT value FROM kv WHERE key=?",
@@ -225,6 +222,10 @@ pub(super) fn bind_admission(
                 && stage.purpose == assignment.purpose
                 && stage.selected_agent.as_ref() == Some(&assignment.agent_id),
             "stale_recovery: admission lost its stage revision or owner permission"
+        );
+        anyhow::ensure!(
+            super::recovery_inspection::replay_safe(tx, &stage)?,
+            "uncertain_effects: inspection evidence is missing or changed before replay admission"
         );
         stage.active_invocation_id = Some(invocation.id.clone());
         stage.revision += 1;

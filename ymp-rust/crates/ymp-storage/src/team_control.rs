@@ -405,10 +405,7 @@ impl Store {
                 let reconsider = stage.status == RecoveryStatus::Waiting
                     && stage.wait_reason == Some(RecoveryWaitReason::ParticipantAvailability)
                     && stage.admission_denial.is_none()
-                    && stage.failures.iter().all(|f| {
-                        f.effective_access.is_read_only()
-                            && f.termination == TerminationEvidence::BackendEnded
-                    });
+                    && super::recovery_inspection::replay_safe(&tx, &stage)?;
                 if invalidate {
                     stage.selected_agent = None;
                 }
