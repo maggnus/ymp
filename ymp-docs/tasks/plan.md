@@ -1,6 +1,6 @@
 # Delivery plan and progress
 
-Updated: 2026-09-13 05:52 UTC.
+Updated: 2026-09-13 06:29 UTC.
 
 [Approved intent](../../intent.md) · [Task details and evidence](README.md) · [Canonical register](tasks.json)
 
@@ -33,7 +33,7 @@ A planned task automatically shows `[=]` while prerequisites remain unfinished a
 ## Current work and owner questions
 
 - `[+]` [YMP-130](README.md#ymp-130) — Show active agent work during headless session runs (2026-09-13 00:54). Read-only diagnosis: poker checks passed at 2026-09-13T00:52:09Z; the following claude-opus-5 review invocation was active. Earlier attempts were cancelled. No active run was stopped or restarted by this investigation.
-- `[~]` [YMP-133](README.md#ymp-133) — Present non-popup data collections as consistent keyboard-navigable tables (2026-09-13 05:52). Independent high review of foundation d0b674a found two required fixes: preserve TEAM model/effort labels before activity text at narrow widths (T1), and guarantee total column widths plus gaps fit the available room (T2). Findings are sent to the author while main-page conversion continues; final tests must cover the width invariant and label legibility.
+- `[~]` [YMP-133](README.md#ymp-133) — Present non-popup data collections as consistent keyboard-navigable tables (2026-09-13 06:29). Parent physically reproduced selection defect R1: in Agents sorted by ENABLED, Space on Cygnus followed by Space changed Boreal instead of restoring Cygnus. Added this semantic action-target check and same-table Team sort coverage to the terminal runner. Evidence retained in selection-negative. Corrective high-effort UI work continues before release.
 - `[~]` [YMP-134](README.md#ymp-134) — Finish sidebar, Detailed mode and floating-surface corrections requested directly in Paseo (2026-09-13 05:36). Integrated all sidebar, Detailed and floating-surface corrections, including R1 9a88591 and short-terminal selection fix O1 6d72b31. Parent reviewed the narrow fixes; author controls fail before and pass after, with 176 TUI tests passing and one ignored. README R2 is fixed. Final combined workspace/terminal checks and installation remain with the table release.
 - `[~]` [YMP-135](README.md#ymp-135) — Show model-only labels when native effort is unknown or only a thinking toggle is reported (2026-09-13 05:41). Shared-label commit 6d12bf4 is integrated. The combined source passes 475 Rust tests (two ignored), fmt and strict workspace Clippy. Four physical CLI fixtures pass: absent and binary on effort produce model-only headings; real none and max remain native values. The previous binary reproduces the missing-effort placeholder defect. Installed-binary verification awaits the combined table release.
 
@@ -142,7 +142,7 @@ Deferred and post-MVP work:
 
 | Time (UTC) | Task | State | Update |
 | --- | --- | --- | --- |
-| 2026-09-13 05:52 | [YMP-133](README.md#ymp-133) | `[~]` | Independent high review of foundation d0b674a found two required fixes: preserve TEAM model/effort labels before activity text at narrow widths (T1), and guarantee total column widths plus gaps fit the available room (T2). Findings are sent to the author while main-page conversion continues; final tests must cover the width invariant and label legibility. |
+| 2026-09-13 06:29 | [YMP-133](README.md#ymp-133) | `[~]` | Parent physically reproduced selection defect R1: in Agents sorted by ENABLED, Space on Cygnus followed by Space changed Boreal instead of restoring Cygnus. Added this semantic action-target check and same-table Team sort coverage to the terminal runner. Evidence retained in selection-negative. Corrective high-effort UI work continues before release. |
 | 2026-09-13 05:41 | [YMP-135](README.md#ymp-135) | `[~]` | Shared-label commit 6d12bf4 is integrated. The combined source passes 475 Rust tests (two ignored), fmt and strict workspace Clippy. Four physical CLI fixtures pass: absent and binary on effort produce model-only headings; real none and max remain native values. The previous binary reproduces the missing-effort placeholder defect. Installed-binary verification awaits the combined table release. |
 | 2026-09-13 05:36 | [YMP-134](README.md#ymp-134) | `[~]` | Integrated all sidebar, Detailed and floating-surface corrections, including R1 9a88591 and short-terminal selection fix O1 6d72b31. Parent reviewed the narrow fixes; author controls fail before and pass after, with 176 TUI tests passing and one ignored. README R2 is fixed. Final combined workspace/terminal checks and installation remain with the table release. |
 | 2026-09-13 04:25 | [YMP-131](README.md#ymp-131) | `[x]` | Installed ymp 0.4.2 after independent Opus UI acceptance and review corrections. First Ctrl+C only prompts; second exits gracefully. Printed resume commands always include the saved metadata home. Final integration passes 461 Rust tests, 18 bridge tests and idle/active release-binary PTY checks. |

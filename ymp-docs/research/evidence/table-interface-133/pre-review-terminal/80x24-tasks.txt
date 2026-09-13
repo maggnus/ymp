@@ -1,0 +1,24 @@
+ymp  project                                 554f01cc  ✓ completed  — tok  8/200
+────────────────────────────────────────────────────────────────────────────────
+ Tasks[1]  /tasks                    1 of 1 accepted │ SESSION
+─────────────────────────────────────────────────────│ 554f01cc     ✓ completed
+      TITLE     STATE     GRADE        RESPONSIBLE   │ turns this ses…  8 / 200
+ › ✓  Create …  accepted  unconfirmed  Atlas         │ dir …al-y80xo997/project
+                                                     │
+                                                     │ TOKENS                 —
+                                                     │ AGENT   TOKENS
+                                                     │ Atlas        —
+                                                     │ Cygnus       —
+                                                     │
+                                                     │ TEAM        this session
+                                                     │ AGENT     STATE
+                                                     │ ○ Atlas   idle
+                                                     │ ○ Cygnus  idle
+                                                     │
+                                                     │ TASKS     accepted 1 / 1
+                                                     │
+                                                     │
+                                                     │
+────────────────────────────────────────────────────────────────────────────────
+› Describe a task, or type / for commands.
+Ready       main Enter inspect  Esc back  / filter  Shift+letter sort  d inspect

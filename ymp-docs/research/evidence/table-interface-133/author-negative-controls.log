@@ -1,0 +1,30 @@
+== figures sorted as text (exit 101)
+test table::tests::sorting_cycles_and_unknown_values_follow_known_ones_either_way ... FAILED
+test tests::table_sort_orders_figures_as_numbers_keeps_unknown_last_and_the_selection ... FAILED
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 193 filtered out; finished in 0.02s
+error: test failed, to rerun pass `-p ymp-tui --lib`
+== bang ignored (exit 101)
+test table::tests::a_filter_keeps_matching_rows_and_a_leading_bang_inverts_it ... FAILED
+test tests::table_filter_keeps_matching_rows_inverts_on_bang_and_clears_before_the_page_closes ... FAILED
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 193 filtered out; finished in 0.02s
+error: test failed, to rerun pass `-p ymp-tui --lib`
+== no sticky header (exit 101)
+test tests::table_column_titles_stay_on_screen_while_the_rows_scroll ... FAILED
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 194 filtered out; finished in 0.03s
+error: test failed, to rerun pass `-p ymp-tui --lib`
+== no last-resort give way (exit 101)
+test table::tests::a_table_never_takes_more_than_its_width ... FAILED
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 194 filtered out; finished in 0.00s
+error: test failed, to rerun pass `-p ymp-tui --lib`
+== TEAM marker column and ACTIVITY title (exit 101)
+test tests::a_narrow_sidebar_cuts_what_a_member_is_doing_before_its_model_and_effort ... FAILED
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 194 filtered out; finished in 0.03s
+error: test failed, to rerun pass `-p ymp-tui --lib`
+== Esc closes the page before the filter (exit 101)
+test tests::table_filter_keeps_matching_rows_inverts_on_bang_and_clears_before_the_page_closes ... FAILED
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 194 filtered out; finished in 0.03s
+error: test failed, to rerun pass `-p ymp-tui --lib`
+== selection not kept across a sort (exit 101)
+test tests::table_sort_orders_figures_as_numbers_keeps_unknown_last_and_the_selection ... FAILED
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 194 filtered out; finished in 0.02s
+error: test failed, to rerun pass `-p ymp-tui --lib`

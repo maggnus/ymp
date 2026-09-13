@@ -1,0 +1,24 @@
+ymp  project             554f01cc  ✓ completed  — tok  8/200
+────────────────────────────────────────────────────────────
+ Limits[17]  /limits        captured 200 turns, 3 at a time
+─                                                          ─
+  ┌ Colour theme ──────────────────────── saved on Enter ┐
+  │ › Ember     dark                                     │
+  │   Warm amber on black. The default ymp palette.      │
+  │   Slate     dark                                     │
+  │   Paper     light                                    │
+  │   Contrast  high contrast                            │
+  │   Terminal  terminal palette                         │
+  │                                                      │
+  │ The whole interface previews as you move.            │
+  │                                                      │
+  │ Up/Down preview  Enter keep  Esc cancel              │
+  └──────────────────────────────────────────────────────┘
+
+   review tokens      none
+   incomplete counts  stop admitting
+   strict bound       not proved
+
+────────────────────────────────────────────────────────────
+› Describe a task, or type / for commands.
+Ready main + / - adjust the next run  Enter type a value, o…

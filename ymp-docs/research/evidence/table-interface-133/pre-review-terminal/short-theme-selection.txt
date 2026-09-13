@@ -1,0 +1,10 @@
+ymp  projec┌ Colour theme ────────────────────────── saved on Enter ┐ tok  8/200
+───────────│   Slate     dark                                       │───────────
+ Limits[17 │   Paper     light                                      │
+────────── │   Contrast  high contrast                              │ completed
+ › ◇ What  │ › Terminal  terminal palette                           │   8 / 200
+           │                                                        │ 7/project
+   THIS SE │ Up/Down preview  Enter keep  Esc cancel                │
+───────────└──────────────────────────────────────────────── 4 more ┘───────────
+› Describe a task, or type / for commands.
+Ready main + / - adjust the next run  Enter type a value, or read the record  E…

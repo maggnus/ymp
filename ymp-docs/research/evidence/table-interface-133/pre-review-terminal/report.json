@@ -1,0 +1,67 @@
+{
+  "binary": "/private/tmp/ymp042-integrated-target/debug/ymp",
+  "native_inference": false,
+  "cases": [
+    {
+      "case": "sidebar-without-navigation",
+      "passed": true
+    },
+    {
+      "case": "detailed-expands-long-agent-report",
+      "passed": true
+    },
+    {
+      "case": "files-table",
+      "passed": true
+    },
+    {
+      "case": "filter-and-clear",
+      "passed": true
+    },
+    {
+      "case": "inverse-filter",
+      "passed": true
+    },
+    {
+      "case": "numeric-sort-both-directions",
+      "passed": true
+    },
+    {
+      "case": "empty-filter-recovery",
+      "passed": true
+    },
+    {
+      "case": "inspect-filtered-row-and-return",
+      "passed": true
+    },
+    {
+      "case": "pages-at-140x45",
+      "passed": true
+    },
+    {
+      "case": "pages-at-80x24",
+      "passed": true
+    },
+    {
+      "case": "pages-at-60x24",
+      "passed": true
+    },
+    {
+      "case": "modal-margin-preserves-sidebar-divider",
+      "passed": true
+    },
+    {
+      "case": "short-surface-selection-stays-visible",
+      "passed": true
+    },
+    {
+      "case": "narrow-choice-prompt-and-confirm-surfaces",
+      "passed": true
+    },
+    {
+      "case": "workspace-unchanged",
+      "passed": true
+    }
+  ],
+  "passed": true
+}

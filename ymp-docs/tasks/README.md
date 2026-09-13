@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-13 05:52 UTC.
+Updated: 2026-09-13 06:29 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -72,7 +72,7 @@ A planned task is not implemented functionality. Completed research and planning
 | `[+]` | [YMP-130](#ymp-130) | P1 | Show active agent work during headless session runs | 2026-09-13 00:54 |
 | `[x]` | [YMP-131](#ymp-131) | P1 | Support deliberate double Ctrl+C exit and print session reopening command | 2026-09-13 04:25 |
 | `[x]` | [YMP-132](#ymp-132) | P1 | Attribute chat output to the actual agent invocation instead of provider-shaped actor IDs | 2026-09-13 04:25 |
-| `[~]` | [YMP-133](#ymp-133) | P1 | Present non-popup data collections as consistent keyboard-navigable tables | 2026-09-13 05:52 |
+| `[~]` | [YMP-133](#ymp-133) | P1 | Present non-popup data collections as consistent keyboard-navigable tables | 2026-09-13 06:29 |
 | `[~]` | [YMP-134](#ymp-134) | P1 | Finish sidebar, Detailed mode and floating-surface corrections requested directly in Paseo | 2026-09-13 05:36 |
 | `[~]` | [YMP-135](#ymp-135) | P1 | Show model-only labels when native effort is unknown or only a thinking toggle is reported | 2026-09-13 05:41 |
 
@@ -1765,9 +1765,9 @@ Present non-popup data collections as consistent keyboard-navigable tables
 
 **State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P1
 
-**Last update (UTC):** 2026-09-13 05:52
+**Last update (UTC):** 2026-09-13 06:29
 
-**Current reason:** Independent high review of foundation d0b674a found two required fixes: preserve TEAM model/effort labels before activity text at narrow widths (T1), and guarantee total column widths plus gaps fit the available room (T2). Findings are sent to the author while main-page conversion continues; final tests must cover the width invariant and label legibility.
+**Current reason:** Parent physically reproduced selection defect R1: in Agents sorted by ENABLED, Space on Cygnus followed by Space changed Boreal instead of restoring Cygnus. Added this semantic action-target check and same-table Team sort coverage to the terminal runner. Evidence retained in selection-negative. Corrective high-effort UI work continues before release.
 
 **Owner:** Maintainer
 

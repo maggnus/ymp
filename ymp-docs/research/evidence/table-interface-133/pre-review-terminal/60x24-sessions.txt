@@ -1,0 +1,24 @@
+ymp  project             554f01cc  ✓ completed  — tok  8/200
+────────────────────────────────────────────────────────────
+ Sessions[1]  /sessions                  1 saved in project
+────────────────────────────────────────────────────────────
+   SESSION   TITLE          STATUS       CREATED
+ › 554f01cc  Create greet…  ✓ completed  2026-09-13 06:17
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────
+› Describe a task, or type / for commands.
+Ready  main Enter open read-only  r resume the run  Esc back

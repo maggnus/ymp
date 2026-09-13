@@ -12,6 +12,7 @@ import sqlite3
 import subprocess
 import tempfile
 import time
+import tomllib
 import uuid
 
 
@@ -53,6 +54,8 @@ provider = "demo"
     assert demo.returncode == 0, "mock demo failed"
     session = re.search(r"^Session: (\S+)", demo.stdout, re.M).group(1)
     with sqlite3.connect(home / "state.sqlite") as db:
+        captured = json.loads(db.execute("SELECT data FROM sessions WHERE id=?", (session,)).fetchone()[0])
+        shared_member = captured["team"][0]["name"]
         db.execute(
             "INSERT INTO messages(session_id,author,kind,text,created_at) VALUES(?,?,?,?,?)",
             (session, "atlas", "execute", "\n\n".join(
@@ -90,8 +93,10 @@ provider = "demo"
         raise AssertionError("terminal did not reach " + label)
 
     def keys(*values):
-        tmux("send-keys", "-t", "check", *values)
-        time.sleep(0.12)
+        # Separate deliberate presses: adjacent Escape bytes can encode Alt+Escape.
+        for value in values:
+            tmux("send-keys", "-t", "check", value)
+            time.sleep(0.12)
 
     def type_text(text):
         tmux("send-keys", "-t", "check", "-l", text)
@@ -105,12 +110,16 @@ provider = "demo"
     def passed(case):
         report["cases"].append({"case": case, "passed": True})
 
+    def sidebar_text(text, width):
+        side = 34 if width >= 140 else 30 if width >= 100 else 26 if width >= 72 else 0
+        return "\n".join(row[width - side:] for row in text.splitlines()[2:-3]) if side else ""
+
     try:
         tmux("new-session", "-d", "-s", "check", "-x", "140", "-y", "45",
              str(binary), "--home", str(home), "-C", str(project), "resume", session)
         wait_for(lambda s: "ymp" in s and "SESSION" in s, "startup")
         text = capture("wide-chat")
-        assert "NAVIGATE" not in text, "sidebar still contains NAVIGATE"
+        assert "NAVIGATE" not in sidebar_text(text, 140), "sidebar still contains NAVIGATE"
         passed("sidebar-without-navigation")
         assert "Terminal detail paragraph 12." not in text, "default report was not collapsed"
         keys("C-l")
@@ -186,9 +195,43 @@ provider = "demo"
                 text = capture(f"{width}x{height}-{page[1:]}")
                 assert "ymp" in text, (page, width, "application screen missing")
                 assert title in "\n".join(text.splitlines()[:5]), (page, width, "wrong page", text)
-                assert "NAVIGATE" not in text, (page, width, "navigation returned")
+                assert "NAVIGATE" not in sidebar_text(text, width), (page, width, "navigation returned")
                 assert "panic" not in text.lower(), (page, width, text)
             passed(f"pages-at-{width}x{height}")
+
+        tmux("resize-window", "-t", "check", "-x", "140", "-y", "45")
+        time.sleep(0.2)
+        command("/agents")
+        type_text("N")  # ENABLED; R is reserved, and READING uses E.
+        type_text("/Cygnus")
+        keys("Enter", "Escape")
+
+        def enabled_profiles():
+            config = tomllib.loads((home / "config.toml").read_text())
+            return {agent["id"]: agent.get("enabled", True) for agent in config["agents"]}
+
+        original_enabled = enabled_profiles()
+        keys("Space")
+        first_toggle = enabled_profiles()
+        assert not first_toggle["cygnus"], "the first edit did not target the selected profile"
+        keys("Space")
+        capture("sorted-profile-edited-twice")
+        assert enabled_profiles() == original_enabled, "a rebuild moved the selection and edited a different profile"
+        passed("sorted-profile-edit-retains-record")
+
+        command("/team")
+        type_text("/" + shared_member)
+        keys("Enter")
+        keys("End")
+        type_text("M")
+        type_text("M")
+        text = capture("team-pool-sort-twice")
+        lines = text.splitlines()
+        pool_line = next(i for i, row in enumerate(lines) if "AVAILABLE ON THIS MACHINE" in row)
+        selected = next(i for i, row in enumerate(lines[2:-3], 2) if row.lstrip().startswith("›"))
+        assert selected > pool_line, "sorting a pool row jumped to a member row with the same ID"
+        assert "MODEL ↓" in "\n".join(lines[pool_line:]), "pool sort did not cycle to descending"
+        passed("team-selection-keeps-table-identity")
 
         tmux("resize-window", "-t", "check", "-x", "120", "-y", "36")
         time.sleep(0.2)

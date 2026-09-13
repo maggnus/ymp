@@ -1,0 +1,36 @@
+ymp  project  /private/var/folders/cw/7pn8sb3x6bj69g7j2d8f_ss0…  554f01cc  ✓ completed  — tokens  8 / 200 turns captured
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ Limits[17]  /limits                                     captured 200 turns, 3 at a time │ SESSION
+─────────────────────────────────────────────────────────────────────────────────────────│ 554f01cc         ✓ completed
+ › ◇ What a limit is, and which run it applies to  what this page is                     │ turns this session   8 / 200
+                                                                                         │ dir …rminal-y80xo997/project
+   THIS SESSION, AS CAPTURED                                                             │
+   LIMIT              VALUE                                                              │ TOKENS                     —
+   turns              8 of 200 ┌ Colour theme ────────────────────────── saved on Enter ┐│ AGENT   TOKENS
+   parallel           3        │ › Ember     dark                                       ││ Atlas        —
+   timeout            900 s    │   Warm amber on black. The default ymp palette.        ││ Cygnus       —
+   attempts           3        │   Slate     dark                                       ││
+   turns admitted     8        │   Paper     light                                      ││ TEAM            this session
+   reserved turns     2 + 0    │   Contrast  high contrast                              ││ AGENT     STATE
+   tokens observed    unknown  │   Terminal  terminal palette                           ││ ○ Atlas   idle
+   token ceiling      none     │                                                        ││ ○ Cygnus  idle
+   turn allowance     none     │ The whole interface previews as you move.              ││
+   review tokens      none     │                                                        ││ TASKS         accepted 1 / 1
+   incomplete counts  stop adm │ Up/Down preview  Enter keep  Esc cancel                ││
+   strict bound       not prov └────────────────────────────────────────────────────────┘│
+                                                                                         │
+   THE NEXT RUN                                                                          │
+   LIMIT     VALUE                                                                       │
+   parallel  3                                                                           │
+   turns     200                                                                         │
+   timeout   900 s                                                                       │
+   attempts  3                                                                           │
+                                                                                         │
+                                                                                         │
+                                                                                         │
+                                                                                         │
+                                                                                         │
+                                                                                         │
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+› Describe a task, or type / for commands.
+Ready main + / - adjust the next run  Enter type a value, or read the record  Esc back  / filter  Shift+letter sort  d …

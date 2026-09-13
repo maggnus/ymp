@@ -3261,6 +3261,21 @@
           "at": "2026-09-13T05:52:30.549270+00:00",
           "status": "in_progress",
           "note": "Independent high review of foundation d0b674a found two required fixes: preserve TEAM model/effort labels before activity text at narrow widths (T1), and guarantee total column widths plus gaps fit the available room (T2). Findings are sent to the author while main-page conversion continues; final tests must cover the width invariant and label legibility."
+        },
+        {
+          "at": "2026-09-13T06:14:37.004720+00:00",
+          "status": "in_progress",
+          "note": "Full page tables committed as63e4780 and integrated with all modal/history/effort corrections at a2f2707. The author reports194 passing TUI tests and failing controls for numeric sorting, filter inversion, sticky headers, width bounds, label priority, Esc order and selection retention. Final independent control review and parent full workspace/actual-terminal checks are now running; installation is still pending."
+        },
+        {
+          "at": "2026-09-13T06:21:32.155766+00:00",
+          "status": "in_progress",
+          "note": "Integrated source passes489 Rust tests, strict Clippy and all15 actual terminal scenarios. Independent final review closes T1/T2 but finds two required selection-identity defects: rebuilds can shift the selected record, and duplicate Team row keys can move selection between tables. Claude Opus5 high is fixing them, plus small count/filter/sort presentation issues, before installation. Evidence and the review are retained under table-interface-133."
+        },
+        {
+          "at": "2026-09-13T06:29:28.822752+00:00",
+          "status": "in_progress",
+          "note": "Parent physically reproduced selection defect R1: in Agents sorted by ENABLED, Space on Cygnus followed by Space changed Boreal instead of restoring Cygnus. Added this semantic action-target check and same-table Team sort coverage to the terminal runner. Evidence retained in selection-negative. Corrective high-effort UI work continues before release."
         }
       ]
     },
@@ -3355,7 +3370,7 @@
       ]
     }
   ],
-  "updated_at": "2026-09-13T05:52:30.549270+00:00",
+  "updated_at": "2026-09-13T06:29:28.822752+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",
