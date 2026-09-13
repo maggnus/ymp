@@ -1,5 +1,9 @@
 # YMP-201 minimal pilot package
 
+The [version-2 manifest consumer](consumer-v2.md) adds an approval-gated native
+path and complete local protocol execution. The preparation record below remains
+the historical scope of commit 15529e6.
+
 Status: executable preparation and deterministic controls; no native experiment,
 calibration, model-quality result or approved quota. Base:
 `399ecc2c40ba2473f2676c482648e664cba9a52e`. The parent owns the hypothesis,

@@ -1,3 +1,5 @@
+pub mod consumer;
+mod consumer_engine;
 mod fixture;
 mod proofs;
 mod raw;

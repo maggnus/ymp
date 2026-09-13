@@ -1,0 +1,10 @@
+{
+  "kind": "built_in_provider_retry_override_startup",
+  "inference_calls": 0,
+  "exit_code": 1,
+  "recognized_error_fragments": [
+    "reserved",
+    "built-in"
+  ],
+  "raw_stderr_saved": false
+}

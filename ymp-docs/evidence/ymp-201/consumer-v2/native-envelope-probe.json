@@ -1,0 +1,103 @@
+{
+  "kind": "native_envelope_without_inference",
+  "inference_calls": 0,
+  "standalone_command_profiles_equal_thread_profiles": true,
+  "version": "codex-cli 0.154.0",
+  "binary_sha256": "4f85982624b3898c8991cb80c0981b2aa71070e3537046c9a95950318a95afcc",
+  "runs": [
+    {
+      "requested_sandbox": "read-only",
+      "expected_permissions": "ymp201_read_29c965c23326769d",
+      "thread_selected": {
+        "activePermissionProfile": {
+          "id": "ymp201_read_29c965c23326769d",
+          "extends": null
+        },
+        "approvalPolicy": "never",
+        "reasoningEffort": "low",
+        "model": "gpt-5.6-luna",
+        "instructionSources": []
+      },
+      "thread_error": null,
+      "command_response": {
+        "id": 4,
+        "result": {
+          "exitCode": 0,
+          "stdout": "visible_read=0\nvisible_write=1\nhidden_read=1\nhidden_write=1\npeer_read=1\npeer_write=1\nnative_state_read=1\nnative_state_write=1\ncontroller_read=1\n",
+          "stderr": ""
+        }
+      },
+      "pass": true
+    },
+    {
+      "requested_sandbox": "danger-full-access",
+      "expected_permissions": "ymp201_write_23feb99429551d32",
+      "thread_selected": {
+        "activePermissionProfile": {
+          "id": "ymp201_write_23feb99429551d32",
+          "extends": null
+        },
+        "approvalPolicy": "never",
+        "reasoningEffort": "low",
+        "model": "gpt-5.6-luna",
+        "instructionSources": []
+      },
+      "thread_error": null,
+      "command_response": {
+        "id": 7,
+        "result": {
+          "exitCode": 0,
+          "stdout": "visible_read=0\nvisible_write=0\nhidden_read=1\nhidden_write=1\npeer_read=1\npeer_write=1\nnative_state_read=1\nnative_state_write=1\ncontroller_read=1\n",
+          "stderr": ""
+        }
+      },
+      "pass": true
+    }
+  ],
+  "state_config": {
+    "sqlite_home": "<PROBE_ROOT>/native-state",
+    "log_dir": "<PROBE_ROOT>/native-state/logs"
+  },
+  "native_host_wrote_own_state": true,
+  "rpc_methods": [
+    "initialize",
+    "config/read",
+    "thread/start",
+    "command/exec",
+    "thread/unload",
+    "thread/start",
+    "command/exec",
+    "thread/unload"
+  ],
+  "rewrite_journal": [
+    {
+      "controls_sha256": "8b95f04834dd58685159dcb239597c88f8ba07511fb73f80fcbe0e42135188f1",
+      "cwd": "<PROBE_ROOT>/visible",
+      "event": "native_permission_rewrite",
+      "method": "thread/start",
+      "native_home_denied_to_commands": true,
+      "native_home_relocated": false,
+      "profile_sha256": "1924192017958bdbf42f93c7d364673f706609a699fbe401583767d75563579a",
+      "requested_sandbox": "read-only",
+      "sent_permissions": "ymp201_read_29c965c23326769d"
+    },
+    {
+      "controls_sha256": "8b95f04834dd58685159dcb239597c88f8ba07511fb73f80fcbe0e42135188f1",
+      "cwd": "<PROBE_ROOT>/visible",
+      "event": "native_permission_rewrite",
+      "method": "thread/start",
+      "native_home_denied_to_commands": true,
+      "native_home_relocated": false,
+      "profile_sha256": "9797dd5072f88417822ba05ce4788ff0573cc087fa196348cee42418c10eb33e",
+      "requested_sandbox": "danger-full-access",
+      "sent_permissions": "ymp201_write_23feb99429551d32"
+    }
+  ],
+  "pass": true,
+  "limitations": [
+    "No model turn or model tool call was submitted.",
+    "Standalone command/exec uses a server-loaded copy of exactly the profile selected on the thread.",
+    "Only artificial native-state files were inspected; native credentials and existing histories were not read.",
+    "Thread model and effort are metadata, not measured invocation usage."
+  ]
+}

@@ -2,13 +2,12 @@
 #[path = "weak_pilot/mod.rs"]
 mod weak_pilot;
 
-use anyhow::{bail, Result};
+use anyhow::Result;
 use clap::{Parser, Subcommand};
-use serde_json::json;
 use std::path::PathBuf;
 
 #[derive(Parser)]
-#[command(about = "Offline YMP-201 measurement-boundary proofs; native work remains blocked")]
+#[command(about = "YMP-201 frozen-manifest consumer and offline measurement proofs")]
 struct Args {
     #[command(subcommand)]
     command: Command,
@@ -21,12 +20,24 @@ enum Command {
         #[arg(long)]
         output: PathBuf,
     },
-    /// Record the missing native guarantees, then fail before any provider spawn.
+    /// Consume an exact frozen native manifest with external owner authorization.
     Native {
         #[arg(long)]
         manifest: PathBuf,
         #[arg(long)]
-        output: PathBuf,
+        approval: Option<PathBuf>,
+        #[arg(long)]
+        calibration_report: Option<PathBuf>,
+    },
+    /// Same consumer, exclusively against the local protocol executable.
+    Scripted {
+        #[arg(long)]
+        manifest: PathBuf,
+    },
+    #[command(hide = true)]
+    Mcp {
+        #[arg(long)]
+        socket: PathBuf,
     },
 }
 
@@ -40,25 +51,34 @@ async fn main() -> Result<()> {
             println!("{}", output.join("offline-proof.json").display());
             Ok(())
         }
-        Command::Native { manifest, output } => {
-            // Reading a proposal is not authority to release an experimental prompt.
-            let bytes = std::fs::read(&manifest)?;
-            let _: serde_json::Value = serde_json::from_slice(&bytes)?;
-            let output = weak_pilot::fresh_output(&output)?;
-            weak_pilot::write_json(
-                &output.join("native-preflight.json"),
-                &json!({
-                    "schema_version":1,
-                    "status":"blocked_before_native",
-                    "provider_spawned":false,
-                    "native_inference":false,
-                    "manifest_sha256":ymp_core::bytes_digest(&bytes),
-                    "actual_model":null,"actual_usage":null,"actual_elapsed_seconds":null,
-                    "limitations":weak_pilot::native_boundary(),
-                    "owner_authorization":"separate parent approval required"
-                }),
-            )?;
-            bail!("native_controls_unproven: native subagent, memory and retry suppression are not established; inspect native-preflight.json")
+        Command::Native {
+            manifest,
+            approval,
+            calibration_report,
+        } => {
+            let report = weak_pilot::consumer::run(
+                &manifest,
+                false,
+                approval.as_deref(),
+                calibration_report.as_deref(),
+            )
+            .await?;
+            println!("{}", serde_json::to_string(&report)?);
+            anyhow::ensure!(
+                report["complete"] == true,
+                "Run interrupted; all remaining cells are retained as not_started"
+            );
+            Ok(())
         }
+        Command::Scripted { manifest } => {
+            let report = weak_pilot::consumer::run(&manifest, true, None, None).await?;
+            println!("{}", serde_json::to_string(&report)?);
+            anyhow::ensure!(
+                report["complete"] == true,
+                "Scripted run interrupted; inspect the saved report"
+            );
+            Ok(())
+        }
+        Command::Mcp { socket } => ymp_runtime::mcp::stdio_bridge(&socket).await,
     }
 }

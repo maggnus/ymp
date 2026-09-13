@@ -1,0 +1,82 @@
+{
+  "kind": "native_storage_metadata_only",
+  "inference_calls": 0,
+  "threads": [
+    {
+      "requested": "default",
+      "selected": {
+        "ephemeral": false,
+        "historyMode": "paginated",
+        "path": "<USER_HOME>/.codex/sessions/2026/09/14/rollout-2026-09-14T03-41-21-01a09c49-dc2b-7791-9178-4e9280546ffe.jsonl",
+        "id": "01a09c49-dc2b-7791-9178-4e9280546ffe"
+      },
+      "error": null,
+      "delete_created_thread": {
+        "id": 5,
+        "result": {}
+      }
+    },
+    {
+      "requested": "legacy",
+      "selected": {
+        "ephemeral": false,
+        "historyMode": "legacy",
+        "path": "<USER_HOME>/.codex/sessions/2026/09/14/rollout-2026-09-14T03-41-21-01a09c49-dd7c-78e1-bc73-7a851a27875d.jsonl",
+        "id": "01a09c49-dd7c-78e1-bc73-7a851a27875d"
+      },
+      "error": null,
+      "delete_created_thread": {
+        "id": 8,
+        "result": {}
+      }
+    },
+    {
+      "requested": "paginated",
+      "selected": {
+        "ephemeral": false,
+        "historyMode": "paginated",
+        "path": "<USER_HOME>/.codex/sessions/2026/09/14/rollout-2026-09-14T03-41-21-01a09c49-deb9-7a73-afc9-4867311a187c.jsonl",
+        "id": "01a09c49-deb9-7a73-afc9-4867311a187c"
+      },
+      "error": null,
+      "delete_created_thread": {
+        "id": 11,
+        "result": {}
+      }
+    },
+    {
+      "requested": "ephemeral",
+      "selected": {
+        "ephemeral": true,
+        "historyMode": "legacy",
+        "path": null,
+        "id": "01a09c49-dff9-7881-ae45-d459cce18582"
+      },
+      "error": null
+    }
+  ],
+  "raw_history_read": false,
+  "native_home_relocated": false,
+  "config_selected": {
+    "sqlite_home": "<PROBE_ROOT>/sqlite",
+    "log_dir": "<PROBE_ROOT>/logs",
+    "history.persistence": "none"
+  },
+  "own_temp_filenames": [
+    "sqlite/logs_2.sqlite-wal",
+    "sqlite/memories_1.sqlite-shm",
+    "sqlite/logs_2.sqlite-shm",
+    "sqlite/memories_1.sqlite-wal",
+    "sqlite/queue_1.sqlite-shm",
+    "sqlite/queue_1.sqlite-wal",
+    "sqlite/queue_1.sqlite",
+    "sqlite/logs_2.sqlite",
+    "sqlite/memories_1.sqlite",
+    "sqlite/state_5.sqlite",
+    "sqlite/goals_1.sqlite-shm",
+    "sqlite/state_5.sqlite-wal",
+    "sqlite/goals_1.sqlite-wal",
+    "sqlite/goals_1.sqlite",
+    "sqlite/state_5.sqlite-shm"
+  ]
+}
