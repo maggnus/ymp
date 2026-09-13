@@ -248,6 +248,51 @@ impl Store {
         kind: &str,
         text: &str,
     ) -> Result<Message> {
+        self.message_with_origin(session, author, recipient, kind, text, None)
+    }
+
+    /// Persist a provider response and its exact invocation origin atomically.
+    pub fn invocation_message(
+        &self,
+        session: &str,
+        invocation_id: &str,
+        kind: &str,
+        text: &str,
+    ) -> Result<Message> {
+        let invocation = self.invocation(session, invocation_id)?;
+        let assignment: AssignmentRecord = {
+            let db = self.db()?;
+            provenance::record(&db, "assignments", &invocation.assignment_id)?
+        };
+        anyhow::ensure!(
+            assignment.session_id == session,
+            "Message origin belongs to another session"
+        );
+        self.message_with_origin(
+            session,
+            &assignment.agent_id,
+            None,
+            kind,
+            text,
+            Some(MessageOrigin {
+                message_seq: 0,
+                agent_id: assignment.agent_id.clone(),
+                assignment_id: assignment.id,
+                invocation_id: invocation.id,
+            }),
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn message_with_origin(
+        &self,
+        session: &str,
+        author: &str,
+        recipient: Option<&str>,
+        kind: &str,
+        text: &str,
+        origin: Option<MessageOrigin>,
+    ) -> Result<Message> {
         let mut db = self.db()?;
         let tx = db.transaction()?;
         let created = now();
@@ -265,6 +310,11 @@ impl Store {
             "INSERT INTO events(session_id,kind,data,created_at) VALUES (?,?,?,?)",
             params![session, "message", serde_json::to_string(&msg)?, now()],
         )?;
+        if let Some(mut origin) = origin {
+            origin.message_seq = msg.seq;
+            tx.execute("INSERT INTO events(session_id,kind,data,created_at) VALUES (?,'message_invocation',?,?)",
+                params![session, serde_json::to_string(&origin)?, now()])?;
+        }
         tx.commit()?;
         Ok(msg)
     }

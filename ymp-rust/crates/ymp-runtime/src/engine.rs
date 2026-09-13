@@ -1502,7 +1502,13 @@ impl Engine {
                     "turn_completed",
                     &json!({"agent":agent.id,"purpose":purpose,"turn":used,"assignment_id":assignment.id,"invocation_id":invocation.id,"task":assignment.task}),
                 )?;
-                self.post(&ctx.session.id, &agent.id, purpose, &result.text)?;
+                let message = self.store.invocation_message(
+                    &ctx.session.id,
+                    &invocation.id,
+                    purpose,
+                    &result.text,
+                )?;
+                let _ = self.events.send(UiEvent::Message(message));
                 Ok(RecordedResponse {
                     _access: (purpose == "execute").then_some(access),
                     text: result.text,

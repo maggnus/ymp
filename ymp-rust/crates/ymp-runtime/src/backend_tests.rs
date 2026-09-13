@@ -326,6 +326,12 @@ mod backend_contract_tests {
         assert!(!fixture.project.join("greeting.txt").exists());
         assert!(result.summary.contains("55"));
         let trace = fixture.store.trace(&result.session.id).unwrap();
+        for message in fixture.store.messages(&result.session.id, 0, 1000).unwrap()
+            .iter().filter(|m| m.author == "one" || m.author == "two") {
+            let origin = trace.message_attribution(message).expect("Native response lost its invocation origin");
+            assert_eq!(origin.agent_id, message.author);
+            assert!(trace.assignments.iter().any(|a| a.id == origin.assignment_id && a.purpose == message.kind));
+        }
         assert_eq!(
             trace.invocations.len(),
             script.requests.lock().unwrap().len()

@@ -8,6 +8,120 @@ struct Fixture {
 }
 
 #[test]
+fn message_attribution_keeps_exact_origin_across_model_changes_and_reopening() {
+    let f = Fixture::new();
+    let mut messages = vec![];
+    for (turn, model, effort) in [(1, "model-one", Some("low")), (2, "model-two", None)] {
+        let (assignment, invocation) = f.invocation(turn);
+        f.store.begin_invocation(&assignment, &invocation).unwrap();
+        f.store
+            .observe_invocation(
+                &f.session.id,
+                &invocation.id,
+                &InvocationObservation {
+                    reported: Some(ExecutionSettings {
+                        model: Some(model.into()),
+                        effort: effort.map(str::to_owned),
+                        permission_mode: None,
+                    }),
+                    ..Default::default()
+                },
+            )
+            .unwrap();
+        let message = f
+            .store
+            .invocation_message(&f.session.id, &invocation.id, "execute", "Finished")
+            .unwrap();
+        assert_eq!(message.author, "writer");
+        let trace = f.store.trace(&f.session.id).unwrap();
+        assert_eq!(
+            trace
+                .active_agent_attribution("writer")
+                .unwrap()
+                .invocation_id,
+            invocation.id
+        );
+        messages.push(message);
+        f.store
+            .finish_invocation(
+                &f.session.id,
+                &invocation.id,
+                InvocationState::Completed,
+                None,
+            )
+            .unwrap();
+    }
+    let reopened = Store::open_read_only(&f.store.home).unwrap();
+    let trace = reopened.trace(&f.session.id).unwrap();
+    assert!(trace.active_agent_attribution("writer").is_none());
+    let first = trace.message_attribution(&messages[0]).unwrap();
+    let second = trace.message_attribution(&messages[1]).unwrap();
+    assert_eq!(first.reported.model.as_deref(), Some("model-one"));
+    assert_eq!(first.reported.effort.as_deref(), Some("low"));
+    assert_eq!(second.reported.model.as_deref(), Some("model-two"));
+    assert_eq!(second.reported.effort, None);
+    assert_ne!(first.invocation_id, second.invocation_id);
+    let unbound = f
+        .store
+        .message(&f.session.id, "writer", None, "chat", "Unbound history")
+        .unwrap();
+    assert!(trace.message_attribution(&unbound).is_none());
+    let mut invalid = messages[0].clone();
+    invalid.session_id = "other-session".into();
+    assert!(trace.message_attribution(&invalid).is_none());
+    invalid = messages[0].clone();
+    invalid.author = "reviewer".into();
+    assert!(trace.message_attribution(&invalid).is_none());
+    let before = f.store.messages(&f.session.id, 0, 100).unwrap().len();
+    assert!(f
+        .store
+        .invocation_message("wrong-session", &first.invocation_id, "chat", "Invalid")
+        .is_err());
+    assert_eq!(
+        f.store.messages(&f.session.id, 0, 100).unwrap().len(),
+        before
+    );
+}
+
+#[test]
+fn message_attribution_reads_existing_team_operation_links_without_time_guesses() {
+    let f = Fixture::new();
+    let (mut assignment, invocation) = f.invocation(1);
+    let grant =
+        GrantRecord::for_assignment(&assignment, &invocation, vec![TeamOperation::TeamPost]);
+    assignment.grant_ids.push(grant.id.clone());
+    f.store
+        .begin_invocation_with_grants(&assignment, &invocation, std::slice::from_ref(&grant))
+        .unwrap();
+    let (_, message) = f
+        .store
+        .team_call(
+            &grant,
+            TeamOperation::TeamPost,
+            &serde_json::json!({"text":"A finding"}),
+            "post-1",
+        )
+        .unwrap();
+    let message = message.unwrap();
+    let trace = f.store.trace(&f.session.id).unwrap();
+    assert_eq!(
+        trace.message_attribution(&message).unwrap().invocation_id,
+        invocation.id
+    );
+    // Ambiguous simultaneous actor work is not assigned to whichever record is newest.
+    let (other_assignment, other_invocation) = f.invocation(2);
+    f.store
+        .begin_invocation(&other_assignment, &other_invocation)
+        .unwrap();
+    let trace = f.store.trace(&f.session.id).unwrap();
+    assert!(trace.active_agent_attribution("writer").is_none());
+    assert_eq!(
+        trace.message_attribution(&message).unwrap().invocation_id,
+        invocation.id
+    );
+}
+
+#[test]
 fn session_contract_capture_rolls_back_the_whole_set_on_second_contract_failure() {
     let f = Fixture::new();
     let mut session = f.session.clone();

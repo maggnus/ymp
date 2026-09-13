@@ -27,3 +27,6 @@ pub use workspace_access::*;
 
 mod board;
 pub use board::*;
+
+mod attribution;
+pub use attribution::*;
