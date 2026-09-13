@@ -251,6 +251,8 @@ pub struct RecordLinks {
     pub knowledge_correction: Option<crate::KnowledgeCorrectionCommit>,
     #[serde(default)]
     pub board: Option<Box<crate::BoardDecision>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub board_release: Option<crate::BoardCommitmentRelease>,
     #[serde(default)]
     pub workspace_access: Option<crate::WorkspaceAccessDecision>,
     #[serde(default)]

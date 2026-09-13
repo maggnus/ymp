@@ -363,6 +363,9 @@ impl Store {
                     }
                 }
             }
+            if let Some(id) = depart {
+                board::release_unadmitted(&tx, command, id)?;
+            }
             let busy = responsibilities(&tx, session_id)?;
             if let Some(id) = depart.filter(|id| busy.iter().any(|r| &r.agent_id == *id)) {
                 owner.pending_departures.push(PendingDeparture {
