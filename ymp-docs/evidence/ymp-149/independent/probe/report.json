@@ -1,0 +1,118 @@
+{
+  "binary": "/Users/maggnus/Code/ymp2/target/debug/ymp",
+  "ascii": false,
+  "native_inference": false,
+  "cases": [
+    {
+      "case": "D1 doctor exit status recorded",
+      "passed": true
+    },
+    {
+      "case": "D2 mock provider available",
+      "passed": true
+    },
+    {
+      "case": "D3 missing executable unavailable",
+      "passed": true
+    },
+    {
+      "case": "D4 no installed claim",
+      "passed": true
+    },
+    {
+      "case": "N1 sidebar scope preferred \u00b7 enabled",
+      "passed": true
+    },
+    {
+      "case": "N2 sidebar lists enabled preferred atlas",
+      "passed": true
+    },
+    {
+      "case": "N3 sidebar omits disabled preferred boreal",
+      "passed": true
+    },
+    {
+      "case": "N4 sidebar omits non-preferred dorado",
+      "passed": true
+    },
+    {
+      "case": "N5 team heading and subtitle",
+      "passed": true
+    },
+    {
+      "case": "N6 team hint names the preference",
+      "passed": true
+    },
+    {
+      "case": "N7 no next-run membership heading",
+      "passed": true
+    },
+    {
+      "case": "N8 PREFERRED equals Config.team",
+      "passed": true
+    },
+    {
+      "case": "N10 missing identity row does not claim unavailability",
+      "passed": true
+    },
+    {
+      "case": "N9 no READING or provenance in rows",
+      "passed": true
+    },
+    {
+      "case": "S0 demo created a session",
+      "passed": true
+    },
+    {
+      "case": "S1 captured sidebar scope",
+      "passed": true
+    },
+    {
+      "case": "S2 captured team heading",
+      "passed": true
+    },
+    {
+      "case": "S3 t edits Config.team",
+      "passed": true
+    },
+    {
+      "case": "S4 PREFERRED cell follows the edit",
+      "passed": true
+    },
+    {
+      "case": "S5 captured sidebar unchanged after the edit",
+      "passed": true
+    },
+    {
+      "case": "S6 captured member still listed on /team",
+      "passed": true
+    }
+  ],
+  "failures": [],
+  "doctor_exit": 0,
+  "no_session_sidebar_team": " TEAM         preferred \u00b7 enabled\n AGENT    STATE\n \u25cb Atlas  idle\n",
+  "no_session_flags": {
+    "Atlas": "true",
+    "Boreal": "true",
+    "unknown model": "false",
+    "Dorado": "false"
+  },
+  "team_after_demo": [
+    "atlas",
+    "boreal"
+  ],
+  "captured_sidebar_team": " TEAM                this session\n AGENT     STATE\n \u25cb Atlas   idle\n \u25cb Cygnus  idle\n",
+  "captured_names": [
+    "Atlas",
+    "Cygnus"
+  ],
+  "toggled": "Atlas",
+  "team_before_toggle": [
+    "atlas",
+    "boreal"
+  ],
+  "team_after_toggle": [
+    "boreal"
+  ],
+  "passed": true
+}

@@ -1,0 +1,129 @@
+{
+  "candidate": "46a5a5138aa1601854ebbd29cb493527ed588711",
+  "integrated_source": "0d3f9f4",
+  "reviewer": "8d8b7748-c2b4-4468-8585-4be62e5bbec0",
+  "original_directory": "/tmp/ymp149-final-verification",
+  "native_inference": false,
+  "files": [
+    {
+      "path": "probe_attribution.py",
+      "sha256": "6801c657775ffd9f94808155799e977339c7011737bded3a8baf3fa891360515",
+      "bytes": 9875
+    },
+    {
+      "path": "build.txt",
+      "sha256": "426e4a33e44fbb805639afe023595d95e3560141dfeb7d1fba3fc80ed4f539b7",
+      "bytes": 104
+    },
+    {
+      "path": "targeted-tests.txt",
+      "sha256": "95b7c8d87482e852d1fe5c2f3dd86743a65889e18b2b177057466878ee5fcd1f",
+      "bytes": 2261
+    },
+    {
+      "path": "prefix-mutant.txt",
+      "sha256": "bc4e43e08a6868a91c8e5a1fba0f2bde24718ea1e174051485e81589129abd71",
+      "bytes": 1727
+    },
+    {
+      "path": "probe/demo.txt",
+      "sha256": "80c97a9ce2d5dabbb0c06baed52cc79225218c75d1b9896dbc37f82467c22823",
+      "bytes": 2315
+    },
+    {
+      "path": "probe/doctor.txt",
+      "sha256": "cfe41f128be98d3d95c60009c261642accf9a88112ff1c5912da6d11b93f8c06",
+      "bytes": 176
+    },
+    {
+      "path": "probe/n-agents.txt",
+      "sha256": "da5c5fb1bac7521f891ef29ea5af8bb586375cf7e5fe6192218df9a9e3d8a87b",
+      "bytes": 5464
+    },
+    {
+      "path": "probe/n-chat.txt",
+      "sha256": "c0005ad670805a3ad543b14ea1b18b9fc088cf743eb203c5682b9a229feb98e5",
+      "bytes": 5244
+    },
+    {
+      "path": "probe/n-team.txt",
+      "sha256": "9f6d935a129c1ae8f172d37c1fd62be48812b8cad2cfda9e621274f6c93d3ba9",
+      "bytes": 5473
+    },
+    {
+      "path": "probe/report.json",
+      "sha256": "49ac8256b4fa332c5ab660903b4a248c9b6e18d9084ee8cb4b42067dae2b26c6",
+      "bytes": 2562
+    },
+    {
+      "path": "probe/s-agents-toggled.txt",
+      "sha256": "5065399952e6164431b603990441b5608f34fbc6cff33ababde710a731e8090b",
+      "bytes": 5513
+    },
+    {
+      "path": "probe/s-chat.txt",
+      "sha256": "a1554c5018d7cac76e76282d86bd2480b8953a66e5fe552f3315a803329ba4b4",
+      "bytes": 5337
+    },
+    {
+      "path": "probe/s-team-after.txt",
+      "sha256": "46720aaa212232d70948a15a0dab2043fdb92443a8052ec2802f4dd5e6a685e8",
+      "bytes": 5533
+    },
+    {
+      "path": "probe/s-team.txt",
+      "sha256": "46720aaa212232d70948a15a0dab2043fdb92443a8052ec2802f4dd5e6a685e8",
+      "bytes": 5533
+    },
+    {
+      "path": "probe-ascii/demo.txt",
+      "sha256": "d8cf20dd277338ba3c3e07b46782896bc3ff495ed0024f35e573dd25fe31dc5e",
+      "bytes": 2333
+    },
+    {
+      "path": "probe-ascii/doctor.txt",
+      "sha256": "cfe41f128be98d3d95c60009c261642accf9a88112ff1c5912da6d11b93f8c06",
+      "bytes": 176
+    },
+    {
+      "path": "probe-ascii/n-agents.txt",
+      "sha256": "2188cdc2e92ce0146b2e53767a5a234b6d2c928fd2a55966a00c0bda5fa44123",
+      "bytes": 4608
+    },
+    {
+      "path": "probe-ascii/n-chat.txt",
+      "sha256": "2230eccfb7f2df184d51d6ef4cc7fb2fdda2a940a2d2de4d3063da829ec3678c",
+      "bytes": 4610
+    },
+    {
+      "path": "probe-ascii/n-team.txt",
+      "sha256": "7cc1c834d630fe6685401165db116b8f0eefddd6fb349ac9f87acc5e08849ea1",
+      "bytes": 4609
+    },
+    {
+      "path": "probe-ascii/report.json",
+      "sha256": "2b730577ed275ac4ee545637407d5ac9ae711a5066063e52ddfcaea39ccd90eb",
+      "bytes": 2546
+    },
+    {
+      "path": "probe-ascii/s-agents-toggled.txt",
+      "sha256": "5fc97659378a1cbb76749bfb9a97b6f05e073b3825ef72cc488e83c8417b97f8",
+      "bytes": 4651
+    },
+    {
+      "path": "probe-ascii/s-chat.txt",
+      "sha256": "e5de8fd1b02f7478436d95d8ae5aea114c1b6ac21018a4005acd3662fbfbc102",
+      "bytes": 4668
+    },
+    {
+      "path": "probe-ascii/s-team-after.txt",
+      "sha256": "9e9faae56c55d4e923929eca8057a28cb1bab77f73e70118a116b7d02cda50fe",
+      "bytes": 4655
+    },
+    {
+      "path": "probe-ascii/s-team.txt",
+      "sha256": "9e9faae56c55d4e923929eca8057a28cb1bab77f73e70118a116b7d02cda50fe",
+      "bytes": 4655
+    }
+  ]
+}

@@ -1,0 +1,4 @@
+demo       available    Configured; authentication is checked by the agent on use
+absent     unavailable  Configured; authentication is checked by the agent on use
+
+--- stderr

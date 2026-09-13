@@ -1,0 +1,40 @@
+ymp  project  /private/tmp/ymp149-final-verification/probe-ascii/project             aff5f47f  + completed  - tokens  8 / 200 turns captured
+--------------------------------------------------------------------------------------------------------------------------------------------
+ Team[8]  /team                                  2 captured by this session · 2 eligible on this machine | SESSION
+---------------------------------------------------------------------------------------------------------| aff5f47f             + completed
+ > - What membership means here  what this page is                                                       | turns this session       8 / 200
+                                                                                                         | dir …ication/probe-ascii/project
+   MEMBERS OF THIS SESSION                                                                               |
+      AGENT                        PROVIDER  STATE                                                       | TOKENS                         -
+   +  Atlas · model not recorded   demo      3 turns here                                                | AGENT   TOKENS
+   +  Cygnus · model not recorded  demo      5 turns here                                                | Atlas        -
+                                                                                                         | Cygnus       -
+   HOW THE ROSTER IS BOUNDED                                                                             |
+      RULE          VALUE                                                                                | TEAM                this session
+   +  roster        2 members · revision 8                                                               | AGENT     STATE
+   -  roster rules  up to 4                                                                              | o Atlas   idle
+                                                                                                         | o Cygnus  idle
+   AVAILABLE ON THIS MACHINE                                                                             |
+      MODEL          PROVIDER  STATE                                                                     | TASKS             accepted 1 / 1
+   +  Atlas          demo      eligible                                                                  |
+   !  Boreal         demo      profile disabled                                                          |
+   !  unknown model  absent    executable not found                                                      |
+   +  Dorado         demo      eligible                                                                  |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+--------------------------------------------------------------------------------------------------------------------------------------------
+> Describe a task, or type / for commands.
+Ready                                           main Space toggle preferred  Enter inspect  Esc back  / filter  Shift+letter sort  d inspect

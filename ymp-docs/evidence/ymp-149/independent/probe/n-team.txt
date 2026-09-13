@@ -1,0 +1,40 @@
+ymp  project  /private/tmp/ymp149-final-verification/probe/project                                                 no session  0 / 200 turns
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ Team[7]  /team                                     1 preferred and enabled · 2 eligible on this machine │ SESSION
+─────────────────────────────────────────────────────────────────────────────────────────────────────────│ none · the next message opens on
+ › ◇ What membership means here  what this page is                                                       │ turns next run           0 / 200
+                                                                                                         │ dir …-verification/probe/project
+   PREFERRED AGENTS, ENABLED                                                                             │
+      AGENT  PROVIDER  STATE                                                                             │ TOKENS                         —
+   ○  Atlas  demo      eligible                                                                          │ none · nothing spent yet
+                                                                                                         │
+   HOW THE ROSTER IS BOUNDED                                                                             │ TEAM         preferred · enabled
+      RULE          VALUE                                                                                │ AGENT    STATE
+   ○  roster        none recorded                                                                        │ ○ Atlas  idle
+   •  roster rules  up to 4                                                                              │
+                                                                                                         │ TASKS
+   AVAILABLE ON THIS MACHINE                                                                             │ no task graph yet
+      MODEL          PROVIDER  STATE                                                                     │
+   ✓  Atlas          demo      eligible                                                                  │
+   ▲  Boreal         demo      profile disabled                                                          │
+   ▲  unknown model  absent    executable not found                                                      │
+   ✓  Dorado         demo      eligible                                                                  │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+                                                                                                         │
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+› Describe a task, or type / for commands.
+Ready                                           main Space toggle preferred  Enter inspect  Esc back  / filter  Shift+letter sort  d inspect

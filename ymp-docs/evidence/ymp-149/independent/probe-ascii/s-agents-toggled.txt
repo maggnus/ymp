@@ -1,0 +1,40 @@
+ymp  project  /private/tmp/ymp149-final-verification/probe-ascii/project             aff5f47f  + completed  - tokens  8 / 200 turns captured
+--------------------------------------------------------------------------------------------------------------------------------------------
+ Agent profiles</Atlas>[1]  /agents                                                           4 profiles | SESSION
+---------------------------------------------------------------------------------------------------------| aff5f47f             + completed
+   AGENT  PROVIDER  ENABLED  PREFERRED                                                                   | turns this session       8 / 200
+ > Atlas  demo      + on     false                                                                       | dir …ication/probe-ascii/project
+                                                                                                         |
+                                                                                                         | TOKENS                         -
+                                                                                                         | AGENT   TOKENS
+                                                                                                         | Atlas        -
+                                                                                                         | Cygnus       -
+                                                                                                         |
+                                                                                                         | TEAM                this session
+                                                                                                         | AGENT     STATE
+                                                                                                         | o Atlas   idle
+                                                                                                         | o Cygnus  idle
+                                                                                                         |
+                                                                                                         | TASKS             accepted 1 / 1
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+--------------------------------------------------------------------------------------------------------------------------------------------
+> Describe a task, or type / for commands.
+Ready main m model  i instructions  Space enable or disable  t toggle preferred  r reload  R scan catalogs  Esc back  / filter  Shift+letter

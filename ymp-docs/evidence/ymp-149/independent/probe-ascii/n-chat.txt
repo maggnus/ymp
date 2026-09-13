@@ -1,0 +1,40 @@
+ymp  project  /private/tmp/ymp149-final-verification/probe-ascii/project                                           no session  0 / 200 turns
+--------------------------------------------------------------------------------------------------------------------------------------------
+                                                                                                         | SESSION
+  A team of local agents, working in this directory.                                                     | none · the next message opens on
+                                                                                                         | turns next run           0 / 200
+  working directory       /private/tmp/ymp149-final-verification/probe-ascii/…                           | dir …ication/probe-ascii/project
+  how it is used                                        directly, no copy kept                           |
+  preferred agents                                                       Atlas                           | TOKENS                         -
+  theme                                                                  Ember                           | none · nothing spent yet
+                                                                                                         |
+  Describe a task and press Enter. Agents create and change files in this directory itself.              | TEAM         preferred · enabled
+  ymp records a path and a hash for each change, never earlier content, so it cannot put a file back.    | AGENT    STATE
+  /diff states what a run recorded and where.                                                            | o Atlas  idle
+  Ctrl+P opens the command palette. Ctrl+T changes the colour theme.                                     |
+  Every page opens with its command, such as /tasks, or from the palette. Pages are read-only; none of   | TASKS
+  them start an agent.                                                                                   | no task graph yet
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+--------------------------------------------------------------------------------------------------------------------------------------------
+> Describe a task, or type / for commands.
+Ready                                                                                        composer Enter send  Ctrl+P commands  Tab focus

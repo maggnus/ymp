@@ -4,8 +4,8 @@ Implemented by Claude Code claude-opus-5 high in an isolated worktree, branch
 `fix/ymp149-ui-language`, baseline `27f8454`, following the maintainer decisions in
 [audit.md](audit.md) and the [language guide](../../guides/ui-language.md). Every runtime fixture
 used temporary homes and projects with mock providers or a provider whose executable does not
-exist. No provider was queried and no model was invoked. This is reviewable source, not parent
-acceptance or an installed release.
+exist. No provider was queried and no model was invoked. The source is now independently accepted and integrated; see
+[final acceptance](acceptance-final.md). It is not an installed release.
 
 The first implementation was `07025c5`. An independent review returned it; the rework and each
 finding's disposition are recorded under [Independent review rework](#independent-review-rework).
@@ -175,4 +175,4 @@ The review materials were not modified: `source.diff` still has its 01:02 timest
   formation through that ranking was not re-exercised here, and the runtime was not changed.
 - Current-session membership is still not shown on `/agents`; that and the `/team` restructuring
   belong to UI150. The 60×8 palette defect (YMP-152) was not addressed.
-- Independent review, parent acceptance and installation have not happened.
+- Independent review and parent acceptance are recorded in [final acceptance](acceptance-final.md). Installation has not happened.

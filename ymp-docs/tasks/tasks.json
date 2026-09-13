@@ -4133,7 +4133,7 @@
       "title": "Use concise professional terminology throughout the interface",
       "type": "implementation",
       "priority": "P1",
-      "status": "in_progress",
+      "status": "done",
       "owner": "Claude Code claude-opus-5 high; maintainer owns language contract and independent acceptance",
       "authorization": "Owner explicitly requested reviewing and cleaning all interface terminology, removing verbose implementation explanations from primary rows. Examples: omit read from the installation and display team membership as true/false. Owner also accepted the separate agent-catalog/team responsibilities.",
       "depends_on": [
@@ -4142,7 +4142,7 @@
       "reason": "Primary rows currently include provenance prose and ambiguous membership values. Terminology needs a consistent interface-wide review without losing meaningful states or changing stored evidence.",
       "acceptance": [
         "Audit pages, tables, sidebar, overlays, palette/help, notices, errors and empty states; record a compact glossary, actual coverage and retained diagnostic detail.",
-        "Remove verbose provenance narration from primary agent rows while preserving source/method/time in details. Render known membership as true/false with the correct selected-session or next-run scope; preserve unknown states.",
+        "Remove verbose provenance narration from primary agent rows while preserving source/method/time in details. Render the known Config.team preference as PREFERRED true/false, separate from captured-session membership, and preserve unknown states.",
         "Use concise professional English and stable domain terms. Preserve native identifiers/controls, actionable errors, acceptance versus confirmation, keyboard behavior and immutable user/agent source messages.",
         "Implement UI edits through Claude Code high after YMP-145 acceptance, reuse shared helpers, update existing checks without weakening behavior and verify terminal readability plus required Rust checks. Do not add label-mirroring tests or new dependencies.",
         "Keep P0 recovery and YMP-148 coordination/catalog semantics separate; no generic policy settings, scope-changing runtime work or false installed-completion claims."
@@ -4150,7 +4150,10 @@
       "evidence": [
         "ymp-docs/guides/ui-language.md",
         "ymp-docs/evidence/ymp-149/audit.md",
-        "ymp-docs/evidence/ymp-149/acceptance-round1.md"
+        "ymp-docs/evidence/ymp-149/acceptance-round1.md",
+        "ymp-docs/evidence/ymp-149/README.md",
+        "ymp-docs/evidence/ymp-149/acceptance-final.md",
+        "ymp-docs/evidence/ymp-149/independent/manifest.json"
       ],
       "history": [
         {
@@ -4187,6 +4190,11 @@
           "at": "2026-09-13T17:36:56.656873+00:00",
           "status": "in_progress",
           "note": "Author delivered 46a5a51 after 07025c5 with a clean tree. Final formatting, strict Clippy and workspace checks passed (579 tests, two ignored); row checks report 29 records and table checks 19 cases in each marker mode. Historical model-prefix control fails before and passes after. A bounded implementation verification is assigned to Claude agent 8d8b7748 using the explicit frozen 149 worktree, while both P0 reviewers retain their recovery assignments. No acceptance or installation yet."
+        },
+        {
+          "at": "2026-09-13T18:44:45.422259+00:00",
+          "status": "done",
+          "note": "Independent final review accepted 46a5a51. Parent integrated 07025c5 and 46a5a51 as 781c5a2 and 0d3f9f4 with an empty full application/bridge/evaluation-source comparison. Retained independent 21-test result, 21 terminal cases per marker mode and failing substring-comparison mutation alongside author fmt/Clippy/workspace evidence (579 passed, two ignored). Source accepted; installed binary remains 0.4.6. Native scans and Linux were not exercised. Live-team and strategy controls remain separate work."
         }
       ]
     },
@@ -4323,7 +4331,7 @@
       ]
     }
   ],
-  "updated_at": "2026-09-13T18:42:36.879969+00:00",
+  "updated_at": "2026-09-13T18:44:45.422259+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",

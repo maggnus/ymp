@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-13 18:42 UTC.
+Updated: 2026-09-13 18:44 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -14,7 +14,7 @@ A planned task is not implemented functionality. Completed research and planning
 | design | 2 | 2 |
 | documentation | 4 | 4 |
 | experiment | 0 | 4 |
-| implementation | 36 | 45 |
+| implementation | 37 | 45 |
 | maintenance | 1 | 1 |
 | research | 10 | 10 |
 | verification | 2 | 2 |
@@ -89,7 +89,7 @@ A planned task is not implemented functionality. Completed research and planning
 | `[~]` | [YMP-146](#ymp-146) | P0 | Recover interrupted session stages and let the owner change the active team | 2026-09-13 18:42 |
 | `[x]` | [YMP-147](#ymp-147) | P1 | Translate product goals into a focused comparative trial program | 2026-09-13 15:38 |
 | `[=]` | [YMP-148](#ymp-148) | P1 | Make session coordination replaceable through a typed strategy contract | 2026-09-13 16:13 |
-| `[~]` | [YMP-149](#ymp-149) | P1 | Use concise professional terminology throughout the interface | 2026-09-13 17:36 |
+| `[x]` | [YMP-149](#ymp-149) | P1 | Use concise professional terminology throughout the interface | 2026-09-13 18:44 |
 | `[=]` | [YMP-150](#ymp-150) | P1 | Make /team the session control page and separate the /agents catalog | 2026-09-13 16:13 |
 | `[=]` | [YMP-151](#ymp-151) | P1 | Prepare reproducible offline comparisons of coordination strategies | 2026-09-13 16:17 |
 | `[+]` | [YMP-152](#ymp-152) | P2 | Keep the selected palette command visible in very short terminals | 2026-09-13 16:25 |
@@ -2299,11 +2299,11 @@ Allocation and resource interfaces exist, but whole-session interaction remains 
 
 Use concise professional terminology throughout the interface
 
-**State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P1
+**State:** `[x]` (done) · **Type:** implementation · **Priority:** P1
 
-**Last update (UTC):** 2026-09-13 17:36
+**Last update (UTC):** 2026-09-13 18:44
 
-**Current reason:** Author delivered 46a5a51 after 07025c5 with a clean tree. Final formatting, strict Clippy and workspace checks passed (579 tests, two ignored); row checks report 29 records and table checks 19 cases in each marker mode. Historical model-prefix control fails before and passes after. A bounded implementation verification is assigned to Claude agent 8d8b7748 using the explicit frozen 149 worktree, while both P0 reviewers retain their recovery assignments. No acceptance or installation yet.
+**Current reason:** Independent final review accepted 46a5a51. Parent integrated 07025c5 and 46a5a51 as 781c5a2 and 0d3f9f4 with an empty full application/bridge/evaluation-source comparison. Retained independent 21-test result, 21 terminal cases per marker mode and failing substring-comparison mutation alongside author fmt/Clippy/workspace evidence (579 passed, two ignored). Source accepted; installed binary remains 0.4.6. Native scans and Linux were not exercised. Live-team and strategy controls remain separate work.
 
 **Owner:** Claude Code claude-opus-5 high; maintainer owns language contract and independent acceptance
 
@@ -2316,7 +2316,7 @@ Primary rows currently include provenance prose and ambiguous membership values.
 **Acceptance criteria:**
 
 - Audit pages, tables, sidebar, overlays, palette/help, notices, errors and empty states; record a compact glossary, actual coverage and retained diagnostic detail.
-- Remove verbose provenance narration from primary agent rows while preserving source/method/time in details. Render known membership as true/false with the correct selected-session or next-run scope; preserve unknown states.
+- Remove verbose provenance narration from primary agent rows while preserving source/method/time in details. Render the known Config.team preference as PREFERRED true/false, separate from captured-session membership, and preserve unknown states.
 - Use concise professional English and stable domain terms. Preserve native identifiers/controls, actionable errors, acceptance versus confirmation, keyboard behavior and immutable user/agent source messages.
 - Implement UI edits through Claude Code high after YMP-145 acceptance, reuse shared helpers, update existing checks without weakening behavior and verify terminal readability plus required Rust checks. Do not add label-mirroring tests or new dependencies.
 - Keep P0 recovery and YMP-148 coordination/catalog semantics separate; no generic policy settings, scope-changing runtime work or false installed-completion claims.
@@ -2326,6 +2326,9 @@ Primary rows currently include provenance prose and ambiguous membership values.
 - ymp-docs/guides/ui-language.md
 - ymp-docs/evidence/ymp-149/audit.md
 - ymp-docs/evidence/ymp-149/acceptance-round1.md
+- ymp-docs/evidence/ymp-149/README.md
+- ymp-docs/evidence/ymp-149/acceptance-final.md
+- ymp-docs/evidence/ymp-149/independent/manifest.json
 
 ## YMP-150
 
@@ -2335,7 +2338,7 @@ Make /team the session control page and separate the /agents catalog
 
 **Last update (UTC):** 2026-09-13 16:13
 
-**Current reason:** Needs YMP-148, YMP-149
+**Current reason:** Needs YMP-148
 
 **Owner:** Claude Code claude-opus-5 high; maintainer owns integration and independent acceptance
 

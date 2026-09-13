@@ -1,0 +1,40 @@
+ymp  project  /private/tmp/ymp149-final-verification/probe-ascii/project                                           no session  0 / 200 turns
+--------------------------------------------------------------------------------------------------------------------------------------------
+ Agent profiles[4]  /agents                                                                   4 profiles | SESSION
+---------------------------------------------------------------------------------------------------------| none · the next message opens on
+   AGENT          PROVIDER  ENABLED  PREFERRED                                                           | turns next run           0 / 200
+ > Atlas          demo      + on     true                                                                | dir …ication/probe-ascii/project
+   Boreal         demo      o off    true                                                                |
+   unknown model  absent    + on     false                                                               | TOKENS                         -
+   Dorado         demo      + on     false                                                               | none · nothing spent yet
+                                                                                                         |
+                                                                                                         | TEAM         preferred · enabled
+                                                                                                         | AGENT    STATE
+                                                                                                         | o Atlas  idle
+                                                                                                         |
+                                                                                                         | TASKS
+                                                                                                         | no task graph yet
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+                                                                                                         |
+--------------------------------------------------------------------------------------------------------------------------------------------
+> Describe a task, or type / for commands.
+Ready main m model  i instructions  Space enable or disable  t toggle preferred  r reload  R scan catalogs  Esc back  / filter  Shift+letter

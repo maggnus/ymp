@@ -1,0 +1,56 @@
+
+The requested artifact is complete and independently verified.
+
+Acceptance: accepted; confirmation: unconfirmed.
+
+Session: aff5f47f-4453-40cd-9fd2-00516ddb3a0c
+Status: completed
+Workspace: /private/tmp/ymp149-final-verification/probe-ascii/project
+
+--- stderr
+
+[you · user]
+Create greeting.txt containing Hello from ymp, and verify it.
+Working in /private/tmp/ymp149-final-verification/probe-ascii/project
+Session aff5f47f · 2 agents
+Collecting independent proposals
+
+[Atlas · plan]
+{"summary":"Create and verify a small deliverable","tasks":[{"checks":["test -f greeting.txt && grep -q 'Hello from ymp' greeting.txt"],"competence":"implementation","dependencies":[],"description":"Write greeting.txt containing Hello from ymp","difficulty":"simple","title":"Create a greeting"}]}
+
+[Cygnus · review_plan]
+{"approved":true,"lesson":"Check the produced artifact against the requested content.","reason":"The stated acceptance criteria are satisfied."}
+
+[ymp · plan_accepted]
+Create and verify a small deliverable
+
+[Atlas · execute]
+Created greeting.txt and verified its content.
+Check: test -f greeting.txt && grep -q 'Hello from ymp' greeting.txt
+
+[Cygnus · review]
+{"approved":true,"lesson":"Check the produced artifact against the requested content.","reason":"The stated acceptance criteria are satisfied."}
+Checking the final result
+Check: test -f greeting.txt && grep -q 'Hello from ymp' greeting.txt
+
+[Cygnus · final_review]
+{"approved":true,"lesson":"Check the produced artifact against the requested content.","reason":"The stated acceptance criteria are satisfied."}
+
+[Cygnus · learn]
+{"content":"For file-producing tasks, check both existence and requested content. Run the check on the final integrated artifact.","title":"Verify file-producing tasks","useful":true}
+
+[Atlas · review_memory]
+{"approved":true,"lesson":"Check the produced artifact against the requested content.","reason":"The stated acceptance criteria are satisfied."}
+
+[ymp · memory]
+Unconfirmed procedure candidate retained: Verify file-producing tasks
+
+[Cygnus · synthesis]
+The requested artifact is complete and independently verified.
+
+[ymp · summary]
+The requested artifact is complete and independently verified.
+
+Acceptance: accepted; confirmation: unconfirmed.
+
+Workspace: /private/tmp/ymp149-final-verification/probe-ascii/project

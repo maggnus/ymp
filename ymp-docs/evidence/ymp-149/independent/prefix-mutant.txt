@@ -1,0 +1,29 @@
+replaced 1 line(s); now: 2370:        if !name.contains(&model) {
+   Compiling ymp-core v0.4.6 (/private/tmp/ymp149-final-verification/mutant/ymp-rust/crates/ymp-core)
+   Compiling ymp-storage v0.4.6 (/private/tmp/ymp149-final-verification/mutant/ymp-rust/crates/ymp-storage)
+   Compiling ymp-workspace v0.4.6 (/private/tmp/ymp149-final-verification/mutant/ymp-rust/crates/ymp-workspace)
+   Compiling ymp-providers v0.4.6 (/private/tmp/ymp149-final-verification/mutant/ymp-rust/crates/ymp-providers)
+   Compiling ymp-runtime v0.4.6 (/private/tmp/ymp149-final-verification/mutant/ymp-rust/crates/ymp-runtime)
+   Compiling ymp-tui v0.4.6 (/private/tmp/ymp149-final-verification/mutant/ymp-rust/crates/ymp-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 14.22s
+     Running unittests src/lib.rs (/Users/maggnus/Code/ymp2/target/debug/deps/ymp_tui-540ba625889d0a28)
+
+running 1 test
+test tests::a_captured_member_shows_what_its_turns_ran_with_before_what_its_profile_said ... FAILED
+
+failures:
+
+---- tests::a_captured_member_shows_what_its_turns_ran_with_before_what_its_profile_said stdout ----
+
+thread 'tests::a_captured_member_shows_what_its_turns_ran_with_before_what_its_profile_said' panicked at ymp-rust/crates/ymp-tui/src/tests.rs:7177:5:
+two models that share a prefix were collapsed into one: ● · gpt-5.6-sol-0913 · mock · a turn was left open
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    tests::a_captured_member_shows_what_its_turns_ran_with_before_what_its_profile_said
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 270 filtered out; finished in 0.65s
+
+error: test failed, to rerun pass `-p ymp-tui --lib`
+mutant exit 101

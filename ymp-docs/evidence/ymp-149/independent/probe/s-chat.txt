@@ -1,0 +1,40 @@
+ymp  project  /private/tmp/ymp149-final-verification/probe/project                   1cba93de  ✓ completed  — tokens  8 / 200 turns captured
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+                                                                                                         │ SESSION
+                                                                                                         │ 1cba93de             ✓ completed
+                                                                                                         │ turns this session       8 / 200
+                                                                                                         │ dir …-verification/probe/project
+                                                                                                         │
+                                                                                                         │ TOKENS                         —
+                                                                                                         │ AGENT   TOKENS
+                                                                                                         │ Atlas        —
+                                                                                                         │ Cygnus       —
+                                                                                                         │
+                                                                                                         │ TEAM                this session
+  ▌ you                                                                                           17:42  │ AGENT     STATE
+  ▌ Create greeting.txt containing Hello from ymp, and verify it.                                        │ ○ Atlas   idle
+  · Atlas proposed a plan · 1 task · Create and verify a small deliverable                        17:42  │ ○ Cygnus  idle
+  · Cygnus review · accepted · The stated acceptance criteria are satisfied.                      17:42  │
+  ◇ Plan accepted · Create and verify a small deliverable                                         17:42  │ TASKS             accepted 1 / 1
+                                                                                                         │
+  · Atlas · execution report                                                                      17:42  │
+    Created greeting.txt and verified its content.                                                       │
+  · Cygnus review · accepted · The stated acceptance criteria are satisfied.                      17:42  │
+  · Cygnus review · accepted · The stated acceptance criteria are satisfied.                      17:42  │
+  · Cygnus proposed a reusable procedure · Verify file-producing tasks                            17:42  │
+  · Atlas review · accepted · The stated acceptance criteria are satisfied.                       17:42  │
+  ◇ Unconfirmed procedure candidate retained: Verify file-producing tasks                         17:42  │
+                                                                                                         │
+  ◆ Cygnus · final result                                                                         17:42  │
+    The requested artifact is complete and independently verified.                                       │
+                                                                                                         │
+  ◆ ymp · run summary                                                                             17:42  │
+    The requested artifact is complete and independently verified.                                       │
+                                                                                                         │
+    Acceptance: accepted; confirmation: unconfirmed.                                                     │
+                                                                                                         │
+    Workspace: /private/tmp/ymp149-final-verification/probe/project                                      │
+  ◇ Session loaded for reading. Send a message to continue the conversation, or use /resume to …  17:42  │
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+› Describe a task, or type / for commands.
+Ready                                                                                        composer Enter send  Ctrl+P commands  Tab focus

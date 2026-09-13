@@ -1,0 +1,30 @@
+   Compiling ymp-tui v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp149-ui-language/ymp-rust/crates/ymp-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.39s
+     Running unittests src/lib.rs (/Users/maggnus/Code/ymp2/target/debug/deps/ymp_tui-540ba625889d0a28)
+
+running 21 tests
+test table::tests::sort_keys_take_the_first_free_letter_of_each_title ... ok
+test table::tests::a_note_stays_above_the_rows_of_a_sorted_table ... ok
+test table::tests::a_squeezed_sorted_title_keeps_its_direction ... ok
+test table::tests::sorting_cycles_and_unknown_values_follow_known_ones_either_way ... ok
+test tests::selection_stays_on_an_edited_profile_that_its_sort_moves ... ok
+test tests::re_reading_the_catalog_is_an_action_that_asks_no_provider_anything ... ok
+test tests::a_first_ctrl_c_during_a_catalog_reading_stops_nothing ... ok
+test tests::a_profile_with_no_native_reading_is_not_presented_as_a_named_agent ... ok
+test tests::a_scanned_model_is_shown_exactly_as_the_installation_resolved_it ... ok
+test theme::tests::ember_and_slate_lead_the_catalog_unchanged_and_ember_is_the_default ... ok
+test theme::tests::the_catalog_offers_the_requested_library_palettes_in_order ... ok
+test views::tests::a_value_recorded_as_unknown_sorts_as_unknown_and_none_stays_a_value ... ok
+test tests::team_membership_and_limits_are_saved_and_reloaded ... ok
+test tests::the_last_theme_of_the_long_chooser_is_previewed_saved_cancelled_and_reloaded_in_a_short_window ... ok
+test tests::selection_table_counts_records_sorts_values_as_figures_and_filter_typing_ends_with_focus ... ok
+test tests::the_whole_window_names_a_member_by_what_the_installation_returned ... ok
+test tests::table_sort_orders_figures_as_numbers_keeps_unknown_last_and_the_selection ... ok
+test tests::the_sidebar_shows_the_team_the_session_captured_not_the_edited_configuration ... ok
+test tests::a_captured_member_is_not_relabelled_by_the_catalog_as_it_stands_now ... ok
+test tests::a_captured_member_shows_what_its_turns_ran_with_before_what_its_profile_said ... ok
+test tests::turns_recorded_without_a_captured_identity_are_not_renamed_from_the_present_catalog ... ok
+
+test result: ok. 21 passed; 0 failed; 0 ignored; 0 measured; 250 filtered out; finished in 0.70s
+
+targeted exit 0
