@@ -35,6 +35,28 @@ ordinary user session failing to deliver is successful. A diagnostic study can
 finish its analysis with a failed product outcome. When the owner requires fully
 successful delivery, keep that objective open until its completion criteria pass.
 
+## Execution phase and retained evidence
+
+Evaluation mode and execution authority are separate. For any mode, choose the
+currently authorized phase: plan review, retrospective evidence appraisal, local
+execution, or native/external execution. A policy-comparison question can be
+examined on retained evidence without launching the comparison. Planning and
+read-only appraisal are valid deliverables when they are what was requested.
+
+Before interpreting existing results, map each item to the question it can
+actually answer: directly discriminating evidence, inspection-only support,
+non-discriminating evidence or no relevant evidence. Check source/version and
+which implementation the test actually exercises. Unrelated passing tests do
+not establish a proposed policy's correctness or effectiveness. Record missing
+evidence as unknown, not a failed hypothesis. This appraisal applies to all
+evidence, not only native acceptance.
+
+Do not add approval steps for already authorized reversible diagnostics or
+implementation checks. Conversely, a task explicitly limited to plan-only or
+read-only work does not authorize execution or repository changes. Resolve
+authority from the current request and prior explicit decisions, not from the
+name of an evaluation mode.
+
 ## Whole-system coverage map
 
 Use this map to avoid blind spots. Add new responsibilities when the architecture
@@ -113,7 +135,7 @@ Before a run, record:
 
 - The product question and decision that the result will inform.
 - The exact goal, inputs, required deliverables and acceptance conditions.
-- Study mode: diagnostic case, regression replication or controlled comparison.
+- Evaluation mode from the table above and the currently authorized phase.
 - Baseline artifacts and known limitations; no retrospective conversion of a
   failed baseline into success because its artifact was usable.
 - The allowed implementation change and variables held constant.
@@ -150,6 +172,12 @@ An unexplored feature is not a pass. Missing required evidence leaves acceptance
 pending or unsuccessful. Keep the distinction between a requirement and an
 exploratory hypothesis: a useful finding may reject a hypothesis without failing
 an otherwise valid experiment, but cannot excuse a failed primary endpoint.
+
+A conditional criterion becomes required when its predeclared trigger is
+observed. If the trigger is demonstrably absent, mark it `not exercised`. If
+trigger occurrence or the resulting evidence cannot be established, mark it
+`unknown`; do not treat missing observation as proof of absence. Applicability
+and verdict are separate fields, including in retrospective appraisal.
 
 ## Acceptance layers
 
@@ -316,6 +344,12 @@ project documentation; retain bulky raw logs separately with hashes and location
 Do not overwrite the baseline report. If publication is in scope, use a distinct
 URL/version per run and verify the uploaded bytes without publishing private logs
 or configuration.
+
+When maintaining the project register is within scope, update the existing task
+or record newly authorized work in `tasks.json` and generate its views with
+`manage.py`. For a read-only review or an ad-hoc plan without register-write
+authority, deliver the report and proposed status note in the permitted location;
+do not modify the register just to satisfy this procedure.
 
 The project trial skill is available independently of any particular experiment.
 After an actual use, update it with reusable lessons that

@@ -1,6 +1,6 @@
 # Fifteen-puzzle recovery and product trial
 
-Status: preregistered plan; cause repair and evidence archival in progress;
+Status: preregistered plan; evidence archival verified; cause repair in progress;
 native repeat not started. Freeze the final plan revision with the accepted
 source/executable manifest before launch.
 
@@ -54,9 +54,9 @@ the validated repository-scoped skill specified below.
 The unchanged first game passed 14 independent Playwright criteria and was
 published, but session `acb9c4e3-6383-48f9-94c4-b99605de565b` ended blocked after
 27m00.568s. That experiment remains **failed**. The exact source was `c18fe31`.
-Evidence is retained in the [baseline report](/tmp/ymp-fifteen-research-20260914T064003Z-adqmbpka/report.md),
-[trace](/tmp/ymp-fifteen-research-20260914T064003Z-adqmbpka/trace.json), and
-[invocations](/tmp/ymp-fifteen-research-20260914T064003Z-adqmbpka/invocations.json).
+Evidence is retained in the [baseline report](/Users/maggnus/ymp-research/fifteen-2026-09-14/baseline/report.md),
+[trace](/Users/maggnus/ymp-research/fifteen-2026-09-14/baseline/trace.json), and
+[invocations](/Users/maggnus/ymp-research/fifteen-2026-09-14/baseline/invocations.json).
 
 | Phase | Calls | Sum of invocation seconds | Input | Output |
 | --- | ---: | ---: | ---: | ---: |
@@ -72,7 +72,7 @@ The browser branch used about 52.5% of input and 36.7% of invocation time. That
 does not mean all browser verification was waste: one review found a real test
 defect. Mechanics also included necessary evidence repair despite no game change.
 
-The [recomputed baseline](/tmp/ymp-fifteen-repeat-analysis/baseline-analysis.json)
+The [recomputed baseline](/Users/maggnus/ymp-research/fifteen-2026-09-14/analysis/baseline-analysis.json)
 uses unrounded timestamps; tiny duration differences from this table reflect
 rounding. Its first-file correction matters: a hash-only observation saw a page
 at 06:47:26.479Z, and the final game hash first appeared at 06:48:16.649Z. The
@@ -103,7 +103,7 @@ Three source-level barriers need correction before another native run:
 The distinction is visible in
 [board.rs](../../ymp-rust/crates/ymp-runtime/src/engine/board.rs),
 [task versioning](../../ymp-rust/crates/ymp-core/src/board.rs), and
-[event 972](/tmp/ymp-fifteen-research-20260914T064003Z-adqmbpka/events/event-00972.json).
+[event 972](/Users/maggnus/ymp-research/fifteen-2026-09-14/baseline/events/event-00972.json).
 Sonnet recommended changing the check in review; Luna submitted the structured
 proposal. Neither participant had authority to commit that change itself.
 
@@ -152,7 +152,7 @@ statistics, reviewer ranking or UI changes are included just to improve the tria
 
 ## Fixed inputs and permitted differences
 
-Use the exact [original prompt](/tmp/ymp-fifteen-research-20260914T064003Z-adqmbpka/task.txt),
+Use the exact [original prompt](/Users/maggnus/ymp-research/fifteen-2026-09-14/baseline/task.txt),
 with no supplied decomposition or reference solution. Preserve:
 
 | Item | Binding |
@@ -191,8 +191,14 @@ Verify all 19 original manifest entries and record hashes for supplementary file
 The executable may be retained locally or referenced by its verified hash. Do
 not publish private evidence or import native credentials. Temporary originals
 remain historical sources; replace operational links with verified durable paths
-before declaring launch readiness. Archival remains pending until a manifest
-records its actual result.
+before declaring launch readiness. The
+[archive verification](/Users/maggnus/ymp-research/fifteen-2026-09-14/archive-verification.json)
+now records successful preservation: 19 original manifest entries and 1,228
+copied files verified by the researcher. Parent independently rechecked all 19
+original entries and the verification artifact SHA-256
+`1d28749a562e8d9655f3e6f609dc2e8239ebdb3c425fb9f4fc85b28a9840c8ae`.
+Use [path-map.json](/Users/maggnus/ymp-research/fifteen-2026-09-14/path-map.json)
+for historical absolute links; original reports and traces remain byte-identical.
 
 Inventory baseline scratch paths, their contents/hashes and active process owners:
 `/tmp/ymp-fifteen-browser-check.mjs`, `/tmp/ymp-fifteen-logic-check.mjs`,
@@ -225,6 +231,20 @@ sandbox to conceal this existing product limitation or alter the treatment.
 
 Use a durable per-repeat research directory from the start. Preserve its native
 terminal data, external validation and publication evidence under the same rules.
+
+Completed preparation reversibly moved the four known scratch files and seven
+baseline browser profiles. The
+[inventory](/Users/maggnus/ymp-research/fifteen-2026-09-14/inventory-manifest.json),
+[move records](/Users/maggnus/ymp-research/fifteen-2026-09-14/residue-moves.json),
+[screenshot addendum](/Users/maggnus/ymp-research/fifteen-2026-09-14/residue-moves-addendum.json),
+and [transcript audit plan](/Users/maggnus/ymp-research/fifteen-2026-09-14/native-transcript-audit-plan.md)
+retain ownership, provenance and limitations. Refresh these observations at launch.
+The original game/config/catalog/release and broken Chromium wrapper are unchanged.
+No isolation claim follows from this cleanup.
+
+The owner has already authorized this repeat. Supplying the independently accepted
+repair commit is a technical launch condition, not a request for another owner
+approval. No repeat has started during preparation.
 
 ## Unified criteria
 
@@ -273,6 +293,9 @@ state the limitation instead of inventing an identity.
 
 For each original requirement, derive a row from the native checks and review
 trace. This is an evidence inventory, not another test suite:
+
+The [baseline evidence table](/Users/maggnus/ymp-research/fifteen-2026-09-14/baseline-native-evidence.md)
+is complete; populate the same distinction for the repeat after its real outcome.
 
 | Requirement | Check definition/version and result | Reviewer basis | Native evidence class | External evidence | Remaining gap |
 | --- | --- | --- | --- | --- | --- |
@@ -345,10 +368,12 @@ time savings by simply deleting all unchanged-file calls.
 Record native continuation IDs, supplied prompt/profile characters, context
 references and reported usage per invocation. References may overlap the complete
 prompt, so do not add both as supplied context. Unknown native-loaded history and
-internal request counts stay unknown. The researcher's 207,252-character baseline
-estimate is not independently established from the trace; record its exact native
-source before using it, or leave it unverified. It is a different unit from
-9,094,673 reported input tokens.
+internal request counts stay unknown. The 207,252-character baseline is supported
+by [prompt-character-audit.json](/Users/maggnus/ymp-research/fifteen-2026-09-14/prompt-character-audit.json):
+all 20 runtime prompt references match distinct native prompt records by SHA-256
+and character count. This covers runtime-supplied prompt text only, excluding
+native instructions, loaded files, tool output and accumulated history. It is a
+different unit from 9,094,673 reported input tokens.
 Sum unique final invocation snapshots, not cumulative stream updates.
 
 Separate native repair interventions from observer setup, diagnosis, validation,

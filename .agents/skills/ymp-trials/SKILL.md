@@ -23,6 +23,10 @@ the existing case document; do not create separate competing acceptance criteria
 Identify whether the request is a focused regression, integration/release check,
 diagnostic run, controlled comparison, longitudinal experience study, UX review
 or reliability investigation. Select the primary product/engineering question.
+Separately establish the permitted phase: planning, read-only appraisal of
+retained evidence, local tests, or native/external execution. A comparison
+question does not itself authorize a comparison run. For retained evidence,
+first determine which question each test or observation can actually answer.
 Review the coverage map and record what is tested, indirectly observed, missing
 or outside scope. A broad system review must explain all dimensions; a narrow
 test can reference unaffected dimensions collectively with a specific reason.
@@ -77,12 +81,17 @@ integrity and product usefulness separate. A negative test can pass by correctly
 rejecting input. A blocked user task cannot be called successful because an
 observer published a working file. Preserve all failed attempts and their cost.
 
+A conditional criterion is required only when its declared trigger occurs;
+missing trigger evidence is unknown, not proof that the condition was absent.
+
 Rank proposals by user impact and evidence for their mechanism. State expected
 behavior, existing subsystem, tradeoff, rejected alternative and the smallest
 check that could disprove the proposed benefit. End with the decision supported
 now, unresolved questions and the next justified action; do not start that action
 if it is outside the current request.
 
-Store the completed plan/report and evidence index in durable locations; update
-`ymp-docs/tasks/tasks.json` and generate its views through `manage.py`. Improve this
-skill only with reusable lessons, leaving case-specific findings in their reports.
+Store the completed plan/report and evidence index in the permitted durable
+location. When register maintenance is authorized, update
+`ymp-docs/tasks/tasks.json` and generate its views through `manage.py`. Otherwise
+return a proposed status note without changing the register. Improve this skill
+only with reusable lessons, leaving case-specific findings in their reports.

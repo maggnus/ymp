@@ -11,6 +11,8 @@ budget, browser, task, platform, repetition count or publication requirement.
 - User/product question and the decision the result will inform.
 - Mode: regression, integration/release, diagnostic, comparative, experience,
   UX or reliability.
+- Permitted phase: planning, retrospective read-only evidence appraisal, local
+  execution, or native/external execution. Mode alone grants no authority.
 - Exact goal, inputs and expected deliverables/behavior.
 - Primary endpoint and required acceptance layers.
 - Current status of execution, product outcome and analytical completion,
@@ -55,10 +57,17 @@ Allowed scope labels: direct, indirect, relevant-unobserved, outside-scope.
 
 ## Hypotheses and criteria
 
+For retained evidence, first state which question each item discriminates, which
+source/version it covers, and what remains unknown. A passed test unrelated to
+the proposed implementation or outcome is not proof of its effectiveness.
+
 For each selected question state the causal mechanism, plausible alternative and
 observation that would falsify it. A comparison also needs its unit of analysis,
 controls, treatment order, task selection, resource basis and uncertainty method.
 Exploratory observations must not replace a failed primary endpoint afterward.
+
+For a conditional criterion, name its trigger. Once triggered it is required;
+proven absence means not-exercised, and missing trigger evidence means unknown.
 
 | ID / intent link | Required, conditional or exploratory | Requirement / hypothesis | Expected result or transition | Evidence method / counter-explanation | Verdict and evidence after execution |
 | --- | --- | --- | --- | --- | --- |
@@ -126,6 +135,9 @@ State acceptance for each required layer, overall outcome, remaining gaps and
 the next justified decision. If the objective remains unmet, keep that explicit
 even when observation and reporting are complete. Identify any general lesson
 worth updating in the project skill; keep incidental case details out of it.
+
+If repository/register writes are outside scope, deliver this plan and proposed
+status note in the permitted location; do not update `tasks.json` automatically.
 
 ## Evidence index
 

@@ -4946,6 +4946,10 @@
         "at": "2026-09-14T08:18:00+00:00",
         "status": "planned",
         "note": "Owner corrected the generalization scope: the reusable system evaluation plan and skill cover all tests/runs and research directions, independently of this game. Tracked as YMP-165; this repeat is one later application and does not define universal models, limits or browser requirements."
+      }, {
+        "at": "2026-09-14T08:21:00+00:00",
+        "status": "planned",
+        "note": "Durable baseline archive complete at /Users/maggnus/ymp-research/fifteen-2026-09-14. Researcher verified 1,228 copied files and19 original manifest entries; parent rechecked the19 entries and archive-verification hash. Four scratch files/seven Chrome profiles were reversibly moved with provenance. Updated case links and accepted the20 native prompt hash matches totalling207,252 characters. No isolation claim or native repeat; accepted cause-repair source is the remaining technical launch condition, not a new request for owner permission."
       }]
     },
     {
@@ -4953,7 +4957,7 @@
       "title": "Provide a reusable intent-based system evaluation plan and project skill",
       "type": "documentation",
       "priority": "P0",
-      "status": "in_progress",
+      "status": "done",
       "owner": "Parent owns shared contract and skill; Opus 5 xhigh checks non-game applicability",
       "authorization": "Owner explicitly requested reusable plans and project skills for all tests/runs covering every system dimension and the product's research goals. This corrects the earlier case-specific scope; delivery must not depend on completion of the fifteen-puzzle study.",
       "depends_on": ["YMP-010"],
@@ -4964,15 +4968,19 @@
         "Create the discoverable repository skill under .agents/skills/ymp-trials with linked reusable template and reference it from AGENTS.md. Do not embed a game's models, budgets, browser or publication requirement as universal defaults.",
         "Validate skill syntax, local references and task views, and perform one bounded non-game plan-only application to check that it respects scope and does not invent native execution authority. No new live trial is required."
       ],
-      "evidence": [".agents/skills/ymp-trials/SKILL.md", ".agents/skills/ymp-trials/assets/evaluation-plan.md", "ymp-docs/guides/session-trial-and-acceptance.md"],
+      "evidence": [".agents/skills/ymp-trials/SKILL.md", ".agents/skills/ymp-trials/assets/evaluation-plan.md", "ymp-docs/guides/session-trial-and-acceptance.md", "ymp-docs/evidence/ymp-165/README.md"],
       "history": [{
         "at": "2026-09-14T08:18:00+00:00",
         "status": "in_progress",
         "note": "Created the general skill and plan/report template, expanded the canonical guide to seven evaluation modes and sixteen system dimensions, and linked it from AGENTS.md. Skill Creator validation passed. Opus 5 xhigh is applying the skill to one plan-only non-game knowledge-policy scenario; no native experiment or product change is included."
+      }, {
+        "at": "2026-09-14T08:23:00+00:00",
+        "status": "done",
+        "note": "Opus 5 xhigh's single non-game forward application preserved read-only scope, required no browser/publication/native run and refused unsupported retrieval-benefit claims. Parent corrected its four findings: canonical mode list, authorized phase plus retained-evidence appraisal, conditional trigger semantics and scoped register updates. Skill validation and39 local links pass; exact reviewer output is retained with matching SHA-256. This accepts the reusable documentation/skill, not runtime or model benefits."
       }]
     }
   ],
-  "updated_at": "2026-09-14T08:18:00+00:00",
+  "updated_at": "2026-09-14T08:23:00+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",

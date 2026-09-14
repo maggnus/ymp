@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-14 08:18 UTC.
+Updated: 2026-09-14 08:23 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -12,7 +12,7 @@ A planned task is not implemented functionality. Completed research and planning
 | --- | ---: | ---: |
 | decision | 2 | 3 |
 | design | 2 | 2 |
-| documentation | 4 | 5 |
+| documentation | 5 | 5 |
 | experiment | 0 | 5 |
 | implementation | 39 | 51 |
 | integration | 0 | 1 |
@@ -105,8 +105,8 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-161](#ymp-161) | P0 | Keep frozen experiment bindings without blocking later product changes | 2026-09-14 02:52 |
 | `[=]` | [YMP-162](#ymp-162) | P0 | Release recovery fixes and complete controlled end-to-end session runs | 2026-09-14 07:38 |
 | `[~]` | [YMP-163](#ymp-163) | P0 | Recover from broken generated task checks through reviewed replacement | 2026-09-14 07:38 |
-| `[=]` | [YMP-164](#ymp-164) | P0 | Repeat fifteen-puzzle delivery with unified research and acceptance criteria | 2026-09-14 08:18 |
-| `[~]` | [YMP-165](#ymp-165) | P0 | Provide a reusable intent-based system evaluation plan and project skill | 2026-09-14 08:18 |
+| `[=]` | [YMP-164](#ymp-164) | P0 | Repeat fifteen-puzzle delivery with unified research and acceptance criteria | 2026-09-14 08:21 |
+| `[x]` | [YMP-165](#ymp-165) | P0 | Provide a reusable intent-based system evaluation plan and project skill | 2026-09-14 08:23 |
 
 ## YMP-001
 
@@ -2807,7 +2807,7 @@ Repeat fifteen-puzzle delivery with unified research and acceptance criteria
 
 **State:** `[=]` (planned) · **Type:** experiment · **Priority:** P0
 
-**Last update (UTC):** 2026-09-14 08:18
+**Last update (UTC):** 2026-09-14 08:21
 
 **Current reason:** Needs YMP-163
 
@@ -2819,7 +2819,7 @@ Repeat fifteen-puzzle delivery with unified research and acceptance criteria
 
 The first report retained strong primary evidence but insufficient causal and product analysis. A working artifact and publication did not constitute native completion. The repeat must evaluate all applicable intent dimensions using one predeclared criterion set.
 
-**Latest progress note:** Owner corrected the generalization scope: the reusable system evaluation plan and skill cover all tests/runs and research directions, independently of this game. Tracked as YMP-165; this repeat is one later application and does not define universal models, limits or browser requirements.
+**Latest progress note:** Durable baseline archive complete at /Users/maggnus/ymp-research/fifteen-2026-09-14. Researcher verified 1,228 copied files and19 original manifest entries; parent rechecked the19 entries and archive-verification hash. Four scratch files/seven Chrome profiles were reversibly moved with provenance. Updated case links and accepted the20 native prompt hash matches totalling207,252 characters. No isolation claim or native repeat; accepted cause-repair source is the remaining technical launch condition, not a new request for owner permission.
 
 **Acceptance criteria:**
 
@@ -2839,11 +2839,11 @@ The first report retained strong primary evidence but insufficient causal and pr
 
 Provide a reusable intent-based system evaluation plan and project skill
 
-**State:** `[~]` (in_progress) · **Type:** documentation · **Priority:** P0
+**State:** `[x]` (done) · **Type:** documentation · **Priority:** P0
 
-**Last update (UTC):** 2026-09-14 08:18
+**Last update (UTC):** 2026-09-14 08:23
 
-**Current reason:** Created the general skill and plan/report template, expanded the canonical guide to seven evaluation modes and sixteen system dimensions, and linked it from AGENTS.md. Skill Creator validation passed. Opus 5 xhigh is applying the skill to one plan-only non-game knowledge-policy scenario; no native experiment or product change is included.
+**Current reason:** Opus 5 xhigh's single non-game forward application preserved read-only scope, required no browser/publication/native run and refused unsupported retrieval-benefit claims. Parent corrected its four findings: canonical mode list, authorized phase plus retained-evidence appraisal, conditional trigger semantics and scoped register updates. Skill validation and39 local links pass; exact reviewer output is retained with matching SHA-256. This accepts the reusable documentation/skill, not runtime or model benefits.
 
 **Owner:** Parent owns shared contract and skill; Opus 5 xhigh checks non-game applicability
 
@@ -2865,6 +2865,7 @@ The prior shared protocol still emphasized native sessions and postponed skill c
 - .agents/skills/ymp-trials/SKILL.md
 - .agents/skills/ymp-trials/assets/evaluation-plan.md
 - ymp-docs/guides/session-trial-and-acceptance.md
+- ymp-docs/evidence/ymp-165/README.md
 
 ## Intent coverage
 
