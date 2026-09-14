@@ -4738,6 +4738,11 @@
           "at": "2026-09-14T02:43:00+00:00",
           "status": "in_progress",
           "note": "Rework candidate90eda29 closes c16/c17/c18/c19/c32 and the whitespace-test gap;14 targeted tests,32 independent scenarios, formatting and strict Clippy passed. Sent the clean commit to the same Claude Opus high reviewer for independent re-acceptance. Full workspace tests remain blocked on YMP-161 and are not claimed."
+        },
+        {
+          "at": "2026-09-14T03:17:00+00:00",
+          "status": "in_progress",
+          "note": "Second review returned one bounded defect: valid or malformed decisions nested inside an outer code/CSS block were skipped. Parent decision: exact schema key approved makes a one-field unquoted block malformed; unrelated verdict syntax remains prose. Sent only c34/c35/c44 plus the one-field rule to the same Sol xhigh author; no expanded scenario suite."
         }
       ]
     },
@@ -4858,7 +4863,7 @@
       ]
     }
   ],
-  "updated_at": "2026-09-14T02:52:00+00:00",
+  "updated_at": "2026-09-14T03:17:00+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",

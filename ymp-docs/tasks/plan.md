@@ -1,6 +1,6 @@
 # Delivery plan and progress
 
-Updated: 2026-09-14 02:52 UTC.
+Updated: 2026-09-14 03:17 UTC.
 
 [Approved intent](../../intent.md) · [Task details and evidence](README.md) · [Canonical register](tasks.json)
 
@@ -33,7 +33,7 @@ A planned task automatically shows `[=]` while prerequisites remain unfinished a
 ## Current work and owner questions
 
 - `[~]` [YMP-158](README.md#ymp-158) — Implement session statistics backend, export and headless progress (2026-09-14 02:32). Open-work review narrows YMP-158 to backend/export and absorbs YMP-130's headless live progress from the same attribution/events. /stats TUI moves to consolidated YMP-156 after backend acceptance. The previous agent was no longer active, but its uncommitted worktree was preserved; relaunched agent b99f10e9-437a-4817-a4f4-e6013727479a on gpt-5.6-sol xhigh to inspect and complete it.
-- `[~]` [YMP-159](README.md#ymp-159) — Parse the final structured decision after non-JSON commentary (2026-09-14 02:43). Rework candidate90eda29 closes c16/c17/c18/c19/c32 and the whitespace-test gap;14 targeted tests,32 independent scenarios, formatting and strict Clippy passed. Sent the clean commit to the same Claude Opus high reviewer for independent re-acceptance. Full workspace tests remain blocked on YMP-161 and are not claimed.
+- `[~]` [YMP-159](README.md#ymp-159) — Parse the final structured decision after non-JSON commentary (2026-09-14 03:17). Second review returned one bounded defect: valid or malformed decisions nested inside an outer code/CSS block were skipped. Parent decision: exact schema key approved makes a one-field unquoted block malformed; unrelated verdict syntax remains prose. Sent only c34/c35/c44 plus the one-field rule to the same Sol xhigh author; no expanded scenario suite.
 
 ## Ready next
 
@@ -142,8 +142,8 @@ Deferred and post-MVP work:
 
 | Time (UTC) | Task | State | Update |
 | --- | --- | --- | --- |
+| 2026-09-14 03:17 | [YMP-159](README.md#ymp-159) | `[~]` | Second review returned one bounded defect: valid or malformed decisions nested inside an outer code/CSS block were skipped. Parent decision: exact schema key approved makes a one-field unquoted block malformed; unrelated verdict syntax remains prose. Sent only c34/c35/c44 plus the one-field rule to the same Sol xhigh author; no expanded scenario suite. |
 | 2026-09-14 02:52 | [YMP-161](README.md#ymp-161) | `[x]` | Independent review accepted exact candidate184dd5f. It reproduced the old1-of-6 result on later accepted product bytes, passed the new9-of-9 suite and proved a changed manifest-bound product object is still rejected before fixture execution. Integrated only the test implementation and evidence over the current80-task register; archived manifests remain unchanged and YMP-201 stays paused. |
-| 2026-09-14 02:43 | [YMP-159](README.md#ymp-159) | `[~]` | Rework candidate90eda29 closes c16/c17/c18/c19/c32 and the whitespace-test gap;14 targeted tests,32 independent scenarios, formatting and strict Clippy passed. Sent the clean commit to the same Claude Opus high reviewer for independent re-acceptance. Full workspace tests remain blocked on YMP-161 and are not claimed. |
 | 2026-09-14 02:34 | [YMP-160](README.md#ymp-160) | `[=]` | Raised to P0 in the open-work review because the owner prioritized the complete ordinary-session run and error controls. The correction is a prerequisite of YMP-162 and still requires independent acceptance before any live-session action. |
 | 2026-09-14 02:34 | [YMP-162](README.md#ymp-162) | `[=]` | Created by the open-work review as the P0 integration and controlled-run boundary. The owner prioritized a complete run and error controls and accepted the sequence. No release installation, real-session mutation or native provider call is authorized by this planning entry. |
 | 2026-09-14 02:32 | [YMP-130](README.md#ymp-130) | `[!]` | Superseded by YMP-158, which now owns the same live assignment/status/usage observations alongside consistent session statistics and export. The headless visibility outcome remains required; no separate event projection or UI implementation will be created. |

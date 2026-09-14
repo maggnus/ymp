@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-14 02:52 UTC.
+Updated: 2026-09-14 03:17 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -100,7 +100,7 @@ A planned task is not implemented functionality. Completed research and planning
 | `[=]` | [YMP-156](#ymp-156) | P1 | Keep transcript chronology and completed session progress stable | 2026-09-14 02:32 |
 | `[x]` | [YMP-157](#ymp-157) | P1 | Research attributable session statistics and knowledge-use measurements | 2026-09-14 02:03 |
 | `[~]` | [YMP-158](#ymp-158) | P1 | Implement session statistics backend, export and headless progress | 2026-09-14 02:32 |
-| `[~]` | [YMP-159](#ymp-159) | P0 | Parse the final structured decision after non-JSON commentary | 2026-09-14 02:43 |
+| `[~]` | [YMP-159](#ymp-159) | P0 | Parse the final structured decision after non-JSON commentary | 2026-09-14 03:17 |
 | `[=]` | [YMP-160](#ymp-160) | P0 | Honor owner starting preferences when reserving an equal-score reviewer | 2026-09-14 02:34 |
 | `[x]` | [YMP-161](#ymp-161) | P0 | Keep frozen experiment bindings without blocking later product changes | 2026-09-14 02:52 |
 | `[=]` | [YMP-162](#ymp-162) | P0 | Release recovery fixes and complete controlled end-to-end session runs | 2026-09-14 02:34 |
@@ -2648,9 +2648,9 @@ Parse the final structured decision after non-JSON commentary
 
 **State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P0
 
-**Last update (UTC):** 2026-09-14 02:43
+**Last update (UTC):** 2026-09-14 03:17
 
-**Current reason:** Rework candidate90eda29 closes c16/c17/c18/c19/c32 and the whitespace-test gap;14 targeted tests,32 independent scenarios, formatting and strict Clippy passed. Sent the clean commit to the same Claude Opus high reviewer for independent re-acceptance. Full workspace tests remain blocked on YMP-161 and are not claimed.
+**Current reason:** Second review returned one bounded defect: valid or malformed decisions nested inside an outer code/CSS block were skipped. Parent decision: exact schema key approved makes a one-field unquoted block malformed; unrelated verdict syntax remains prose. Sent only c34/c35/c44 plus the one-field rule to the same Sol xhigh author; no expanded scenario suite.
 
 **Owner:** Owner-selected gpt-5.6-sol implementation fork; maintainer owns integration and independent acceptance
 
