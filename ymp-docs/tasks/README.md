@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-14 03:32 UTC.
+Updated: 2026-09-14 07:38 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -13,8 +13,8 @@ A planned task is not implemented functionality. Completed research and planning
 | decision | 2 | 3 |
 | design | 2 | 2 |
 | documentation | 4 | 4 |
-| experiment | 0 | 4 |
-| implementation | 39 | 50 |
+| experiment | 0 | 5 |
+| implementation | 39 | 51 |
 | integration | 0 | 1 |
 | maintenance | 2 | 2 |
 | research | 11 | 11 |
@@ -103,7 +103,9 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-159](#ymp-159) | P0 | Parse the final structured decision after non-JSON commentary | 2026-09-14 03:29 |
 | `[~]` | [YMP-160](#ymp-160) | P0 | Honor owner starting preferences when reserving an equal-score reviewer | 2026-09-14 03:31 |
 | `[x]` | [YMP-161](#ymp-161) | P0 | Keep frozen experiment bindings without blocking later product changes | 2026-09-14 02:52 |
-| `[=]` | [YMP-162](#ymp-162) | P0 | Release recovery fixes and complete controlled end-to-end session runs | 2026-09-14 02:34 |
+| `[=]` | [YMP-162](#ymp-162) | P0 | Release recovery fixes and complete controlled end-to-end session runs | 2026-09-14 07:38 |
+| `[~]` | [YMP-163](#ymp-163) | P0 | Recover from broken generated task checks through reviewed replacement | 2026-09-14 07:38 |
+| `[=]` | [YMP-164](#ymp-164) | P0 | Repeat fifteen-puzzle delivery with unified research and acceptance criteria | 2026-09-14 07:38 |
 
 ## YMP-001
 
@@ -2738,7 +2740,7 @@ Release recovery fixes and complete controlled end-to-end session runs
 
 **State:** `[=]` (planned) · **Type:** integration · **Priority:** P0
 
-**Last update (UTC):** 2026-09-14 02:34
+**Last update (UTC):** 2026-09-14 07:38
 
 **Current reason:** Needs YMP-160
 
@@ -2750,7 +2752,7 @@ Release recovery fixes and complete controlled end-to-end session runs
 
 Recovery and live team controls are implemented, but the ordinary owner journey is not proven until the parser, reviewer preference and frozen-test boundary are integrated, the full suite passes and both the interrupted poker session and a minimal fresh session are checked under controlled conditions.
 
-**Latest progress note:** Created by the open-work review as the P0 integration and controlled-run boundary. The owner prioritized a complete run and error controls and accepted the sequence. No release installation, real-session mutation or native provider call is authorized by this planning entry.
+**Latest progress note:** Later owner direction selected a real fifteen-puzzle study with current Luna/Sonnet settings, explicitly reauthorized Astra xhigh as researcher, removed observer ceilings and authorized publication. The first experiment failed natively despite a working published game. Immediate cause repair and the repeat now have explicit YMP-163/YMP-164 ownership; this earlier release/poker task is not marked complete and its historical authorization does not restrict the later approved study.
 
 **Acceptance criteria:**
 
@@ -2767,6 +2769,70 @@ Recovery and live team controls are implemented, but the ordinary owner journey 
 - ymp-docs/research/session-functional-audit.md
 - ymp-docs/evidence/ymp-155/final-audit.md
 - ymp-docs/evidence/ymp-146/ui-acceptance.md
+
+## YMP-163
+
+Recover from broken generated task checks through reviewed replacement
+
+**State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P0
+
+**Last update (UTC):** 2026-09-14 07:38
+
+**Current reason:** Started Sol xhigh agent 02475829-e5e6-4781-949b-baa00a281fd4 in fix/ymp163-check-revision from c18fe31. Both lifecycle staleness and append-only semantics are in scope; no unrelated policy/statistics changes or native run is mixed into this correction.
+
+**Owner:** Sol xhigh implementation fork; parent owns contract and independent acceptance
+
+**Authorization:** Owner explicitly requested fixing the cause that blocked the fifteen-puzzle session before repeating the experiment. No new native model comparison or UI redesign is authorized.
+
+**Depends on:** [YMP-159](#ymp-159), [YMP-161](#ymp-161)
+
+A useful current-task check revision became stale after lifecycle transitions, and ordinary Revise would append a replacement without removing the broken original check. The native session exhausted attempts despite an independently valid game.
+
+**Acceptance criteria:**
+
+- Provide a narrow typed, independently reviewed replacement of generated task checks with exact old/new bindings and durable rationale. Keep existing additive Revise and owner trusted contracts unchanged.
+- Process valid ended-execution check-repair proposals at a safe boundary before lifecycle bookkeeping or exhausted attempts makes them unreachable. Preserve actual definition-conflict checks, owner holds, authority, independent review and accounting.
+- Execute the new check and invalidate superseded evidence. Never accept a task merely because a replacement was proposed; preserve requirements, accepted siblings, history and truthful confirmation/reputation.
+- Reproduce the original public-runtime failure before the change and full completion afterward, including final checks with the broken command removed. Include one meaningful negative control without a broad new test matrix.
+- Run required formatting, strict Clippy and workspace tests on final source with bounded independent review before the native repeat. Do not change or resume the original session.
+
+**Evidence:**
+
+- ymp-docs/research/fifteen-puzzle-repeat-plan.md
+
+## YMP-164
+
+Repeat fifteen-puzzle delivery with unified research and acceptance criteria
+
+**State:** `[=]` (planned) · **Type:** experiment · **Priority:** P0
+
+**Last update (UTC):** 2026-09-14 07:38
+
+**Current reason:** Needs YMP-163
+
+**Owner:** Astra xhigh researcher; parent owns criteria, repair acceptance and project skill
+
+**Authorization:** Owner explicitly requested an intent-based scientific plan, cause repair, and another native run; count the experiment unsuccessful until fully completed. Existing Luna/Sonnet team, native settings and saved limits remain, without artificial observer ceilings. Prior publication authorization persists. Owner additionally requested one unified trial/acceptance protocol covering policies and runtime behavior, then a project trial skill based on it.
+
+**Depends on:** [YMP-163](#ymp-163)
+
+The first report retained strong primary evidence but insufficient causal and product analysis. A working artifact and publication did not constitute native completion. The repeat must evaluate all applicable intent dimensions using one predeclared criterion set.
+
+**Latest progress note:** Canonical unified protocol and detailed repeat plan drafted. Astra xhigh agent 46243ad5-b537-419b-8351-5b3e3e7319eb independently assesses the plan and baseline in temporary files while cause repair proceeds. Native repeat awaits acceptance of YMP-163; prior experiment acb9c4e3 remains failed.
+
+**Acceptance criteria:**
+
+- Freeze the unified plan and primary endpoint before native execution: completed session and final acceptance, no unresolved relevant work, independent Playwright pass on unchanged output, hash-matching publication and substantive product analysis.
+- Use the exact original prompt, same fixed existing Luna/Sonnet IDs, preserved native settings/limits, fresh output and application history. Run only the accepted repaired executable and record all differences and confounders.
+- Preserve every failed attempt and its cost. Do not call a blocked, incomplete or externally repaired session successful; keep runtime accepted/unconfirmed distinct from external verification and never manufacture reputation.
+- Evaluate result quality, protocol transitions, captured policy compliance versus effectiveness, communication, useful concurrency, resource attribution, intervention and knowledge with pass/fail/unknown/not-exercised evidence.
+- Deliver cause chains, competing explanations, prioritized product proposals, tradeoffs and smallest discriminating checks. No claim of model superiority, causal speedup or learning benefit from this one repeated case.
+- After practical use, create a repository-scoped trial skill that reuses the shared protocol without copying case-specific model choices or inventing budgets. Validate the skill, evidence references and generated task views.
+
+**Evidence:**
+
+- ymp-docs/guides/session-trial-and-acceptance.md
+- ymp-docs/research/fifteen-puzzle-repeat-plan.md
 
 ## Intent coverage
 
