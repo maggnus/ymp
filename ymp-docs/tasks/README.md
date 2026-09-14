@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-14 01:40 UTC.
+Updated: 2026-09-14 01:50 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -14,9 +14,9 @@ A planned task is not implemented functionality. Completed research and planning
 | design | 2 | 2 |
 | documentation | 4 | 4 |
 | experiment | 0 | 4 |
-| implementation | 37 | 47 |
+| implementation | 37 | 48 |
 | maintenance | 1 | 1 |
-| research | 10 | 10 |
+| research | 10 | 11 |
 | verification | 2 | 3 |
 
 ## Index
@@ -97,6 +97,8 @@ A planned task is not implemented functionality. Completed research and planning
 | `[=]` | [YMP-154](#ymp-154) | P1 | Show substantially more slash-command suggestions when terminal space permits | 2026-09-13 18:49 |
 | `[~]` | [YMP-155](#ymp-155) | P0 | Audit real session behavior, interface expectations and native token accounting | 2026-09-14 01:40 |
 | `[=]` | [YMP-156](#ymp-156) | P1 | Keep transcript chronology and completed session progress stable | 2026-09-14 01:40 |
+| `[~]` | [YMP-157](#ymp-157) | P1 | Research attributable session statistics and knowledge-use measurements | 2026-09-14 01:50 |
+| `[=]` | [YMP-158](#ymp-158) | P1 | Implement session statistics collection, summaries and contribution drilldown | 2026-09-14 01:50 |
 
 ## YMP-001
 
@@ -2565,6 +2567,69 @@ Notices and live-stream updates can distort chronology, and accepted tasks are f
 
 - ymp-docs/evidence/ymp-155/ui-findings.md
 - ymp-docs/guides/usage-presentation.md
+
+## YMP-157
+
+Research attributable session statistics and knowledge-use measurements
+
+**State:** `[~]` (in_progress) · **Type:** research · **Priority:** P1
+
+**Last update (UTC):** 2026-09-14 01:50
+
+**Current reason:** Owner requested statistics as a separate research-then-implementation track. Recorded the dictionary/source-map brief, agent/assignment attribution, timing/usage coverage, knowledge-use distinctions and outcome/error semantics. Dispatching bounded read-only research; current token display and comparative-study pause remain unchanged.
+
+**Owner:** Bounded research fork; maintainer owns metric definitions and acceptance
+
+**Authorization:** Owner explicitly requested a separate research study of session participants/models, work time, token usage, knowledge hits, successes/failures and errors, followed by implementation. This is read-only research, not implementation or native expenditure.
+
+**Depends on:** [YMP-121](#ymp-121)
+
+The owner needs a reliable explanation of who performed each contribution. Existing records and manual audits expose some data, but metric meanings, coverage, attribution and aggregation need an explicit contract.
+
+**Acceptance criteria:**
+
+- Inventory existing session/agent/assignment/invocation, timing, usage, outcome/error and knowledge records; map each proposed metric to a source or a concrete instrumentation gap.
+- Define units, entity keys, formulas and live/final/legacy/unknown semantics. Attribute work through agent IDs and originating invocations, preserving model changes and immutable history.
+- Distinguish elapsed versus summed/overlapping work and waiting; invocation/native request/tool/task counts; completed calls, accepted/confirmed outcomes, negative reviews and technical errors.
+- Define knowledge retrieval/found/selected/supplied/referenced measurements without equating a lookup hit to proven usefulness. Keep native memory and ymp knowledge separate.
+- Propose a minimal typed read/export contract, bounded collection, existing-surface UI/drilldown options and meaningful acceptance scenarios, grounded in the authorized6e286a3a audit.
+- Do not alter code, user records, current token presentation, budgets or acceptance; no native scans/calls or new experiment. Return a reviewable research result and implementation boundary.
+
+**Evidence:**
+
+- ymp-docs/research/session-statistics-brief.md
+
+## YMP-158
+
+Implement session statistics collection, summaries and contribution drilldown
+
+**State:** `[=]` (planned) · **Type:** implementation · **Priority:** P1
+
+**Last update (UTC):** 2026-09-14 01:50
+
+**Current reason:** Needs YMP-157
+
+**Owner:** Backend implementation fork and Claude Code claude-opus-5 high UI fork; maintainer owns integration and independent acceptance
+
+**Authorization:** Owner explicitly requested implementation after the separate session-statistics research. Exact fields, sources and UI are to be fixed by acceptance of YMP-157; no code implementation starts before it.
+
+**Depends on:** [YMP-157](#ymp-157)
+
+The accepted research should become usable, attributable session statistics rather than repeated manual database/native-log inspection.
+
+**Latest progress note:** Created the dependent implementation task requested by the owner. It remains blocked on157 research acceptance; source changes and UI placement are not yet selected or implemented.
+
+**Acceptance criteria:**
+
+- Implement only the accepted157 metric/source contract, reusing existing records and adding the minimum missing typed instrumentation without changing scheduling, access, budgets, acceptance or reputation.
+- Provide consistent per-session, per-agent and per-assignment views, captured model/settings attribution and secondary model rollups, with actual completeness and legacy limitations.
+- Retain incremental/restart-safe aggregation and prevent duplicate accounting; distinguish outcomes, errors, retries, timing overlap and knowledge retrieval/use according to the accepted definitions.
+- Expose a versioned typed read/export interface and the accepted UI/drilldown through Claude Code high, with consistent summary and raw-evidence links.
+- Validate the research acceptance cases, bounded collection overhead and existing runtime invariants with offline/scripted tests, required checks and independent review. No experiment or real-provider quota is implied.
+
+**Evidence:**
+
+- ymp-docs/research/session-statistics-brief.md
 
 ## Intent coverage
 
