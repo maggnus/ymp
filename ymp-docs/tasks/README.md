@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-14 00:21 UTC.
+Updated: 2026-09-14 00:25 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -40,7 +40,7 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-107](#ymp-107) | P1 | Expose recorded checks and factual recovery limits | 2026-09-12 12:55 |
 | `[=]` | [YMP-108](#ymp-108) | P2 | Evaluate an optional usage estimate with explicit price provenance | 2026-09-12 09:35 |
 | `[x]` | [YMP-111](#ymp-111) | P0 | Apply native models and reasoning settings per assignment | 2026-09-12 12:18 |
-| `[~]` | [YMP-201](#ymp-201) | P2 | Test whether two or three weaker agents can match a stronger solo agent | 2026-09-14 00:21 |
+| `[?]` | [YMP-201](#ymp-201) | P2 | Test whether two or three weaker agents can match a stronger solo agent | 2026-09-14 00:25 |
 | `[=]` | [YMP-202](#ymp-202) | P1 | Test memory and adaptive assignment on held-out tasks | 2026-09-13 16:17 |
 | `[=]` | [YMP-203](#ymp-203) | P1 | Test effort, reduced preparation and low-effort ensembles separately | 2026-09-13 16:17 |
 | `[=]` | [YMP-204](#ymp-204) | P1 | Evaluate a project-scoped prior-outcome router | 2026-09-13 16:17 |
@@ -634,15 +634,15 @@ Native reasoning controls support YMP selection under user constraints. Effort b
 
 Test whether two or three weaker agents can match a stronger solo agent
 
-**State:** `[~]` (in_progress) · **Type:** experiment · **Priority:** P2
+**State:** `[?]` (owner_question) · **Type:** experiment · **Priority:** P2
 
-**Last update (UTC):** 2026-09-14 00:21
+**Last update (UTC):** 2026-09-14 00:25
 
-**Current reason:** Owner corrected the strong baseline to Sonnet5 instead of Astra. Native Claude discovery confirms claude-sonnet-5 with low, without selecting the separate1M variant. Same author bfa857e3 is adapting the existing provider-aware evaluation path while preserving C1/C2/C3 and weak Codex conditions. Old approval question/manifests are superseded; no native spend was approved or performed. Production backends and UI remain unchanged by this assignment.
+**Current reason:** Owner withdrew Sonnet5 and requested the original Astra baseline. Cancelled the adaptation, assigned bounded cleanup of its subtasks, and restored the original active proposal without erasing the change history. Parent observed clean d12d40a and verified both accepted manifests plus frozen runner hashes. The original question on6 calibration and conditional12 measured attempts remains unanswered; no new quota or native call is authorized.
 
 **Owner:** Experiment lead
 
-**Authorization:** Owner requested a simple comparison and on 2026-09-14 selected claude-sonnet-5 instead of gpt-6-astra for the strong solo baseline. This authorizes the narrow provider-aware adaptation and retains weak gpt-5.6-luna participants. Concrete native spending remains unapproved; the earlier Astra manifest question is superseded, not accepted.
+**Authorization:** Owner requested the small comparison and restored gpt-6-astra low as the strong solo baseline after withdrawing a Sonnet5 substitution. Weak participants remain gpt-5.6-luna low. The accepted original manifests and previous concrete spending question are active again; no spending authorization is inferred from restoring the model choice.
 
 **Depends on:** [YMP-121](#ymp-121), [YMP-147](#ymp-147)
 
@@ -670,7 +670,7 @@ The owner prioritizes a small direct test of capability compensation through two
 - ymp-docs/evidence/ymp-201/independent-final/review-result.json
 - ymp-docs/evidence/ymp-201/sonnet-model-discovery.json
 
-**Quota:** No native quota allocated. The accepted Astra proposals b21ad8dc.../dffb4e86... are superseded for execution by the owner-selected Sonnet5 baseline. Prepare newly bound Claude/Codex manifests with existing numerical limits as proposals, no hidden enlargement, provider-specific canonical accounting and unchanged shared deadlines. Obtain the concrete owner decision after acceptance; model selection alone is not spending approval.
+**Quota:** Pending owner approval of exact accepted manifests b21ad8dc... and dffb4e86...: six calibration outcomes, 80,000 observed-token stop threshold/12 outer calls/480 seconds each; conditional twelve measured outcomes,160,000/16/900 each. Original thresholds unchanged:480,000+1,920,000=2,400,000 observed tokens;72+192=264 outer calls;48+180=228minutes of group deadlines. In-flight overshoot and currency cost remain as disclosed. No native allocation or phase has started.
 
 ## YMP-202
 

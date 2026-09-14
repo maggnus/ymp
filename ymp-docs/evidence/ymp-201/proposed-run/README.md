@@ -1,8 +1,4 @@
-# Historical YMP-201 Astra run proposal
-
-Superseded for execution on 2026-09-14: the owner selected claude-sonnet-5 in place
-of gpt-6-astra. No spending approval was given. These exact Astra manifests remain
-unchanged as evidence; new Sonnet manifests must be prepared and approved.
+# Exact YMP-201 run proposal awaiting acceptance and owner approval
 
 Candidate d12d40a, executable consumer 75f60a6. The owner requested the small
 comparison; no concrete experimental allocation has been approved. These are
@@ -72,3 +68,12 @@ transition. The concrete question now asks whether to approve calibration and it
 measured pilot with these exact models, thresholds, deadlines and one-use scope. A failed scientific hypothesis is an
 allowed result. This small pilot can supply examples and diagnose a protocol,
 but cannot establish universal equivalence or impossibility.
+
+## Owner correction and restoration
+
+On 2026-09-14 the owner briefly requested Sonnet 5 instead of Astra, then withdrew
+that change and requested the original configuration. These unchanged accepted
+Astra/Luna manifests are therefore the active proposal again. The parent verified
+both hashes and the frozen runner after cancelling the Sonnet adaptation. The
+owner's model correction/restoration did not approve expenditure; the original
+concrete spending question remains pending.

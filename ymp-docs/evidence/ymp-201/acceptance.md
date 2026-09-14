@@ -42,3 +42,11 @@ remains evidence for the previous Codex-only runner and its source. The old exac
 manifests are no longer the active spending proposal. The same isolated author
 is adapting the strong baseline to the existing Claude provider; no native study
 has started and the model correction itself allocates no quota.
+
+## Owner restored the original baseline
+
+The subsequent owner instruction restores Astra and cancels the Sonnet adaptation.
+The accepted d12d40a configuration and its original exact phase proposals are
+active again. Parent checks confirmed a clean d12d40a checkout, unchanged proposal
+hashes and the accepted frozen runner. No replacement implementation or repeated
+full test sequence is needed for those same bytes. Spending remains unapproved.
