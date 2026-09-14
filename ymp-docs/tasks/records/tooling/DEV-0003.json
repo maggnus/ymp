@@ -5,7 +5,7 @@
   "title": "Implement the file-based development task workflow",
   "type": "tooling",
   "priority": 30,
-  "status": "in_progress",
+  "status": "done",
   "depends_on": [
     "DEV-0001",
     "DEV-0002"
@@ -25,12 +25,15 @@
     "The repository task guide, contributor guidance, root README, roadmap, and ignore rules accurately describe the delivered workflow.",
     "Python and required offline Rust verification commands complete successfully, with external logs and a hash manifest retained for review."
   ],
-  "evidence": [],
+  "evidence": [
+    "Result commit c90a559581f5b6f85ef01e19c4c7241fb33508ed on main",
+    "/tmp/ymp-task-workflow-review-r2/report.md"
+  ],
   "context": [
     "Development task ownership is cooperative coordination, not authentication or runtime execution authority.",
     "Independent acceptance and the final done transition are intentionally left to the parent reviewer."
   ],
-  "revision": 1,
+  "revision": 2,
   "history": [
     {
       "revision": 1,
@@ -38,6 +41,13 @@
       "actor": "maintainer",
       "status": "in_progress",
       "note": "Implementation is in progress under the owner-authorized development task contract."
+    },
+    {
+      "revision": 2,
+      "at": "2026-09-14T19:45:02.215709Z",
+      "actor": "maintainer",
+      "status": "done",
+      "note": "Integrated the independently accepted result as commit c90a559581f5b6f85ef01e19c4c7241fb33508ed on main; R1 2026-09-15 9/10 RETURN, remark fixed; R2 10/10 ACCEPT, report /tmp/ymp-task-workflow-review-r2/report.md."
     }
   ]
 }
