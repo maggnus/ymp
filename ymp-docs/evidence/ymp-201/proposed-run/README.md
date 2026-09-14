@@ -73,7 +73,8 @@ but cannot establish universal equivalence or impossibility.
 
 On 2026-09-14 the owner briefly requested Sonnet 5 instead of Astra, then withdrew
 that change and requested the original configuration. These unchanged accepted
-Astra/Luna manifests are therefore the active proposal again. The parent verified
-both hashes and the frozen runner after cancelling the Sonnet adaptation. The
-owner's model correction/restoration did not approve expenditure; the original
-concrete spending question remains pending.
+Astra/Luna manifests were restored at that point. The parent verified both hashes
+and the frozen runner after cancelling the Sonnet adaptation. The owner later
+prohibited every use of Astra until an explicit future request. These manifests
+are now inactive historical evidence and must not be executed. No replacement
+strong model or spending authorization is currently selected.

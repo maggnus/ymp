@@ -270,7 +270,8 @@ intact. The parent observed a clean checkout at d12d40a and verified both origin
 manifest hashes plus the retained accepted runner. A delayed Sonnet task notification
 does not override the newer owner instruction.
 
-The original exact calibration and conditional-pilot proposal is active again,
-with its previous limits unchanged. Its spending decision remains pending. No
-new model trials, additional allowance, repeated acceptance suite or new native
-approval is implied by restoring the accepted bytes.
+The original exact calibration and conditional-pilot proposal was restored at
+that point, with its previous limits unchanged. The owner subsequently prohibited
+all Astra use until an explicit future request. The proposal is now inactive and
+cannot be executed. No substitute strong model is selected, and no spending is
+authorized.

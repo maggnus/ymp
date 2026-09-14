@@ -1,6 +1,6 @@
 # Delivery plan and progress
 
-Updated: 2026-09-14 01:54 UTC.
+Updated: 2026-09-14 01:57 UTC.
 
 [Approved intent](../../intent.md) · [Task details and evidence](README.md) · [Canonical register](tasks.json)
 
@@ -134,7 +134,7 @@ Approved intent and delivery baseline: 5/5 complete. [YMP-010](README.md#ymp-010
 
 Deferred and post-MVP work:
 - `[=]` [YMP-108](README.md#ymp-108) — Evaluate an optional usage estimate with explicit price provenance. Optional currency estimates are outside the first delivery; raw usage and coverage remain required.
-- `[=]` [YMP-201](README.md#ymp-201) — Test whether two or three weaker agents can match a stronger solo agent. Owner requested basic real-session behavior and accounting verification before comparative model trials. Defer the accepted Astra/Luna study while YMP-155 audits supplied live session6e286a3a and prepares a minimal functional case. Exact original study manifests remain retained, but no native quota was approved and no comparative phase has run.
+- `[=]` [YMP-201](README.md#ymp-201) — Test whether two or three weaker agents can match a stronger solo agent. Owner prohibited any use of gpt-6-astra until an explicit future request. Audited current Paseo agents: no active agent uses Astra; YMP-157 is running on gpt-5.6-sol. Historical Astra records and accepted manifests remain evidence only and are inactive. No replacement strong model, probe, calibration, quota or execution is inferred.
 - `[=]` [YMP-202](README.md#ymp-202) — Test memory and adaptive assignment on held-out tasks. Owner explicitly required marking comparative trials as subject to owner approval. The experiment remains paused; no automatic start after preparation/dependency completion. Obtain separate approval of the concrete protocol, configurations and resource envelope before calibration or measured comparative runs.
 - `[=]` [YMP-203](README.md#ymp-203) — Test effort, reduced preparation and low-effort ensembles separately. Owner explicitly required marking comparative trials as subject to owner approval. The experiment remains paused; no automatic start after preparation/dependency completion. Obtain separate approval of the concrete protocol, configurations and resource envelope before calibration or measured comparative runs.
 - `[=]` [YMP-204](README.md#ymp-204) — Evaluate a project-scoped prior-outcome router. Owner explicitly required marking comparative trials as subject to owner approval. The experiment remains paused; no automatic start after preparation/dependency completion. Obtain separate approval of the concrete protocol, configurations and resource envelope before calibration or measured comparative runs.
@@ -145,11 +145,11 @@ Deferred and post-MVP work:
 
 | Time (UTC) | Task | State | Update |
 | --- | --- | --- | --- |
+| 2026-09-14 01:57 | [YMP-201](README.md#ymp-201) | `[=]` | Owner prohibited any use of gpt-6-astra until an explicit future request. Audited current Paseo agents: no active agent uses Astra; YMP-157 is running on gpt-5.6-sol. Historical Astra records and accepted manifests remain evidence only and are inactive. No replacement strong model, probe, calibration, quota or execution is inferred. |
 | 2026-09-14 01:54 | [YMP-157](README.md#ymp-157) | `[~]` | Owner explicitly requested Sol instead of Astra for this research. Interrupted the current read-only turn, updated the same Paseo agent52111c72 to discovered gpt-5.6-sol and resumed with preserved context. Reasoning and scope unchanged; no repeated research or change to the deferred YMP-201 comparison models. |
 | 2026-09-14 01:50 | [YMP-158](README.md#ymp-158) | `[=]` | Created the dependent implementation task requested by the owner. It remains blocked on157 research acceptance; source changes and UI placement are not yet selected or implemented. |
 | 2026-09-14 01:40 | [YMP-155](README.md#ymp-155) | `[~]` | Owner deferred token-display changes. Existing presentation remains unchanged. The completed native-accounting audit remains evidence; it does not authorize a new display or billing feature. |
 | 2026-09-14 01:40 | [YMP-156](README.md#ymp-156) | `[=]` | Owner explicitly deferred token-display changes. Removed that implementation scope from156; chronology, completed-task visibility and board-event wording remain queued. No token UI change had been implemented or dispatched. |
-| 2026-09-14 01:23 | [YMP-201](README.md#ymp-201) | `[=]` | Owner requested basic real-session behavior and accounting verification before comparative model trials. Defer the accepted Astra/Luna study while YMP-155 audits supplied live session6e286a3a and prepares a minimal functional case. Exact original study manifests remain retained, but no native quota was approved and no comparative phase has run. |
 
 ## Maintenance
 

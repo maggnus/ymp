@@ -45,8 +45,9 @@ has started and the model correction itself allocates no quota.
 
 ## Owner restored the original baseline
 
-The subsequent owner instruction restores Astra and cancels the Sonnet adaptation.
-The accepted d12d40a configuration and its original exact phase proposals are
-active again. Parent checks confirmed a clean d12d40a checkout, unchanged proposal
-hashes and the accepted frozen runner. No replacement implementation or repeated
-full test sequence is needed for those same bytes. Spending remains unapproved.
+The subsequent owner instruction restored Astra and cancelled the Sonnet
+adaptation at that time. Parent checks confirmed a clean d12d40a checkout,
+unchanged proposal hashes and the accepted frozen runner. The owner later
+prohibited any Astra use until explicitly requested again. The accepted runner
+remains valid historical preparation, while its Astra manifests are inactive and
+cannot authorize execution. No replacement model or spending is approved.
