@@ -80,23 +80,37 @@ a session.
 
 ## Part II — Gaps between intent and implementation
 
-### The defect worth fixing first
+### Final review is not independent
 
-**A failing task discards its siblings' verification.** In `Engine::execute`,
-parallel task results are joined into `finished` while any error is captured in
-`error`. The error is returned at lines 662–664, before the loop at lines
-665–669 that verifies everything in `finished`. One failing task therefore
-discards the pending review of every sibling that completed in the same batch.
-Their files remain on disk and their task records persist, but they are never
-reviewed, never accepted, and the run reports failure. The same `?` in the
-verification loop means one failed review also skips the remaining siblings.
-Only the last error is retained; earlier ones are overwritten.
+The final reviewer is chosen from the whole session team with no exclusion of
+the executor ([engine.rs](../../ymp-rust/crates/ymp-runtime/src/engine.rs),
+lines 679–685). Candidate review filters the executor out and uses `peers`;
+the final gate does not. The agent that produced the work can therefore be the
+agent that signs off on it against the original request. The prompt asks for an
+independent inspection, but nothing enforces it.
 
-Default parallelism is three, so this is reachable whenever a plan produces
-independent tasks. It directly contradicts the intent line that an agent's
-failure must not destroy work already done and verified, and it is more severe
-than the synthesis case recorded as YMP-104 because it can discard several tasks
-at once. It is not currently in the register.
+This is live at this baseline and it contradicts the intent line that results
+pass independent verification before final acceptance. In a two-agent team it
+happens with probability one half.
+
+A second case falls under the intent's new confirmation rule. In the arbitration
+branch the reviewer is observed on whether the arbiter agreed with it (lines
+1019–1026), so agreement between two models creates a reputation
+observation. The intent now states that mutual agreement between agents is not
+confirmation.
+
+### A latent hazard, not a live defect
+
+An earlier draft of this note claimed that a failing task discards its siblings'
+verification. The control flow does read that way: in `Engine::execute` the
+error is returned at lines 662–664, before the loop at lines 665–669
+that verifies everything in `finished`. But the ready-task selection is
+truncated with `take(1)` at line 610, so at most one task enters the batch and
+there are no siblings to lose. The claim was wrong about the current baseline and
+is corrected here.
+
+It remains a real hazard the moment `take(1)` is relaxed, which stage 3 requires.
+Fix it inside the change that enables concurrency rather than before it.
 
 ### Confirmation is defined but not enforced
 
@@ -161,12 +175,11 @@ outcomes.
 **Stage 1, intent compliance, offline and quota-free.** Every item repairs a
 behavior that contradicts an unambiguous intent line.
 
-1. Verify siblings before propagating a task failure, and report the failed task
-   without discarding accepted peers.
+1. Exclude the executor from final review, as candidate review already does.
 2. Record the basis of acceptance, and stop raising reputation on an acceptance
-   that had no confirmation. Run the plan's acceptance commands against the
-   working directory before execution so a vacuous check is distinguishable from
-   a discriminating one.
+   that had no confirmation, including the agreement-based reviewer observation.
+   Run the plan's acceptance commands against the working directory before
+   execution so a vacuous check is distinguishable from a discriminating one.
 3. Preserve a verified result when final synthesis fails (YMP-104).
 4. Make turn-limit and, later, budget exhaustion graceful stops that report what
    was verified.
@@ -201,8 +214,10 @@ project's own attribution rule.
   class is now stated: exceed one strong agent at a comparable budget, with
   secondary goals for resource use, time, intervention and transfer. What the
   task still owns is the audience decision.
-- **A new task is needed for the sibling-discard defect.** It is not covered by
-  YMP-104, and it is the more severe of the two.
+- **A new task is needed for independent final review.** Excluding the executor
+  from the final gate is a small change and it is live today.
+- **Sibling loss on batch failure belongs to the concurrency work,** not to a
+  separate task. It is unreachable while `take(1)` holds.
 - **A new task is needed for acceptance basis and confirmation-gated
   reputation.** The intent now states the rule; nothing in the register
   implements it.
