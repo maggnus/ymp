@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-14 01:57 UTC.
+Updated: 2026-09-14 02:00 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -14,7 +14,7 @@ A planned task is not implemented functionality. Completed research and planning
 | design | 2 | 2 |
 | documentation | 4 | 4 |
 | experiment | 0 | 4 |
-| implementation | 37 | 48 |
+| implementation | 38 | 49 |
 | maintenance | 1 | 1 |
 | research | 10 | 11 |
 | verification | 2 | 3 |
@@ -86,19 +86,20 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-143](#ymp-143) | P1 | Provide a separate /git changes view modeled on Paseo | 2026-09-13 14:04 |
 | `[x]` | [YMP-144](#ymp-144) | P1 | Research recovery of sessions after one or more agent failures | 2026-09-13 14:36 |
 | `[x]` | [YMP-145](#ymp-145) | P1 | Unify full-row popup selection and verify stable scrolling geometry | 2026-09-13 16:31 |
-| `[~]` | [YMP-146](#ymp-146) | P0 | Recover interrupted session stages and let the owner change the active team | 2026-09-14 01:23 |
+| `[x]` | [YMP-146](#ymp-146) | P0 | Recover interrupted session stages and let the owner change the active team | 2026-09-14 02:00 |
 | `[x]` | [YMP-147](#ymp-147) | P1 | Translate product goals into a focused comparative trial program | 2026-09-13 15:38 |
-| `[=]` | [YMP-148](#ymp-148) | P1 | Make session coordination replaceable through a typed strategy contract | 2026-09-13 16:13 |
+| `[ ]` | [YMP-148](#ymp-148) | P1 | Make session coordination replaceable through a typed strategy contract | 2026-09-13 16:13 |
 | `[x]` | [YMP-149](#ymp-149) | P1 | Use concise professional terminology throughout the interface | 2026-09-13 18:44 |
 | `[=]` | [YMP-150](#ymp-150) | P1 | Make /team the session control page and separate the /agents catalog | 2026-09-13 16:13 |
 | `[=]` | [YMP-151](#ymp-151) | P1 | Prepare reproducible offline comparisons of coordination strategies | 2026-09-13 16:17 |
 | `[+]` | [YMP-152](#ymp-152) | P2 | Keep the selected palette command visible in very short terminals | 2026-09-13 16:25 |
 | `[x]` | [YMP-153](#ymp-153) | P0 | Decide explicit owner continuation from current files after unverified effects | 2026-09-13 18:42 |
-| `[=]` | [YMP-154](#ymp-154) | P1 | Show substantially more slash-command suggestions when terminal space permits | 2026-09-13 18:49 |
+| `[ ]` | [YMP-154](#ymp-154) | P1 | Show substantially more slash-command suggestions when terminal space permits | 2026-09-13 18:49 |
 | `[~]` | [YMP-155](#ymp-155) | P0 | Audit real session behavior, interface expectations and native token accounting | 2026-09-14 01:40 |
-| `[=]` | [YMP-156](#ymp-156) | P1 | Keep transcript chronology and completed session progress stable | 2026-09-14 01:40 |
+| `[ ]` | [YMP-156](#ymp-156) | P1 | Keep transcript chronology and completed session progress stable | 2026-09-14 01:40 |
 | `[~]` | [YMP-157](#ymp-157) | P1 | Research attributable session statistics and knowledge-use measurements | 2026-09-14 01:54 |
 | `[=]` | [YMP-158](#ymp-158) | P1 | Implement session statistics collection, summaries and contribution drilldown | 2026-09-14 01:50 |
+| `[~]` | [YMP-159](#ymp-159) | P0 | Parse the final structured decision after non-JSON commentary | 2026-09-14 02:00 |
 
 ## YMP-001
 
@@ -2210,11 +2211,11 @@ Selected popup text is styled while inter-column spacing remains unstyled. The r
 
 Recover interrupted session stages and let the owner change the active team
 
-**State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P0
+**State:** `[x]` (done) · **Type:** implementation · **Priority:** P0
 
-**Last update (UTC):** 2026-09-14 01:23
+**Last update (UTC):** 2026-09-14 02:00
 
-**Current reason:** UI author delivered19370d5 from211f314 with a clean tree,632workspace tests passed/two ignored, fmt/strictClippy and11 terminal checks per Unicode/ASCII mode plus restored mutation controls. Parent has read the delivery; independent UI acceptance and integration remain outstanding. New owner-session audit155 distinguishes installed0.4.6 issues from this uninstalled candidate.
+**Current reason:** Independent Claude review accepted UI19370d5 after five focused recovery tests and11 terminal checks in each of Unicode/ASCII. Parent integrated it as a8367c4 with byte-identical TUI/scenario source. YMP-146 now delivers saved-stage recovery, current-session team changes, effect inspection and explicit current-files continuation. Installed0.4.6 and the real poker session remain unchanged; release follows parser159.
 
 **Owner:** Background backend author and Claude Code claude-opus-5 high UI author; maintainer owns contracts and acceptance
 
@@ -2249,6 +2250,8 @@ Saved proposals cannot resume at failed pre-task review, provider failures do no
 - ymp-docs/evidence/ymp-146/backend-acceptance.md
 - ymp-docs/evidence/ymp-146/independent-round2/review-result.json
 - ymp-docs/evidence/ymp-146/integrated/manifest.json
+- ymp-docs/evidence/ymp-146/ui/README.md
+- ymp-docs/evidence/ymp-146/ui-acceptance.md
 
 ## YMP-147
 
@@ -2283,11 +2286,11 @@ Recent discussion concentrated on interchangeable policies while the five produc
 
 Make session coordination replaceable through a typed strategy contract
 
-**State:** `[=]` (planned) · **Type:** implementation · **Priority:** P1
+**State:** `[ ]` (planned) · **Type:** implementation · **Priority:** P1
 
 **Last update (UTC):** 2026-09-13 16:13
 
-**Current reason:** Needs YMP-146
+**Current reason:** Ready to start
 
 **Owner:** Background backend fork; maintainer owns product contract and independent acceptance
 
@@ -2476,11 +2479,11 @@ Fresh read-only review can recover a saved proposal, but current records cannot 
 
 Show substantially more slash-command suggestions when terminal space permits
 
-**State:** `[=]` (planned) · **Type:** implementation · **Priority:** P1
+**State:** `[ ]` (planned) · **Type:** implementation · **Priority:** P1
 
 **Last update (UTC):** 2026-09-13 18:49
 
-**Current reason:** Needs YMP-146
+**Current reason:** Ready to start
 
 **Owner:** Claude Code claude-opus-5 high; maintainer owns sequencing and acceptance
 
@@ -2539,11 +2542,11 @@ Before comparing model capability, verify basic session completion and faithful 
 
 Keep transcript chronology and completed session progress stable
 
-**State:** `[=]` (planned) · **Type:** implementation · **Priority:** P1
+**State:** `[ ]` (planned) · **Type:** implementation · **Priority:** P1
 
 **Last update (UTC):** 2026-09-14 01:40
 
-**Current reason:** Needs YMP-146
+**Current reason:** Ready to start
 
 **Owner:** Claude Code claude-opus-5 high; maintainer owns semantics and independent acceptance
 
@@ -2630,6 +2633,36 @@ The accepted research should become usable, attributable session statistics rath
 **Evidence:**
 
 - ymp-docs/research/session-statistics-brief.md
+
+## YMP-159
+
+Parse the final structured decision after non-JSON commentary
+
+**State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P0
+
+**Last update (UTC):** 2026-09-14 02:00
+
+**Current reason:** Read-only audit proved the final GLM message contains CSS braces before one valid approved JSON object; runtime stopped with five accepted tasks and the sixth in review. Created an isolated Sol implementation task after integrating accepted recovery UI. No real session action or provider invocation is authorized during the correction.
+
+**Owner:** Owner-selected gpt-5.6-sol implementation fork; maintainer owns integration and independent acceptance
+
+**Authorization:** Owner asked how to finish the supplied poker session after the read-only audit established a parser defect. Implement the bounded parser correction and prepare a release before any explicit live-session continuation. Astra is prohibited.
+
+**Depends on:** [YMP-146](#ymp-146)
+
+Session6e286a3a stopped on its last review because CSS commentary contained a balanced brace block before a valid final JSON decision. The parser rejected that first non-JSON block instead of reading the unique final decision.
+
+**Acceptance criteria:**
+
+- Accept exactly one valid final structured response after ordinary commentary containing CSS or other balanced non-JSON braces. Preserve schema validation and the original source text.
+- Reject two valid decision objects as ambiguous, a malformed JSON-looking decision, incomplete JSON and nonempty prose after the final decision. Do not accept a nested valid fragment from a malformed outer JSON object.
+- Cover the sanitized shape of message233 from session6e286a3a plus existing direct JSON and fenced response behavior. Prove the new regression fails on the pre-fix parser and passes after the correction.
+- Keep provider protocols, recovery state, usage, user data and task acceptance unchanged. Do not modify or resume the real session during implementation or tests.
+- Run formatting, strict Clippy and workspace tests on the final source, then perform independent review before the release that enables owner-controlled recovery of the real session.
+
+**Evidence:**
+
+- ymp-docs/research/session-functional-audit.md
 
 ## Intent coverage
 

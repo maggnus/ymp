@@ -4021,7 +4021,7 @@
       "title": "Recover interrupted session stages and let the owner change the active team",
       "type": "implementation",
       "priority": "P0",
-      "status": "in_progress",
+      "status": "done",
       "owner": "Background backend author and Claude Code claude-opus-5 high UI author; maintainer owns contracts and acceptance",
       "authorization": "Owner approved implementing the YMP-144 recovery recommendation and explicitly requires changing the team during a session. Before starting implementation, owner requested an explanation of current team meaning, behavior and scaling. Implementation is registered but not started during that explanation.",
       "depends_on": [
@@ -4050,7 +4050,9 @@
         "ymp-docs/architecture/session-recovery-ui.md",
         "ymp-docs/evidence/ymp-146/backend-acceptance.md",
         "ymp-docs/evidence/ymp-146/independent-round2/review-result.json",
-        "ymp-docs/evidence/ymp-146/integrated/manifest.json"
+        "ymp-docs/evidence/ymp-146/integrated/manifest.json",
+        "ymp-docs/evidence/ymp-146/ui/README.md",
+        "ymp-docs/evidence/ymp-146/ui-acceptance.md"
       ],
       "history": [
         {
@@ -4167,6 +4169,11 @@
           "at": "2026-09-14T01:23:55.983883+00:00",
           "status": "in_progress",
           "note": "UI author delivered19370d5 from211f314 with a clean tree,632workspace tests passed/two ignored, fmt/strictClippy and11 terminal checks per Unicode/ASCII mode plus restored mutation controls. Parent has read the delivery; independent UI acceptance and integration remain outstanding. New owner-session audit155 distinguishes installed0.4.6 issues from this uninstalled candidate."
+        },
+        {
+          "at": "2026-09-14T02:00:00+00:00",
+          "status": "done",
+          "note": "Independent Claude review accepted UI19370d5 after five focused recovery tests and11 terminal checks in each of Unicode/ASCII. Parent integrated it as a8367c4 with byte-identical TUI/scenario source. YMP-146 now delivers saved-stage recovery, current-session team changes, effect inspection and explicit current-files continuation. Installed0.4.6 and the real poker session remain unchanged; release follows parser159."
         }
       ]
     },
@@ -4609,9 +4616,39 @@
           "note": "Created the dependent implementation task requested by the owner. It remains blocked on157 research acceptance; source changes and UI placement are not yet selected or implemented."
         }
       ]
+    },
+    {
+      "id": "YMP-159",
+      "title": "Parse the final structured decision after non-JSON commentary",
+      "type": "implementation",
+      "priority": "P0",
+      "status": "in_progress",
+      "owner": "Owner-selected gpt-5.6-sol implementation fork; maintainer owns integration and independent acceptance",
+      "authorization": "Owner asked how to finish the supplied poker session after the read-only audit established a parser defect. Implement the bounded parser correction and prepare a release before any explicit live-session continuation. Astra is prohibited.",
+      "depends_on": [
+        "YMP-146"
+      ],
+      "reason": "Session6e286a3a stopped on its last review because CSS commentary contained a balanced brace block before a valid final JSON decision. The parser rejected that first non-JSON block instead of reading the unique final decision.",
+      "acceptance": [
+        "Accept exactly one valid final structured response after ordinary commentary containing CSS or other balanced non-JSON braces. Preserve schema validation and the original source text.",
+        "Reject two valid decision objects as ambiguous, a malformed JSON-looking decision, incomplete JSON and nonempty prose after the final decision. Do not accept a nested valid fragment from a malformed outer JSON object.",
+        "Cover the sanitized shape of message233 from session6e286a3a plus existing direct JSON and fenced response behavior. Prove the new regression fails on the pre-fix parser and passes after the correction.",
+        "Keep provider protocols, recovery state, usage, user data and task acceptance unchanged. Do not modify or resume the real session during implementation or tests.",
+        "Run formatting, strict Clippy and workspace tests on the final source, then perform independent review before the release that enables owner-controlled recovery of the real session."
+      ],
+      "evidence": [
+        "ymp-docs/research/session-functional-audit.md"
+      ],
+      "history": [
+        {
+          "at": "2026-09-14T02:00:00+00:00",
+          "status": "in_progress",
+          "note": "Read-only audit proved the final GLM message contains CSS braces before one valid approved JSON object; runtime stopped with five accepted tasks and the sixth in review. Created an isolated Sol implementation task after integrating accepted recovery UI. No real session action or provider invocation is authorized during the correction."
+        }
+      ]
     }
   ],
-  "updated_at": "2026-09-14T01:57:42+00:00",
+  "updated_at": "2026-09-14T02:00:00+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",
