@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-14 00:25 UTC.
+Updated: 2026-09-14 01:23 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -17,7 +17,7 @@ A planned task is not implemented functionality. Completed research and planning
 | implementation | 37 | 46 |
 | maintenance | 1 | 1 |
 | research | 10 | 10 |
-| verification | 2 | 2 |
+| verification | 2 | 3 |
 
 ## Index
 
@@ -40,7 +40,7 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-107](#ymp-107) | P1 | Expose recorded checks and factual recovery limits | 2026-09-12 12:55 |
 | `[=]` | [YMP-108](#ymp-108) | P2 | Evaluate an optional usage estimate with explicit price provenance | 2026-09-12 09:35 |
 | `[x]` | [YMP-111](#ymp-111) | P0 | Apply native models and reasoning settings per assignment | 2026-09-12 12:18 |
-| `[?]` | [YMP-201](#ymp-201) | P2 | Test whether two or three weaker agents can match a stronger solo agent | 2026-09-14 00:25 |
+| `[=]` | [YMP-201](#ymp-201) | P2 | Test whether two or three weaker agents can match a stronger solo agent | 2026-09-14 01:23 |
 | `[=]` | [YMP-202](#ymp-202) | P1 | Test memory and adaptive assignment on held-out tasks | 2026-09-13 16:17 |
 | `[=]` | [YMP-203](#ymp-203) | P1 | Test effort, reduced preparation and low-effort ensembles separately | 2026-09-13 16:17 |
 | `[=]` | [YMP-204](#ymp-204) | P1 | Evaluate a project-scoped prior-outcome router | 2026-09-13 16:17 |
@@ -86,7 +86,7 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-143](#ymp-143) | P1 | Provide a separate /git changes view modeled on Paseo | 2026-09-13 14:04 |
 | `[x]` | [YMP-144](#ymp-144) | P1 | Research recovery of sessions after one or more agent failures | 2026-09-13 14:36 |
 | `[x]` | [YMP-145](#ymp-145) | P1 | Unify full-row popup selection and verify stable scrolling geometry | 2026-09-13 16:31 |
-| `[~]` | [YMP-146](#ymp-146) | P0 | Recover interrupted session stages and let the owner change the active team | 2026-09-13 19:47 |
+| `[~]` | [YMP-146](#ymp-146) | P0 | Recover interrupted session stages and let the owner change the active team | 2026-09-14 01:23 |
 | `[x]` | [YMP-147](#ymp-147) | P1 | Translate product goals into a focused comparative trial program | 2026-09-13 15:38 |
 | `[=]` | [YMP-148](#ymp-148) | P1 | Make session coordination replaceable through a typed strategy contract | 2026-09-13 16:13 |
 | `[x]` | [YMP-149](#ymp-149) | P1 | Use concise professional terminology throughout the interface | 2026-09-13 18:44 |
@@ -95,6 +95,7 @@ A planned task is not implemented functionality. Completed research and planning
 | `[+]` | [YMP-152](#ymp-152) | P2 | Keep the selected palette command visible in very short terminals | 2026-09-13 16:25 |
 | `[x]` | [YMP-153](#ymp-153) | P0 | Decide explicit owner continuation from current files after unverified effects | 2026-09-13 18:42 |
 | `[=]` | [YMP-154](#ymp-154) | P1 | Show substantially more slash-command suggestions when terminal space permits | 2026-09-13 18:49 |
+| `[~]` | [YMP-155](#ymp-155) | P0 | Audit real session behavior, interface expectations and native token accounting | 2026-09-14 01:23 |
 
 ## YMP-001
 
@@ -634,11 +635,11 @@ Native reasoning controls support YMP selection under user constraints. Effort b
 
 Test whether two or three weaker agents can match a stronger solo agent
 
-**State:** `[?]` (owner_question) · **Type:** experiment · **Priority:** P2
+**State:** `[=]` (paused) · **Type:** experiment · **Priority:** P2
 
-**Last update (UTC):** 2026-09-14 00:25
+**Last update (UTC):** 2026-09-14 01:23
 
-**Current reason:** Owner withdrew Sonnet5 and requested the original Astra baseline. Cancelled the adaptation, assigned bounded cleanup of its subtasks, and restored the original active proposal without erasing the change history. Parent observed clean d12d40a and verified both accepted manifests plus frozen runner hashes. The original question on6 calibration and conditional12 measured attempts remains unanswered; no new quota or native call is authorized.
+**Current reason:** Owner requested basic real-session behavior and accounting verification before comparative model trials. Defer the accepted Astra/Luna study while YMP-155 audits supplied live session6e286a3a and prepares a minimal functional case. Exact original study manifests remain retained, but no native quota was approved and no comparative phase has run.
 
 **Owner:** Experiment lead
 
@@ -2208,9 +2209,9 @@ Recover interrupted session stages and let the owner change the active team
 
 **State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P0
 
-**Last update (UTC):** 2026-09-13 19:47
+**Last update (UTC):** 2026-09-14 01:23
 
-**Current reason:** Combined-source verification completed: fmt and strict Clippy exited zero; workspace tests passed 627 with zero failures and two ignored. Reviewer preserved all 218 execution inputs and the unrelated owner request edit. Parent retained hash-verified raw logs, runner, manifests and 32 executable hashes. Recovery UI implementation c206255b continues in its isolated fork; no repeated integration checks are pending, and installed0.4.6/Linux/native-session status is unchanged.
+**Current reason:** UI author delivered19370d5 from211f314 with a clean tree,632workspace tests passed/two ignored, fmt/strictClippy and11 terminal checks per Unicode/ASCII mode plus restored mutation controls. Parent has read the delivery; independent UI acceptance and integration remain outstanding. New owner-session audit155 distinguishes installed0.4.6 issues from this uninstalled candidate.
 
 **Owner:** Background backend author and Claude Code claude-opus-5 high UI author; maintainer owns contracts and acceptance
 
@@ -2498,6 +2499,37 @@ Inline slash-command completion currently has a six-row limit even in a tall ter
 **Evidence:**
 
 - Pending.
+
+## YMP-155
+
+Audit real session behavior, interface expectations and native token accounting
+
+**State:** `[~]` (in_progress) · **Type:** verification · **Priority:** P0
+
+**Last update (UTC):** 2026-09-14 01:23
+
+**Current reason:** Owner supplied live6e286a3a and asked to audit suspicious tokens, considering a simpler first test. Read-only snapshots confirm installed0.4.6, Luna+GLM from session creation, five retained accepted tasks, and later blocked parsing of a GLM review containing valid terminal JSON after CSS commentary. Luna application counts are mostly cache and await native-log reconciliation. Runtime/usage observer52111c72 and Claude UI auditor8d8b7748 are active; no user files, process state or settings changed. Recommended first functional task is a single-file counter, not another large game.
+
+**Owner:** Maintainer owns functional expectations; read-only runtime/native accounting and Claude UI audit forks
+
+**Authorization:** Owner explicitly deferred comparative trials in favor of ordinary session testing, requested analysis of message order, member substitution, task visibility, coordination, parallelism, waiting and cost, and supplied active session6e286a3a in Downloads/_ymp3 for observation. Read-only access to that session and its originating native accounting is authorized. New native attempts require a concrete bounded allowance; observation does not authorize interfering with the owner run.
+
+**Depends on:** [YMP-121](#ymp-121)
+
+Before comparing model capability, verify basic session completion and faithful UI/accounting. The owner reports jumping service messages, disappearance of completed tasks, unexpected GLM selection and suspicious token volume.
+
+**Acceptance criteria:**
+
+- Observe the supplied session with read-only SQLite/native-log projections; preserve its work and native authentication. Record exact time/version/state and distinguish installed behavior from uninstalled candidates.
+- Explain initial and subsequent team selection against actual preferences, pins, eligibility, decisions and invocations. Inspect temporary roles, inter-agent communication, access, actual overlap, idle intervals and stop/recovery conditions.
+- Reconcile per-invocation counts against exact native cumulative/last-request records, resume baselines and duplicates. Separate new input, cached input, output and reasoning; report partial coverage and unknown currency cost without inventing totals.
+- Reproduce UI chronology/task-visibility problems from real records or clean offline controls and propose a coherent progress view preserving completed work and acceptance/confirmation distinctions.
+- Prepare a minimal functional progression beginning with a single-file counter, then a bounded puzzle and the fixed Holdem case, with new empty directories and stable prompts per case. The initial counter does not claim to test parallelism; use an explicit independent-work case for that.
+- Record findings and bounded follow-up fixes/verification tasks before claiming the engine generally works. No comparative superiority claim, automatic old-session resume or new provider expenditure is implied.
+
+**Evidence:**
+
+- ymp-docs/research/session-functional-audit.md
 
 ## Intent coverage
 

@@ -944,7 +944,7 @@
       "title": "Test whether two or three weaker agents can match a stronger solo agent",
       "type": "experiment",
       "priority": "P2",
-      "status": "owner_question",
+      "status": "paused",
       "owner": "Experiment lead",
       "authorization": "Owner requested the small comparison and restored gpt-6-astra low as the strong solo baseline after withdrawing a Sonnet5 substitution. Weak participants remain gpt-5.6-luna low. The accepted original manifests and previous concrete spending question are active again; no spending authorization is inferred from restoring the model choice.",
       "depends_on": [
@@ -1068,6 +1068,11 @@
           "at": "2026-09-14T00:25:06.674763+00:00",
           "status": "owner_question",
           "note": "Owner withdrew Sonnet5 and requested the original Astra baseline. Cancelled the adaptation, assigned bounded cleanup of its subtasks, and restored the original active proposal without erasing the change history. Parent observed clean d12d40a and verified both accepted manifests plus frozen runner hashes. The original question on6 calibration and conditional12 measured attempts remains unanswered; no new quota or native call is authorized."
+        },
+        {
+          "at": "2026-09-14T01:23:55.983883+00:00",
+          "status": "paused",
+          "note": "Owner requested basic real-session behavior and accounting verification before comparative model trials. Defer the accepted Astra/Luna study while YMP-155 audits supplied live session6e286a3a and prepares a minimal functional case. Exact original study manifests remain retained, but no native quota was approved and no comparative phase has run."
         }
       ]
     },
@@ -4152,6 +4157,11 @@
           "at": "2026-09-13T19:47:24.798004+00:00",
           "status": "in_progress",
           "note": "Combined-source verification completed: fmt and strict Clippy exited zero; workspace tests passed 627 with zero failures and two ignored. Reviewer preserved all 218 execution inputs and the unrelated owner request edit. Parent retained hash-verified raw logs, runner, manifests and 32 executable hashes. Recovery UI implementation c206255b continues in its isolated fork; no repeated integration checks are pending, and installed0.4.6/Linux/native-session status is unchanged."
+        },
+        {
+          "at": "2026-09-14T01:23:55.983883+00:00",
+          "status": "in_progress",
+          "note": "UI author delivered19370d5 from211f314 with a clean tree,632workspace tests passed/two ignored, fmt/strictClippy and11 terminal checks per Unicode/ASCII mode plus restored mutation controls. Parent has read the delivery; independent UI acceptance and integration remain outstanding. New owner-session audit155 distinguishes installed0.4.6 issues from this uninstalled candidate."
         }
       ]
     },
@@ -4450,9 +4460,40 @@
           "note": "Owner requested a much longer visible slash-command list as the next Claude UI task after current work. Source confirms COMPLETION_ROWS=6 and PALETTE_ROWS=10; increasing only the constant can hide completion in shorter terminals. Recorded adaptive-height acceptance and sequencing; implementation is not started."
         }
       ]
+    },
+    {
+      "id": "YMP-155",
+      "title": "Audit real session behavior, interface expectations and native token accounting",
+      "type": "verification",
+      "priority": "P0",
+      "status": "in_progress",
+      "owner": "Maintainer owns functional expectations; read-only runtime/native accounting and Claude UI audit forks",
+      "authorization": "Owner explicitly deferred comparative trials in favor of ordinary session testing, requested analysis of message order, member substitution, task visibility, coordination, parallelism, waiting and cost, and supplied active session6e286a3a in Downloads/_ymp3 for observation. Read-only access to that session and its originating native accounting is authorized. New native attempts require a concrete bounded allowance; observation does not authorize interfering with the owner run.",
+      "depends_on": [
+        "YMP-121"
+      ],
+      "reason": "Before comparing model capability, verify basic session completion and faithful UI/accounting. The owner reports jumping service messages, disappearance of completed tasks, unexpected GLM selection and suspicious token volume.",
+      "acceptance": [
+        "Observe the supplied session with read-only SQLite/native-log projections; preserve its work and native authentication. Record exact time/version/state and distinguish installed behavior from uninstalled candidates.",
+        "Explain initial and subsequent team selection against actual preferences, pins, eligibility, decisions and invocations. Inspect temporary roles, inter-agent communication, access, actual overlap, idle intervals and stop/recovery conditions.",
+        "Reconcile per-invocation counts against exact native cumulative/last-request records, resume baselines and duplicates. Separate new input, cached input, output and reasoning; report partial coverage and unknown currency cost without inventing totals.",
+        "Reproduce UI chronology/task-visibility problems from real records or clean offline controls and propose a coherent progress view preserving completed work and acceptance/confirmation distinctions.",
+        "Prepare a minimal functional progression beginning with a single-file counter, then a bounded puzzle and the fixed Holdem case, with new empty directories and stable prompts per case. The initial counter does not claim to test parallelism; use an explicit independent-work case for that.",
+        "Record findings and bounded follow-up fixes/verification tasks before claiming the engine generally works. No comparative superiority claim, automatic old-session resume or new provider expenditure is implied."
+      ],
+      "evidence": [
+        "ymp-docs/research/session-functional-audit.md"
+      ],
+      "history": [
+        {
+          "at": "2026-09-14T01:23:55.983883+00:00",
+          "status": "in_progress",
+          "note": "Owner supplied live6e286a3a and asked to audit suspicious tokens, considering a simpler first test. Read-only snapshots confirm installed0.4.6, Luna+GLM from session creation, five retained accepted tasks, and later blocked parsing of a GLM review containing valid terminal JSON after CSS commentary. Luna application counts are mostly cache and await native-log reconciliation. Runtime/usage observer52111c72 and Claude UI auditor8d8b7748 are active; no user files, process state or settings changed. Recommended first functional task is a single-file counter, not another large game."
+        }
+      ]
     }
   ],
-  "updated_at": "2026-09-14T00:25:06.674763+00:00",
+  "updated_at": "2026-09-14T01:23:55.983883+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",
