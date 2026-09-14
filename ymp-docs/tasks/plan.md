@@ -1,6 +1,6 @@
 # Delivery plan and progress
 
-Updated: 2026-09-14 02:24 UTC.
+Updated: 2026-09-14 02:27 UTC.
 
 [Approved intent](../../intent.md) · [Task details and evidence](README.md) · [Canonical register](tasks.json)
 
@@ -145,7 +145,7 @@ Deferred and post-MVP work:
 
 | Time (UTC) | Task | State | Update |
 | --- | --- | --- | --- |
-| 2026-09-14 02:24 | [YMP-156](README.md#ymp-156) | `[ ]` | Owner accepted @agent as the logical addressing form and asked how to distinguish three copies of one model. Added structured recipient semantics: full stable agent_id, explicit chooser for duplicate exact model labels, model/role/short-ID presentation, @team broadcast, shared visibility and no automatic invocation. This joins156 because it shares composer/transcript state; implementation waits for current P0 work. |
+| 2026-09-14 02:27 | [YMP-156](README.md#ymp-156) | `[ ]` | Owner specified immediate @ completion with filtering as text is entered. Fixed composer behavior: open on bare @, incremental filtering, stable selection by full ID, explicit no-match state, Enter/Tab inserts without sending, Escape preserves the draft, and shared popup behavior remains consistent with slash completion. |
 | 2026-09-14 02:08 | [YMP-161](README.md#ymp-161) | `[~]` | Parser159 author proved all parser tests, formatting and strict Clippy pass, but five weak_pilot_consumer tests reject the accepted UI146 base before fixture execution because they pin current product bytes to1c17f4e. Registered a parallel Sol xhigh correction that preserves native frozen-manifest validation while making unattended tests self-contained. No experiment or Astra use. |
 | 2026-09-14 02:05 | [YMP-158](README.md#ymp-158) | `[~]` | Owner explicitly requested delegation to Sol xhigh. Started agent3cb28fd2-5249-4405-9d96-c03766cca6ca on gpt-5.6-sol xhigh in isolated feat/ymp158-session-statistics-backend from d3e8995. Scope is the accepted typed statistics backend and optional read-only JSON export; TUI waits for backend review. Astra, real user data, provider calls and token-display changes remain excluded. |
 | 2026-09-14 02:03 | [YMP-157](README.md#ymp-157) | `[x]` | Accepted the Sol research result. Existing SessionTrace supports most attributable statistics from one transactional snapshot; finalized definitions separate actor/model, elapsed/work/overlap/wait, transport/response/task/confirmation, technical errors, communication and knowledge stages. Added six bounded collection gaps, typed read/export contract and eight acceptance cases. No implementation, native call or token-display change occurred. |

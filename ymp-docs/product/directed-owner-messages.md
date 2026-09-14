@@ -28,6 +28,27 @@ matches that exact model identifier. With two or more matches, require a chooser
 never broadcast or choose the first silently. `@team` explicitly selects no
 recipient and sends to the shared team chat.
 
+## Composer interaction
+
+An `@` at the start of the draft or after whitespace opens the participant popup
+immediately with every effective member. The characters typed after that `@`
+filter the open list on each edit. Match the exact model label, current role/state
+and stable ID using the existing case-insensitive substring convention; preserve
+the original identifiers in display and storage. Do not wait for a minimum query
+length and do not interpret an `@` inside an ordinary word or email address.
+
+Up/Down changes the highlighted participant. Enter or Tab selects that participant,
+inserts one structured mention followed by a space and returns focus to the draft;
+it does not send the message. Escape closes the popup without changing the draft.
+Backspace updates the filter, and returning to a bare `@` shows the full list
+again. With no matches, keep the draft and show `No matching participant` rather
+than closing the popup or falling back to the team.
+
+The highlighted row is retained by full `agent_id` while filtering whenever that
+participant still matches. Slash-command and mention completion are mutually
+exclusive according to the token currently being edited and use the same shared
+popup/list geometry, scrolling and full-row selection behavior.
+
 ## Delivery semantics
 
 Addressed messages remain visible to every team member and are rendered as
@@ -57,5 +78,7 @@ captured label; the primary transcript keeps the concise disambiguated label.
 Tests cover one matching model, three copies of one model, short-ID collision,
 model change under one stable ID, membership revision after opening the chooser,
 recipient departure, `@team`, message persistence/restart, shared visibility,
-no automatic invocation and no owner impersonation through team MCP. Message
-chronology follows the YMP-156 sequence/notice corrections.
+no automatic invocation and no owner impersonation through team MCP. Composer
+tests cover immediate opening, incremental filtering, zero matches, selection
+without sending, Escape/draft preservation and slash/mention completion switching.
+Message chronology follows the YMP-156 sequence/notice corrections.
