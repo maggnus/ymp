@@ -271,6 +271,18 @@ relevant excerpts, source provenance and hashes; do not copy authentication home
 Missing transcript coverage means the claim is limited. A stale screenshot or
 check file cannot silently become new evidence merely because it exists.
 
+For copied or isolated builds, bind local adapters and required dependencies as
+well as the executable before the first inference call. A source hash and a
+successful build do not establish that a runtime adapter path exists. Check local
+readiness without invoking every provider or silently repairing the environment.
+
+Compare explanatory messages with their linked authoritative decision. A correct
+rejection can still name the wrong cause. State the strength of evidence precisely:
+file-content inspection, simulated interaction and real application execution
+are different observations. Preserve observer-client failures and any changed
+request details when validating publication; do not silently turn a client retry
+into another deployment or an erased failure.
+
 Progress updates identify a meaningful change, its evidence and what it implies.
 Do not relay every log line or label a model's speculation as a finding. Preserve
 corrections to earlier interpretations, including who suggested an action versus

@@ -1,8 +1,9 @@
 # Fifteen-puzzle recovery and product trial
 
-Status: evidence archival verified; cause repair accepted and integrated as
-`e063494c5d339427c24f830bf9c152b53dee71be`; native repeat authorized for launch.
-Freeze this plan revision with the source/executable manifest before the first call.
+Status: completed case accepted for session `9f78ce30`; the prior two attempts
+remain failed. The frozen execution protocol is `392f7b0`. This live document
+adds final disposition without changing those predeclared criteria. See
+[parent acceptance and evidence](../evidence/ymp-164/acceptance.md).
 
 The integrated product sources match reviewed candidate
 `b1d8cba2d2a246f406abe24356baa2bf0fa35bc6` byte-for-byte. Required formatting,

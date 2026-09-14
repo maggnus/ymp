@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-14 08:53 UTC.
+Updated: 2026-09-14 09:57 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -13,10 +13,10 @@ A planned task is not implemented functionality. Completed research and planning
 | decision | 2 | 3 |
 | design | 2 | 2 |
 | documentation | 5 | 5 |
-| experiment | 0 | 5 |
+| experiment | 1 | 5 |
 | implementation | 40 | 52 |
 | integration | 0 | 1 |
-| maintenance | 2 | 2 |
+| maintenance | 2 | 3 |
 | research | 11 | 11 |
 | verification | 3 | 3 |
 
@@ -105,9 +105,10 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-161](#ymp-161) | P0 | Keep frozen experiment bindings without blocking later product changes | 2026-09-14 02:52 |
 | `[=]` | [YMP-162](#ymp-162) | P0 | Release recovery fixes and complete controlled end-to-end session runs | 2026-09-14 07:38 |
 | `[x]` | [YMP-163](#ymp-163) | P0 | Recover from broken generated task checks through reviewed replacement | 2026-09-14 08:41 |
-| `[~]` | [YMP-164](#ymp-164) | P0 | Repeat fifteen-puzzle delivery with unified research and acceptance criteria | 2026-09-14 08:53 |
+| `[x]` | [YMP-164](#ymp-164) | P0 | Repeat fifteen-puzzle delivery with unified research and acceptance criteria | 2026-09-14 09:57 |
 | `[x]` | [YMP-165](#ymp-165) | P0 | Provide a reusable intent-based system evaluation plan and project skill | 2026-09-14 08:23 |
-| `[=]` | [YMP-166](#ymp-166) | P1 | Make generated verification artifacts reproducible and reviewer-accessible | 2026-09-14 08:41 |
+| `[ ]` | [YMP-166](#ymp-166) | P1 | Make generated verification artifacts reproducible and reviewer-accessible | 2026-09-14 09:57 |
+| `[ ]` | [YMP-167](#ymp-167) | P1 | Check selected local adapter readiness before inference and retain specific errors | 2026-09-14 09:57 |
 
 ## YMP-001
 
@@ -2809,11 +2810,11 @@ A useful current-task check revision became stale after lifecycle transitions, a
 
 Repeat fifteen-puzzle delivery with unified research and acceptance criteria
 
-**State:** `[~]` (in_progress) · **Type:** experiment · **Priority:** P0
+**State:** `[x]` (done) · **Type:** experiment · **Priority:** P0
 
-**Last update (UTC):** 2026-09-14 08:53
+**Last update (UTC):** 2026-09-14 09:57
 
-**Current reason:** Repeat 8c5c1381 ran 08:46:42–08:48:03 UTC and failed before Claude spawn: the copied binary's default bridge path in its build worktree was absent. Two admissions and Luna usage remain recorded; no game or accepted plan. Parent verified existing main bridge hash5b9c0d15...f22ba7 and Node syntax. Owner subsequently requested a new run; next attempt uses supported YMP_CLAUDE_BRIDGE override with otherwise identical source/team/settings. Study remains unsuccessful pending actual completion.
+**Current reason:** Parent accepted completed session 9f78ce30: six tasks accepted,21 completed invocations, final accepted/unconfirmed, zero reputation, unchanged game passes20 New Game samples/90 legal solution clicks/two viewports and exact publication hashes. Parent verified1,174 manifest hashes and read causal/product report. Natural replacement rejection and successful reviewed commit observed; both earlier failed attempts and all43 admissions retained. Remaining capability/evidence/diagnostic flaws update the action plan; no claim of team superiority or learning benefit.
 
 **Owner:** Astra xhigh researcher; parent owns criteria, repair acceptance and project skill
 
@@ -2836,6 +2837,7 @@ The first report retained strong primary evidence but insufficient causal and pr
 
 - ymp-docs/guides/session-trial-and-acceptance.md
 - ymp-docs/research/fifteen-puzzle-repeat-plan.md
+- ymp-docs/evidence/ymp-164/acceptance.md
 
 ## YMP-165
 
@@ -2873,21 +2875,21 @@ The prior shared protocol still emphasized native sessions and postponed skill c
 
 Make generated verification artifacts reproducible and reviewer-accessible
 
-**State:** `[=]` (planned) · **Type:** implementation · **Priority:** P1
+**State:** `[ ]` (planned) · **Type:** implementation · **Priority:** P1
 
-**Last update (UTC):** 2026-09-14 08:41
+**Last update (UTC):** 2026-09-14 09:57
 
-**Current reason:** Needs YMP-164
+**Current reason:** Ready to start
 
 **Owner:** Parent schedules a bounded backend correction after the diagnostic repeat
 
-**Authorization:** Owner requested turning experimental shortcomings into an actionable work plan. This card records the proposed next correction; it does not start implementation, broaden reviewer permissions or authorize another native trial.
+**Authorization:** Owner agreed to the two next steps: complete the repeat, then fix verification organization so source persists, the independent reviewer can inspect it and actual behavior is checked. Repeat is accepted; bounded implementation is authorized. Do not broaden reviewer permissions or start another native trial.
 
 **Depends on:** [YMP-164](#ymp-164)
 
 A temporary extracted script was deleted before runtime recheck, and another check source was unavailable to the independent reviewer. A passing command log alone did not establish inspectable reproducible evidence.
 
-**Latest progress note:** Proposed from the failed fifteen-puzzle run's missing /tmp script and reviewer-inaccessible harness. Sequenced after the already authorized repeat to avoid mixing extra implementation changes into that diagnostic comparison. Existing statistics/UI/coordination and experience cards cover other findings.
+**Latest progress note:** Repeat is accepted and the owner already agreed this next implementation step. Evidence scope strengthened: persistent reviewer-visible check material and precise result binding; capability mismatch must not be hidden by broader access or misleading rendering claims. Prepare the smallest supported implementation through existing facilities.
 
 **Acceptance criteria:**
 
@@ -2899,6 +2901,38 @@ A temporary extracted script was deleted before runtime recheck, and another che
 **Evidence:**
 
 - ymp-docs/research/fifteen-findings-action-plan.md
+
+## YMP-167
+
+Check selected local adapter readiness before inference and retain specific errors
+
+**State:** `[ ]` (planned) · **Type:** maintenance · **Priority:** P1
+
+**Last update (UTC):** 2026-09-14 09:57
+
+**Current reason:** Ready to start
+
+**Owner:** Parent schedules after the agreed verification-artifact work
+
+**Authorization:** Record a concrete follow-up from the authorized research. This planning entry does not start implementation or a native availability probe.
+
+**Depends on:** [YMP-163](#ymp-163)
+
+Repeat8c5c1381 spent Luna planning work before Sonnet failed locally because the copied binary's default adapter file was absent. The durable error reduced that actionable diagnosis to Unknown/Provider invocation failed.
+
+**Latest progress note:** Registered readiness/diagnostic follow-up from the preserved local pre-spawn failure. Successful renewed run used the existing YMP_CLAUDE_BRIDGE override; product readiness/error improvement remains unimplemented and is not mixed into YMP-166.
+
+**Acceptance criteria:**
+
+- Check local executable/adapter and required dependency readiness for the selected backends before admitting the first planning call, without model inference or scanning unrelated providers.
+- Preserve safe typed missing-component causes through the normal error, recovery and user-facing diagnostic path without exposing credentials.
+- Respect configured paths, native authentication and supported overrides; do not silently install, repair or substitute providers/models.
+- Use an offline missing-adapter reproduction to show no initial model call is spent and that an available adapter passes readiness. Keep runtime invocation budgets and attribution intact.
+
+**Evidence:**
+
+- ymp-docs/research/fifteen-findings-action-plan.md
+- ymp-docs/evidence/ymp-164/acceptance.md
 
 ## Intent coverage
 

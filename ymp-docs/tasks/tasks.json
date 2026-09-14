@@ -4920,7 +4920,7 @@
       "title": "Repeat fifteen-puzzle delivery with unified research and acceptance criteria",
       "type": "experiment",
       "priority": "P0",
-      "status": "in_progress",
+      "status": "done",
       "owner": "Astra xhigh researcher; parent owns criteria, repair acceptance and project skill",
       "authorization": "Owner explicitly requested an intent-based scientific plan, cause repair, and another native run; count the experiment unsuccessful until fully completed. Existing Luna/Sonnet team, native settings and saved limits remain, without artificial observer ceilings. Prior publication authorization persists. Owner additionally requested one unified trial/acceptance protocol covering policies and runtime behavior, then a project trial skill based on it.",
       "depends_on": ["YMP-163"],
@@ -4933,7 +4933,7 @@
         "Deliver cause chains, competing explanations, prioritized product proposals, tradeoffs and smallest discriminating checks. No claim of model superiority, causal speedup or learning benefit from this one repeated case.",
         "Apply the general project evaluation skill delivered independently by YMP-165. After this run, update it only with supported reusable lessons; keep case-specific choices in the case plan and validate evidence references and generated task views."
       ],
-      "evidence": ["ymp-docs/guides/session-trial-and-acceptance.md", "ymp-docs/research/fifteen-puzzle-repeat-plan.md"],
+      "evidence": ["ymp-docs/guides/session-trial-and-acceptance.md", "ymp-docs/research/fifteen-puzzle-repeat-plan.md", "ymp-docs/evidence/ymp-164/acceptance.md"],
       "history": [{
         "at": "2026-09-14T07:38:00+00:00",
         "status": "planned",
@@ -4962,6 +4962,10 @@
         "at": "2026-09-14T08:53:00+00:00",
         "status": "in_progress",
         "note": "Repeat 8c5c1381 ran 08:46:42–08:48:03 UTC and failed before Claude spawn: the copied binary's default bridge path in its build worktree was absent. Two admissions and Luna usage remain recorded; no game or accepted plan. Parent verified existing main bridge hash5b9c0d15...f22ba7 and Node syntax. Owner subsequently requested a new run; next attempt uses supported YMP_CLAUDE_BRIDGE override with otherwise identical source/team/settings. Study remains unsuccessful pending actual completion."
+      }, {
+        "at": "2026-09-14T09:57:00+00:00",
+        "status": "done",
+        "note": "Parent accepted completed session 9f78ce30: six tasks accepted,21 completed invocations, final accepted/unconfirmed, zero reputation, unchanged game passes20 New Game samples/90 legal solution clicks/two viewports and exact publication hashes. Parent verified1,174 manifest hashes and read causal/product report. Natural replacement rejection and successful reviewed commit observed; both earlier failed attempts and all43 admissions retained. Remaining capability/evidence/diagnostic flaws update the action plan; no claim of team superiority or learning benefit."
       }]
     },
     {
@@ -4998,7 +5002,7 @@
       "priority": "P1",
       "status": "planned",
       "owner": "Parent schedules a bounded backend correction after the diagnostic repeat",
-      "authorization": "Owner requested turning experimental shortcomings into an actionable work plan. This card records the proposed next correction; it does not start implementation, broaden reviewer permissions or authorize another native trial.",
+      "authorization": "Owner agreed to the two next steps: complete the repeat, then fix verification organization so source persists, the independent reviewer can inspect it and actual behavior is checked. Repeat is accepted; bounded implementation is authorized. Do not broaden reviewer permissions or start another native trial.",
       "depends_on": ["YMP-164"],
       "reason": "A temporary extracted script was deleted before runtime recheck, and another check source was unavailable to the independent reviewer. A passing command log alone did not establish inspectable reproducible evidence.",
       "acceptance": [
@@ -5012,10 +5016,37 @@
         "at": "2026-09-14T08:41:00+00:00",
         "status": "planned",
         "note": "Proposed from the failed fifteen-puzzle run's missing /tmp script and reviewer-inaccessible harness. Sequenced after the already authorized repeat to avoid mixing extra implementation changes into that diagnostic comparison. Existing statistics/UI/coordination and experience cards cover other findings."
+      }, {
+        "at": "2026-09-14T09:57:00+00:00",
+        "status": "planned",
+        "note": "Repeat is accepted and the owner already agreed this next implementation step. Evidence scope strengthened: persistent reviewer-visible check material and precise result binding; capability mismatch must not be hidden by broader access or misleading rendering claims. Prepare the smallest supported implementation through existing facilities."
+      }]
+    },
+    {
+      "id": "YMP-167",
+      "title": "Check selected local adapter readiness before inference and retain specific errors",
+      "type": "maintenance",
+      "priority": "P1",
+      "status": "planned",
+      "owner": "Parent schedules after the agreed verification-artifact work",
+      "authorization": "Record a concrete follow-up from the authorized research. This planning entry does not start implementation or a native availability probe.",
+      "depends_on": ["YMP-163"],
+      "reason": "Repeat8c5c1381 spent Luna planning work before Sonnet failed locally because the copied binary's default adapter file was absent. The durable error reduced that actionable diagnosis to Unknown/Provider invocation failed.",
+      "acceptance": [
+        "Check local executable/adapter and required dependency readiness for the selected backends before admitting the first planning call, without model inference or scanning unrelated providers.",
+        "Preserve safe typed missing-component causes through the normal error, recovery and user-facing diagnostic path without exposing credentials.",
+        "Respect configured paths, native authentication and supported overrides; do not silently install, repair or substitute providers/models.",
+        "Use an offline missing-adapter reproduction to show no initial model call is spent and that an available adapter passes readiness. Keep runtime invocation budgets and attribution intact."
+      ],
+      "evidence": ["ymp-docs/research/fifteen-findings-action-plan.md", "ymp-docs/evidence/ymp-164/acceptance.md"],
+      "history": [{
+        "at": "2026-09-14T09:57:00+00:00",
+        "status": "planned",
+        "note": "Registered readiness/diagnostic follow-up from the preserved local pre-spawn failure. Successful renewed run used the existing YMP_CLAUDE_BRIDGE override; product readiness/error improvement remains unimplemented and is not mixed into YMP-166."
       }]
     }
   ],
-  "updated_at": "2026-09-14T08:53:00+00:00",
+  "updated_at": "2026-09-14T09:57:00+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",

@@ -7,6 +7,24 @@ future evaluations; the game remains one diagnostic case.
 
 ## Immediate decision
 
+Update after the completed repeat: retain the check-recovery correction; begin
+the already agreed reproducible-verification work. Parent accepted session
+`9f78ce30` on its trace and unchanged external/publication evidence. See
+[acceptance](../evidence/ymp-164/acceptance.md). The original sequence below records
+the pre-run decision; dispositions are updated here rather than silently rewritten.
+
+| Previous proposal | Post-repeat disposition |
+| --- | --- |
+| Check-repair liveness | Confirmed useful: one failed substitute rejected and one reviewed substitute committed, enabling native completion. |
+| Durable reviewer-visible check evidence | Retained as next work; available tool permissions still prevented planned verification operations. |
+| Truthful causes and verification labels | Strengthened: narrative incorrectly called a failed substitute stale, and called curl title matching rendering. |
+| Avoid duplicate mechanics implementation | Narrowed: this repeat's shell/interactions/lifecycle tasks genuinely changed code. Target remaining redundant inspection and missing-evidence selection, not wholesale task removal. |
+| Self-organization comparison | Still proposed, not established by one useful repair chain; there was no overlap or comparator. |
+| Learning benefit | Still untested; independent knowledge criticism was useful but all retrievals were empty. |
+
+The missing-local-adapter failure adds a separate readiness/diagnostic task. Do
+not merge that unrelated implementation into the check-artifact correction.
+
 Finish the authorized native repeat after accepting the cause repair. Do not
 combine unrelated improvements into that repeat: otherwise the outcome will not
 show whether the specific recovery path became usable. The first experiment
