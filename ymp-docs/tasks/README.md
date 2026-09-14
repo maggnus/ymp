@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-14 07:57 UTC.
+Updated: 2026-09-14 08:06 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -105,7 +105,7 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-161](#ymp-161) | P0 | Keep frozen experiment bindings without blocking later product changes | 2026-09-14 02:52 |
 | `[=]` | [YMP-162](#ymp-162) | P0 | Release recovery fixes and complete controlled end-to-end session runs | 2026-09-14 07:38 |
 | `[~]` | [YMP-163](#ymp-163) | P0 | Recover from broken generated task checks through reviewed replacement | 2026-09-14 07:38 |
-| `[=]` | [YMP-164](#ymp-164) | P0 | Repeat fifteen-puzzle delivery with unified research and acceptance criteria | 2026-09-14 07:57 |
+| `[=]` | [YMP-164](#ymp-164) | P0 | Repeat fifteen-puzzle delivery with unified research and acceptance criteria | 2026-09-14 08:06 |
 
 ## YMP-001
 
@@ -2791,7 +2791,7 @@ A useful current-task check revision became stale after lifecycle transitions, a
 **Acceptance criteria:**
 
 - Provide a narrow typed, independently reviewed replacement of generated task checks with exact old/new bindings and durable rationale. Keep existing additive Revise and owner trusted contracts unchanged.
-- Process valid ended-execution check-repair proposals at a safe boundary before lifecycle bookkeeping or exhausted attempts makes them unreachable. Preserve actual definition-conflict checks, owner holds, authority, independent review and accounting.
+- Process valid ended-execution check-repair proposals at a safe boundary, including the final allowed execution attempt before Blocked/work_boundary becomes terminal. Recheck the existing result without resetting or raising attempt counters. Limit lifecycle-insensitive handling to check replacement; keep legacy responsibility, assignment and additive revision semantics unchanged.
 - Execute the new check and invalidate superseded evidence. Never accept a task merely because a replacement was proposed; preserve requirements, accepted siblings, history and truthful confirmation/reputation.
 - Reproduce the original public-runtime failure before the change and full completion afterward, including final checks with the broken command removed. Include one meaningful negative control without a broad new test matrix.
 - Run required formatting, strict Clippy and workspace tests on final source with bounded independent review before the native repeat. Do not change or resume the original session.
@@ -2806,7 +2806,7 @@ Repeat fifteen-puzzle delivery with unified research and acceptance criteria
 
 **State:** `[=]` (planned) · **Type:** experiment · **Priority:** P0
 
-**Last update (UTC):** 2026-09-14 07:57
+**Last update (UTC):** 2026-09-14 08:06
 
 **Current reason:** Needs YMP-163
 
@@ -2818,7 +2818,7 @@ Repeat fifteen-puzzle delivery with unified research and acceptance criteria
 
 The first report retained strong primary evidence but insufficient causal and product analysis. A working artifact and publication did not constitute native completion. The repeat must evaluate all applicable intent dimensions using one predeclared criterion set.
 
-**Latest progress note:** Parent incorporated Astra's six review themes: one explicit repeat phase, same-artifact native/external evidence, frozen behavioral validator semantics, criterion applicability and actual policy versions, context/intervention denominators, and separate validated-skill completion. No extra model trials were added. Opus 5 xhigh independently reviews the plan; native launch still awaits the accepted cause repair.
+**Latest progress note:** Opus returned five material gaps. Updated protocol/plan with last-attempt Ready/Blocked boundary and unchanged counters, check-replacement-only version handling, residue/native-transcript audit, per-requirement native evidence power, and durable archival as a launch prerequisite. Implementation clarification sent to Sol; Astra is preserving baseline/analysis/reviews and confirmed scratch residue under a durable research root. Archival and repaired code are not yet claimed verified; repeat remains unstarted.
 
 **Acceptance criteria:**
 

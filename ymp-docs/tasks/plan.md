@@ -1,6 +1,6 @@
 # Delivery plan and progress
 
-Updated: 2026-09-14 07:57 UTC.
+Updated: 2026-09-14 08:06 UTC.
 
 [Approved intent](../../intent.md) · [Task details and evidence](README.md) · [Canonical register](tasks.json)
 
@@ -143,7 +143,7 @@ Deferred and post-MVP work:
 
 | Time (UTC) | Task | State | Update |
 | --- | --- | --- | --- |
-| 2026-09-14 07:57 | [YMP-164](README.md#ymp-164) | `[=]` | Parent incorporated Astra's six review themes: one explicit repeat phase, same-artifact native/external evidence, frozen behavioral validator semantics, criterion applicability and actual policy versions, context/intervention denominators, and separate validated-skill completion. No extra model trials were added. Opus 5 xhigh independently reviews the plan; native launch still awaits the accepted cause repair. |
+| 2026-09-14 08:06 | [YMP-164](README.md#ymp-164) | `[=]` | Opus returned five material gaps. Updated protocol/plan with last-attempt Ready/Blocked boundary and unchanged counters, check-replacement-only version handling, residue/native-transcript audit, per-requirement native evidence power, and durable archival as a launch prerequisite. Implementation clarification sent to Sol; Astra is preserving baseline/analysis/reviews and confirmed scratch residue under a durable research root. Archival and repaired code are not yet claimed verified; repeat remains unstarted. |
 | 2026-09-14 07:38 | [YMP-162](README.md#ymp-162) | `[=]` | Later owner direction selected a real fifteen-puzzle study with current Luna/Sonnet settings, explicitly reauthorized Astra xhigh as researcher, removed observer ceilings and authorized publication. The first experiment failed natively despite a working published game. Immediate cause repair and the repeat now have explicit YMP-163/YMP-164 ownership; this earlier release/poker task is not marked complete and its historical authorization does not restrict the later approved study. |
 | 2026-09-14 07:38 | [YMP-163](README.md#ymp-163) | `[~]` | Started Sol xhigh agent 02475829-e5e6-4781-949b-baa00a281fd4 in fix/ymp163-check-revision from c18fe31. Both lifecycle staleness and append-only semantics are in scope; no unrelated policy/statistics changes or native run is mixed into this correction. |
 | 2026-09-14 03:31 | [YMP-158](README.md#ymp-158) | `[~]` | Backend candidate52a170b implements consistent statistics snapshots/export, unlinked legacy totals, typed outcome/wait/knowledge summaries and bounded headless progress. Author fmt, strict Clippy and251 storage/runtime tests passed; the pre-YMP-161 base still had five frozen-fixture failures. Sent the exact candidate for one bounded independent review; parent will run the full workspace suite once after integration onto current main. |

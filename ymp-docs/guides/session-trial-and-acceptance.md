@@ -78,6 +78,12 @@ A policy can be compliant yet ineffective. A valid game can coexist with a
 failed session. A completed session can produce an inadequate game. Record these
 outcomes without collapsing them into a single favorable score.
 
+Map each requirement to what native acceptance actually established: a
+discriminating executable check, inspection only, a non-discriminating check or
+no evidence. A replacement command can preserve the old oracle while both remain
+unable to detect the claimed defect. Keep native evidence coverage separate from
+later external validation and from the narrow fact that a command executed.
+
 Runtime acceptance and trusted confirmation remain distinct. External research
 validation must not rewrite runtime state, establish a missing trusted contract
 retroactively, or award reputation. If runtime reports accepted/unconfirmed,
@@ -130,6 +136,19 @@ assignment provenance, proposal-to-decision links, check source and output,
 artifact hashes and independent validation. Use one final consistent trace where
 possible. Interim captures must identify their sequence boundary.
 
+Before a repeat, inventory accessible prior outputs, temporary checks, browser
+profiles and analysis artifacts. Preserve baseline evidence in durable storage
+with checked hashes. Where prior artifacts could satisfy checks or leak solutions,
+record a scoped reversible relocation or an explicit contamination audit; do not
+delete unrelated data or claim that a fresh directory is a sandbox. Keep relevant
+failed environment conditions observable instead of repairing them invisibly.
+
+Audit actual native transcripts for use of prior artifacts and out-of-project
+check inputs when the application's own trace lacks command detail. Use bounded
+relevant excerpts, source provenance and hashes; do not copy authentication homes.
+Missing transcript coverage means the claim is limited. A stale screenshot or
+check file cannot silently become new evidence merely because it exists.
+
 Progress updates identify a meaningful change, its evidence and what it implies.
 Do not relay every log line or label a model's speculation as a finding. Preserve
 corrections to earlier interpretations, including who suggested an action versus
@@ -155,6 +174,11 @@ For each material failure or inefficiency, reconstruct:
 Locate the first divergence and check a competing explanation. Where needed,
 use one targeted deterministic reproduction and one meaningful negative control.
 Do not add an exhaustive matrix merely to make a report appear scientific.
+
+A recorded first failing guard may conceal additional failing conditions. For
+recovery, reproduce the actual last-attempt/state boundary and retain counters;
+do not demonstrate only an easier first-attempt case. Limit a repair to its named
+operation or declare broader decision changes as part of the intervention.
 
 For a repaired product, establish the mechanism on the controlled reproduction
 before the native repeat. A before/after native pair is an ecological replication,

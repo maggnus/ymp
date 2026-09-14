@@ -1,6 +1,8 @@
 # Fifteen-puzzle recovery and product trial
 
-Status: preregistered plan; cause repair in progress; native repeat not started.
+Status: preregistered plan; cause repair and evidence archival in progress;
+native repeat not started. Freeze the final plan revision with the accepted
+source/executable manifest before launch.
 
 This study instantiates the [shared trial and acceptance protocol](../guides/session-trial-and-acceptance.md).
 Its purpose is to determine whether ymp can finish an ordinary task autonomously
@@ -41,7 +43,7 @@ bindings remain unknown, rather than inferred from exit 0. A relevant file chang
 requires affected checks and review through the runtime, not replay of unchanged
 siblings. At terminal state establish that no writer remains before freezing.
 
-The team produces the game and its own requested report. The external researcher
+The team produces the game and any report task included in its plan. The external researcher
 produces independent validation, publication and analysis. The external report
 does not substitute for an unfinished native reporting task. Native delivery and
 completion of this research assignment are separate: the latter also requires
@@ -83,7 +85,7 @@ All 20 knowledge retrievals were empty, with zero supplied characters. There
 were eight proposed/unconfirmed knowledge records and no reputation observations.
 This supports the integrity assessment, but supplies no evidence of reuse benefit.
 
-Two source-level mechanisms need correction before another native run:
+Three source-level barriers need correction before another native run:
 
 - `commit_board_proposals` is reached after execution/review changes task state.
   `board_task_version` hashes the entire task, including lifecycle fields, so the
@@ -91,6 +93,12 @@ Two source-level mechanisms need correction before another native run:
 - `BoardChange::Revise` adds checks. Even if proposal `16b7e2dd` had committed,
   the broken literal Chromium command would remain required. Timing alone is
   therefore insufficient to fix the observed cause.
+- After the first reported `stale_task` rejection condition, `work_boundary`
+  requires the target task to be `Ready`. The real proposal was considered after
+  the third rejection had made the task `Blocked`, with its definition unchanged.
+  Making the version comparison lifecycle-insensitive would still not admit it.
+  The reported first failing guard must be distinguished from subsequent guards
+  established by static analysis.
 
 The distinction is visible in
 [board.rs](../../ymp-rust/crates/ymp-runtime/src/engine/board.rs),
@@ -107,6 +115,14 @@ Keep legacy additive revision behavior and owner trusted contracts unchanged.
 Handle the repair at a safe completed-execution/review boundary before lifecycle
 bookkeeping or attempt exhaustion makes the usable proposal unreachable.
 
+Limit lifecycle-insensitive binding to the new check-replacement operation.
+Do not relax staleness for `accept_responsibility`, assignment, membership or
+legacy additive revision. Seven baseline responsibility proposals requested
+`effort=high`; broad relaxation could make them effective and change the treatment
+beyond this repair. An independently admitted team setting decision is policy
+behavior, not an observer override, but its actual values must be reported as a
+before/after confound. The fixed two-agent roster still cannot be enlarged.
+
 The reviewer must evaluate whether the replacement preserves the original
 behavioral requirement. The runtime must execute the new check and invalidate
 superseded evidence. It must not give the proposing executor self-approval,
@@ -115,8 +131,13 @@ This does not prove semantic equivalence of arbitrary shell scripts; retain
 that limitation and the actual independent review basis.
 
 One controlled reproduction must first fail on the old implementation and finish
-on the correction: a broken executable, a proposed valid replacement, actual
-re-execution, final acceptance and an already accepted sibling left intact.
+on the correction: a broken executable, a proposed valid replacement during the
+FINAL permitted execution attempt, actual recheck, final acceptance and an already
+accepted sibling left intact. A one-attempt fixture is acceptable if it exercises
+the same exhaustion boundary. Recheck/review the existing result without another
+production attempt; never reset the saved attempt count or raise its ceiling.
+Record the counter before/after and charge any new review calls to ordinary
+session resources. Native limits remain `attempts=3`.
 One negative case must reject an unauthorized, genuinely stale or weakened
 trusted criterion. Existing related checks cover the remaining unchanged
 constraints. Run the required fmt/Clippy/workspace sequence once on final source;
@@ -152,10 +173,58 @@ separate executable from the accepted fixed commit, and do not change it during
 the run. Source repair is the intended intervention; record every other observed
 difference, including catalog, browser, provider or native-setting drift.
 
+The later explicit owner selection of Astra xhigh for this researcher is recorded
+in the 07:38Z task note and overrides the earlier Astra prohibition for this
+research assignment. It does not add Astra to the native solving team.
+
 Fresh output/application data do not establish an empty native memory or identical
 cache state. Report these confounders; do not turn this diagnostic repeat into a
 claim about the advantage of one model or team size. The weak-agent comparison
 program remains paused.
+
+## Durable evidence and cross-run residue
+
+Before native launch, preserve the baseline under
+`/Users/maggnus/ymp-research/fifteen-2026-09-14/baseline/`, derived analysis under
+`analysis/`, and the unchanged researcher/reviewer reports under `reviews/`.
+Verify all 19 original manifest entries and record hashes for supplementary files.
+The executable may be retained locally or referenced by its verified hash. Do
+not publish private evidence or import native credentials. Temporary originals
+remain historical sources; replace operational links with verified durable paths
+before declaring launch readiness. Archival remains pending until a manifest
+records its actual result.
+
+Inventory baseline scratch paths, their contents/hashes and active process owners:
+`/tmp/ymp-fifteen-browser-check.mjs`, `/tmp/ymp-fifteen-logic-check.mjs`,
+`/tmp/ymp-fifteen-extracted-script.js`, `/tmp/fifteen-mobile.png`, and the exact
+baseline-created `/tmp/ymp-fifteen-browser-*` profiles. The pattern is not permission
+to move unrelated files. Preserve confirmed unused baseline residue by a reversible
+move to `residue/`, recording original path, archive path and hash. Leave anything
+of uncertain ownership in place with an explicit audit limitation. This is an
+observer environment action, not a product correction, and belongs in the manifest.
+
+Also inventory accessible baseline game/research/plan/analysis paths and confirm
+that the broken Homebrew `chromium` wrapper still points to the missing Chromium
+installation. Do not repair the wrapper to make the experiment pass. Preserve
+non-attempt preparation directories separately when their zero-invocation state
+is established; do not count preparation as a native session.
+
+Luna's actual unrestricted backend access means a fresh output directory does not
+enforce separation from these materials. After the repeat, correlate native
+transcripts with admitted assignments and audit reads of baseline game, research,
+plan and analysis files and old scratch paths. For out-of-project inputs used by
+passing checks, establish creation/modification after launch and the recorded
+source/version. File timestamps alone do not prove use: corroborate with commands
+and hashes where available. Never copy whole authentication homes or print
+credentials while collecting the relevant transcript excerpts.
+
+Observed reuse of prior solutions/check evidence is a contamination finding that
+limits the fresh-run claim; missing transcript coverage remains unknown. Absence
+of a matching path in a partial log does not prove isolation. Do not add a new
+sandbox to conceal this existing product limitation or alter the treatment.
+
+Use a durable per-repeat research directory from the start. Preserve its native
+terminal data, external validation and publication evidence under the same rules.
 
 ## Unified criteria
 
@@ -168,7 +237,7 @@ exploratory rows may be unknown or not exercised, with an explanation.
 | A2 | No horizontal clipping at 390x844; usable desktop layout | Explicit viewport and root/body/board/control rectangles plus screenshots; distinguish capture-size errors from page layout | Required |
 | N1 | Native completion and final independent acceptance | Trace, current task states, final decisions, process exit and unchanged artifact hashes; independent observer success cannot replace native completion | Required |
 | N2 | No repaired acceptance requirement is dropped | Old/new check links, independent revision decision and actual subsequent output; inspect whether a passing replacement became vacuous | Required if exercised |
-| P1 | Same authorized agents and settings | Captured IDs, effective assignments, native reported identity and effort; defaults and aliases are not additional participants | Required |
+| P1 | Same authorized agents and no observer-imposed setting changes | Captured IDs, effective assignments and native reports; legitimate runtime-admitted setting decisions are policy behavior and a baseline confound, not an observer override | Required |
 | P2 | Valid authority and durable decisions | Source grant, task/definition version, active access, decisions and provenance; reject actual conflicts while distinguishing lifecycle transitions | Required |
 | P3 | Failure changes the approach when diagnosis justifies it | Rejection -> diagnosis -> proposal -> decision -> actual check; a repeated unchanged action is not recovery | Mechanism required in reproduction; observe in native repeat |
 | P4 | Independent review adds or evaluates evidence | Identify what each rejection discovered and whether it changed code/checks/plan; useful review differs from merely repeating executor claims | Exploratory |
@@ -199,6 +268,30 @@ and correction. Baseline IDs are `ymp.bounded-allocation@2`,
 backend `ymp.native@0.4.6`. Read the repeat's versions from its records. For
 embedded behavior without a recorded policy ID, bind to source/executable and
 state the limitation instead of inventing an identity.
+
+## Requirement coverage at native acceptance
+
+For each original requirement, derive a row from the native checks and review
+trace. This is an evidence inventory, not another test suite:
+
+| Requirement | Check definition/version and result | Reviewer basis | Native evidence class | External evidence | Remaining gap |
+| --- | --- | --- | --- | --- | --- |
+| Fill one row per original requirement | Exact command/source/output and artifact binding, or absent | What was actually inspected or run | Discriminating check, inspection-only, non-discriminating, or absent | Separate Playwright/inspection result | What the native evidence does not establish |
+
+Use these rows for offline operation, legal mouse and keyboard movement,
+solvable non-solved shuffle, move counter, New Game, victory, responsive layout
+and requested files/documentation. A check is discriminating only for the
+particular assertion it evaluates. Multiple evidence types may cover one row;
+do not let a weaker check erase stronger evidence or imply unsupported coverage.
+
+For old and replacement checks, ask what defect would cause failure. A nonempty
+PNG check establishes that a file was produced, not that controls are visible or
+the page fits a viewport. A replacement preserving that oracle may fix execution
+without strengthening responsive-layout evidence. Record both facts. A passing
+exit, non-trivial command or a reviewer's expectation is not automatically a
+behavioral test. Native completion with inspection-only or missing evidence is
+reported with those verification gaps, even if external checks pass. This does
+not authorize bypassing the runtime's required checks or rewriting confirmation.
 
 ## Predeclared external game validation
 
@@ -252,13 +345,16 @@ time savings by simply deleting all unchanged-file calls.
 Record native continuation IDs, supplied prompt/profile characters, context
 references and reported usage per invocation. References may overlap the complete
 prompt, so do not add both as supplied context. Unknown native-loaded history and
-internal request counts stay unknown. Baseline transmitted prompt text totalled
-207,252 characters; that is a different unit from 9,094,673 reported input tokens.
+internal request counts stay unknown. The researcher's 207,252-character baseline
+estimate is not independently established from the trace; record its exact native
+source before using it, or leave it unverified. It is a different unit from
+9,094,673 reported input tokens.
 Sum unique final invocation snapshots, not cumulative stream updates.
 
 Separate native repair interventions from observer setup, diagnosis, validation,
 publication and analysis. Hints, manual edits, restarts and changed controls count
-as interventions; passive observation does not. Observer labor is still real
+as interventions; answering or approving a runtime owner-action request also
+counts. Passive observation does not. Observer labor is still real
 delivery overhead and must be reported separately. Unknown active-human time
 remains unknown. Zero repair interventions with blocked status is not autonomous
 delivery. An unreached time to accepted result is not the failed run's duration.
@@ -328,4 +424,6 @@ retain the prior report and hashes without edits.
 Completion of the project research task also requires skill validation. Use the
 retained failed baseline for a dry check: the skill must reject "published but
 blocked = success", retain accepted/unconfirmed, and respect the actual launch
-authorization. No additional native run is needed to test those decisions.
+authorization. No additional native run is needed to test those decisions. Include
+a dry case where a passing check reads a stale out-of-project evidence file: the
+skill must retain the contamination finding rather than claim fresh validation.
