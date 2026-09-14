@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-14 09:59 UTC.
+Updated: 2026-09-14 11:31 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -13,7 +13,7 @@ A planned task is not implemented functionality. Completed research and planning
 | decision | 2 | 3 |
 | design | 2 | 2 |
 | documentation | 5 | 5 |
-| experiment | 1 | 5 |
+| experiment | 2 | 6 |
 | implementation | 40 | 52 |
 | integration | 0 | 1 |
 | maintenance | 2 | 3 |
@@ -109,6 +109,7 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-165](#ymp-165) | P0 | Provide a reusable intent-based system evaluation plan and project skill | 2026-09-14 08:23 |
 | `[~]` | [YMP-166](#ymp-166) | P1 | Make generated verification artifacts reproducible and reviewer-accessible | 2026-09-14 09:59 |
 | `[ ]` | [YMP-167](#ymp-167) | P1 | Check selected local adapter readiness before inference and retain specific errors | 2026-09-14 09:57 |
+| `[x]` | [YMP-168](#ymp-168) | P1 | Observe the same fifteen-puzzle workflow with Sol and Opus at xhigh | 2026-09-14 11:31 |
 
 ## YMP-001
 
@@ -2931,6 +2932,35 @@ Repeat8c5c1381 spent Luna planning work before Sonnet failed locally because the
 
 - ymp-docs/research/fifteen-findings-action-plan.md
 - ymp-docs/evidence/ymp-164/acceptance.md
+
+## YMP-168
+
+Observe the same fifteen-puzzle workflow with Sol and Opus at xhigh
+
+**State:** `[x]` (done) · **Type:** experiment · **Priority:** P1
+
+**Last update (UTC):** 2026-09-14 11:31
+
+**Current reason:** Parent accepted session c71d4eda: Sol and Opus5 1M both xhigh, completed/accepted-unconfirmed with one task/one attempt/10 calls. External33 assertions,20 New Game samples,96 legal solution clicks, two viewports and exact unique publication passed. Parent verified552 evidence hashes. Versus accepted Luna/Sonnet observation:30.0% earlier native completion and71.4% lower input, descriptive only because both models, plan/access/native context and verification changed.
+
+**Owner:** Astra xhigh researcher; parent owns scoped comparison acceptance
+
+**Authorization:** Owner explicitly requested the same run with gpt-5.6-sol xhigh and Opus 5 xhigh. Existing publication authority and the accepted fifteen-puzzle protocol applied; no further treatment was authorized.
+
+**Depends on:** [YMP-164](#ymp-164), [YMP-165](#ymp-165)
+
+The Luna/Sonnet diagnostic case cannot establish whether stronger models plan and verify differently. One matched task observation can reveal pair-level behavior but not isolate individual model effects or general superiority.
+
+**Acceptance criteria:**
+
+- Use the same accepted runtime, exact task and external behavioral criteria in fresh directories with a fixed two-agent roster: native Sol and native Opus 5, both explicitly xhigh. Record requested/sent/reported identities and settings.
+- Require native completed/final accepted state, no unresolved work, unchanged artifact validation, distinct hash-matching publication and a causal product report. Preserve accepted/unconfirmed and zero reputation where no trusted confirmation contract exists.
+- Compare tasks, calls, time, attributed usage, checks, proposals, interventions and knowledge behavior with the accepted Luna/Sonnet case. Retain all failure and completeness limits.
+- State results only at pair/case level. Do not attribute differences to Sol or Opus individually or claim causal/general superiority, useful parallelism or learning benefit from one run.
+
+**Evidence:**
+
+- ymp-docs/evidence/ymp-168/acceptance.md
 
 ## Intent coverage
 

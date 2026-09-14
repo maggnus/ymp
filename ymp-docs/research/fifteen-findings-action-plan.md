@@ -25,6 +25,28 @@ the pre-run decision; dispositions are updated here rather than silently rewritt
 The missing-local-adapter failure adds a separate readiness/diagnostic task. Do
 not merge that unrelated implementation into the check-artifact correction.
 
+## Stronger-pair observation
+
+The later Sol/Opus xhigh run completed the same game case with one task, ten calls
+and no failed checks. Its externally validated result is comparable in declared
+behavior to the accepted Luna/Sonnet game. Native completion was 30.0% earlier
+and recorded input 71.4% lower than the accepted Luna/Sonnet run. See
+[parent acceptance](../evidence/ymp-168/acceptance.md).
+
+This changes the research plan, not the product recommendation. Model pair,
+decomposition, access pattern and verification method changed together, so the
+observation cannot identify an individual model effect or a coordination effect.
+Future comparison must treat model capability and coordination policy as separate
+factors. Keep strong/weak solo and independent-attempt controls where the question
+is whether communication adds value. Repeat across tasks before estimating an
+advantage; do not optimize the product to this single favorable plan.
+
+Common findings remain actionable without a causal model claim: both accepted
+sessions were serial, reviewers lacked independent browser execution, knowledge
+retrieval was empty and stale responsibility proposals changed no work. These
+support capability-aware contribution selection, precise evidence descriptions
+and later controlled self-organization research.
+
 Finish the authorized native repeat after accepting the cause repair. Do not
 combine unrelated improvements into that repeat: otherwise the outcome will not
 show whether the specific recovery path became usable. The first experiment

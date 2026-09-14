@@ -5048,9 +5048,32 @@
         "status": "planned",
         "note": "Registered readiness/diagnostic follow-up from the preserved local pre-spawn failure. Successful renewed run used the existing YMP_CLAUDE_BRIDGE override; product readiness/error improvement remains unimplemented and is not mixed into YMP-166."
       }]
+    },
+    {
+      "id": "YMP-168",
+      "title": "Observe the same fifteen-puzzle workflow with Sol and Opus at xhigh",
+      "type": "experiment",
+      "priority": "P1",
+      "status": "done",
+      "owner": "Astra xhigh researcher; parent owns scoped comparison acceptance",
+      "authorization": "Owner explicitly requested the same run with gpt-5.6-sol xhigh and Opus 5 xhigh. Existing publication authority and the accepted fifteen-puzzle protocol applied; no further treatment was authorized.",
+      "depends_on": ["YMP-164", "YMP-165"],
+      "reason": "The Luna/Sonnet diagnostic case cannot establish whether stronger models plan and verify differently. One matched task observation can reveal pair-level behavior but not isolate individual model effects or general superiority.",
+      "acceptance": [
+        "Use the same accepted runtime, exact task and external behavioral criteria in fresh directories with a fixed two-agent roster: native Sol and native Opus 5, both explicitly xhigh. Record requested/sent/reported identities and settings.",
+        "Require native completed/final accepted state, no unresolved work, unchanged artifact validation, distinct hash-matching publication and a causal product report. Preserve accepted/unconfirmed and zero reputation where no trusted confirmation contract exists.",
+        "Compare tasks, calls, time, attributed usage, checks, proposals, interventions and knowledge behavior with the accepted Luna/Sonnet case. Retain all failure and completeness limits.",
+        "State results only at pair/case level. Do not attribute differences to Sol or Opus individually or claim causal/general superiority, useful parallelism or learning benefit from one run."
+      ],
+      "evidence": ["ymp-docs/evidence/ymp-168/acceptance.md"],
+      "history": [{
+        "at": "2026-09-14T11:31:00+00:00",
+        "status": "done",
+        "note": "Parent accepted session c71d4eda: Sol and Opus5 1M both xhigh, completed/accepted-unconfirmed with one task/one attempt/10 calls. External33 assertions,20 New Game samples,96 legal solution clicks, two viewports and exact unique publication passed. Parent verified552 evidence hashes. Versus accepted Luna/Sonnet observation:30.0% earlier native completion and71.4% lower input, descriptive only because both models, plan/access/native context and verification changed."
+      }]
     }
   ],
-  "updated_at": "2026-09-14T09:59:00+00:00",
+  "updated_at": "2026-09-14T11:31:00+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",

@@ -75,6 +75,13 @@ unsupported comparisons or absent knowledge history as untested, not successful.
 Do not convert cache/cumulative counts into invented cost, knowledge hits into
 learning, message volume into cooperation or parallel calls into speedup.
 
+Attribute a comparison only at the level varied. Changing two models together
+supports a pair-level observation, not separate effects for either model. A
+different plan, access pattern or verification method is another competing
+explanation even when the task and external validator are unchanged. Treat plan
+decomposition and capability fit as observed outcomes, not fixed properties of
+the coordination policy.
+
 Fill the original criterion rows with pass/fail/unknown/not-exercised and exact
 evidence. Keep artifact quality, native completion, trusted confirmation, protocol
 integrity and product usefulness separate. A negative test can pass by correctly

@@ -1,6 +1,6 @@
 # Delivery plan and progress
 
-Updated: 2026-09-14 09:59 UTC.
+Updated: 2026-09-14 11:31 UTC.
 
 [Approved intent](../../intent.md) · [Task details and evidence](README.md) · [Canonical register](tasks.json)
 
@@ -143,11 +143,11 @@ Deferred and post-MVP work:
 
 | Time (UTC) | Task | State | Update |
 | --- | --- | --- | --- |
+| 2026-09-14 11:31 | [YMP-168](README.md#ymp-168) | `[x]` | Parent accepted session c71d4eda: Sol and Opus5 1M both xhigh, completed/accepted-unconfirmed with one task/one attempt/10 calls. External33 assertions,20 New Game samples,96 legal solution clicks, two viewports and exact unique publication passed. Parent verified552 evidence hashes. Versus accepted Luna/Sonnet observation:30.0% earlier native completion and71.4% lower input, descriptive only because both models, plan/access/native context and verification changed. |
 | 2026-09-14 09:59 | [YMP-166](README.md#ymp-166) | `[~]` | Started Sol xhigh agent f8485e5b-cacb-4cab-a1d4-b7ad1829c38b in isolated fix/ymp166-verification-evidence from2a26b34. Scope is persistent version-bound check material and narrow reviewer access through existing facilities, with one lost-source and one changed-source control. No native run, broad permissions, new runner or unrelated readiness/allocation redesign. |
 | 2026-09-14 09:57 | [YMP-164](README.md#ymp-164) | `[x]` | Parent accepted completed session 9f78ce30: six tasks accepted,21 completed invocations, final accepted/unconfirmed, zero reputation, unchanged game passes20 New Game samples/90 legal solution clicks/two viewports and exact publication hashes. Parent verified1,174 manifest hashes and read causal/product report. Natural replacement rejection and successful reviewed commit observed; both earlier failed attempts and all43 admissions retained. Remaining capability/evidence/diagnostic flaws update the action plan; no claim of team superiority or learning benefit. |
 | 2026-09-14 09:57 | [YMP-167](README.md#ymp-167) | `[ ]` | Registered readiness/diagnostic follow-up from the preserved local pre-spawn failure. Successful renewed run used the existing YMP_CLAUDE_BRIDGE override; product readiness/error improvement remains unimplemented and is not mixed into YMP-166. |
 | 2026-09-14 08:41 | [YMP-163](README.md#ymp-163) | `[x]` | Accepted candidate b1d8cba2 after independent ACCEPT, required formatting/Clippy/workspace tests and CLI build; two existing tests ignored. Integrated as e063494 with identical product/bridge/evaluation source bytes. Parent verified executable SHA256 4848b1bb...f48. Final-attempt check replacement preserves production count and accepted siblings; negative review rejects trivial replacement. Initial stack-size regression and its correction remain documented. |
-| 2026-09-14 08:23 | [YMP-165](README.md#ymp-165) | `[x]` | Opus 5 xhigh's single non-game forward application preserved read-only scope, required no browser/publication/native run and refused unsupported retrieval-benefit claims. Parent corrected its four findings: canonical mode list, authorized phase plus retained-evidence appraisal, conditional trigger semantics and scoped register updates. Skill validation and39 local links pass; exact reviewer output is retained with matching SHA-256. This accepts the reusable documentation/skill, not runtime or model benefits. |
 
 ## Maintenance
 
