@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-14 02:43 UTC.
+Updated: 2026-09-14 02:46 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -102,7 +102,7 @@ A planned task is not implemented functionality. Completed research and planning
 | `[~]` | [YMP-158](#ymp-158) | P1 | Implement session statistics backend, export and headless progress | 2026-09-14 02:32 |
 | `[~]` | [YMP-159](#ymp-159) | P0 | Parse the final structured decision after non-JSON commentary | 2026-09-14 02:43 |
 | `[=]` | [YMP-160](#ymp-160) | P0 | Honor owner starting preferences when reserving an equal-score reviewer | 2026-09-14 02:34 |
-| `[~]` | [YMP-161](#ymp-161) | P0 | Keep frozen experiment bindings without blocking later product changes | 2026-09-14 02:37 |
+| `[~]` | [YMP-161](#ymp-161) | P0 | Keep frozen experiment bindings without blocking later product changes | 2026-09-14 02:46 |
 | `[=]` | [YMP-162](#ymp-162) | P0 | Release recovery fixes and complete controlled end-to-end session runs | 2026-09-14 02:34 |
 
 ## YMP-001
@@ -2710,9 +2710,9 @@ Keep frozen experiment bindings without blocking later product changes
 
 **State:** `[~]` (in_progress) · **Type:** maintenance · **Priority:** P0
 
-**Last update (UTC):** 2026-09-14 02:37
+**Last update (UTC):** 2026-09-14 02:46
 
-**Current reason:** The first Sol xhigh attempt stopped twice at provider capacity after reproducing the issue and left one uncommitted test change. Removed its retry heartbeat to prevent duplication and relaunched agent7e64be32-bdcf-4276-8f76-804332552dcb on the same model and worktree to inspect, complete and fully verify the correction.
+**Current reason:** Candidate184dd5f reports the original5-of-6 failure, strict bound-source mutation rejection,9 focused passes and a clean651-test workspace run. Sent the exact commit to an independent Sol xhigh reviewer using isolated archives. Candidate task-register edits are based on the prior79-task snapshot and will not replace the current80-task register during integration.
 
 **Owner:** gpt-5.6-sol xhigh maintenance fork; maintainer owns experiment-safety acceptance
 
