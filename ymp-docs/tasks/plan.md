@@ -1,6 +1,6 @@
 # Delivery plan and progress
 
-Updated: 2026-09-14 03:31 UTC.
+Updated: 2026-09-14 03:32 UTC.
 
 [Approved intent](../../intent.md) · [Task details and evidence](README.md) · [Canonical register](tasks.json)
 
@@ -32,7 +32,7 @@ A planned task automatically shows `[=]` while prerequisites remain unfinished a
 
 ## Current work and owner questions
 
-- `[~]` [YMP-158](README.md#ymp-158) — Implement session statistics backend, export and headless progress (2026-09-14 02:32). Open-work review narrows YMP-158 to backend/export and absorbs YMP-130's headless live progress from the same attribution/events. /stats TUI moves to consolidated YMP-156 after backend acceptance. The previous agent was no longer active, but its uncommitted worktree was preserved; relaunched agent b99f10e9-437a-4817-a4f4-e6013727479a on gpt-5.6-sol xhigh to inspect and complete it.
+- `[~]` [YMP-158](README.md#ymp-158) — Implement session statistics backend, export and headless progress (2026-09-14 03:31). Backend candidate52a170b implements consistent statistics snapshots/export, unlinked legacy totals, typed outcome/wait/knowledge summaries and bounded headless progress. Author fmt, strict Clippy and251 storage/runtime tests passed; the pre-YMP-161 base still had five frozen-fixture failures. Sent the exact candidate for one bounded independent review; parent will run the full workspace suite once after integration onto current main.
 - `[~]` [YMP-160](README.md#ymp-160) — Honor owner starting preferences when reserving an equal-score reviewer (2026-09-14 03:31). YMP-159 and YMP-161 are accepted and integrated with a662-pass workspace run. Started agent6ad87e12-303f-4b57-b68a-ade82893dd84 on gpt-5.6-sol xhigh in an isolated worktree for one exact reviewer-reservation regression and one counterexample; parent owns independent review and the single post-integration full run.
 
 ## Ready next
@@ -142,11 +142,11 @@ Deferred and post-MVP work:
 
 | Time (UTC) | Task | State | Update |
 | --- | --- | --- | --- |
+| 2026-09-14 03:31 | [YMP-158](README.md#ymp-158) | `[~]` | Backend candidate52a170b implements consistent statistics snapshots/export, unlinked legacy totals, typed outcome/wait/knowledge summaries and bounded headless progress. Author fmt, strict Clippy and251 storage/runtime tests passed; the pre-YMP-161 base still had five frozen-fixture failures. Sent the exact candidate for one bounded independent review; parent will run the full workspace suite once after integration onto current main. |
 | 2026-09-14 03:31 | [YMP-160](README.md#ymp-160) | `[~]` | YMP-159 and YMP-161 are accepted and integrated with a662-pass workspace run. Started agent6ad87e12-303f-4b57-b68a-ade82893dd84 on gpt-5.6-sol xhigh in an isolated worktree for one exact reviewer-reservation regression and one counterexample; parent owns independent review and the single post-integration full run. |
 | 2026-09-14 03:29 | [YMP-159](README.md#ymp-159) | `[x]` | Parent integration passed15 focused parser tests, formatting, strict workspace Clippy and the complete workspace suite:662 passed,0 failed,2 existing ignored. No provider, installed release or real session was touched. |
 | 2026-09-14 02:52 | [YMP-161](README.md#ymp-161) | `[x]` | Independent review accepted exact candidate184dd5f. It reproduced the old1-of-6 result on later accepted product bytes, passed the new9-of-9 suite and proved a changed manifest-bound product object is still rejected before fixture execution. Integrated only the test implementation and evidence over the current80-task register; archived manifests remain unchanged and YMP-201 stays paused. |
 | 2026-09-14 02:34 | [YMP-162](README.md#ymp-162) | `[=]` | Created by the open-work review as the P0 integration and controlled-run boundary. The owner prioritized a complete run and error controls and accepted the sequence. No release installation, real-session mutation or native provider call is authorized by this planning entry. |
-| 2026-09-14 02:32 | [YMP-130](README.md#ymp-130) | `[!]` | Superseded by YMP-158, which now owns the same live assignment/status/usage observations alongside consistent session statistics and export. The headless visibility outcome remains required; no separate event projection or UI implementation will be created. |
 
 ## Maintenance
 

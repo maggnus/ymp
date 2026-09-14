@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-14 03:31 UTC.
+Updated: 2026-09-14 03:32 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -99,7 +99,7 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-155](#ymp-155) | P0 | Audit real session behavior, interface expectations and native token accounting | 2026-09-14 02:00 |
 | `[=]` | [YMP-156](#ymp-156) | P1 | Keep transcript chronology and completed session progress stable | 2026-09-14 02:32 |
 | `[x]` | [YMP-157](#ymp-157) | P1 | Research attributable session statistics and knowledge-use measurements | 2026-09-14 02:03 |
-| `[~]` | [YMP-158](#ymp-158) | P1 | Implement session statistics backend, export and headless progress | 2026-09-14 02:32 |
+| `[~]` | [YMP-158](#ymp-158) | P1 | Implement session statistics backend, export and headless progress | 2026-09-14 03:31 |
 | `[x]` | [YMP-159](#ymp-159) | P0 | Parse the final structured decision after non-JSON commentary | 2026-09-14 03:29 |
 | `[~]` | [YMP-160](#ymp-160) | P0 | Honor owner starting preferences when reserving an equal-score reviewer | 2026-09-14 03:31 |
 | `[x]` | [YMP-161](#ymp-161) | P0 | Keep frozen experiment bindings without blocking later product changes | 2026-09-14 02:52 |
@@ -2616,9 +2616,9 @@ Implement session statistics backend, export and headless progress
 
 **State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P1
 
-**Last update (UTC):** 2026-09-14 02:32
+**Last update (UTC):** 2026-09-14 03:31
 
-**Current reason:** Open-work review narrows YMP-158 to backend/export and absorbs YMP-130's headless live progress from the same attribution/events. /stats TUI moves to consolidated YMP-156 after backend acceptance. The previous agent was no longer active, but its uncommitted worktree was preserved; relaunched agent b99f10e9-437a-4817-a4f4-e6013727479a on gpt-5.6-sol xhigh to inspect and complete it.
+**Current reason:** Backend candidate52a170b implements consistent statistics snapshots/export, unlinked legacy totals, typed outcome/wait/knowledge summaries and bounded headless progress. Author fmt, strict Clippy and251 storage/runtime tests passed; the pre-YMP-161 base still had five frozen-fixture failures. Sent the exact candidate for one bounded independent review; parent will run the full workspace suite once after integration onto current main.
 
 **Owner:** gpt-5.6-sol xhigh backend fork; maintainer owns integration and independent acceptance
 
