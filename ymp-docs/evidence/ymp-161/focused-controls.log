@@ -1,0 +1,33 @@
+$ CARGO_TARGET_DIR=/tmp/ymp161-focused-target cargo test -p ymp-eval-driver --test weak_pilot_consumer one_manifest_bound_product_file_change_is_rejected_before_fixture_work -- --exact --nocapture
+   Compiling ymp-eval-driver v0.4.6 (/Users/maggnus/.paseo/worktrees/1ms2ynax/ymp161-pilot-binding/ymp-rust/crates/ymp-eval-driver)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.88s
+     Running tests/weak_pilot_consumer.rs (/tmp/ymp161-focused-target/debug/deps/weak_pilot_consumer-9b0b90b984720183)
+
+running 1 test
+test one_manifest_bound_product_file_change_is_rejected_before_fixture_work ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 2.38s
+
+[exit 0]
+
+$ CARGO_TARGET_DIR=/tmp/ymp161-focused-target cargo test -p ymp-eval-driver --test weak_pilot_consumer unapproved_native_manifest_stops_before_provider_work -- --exact --nocapture
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.06s
+     Running tests/weak_pilot_consumer.rs (/tmp/ymp161-focused-target/debug/deps/weak_pilot_consumer-9b0b90b984720183)
+
+running 1 test
+test unapproved_native_manifest_stops_before_provider_work ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 2.00s
+
+[exit 0]
+
+$ CARGO_TARGET_DIR=/tmp/ymp161-focused-target cargo test -p ymp-eval-driver --test weak_pilot_consumer exact_old_accepted_manifests_remain_inactive_for_the_current_runner -- --exact --nocapture
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.06s
+     Running tests/weak_pilot_consumer.rs (/tmp/ymp161-focused-target/debug/deps/weak_pilot_consumer-9b0b90b984720183)
+
+running 1 test
+test exact_old_accepted_manifests_remain_inactive_for_the_current_runner ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 0.18s
+
+[exit 0]

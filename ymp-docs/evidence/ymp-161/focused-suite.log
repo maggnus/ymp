@@ -1,0 +1,18 @@
+$ CARGO_TARGET_DIR=/tmp/ymp161-focused-target cargo test -p ymp-eval-driver --test weak_pilot_consumer -- --nocapture
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.06s
+     Running tests/weak_pilot_consumer.rs (/tmp/ymp161-focused-target/debug/deps/weak_pilot_consumer-9b0b90b984720183)
+
+running 9 tests
+test exact_old_accepted_manifests_remain_inactive_for_the_current_runner ... ok
+test unapproved_native_manifest_stops_before_provider_work ... ok
+test one_manifest_bound_product_file_change_is_rejected_before_fixture_work ... ok
+test approval_kind_and_source_drift_fail_before_any_provider ... ok
+test unknown_usage_and_deadline_stop_the_same_consumer_without_losing_observations ... ok
+test solo_uses_whole_remaining_time_and_independent_members_do_not_reset_it ... ok
+test ordinary_negative_results_do_not_gate_calibration_or_later_conditions ... ok
+test optional_reported_settings_follow_the_same_rule_in_all_conditions ... ok
+test all_six_conditions_consume_real_task_exports_and_freeze_one_blind_result ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 57.49s
+
+[exit 0]

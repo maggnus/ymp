@@ -4,20 +4,134 @@ use std::{
     fs,
     path::{Path, PathBuf},
     process::{Command, Output},
+    sync::OnceLock,
 };
 
-fn repo() -> PathBuf {
+const ACCEPTED_PRODUCT_BASE: &str = "1c17f4e447b839e20f8efbdee0900963a5d8fcad";
+const PRODUCT_PATHS: [&str; 10] = [
+    "Cargo.toml",
+    "Cargo.lock",
+    "ymp-bridges",
+    "ymp-rust/crates/ymp-core",
+    "ymp-rust/crates/ymp-storage",
+    "ymp-rust/crates/ymp-providers",
+    "ymp-rust/crates/ymp-runtime",
+    "ymp-rust/crates/ymp-cli",
+    "ymp-rust/crates/ymp-tui",
+    "ymp-rust/crates/ymp-workspace",
+];
+const CONSUMER_PATHS: [&str; 3] = [
+    "ymp-evals/weak-pilot",
+    "ymp-evals/validators",
+    "ymp-rust/crates/ymp-eval-driver/src/bin",
+];
+
+fn workspace_repo() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
         .ancestors()
         .nth(3)
         .unwrap()
         .to_owned()
 }
-fn manifest(root: &Path) -> Value {
+
+struct FrozenRepository {
+    _temp: tempfile::TempDir,
+    root: PathBuf,
+}
+
+impl FrozenRepository {
+    fn new() -> Self {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path().join("repository");
+        let source = workspace_repo();
+        let revision = git_stdout(&source, &["rev-parse", "HEAD"]);
+        git_ok(
+            &source,
+            &[
+                "clone",
+                "--quiet",
+                "--shared",
+                "--no-checkout",
+                source.to_str().unwrap(),
+                root.to_str().unwrap(),
+            ],
+        );
+        git_ok(
+            &root,
+            &["checkout", "--quiet", "--detach", ACCEPTED_PRODUCT_BASE],
+        );
+        let mut clear_consumer = vec!["rm", "-r", "-f", "--ignore-unmatch", "--"];
+        clear_consumer.extend(CONSUMER_PATHS);
+        git_ok(&root, &clear_consumer);
+        let mut restore_consumer = vec!["checkout", &revision, "--"];
+        restore_consumer.extend(CONSUMER_PATHS);
+        git_ok(&root, &restore_consumer);
+        let mut diff = vec!["diff", "--quiet", ACCEPTED_PRODUCT_BASE, "--"];
+        diff.extend(PRODUCT_PATHS);
+        git_ok(&root, &diff);
+        Self { _temp: temp, root }
+    }
+
+    fn path(&self) -> &Path {
+        &self.root
+    }
+}
+
+fn git_ok(repository: &Path, args: &[&str]) {
+    let output = Command::new("git")
+        .args(args)
+        .current_dir(repository)
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "git {args:?}: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+}
+
+fn git_stdout(repository: &Path, args: &[&str]) -> String {
+    let output = Command::new("git")
+        .args(args)
+        .current_dir(repository)
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "git {args:?}: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    String::from_utf8(output.stdout).unwrap().trim().to_owned()
+}
+
+fn sha256(path: &Path) -> String {
+    let output = Command::new("python3")
+        .args([
+            "-B",
+            "-c",
+            "import hashlib, pathlib, sys; print(hashlib.sha256(pathlib.Path(sys.argv[1]).read_bytes()).hexdigest())",
+        ])
+        .arg(path)
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    String::from_utf8(output.stdout).unwrap().trim().to_owned()
+}
+
+fn frozen_repo() -> &'static Path {
+    static REPOSITORY: OnceLock<FrozenRepository> = OnceLock::new();
+    REPOSITORY.get_or_init(FrozenRepository::new).path()
+}
+
+fn manifest_from(repository: &Path, root: &Path) -> Value {
     let result = Command::new("python3")
         .args([
             "-B",
-            repo()
+            repository
                 .join("ymp-evals/weak-pilot/consumer_manifest.py")
                 .to_str()
                 .unwrap(),
@@ -39,6 +153,11 @@ fn manifest(root: &Path) -> Value {
     );
     serde_json::from_slice(&result.stdout).unwrap()
 }
+
+fn manifest(root: &Path) -> Value {
+    manifest_from(frozen_repo(), root)
+}
+
 fn launch(root: &Path, manifest: &Value, command: &str) -> Output {
     let path = root.join("manifest.json");
     fs::write(&path, serde_json::to_vec(manifest).unwrap()).unwrap();
@@ -93,7 +212,7 @@ fn all_six_conditions_consume_real_task_exports_and_freeze_one_blind_result() {
             }
             if request["method"] == "turn/start" {
                 assert_eq!(request["effort"], "low");
-                let hidden = repo()
+                let hidden = frozen_repo()
                     .join("ymp-evals/weak-pilot/fixtures")
                     .join(row["variant"].as_str().unwrap())
                     .join(row["task"].as_str().unwrap())
@@ -107,6 +226,168 @@ fn all_six_conditions_consume_real_task_exports_and_freeze_one_blind_result() {
             }
         }
     }
+}
+
+#[test]
+fn one_manifest_bound_product_file_change_is_rejected_before_fixture_work() {
+    let repository = FrozenRepository::new();
+    let temp = tempfile::tempdir().unwrap();
+    let root = temp.path().canonicalize().unwrap();
+    let spec = manifest_from(repository.path(), &root);
+    let changed = repository
+        .path()
+        .join("ymp-rust/crates/ymp-core/src/lib.rs");
+    let mut bytes = fs::read(&changed).unwrap();
+    bytes.extend_from_slice(b"\n// YMP-161 manifest-bound product mutation control.\n");
+    fs::write(&changed, bytes).unwrap();
+    let changed_paths = git_stdout(
+        repository.path(),
+        &[
+            "diff",
+            "--name-only",
+            ACCEPTED_PRODUCT_BASE,
+            "--",
+            "ymp-rust/crates/ymp-core",
+        ],
+    );
+    assert_eq!(changed_paths, "ymp-rust/crates/ymp-core/src/lib.rs");
+
+    let result = launch(&root, &spec, "scripted");
+    assert!(!result.status.success());
+    assert!(
+        String::from_utf8_lossy(&result.stderr)
+            .contains("Product bytes differ from accepted P0 base 1c17f4e"),
+        "{}",
+        String::from_utf8_lossy(&result.stderr)
+    );
+    assert!(!root.join("controller").exists());
+}
+
+#[test]
+fn exact_old_accepted_manifests_remain_inactive_for_the_current_runner() {
+    let current_runner = sha256(Path::new(env!("CARGO_BIN_EXE_ymp-weak-pilot")));
+    for (relative, expected_manifest, expected_runner) in [
+        (
+            "ymp-docs/evidence/ymp-201/consumer-v2/calibration-manifest.proposal.json",
+            "34993fee70abbffb0db35a77277b42b4d22dc3c7ec6bb77ced8c05e33f70c076",
+            "ecb46cb19cb6d22017be05ef52d386307d76b8d0766c2f758c581bd4b2201f46",
+        ),
+        (
+            "ymp-docs/evidence/ymp-201/consumer-v2/pilot-manifest.proposal.json",
+            "a3eaadab9d484f3d2adabaf486a959f58b49dd2c333490d2bebe6d1053fd282a",
+            "ecb46cb19cb6d22017be05ef52d386307d76b8d0766c2f758c581bd4b2201f46",
+        ),
+        (
+            "ymp-docs/evidence/ymp-201/proposed-run/calibration-manifest.proposal.json",
+            "b21ad8dc537fe9c11244b43293c6162cf5c774d328fc47c0be9762310386b179",
+            "4790774e92090df62a62083c471a05e96f855efd25862577ca4266cc918a92bc",
+        ),
+        (
+            "ymp-docs/evidence/ymp-201/proposed-run/pilot-manifest.proposal.json",
+            "dffb4e86c30afe58da32564e474064793aab0c88208bd757f7cc4c41d295f98b",
+            "4790774e92090df62a62083c471a05e96f855efd25862577ca4266cc918a92bc",
+        ),
+        (
+            "ymp-docs/evidence/ymp-201/rework-round1/calibration-manifest.proposal.json",
+            "b21ad8dc537fe9c11244b43293c6162cf5c774d328fc47c0be9762310386b179",
+            "4790774e92090df62a62083c471a05e96f855efd25862577ca4266cc918a92bc",
+        ),
+        (
+            "ymp-docs/evidence/ymp-201/rework-round1/pilot-manifest.proposal.json",
+            "dffb4e86c30afe58da32564e474064793aab0c88208bd757f7cc4c41d295f98b",
+            "4790774e92090df62a62083c471a05e96f855efd25862577ca4266cc918a92bc",
+        ),
+    ] {
+        let path = workspace_repo().join(relative);
+        assert_eq!(sha256(&path), expected_manifest);
+        let spec: Value = serde_json::from_slice(&fs::read(path).unwrap()).unwrap();
+        assert_eq!(spec["runner_sha256"], expected_runner);
+        assert_ne!(spec["runner_sha256"], current_runner);
+    }
+}
+
+#[test]
+fn unapproved_native_manifest_stops_before_provider_work() {
+    let temp = tempfile::tempdir().unwrap();
+    let root = temp.path().canonicalize().unwrap();
+    let mut spec = manifest(&root);
+    let sentinel = root.join("provider-started");
+    let provider = root.join("provider-must-not-run");
+    fs::write(
+        &provider,
+        format!(
+            "#!/bin/sh\nprintf started > {}\nexit 91\n",
+            sentinel.display()
+        ),
+    )
+    .unwrap();
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        fs::set_permissions(&provider, fs::Permissions::from_mode(0o700)).unwrap();
+    }
+    let provider_sha256 = sha256(&provider);
+    let evidence = root.join("control-evidence.json");
+    fs::write(
+        &evidence,
+        serde_json::to_vec(&json!({
+            "inference_calls": 0,
+            "pass": true,
+            "binary_sha256": provider_sha256.clone(),
+        }))
+        .unwrap(),
+    )
+    .unwrap();
+
+    spec["execution_kind"] = json!("native");
+    spec["codex"] = json!(provider);
+    spec["codex_sha256"] = json!(provider_sha256);
+    spec["native_home"] = json!(root.join("artificial-native-home"));
+    spec["protected_roots"] = json!([root.join("artificial-protected-root")]);
+    spec["control_evidence"] = json!(evidence.clone());
+    spec["control_evidence_sha256"] = json!(sha256(&evidence));
+    spec["weak_model"] = json!("native-weak-control");
+    spec["strong_model"] = json!("native-strong-control");
+    spec["config"]["providers"][0]["command"] = spec["codex"].clone();
+    for agent in spec["config"]["agents"].as_array_mut().unwrap() {
+        let model = if agent["id"] == "strong-1" {
+            "native-strong-control"
+        } else {
+            "native-weak-control"
+        };
+        agent["name"] = json!(model);
+        agent["model"] = json!(model);
+    }
+    for (id, execution) in spec["config"]["execution"].as_object_mut().unwrap() {
+        execution["fixed"]["model"] = json!(if id == "strong-1" {
+            "native-strong-control"
+        } else {
+            "native-weak-control"
+        });
+    }
+    for model in spec["catalog"]["models"].as_array_mut().unwrap() {
+        let id = if model["id"] == "fixture-strong" {
+            "native-strong-control"
+        } else {
+            "native-weak-control"
+        };
+        model["id"] = json!(id);
+        model["picker_id"] = json!(id);
+    }
+    spec["catalog"]["source"]["method"] = json!("scripted no-inference control");
+    spec["config"]["capabilities"]["codex"] = spec["catalog"].clone();
+
+    let result = launch(&root, &spec, "native");
+    assert!(!result.status.success());
+    assert!(
+        String::from_utf8_lossy(&result.stderr)
+            .contains("owner_approval_required: no measured launch is authorized"),
+        "{}",
+        String::from_utf8_lossy(&result.stderr)
+    );
+    assert!(!root.join("controller").exists());
+    assert!(!root.join("test-approval-ledger").exists());
+    assert!(!sentinel.exists());
 }
 
 #[test]

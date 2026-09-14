@@ -1,0 +1,2 @@
+$ CARGO_TARGET_DIR=/tmp/ymp161-pilot-target cargo fmt --all --check
+[exit 0; no output]

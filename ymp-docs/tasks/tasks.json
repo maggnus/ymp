@@ -4781,7 +4781,7 @@
       "title": "Keep frozen experiment bindings without blocking later product changes",
       "type": "maintenance",
       "priority": "P0",
-      "status": "in_progress",
+      "status": "done",
       "owner": "gpt-5.6-sol xhigh maintenance fork; maintainer owns experiment-safety acceptance",
       "authorization": "YMP-159 final verification exposed five permanent workspace tests that reject already accepted product changes relative to the paused YMP-201 snapshot. Correcting this test boundary is necessary for the owner-requested parser release. The experiment remains paused and Astra prohibited.",
       "depends_on": [
@@ -4813,6 +4813,11 @@
           "at": "2026-09-14T02:46:00+00:00",
           "status": "in_progress",
           "note": "Candidate184dd5f reports the original5-of-6 failure, strict bound-source mutation rejection,9 focused passes and a clean651-test workspace run. Sent the exact commit to an independent Sol xhigh reviewer using isolated archives. Candidate task-register edits are based on the prior79-task snapshot and will not replace the current80-task register during integration."
+        },
+        {
+          "at": "2026-09-14T02:52:00+00:00",
+          "status": "done",
+          "note": "Independent review accepted exact candidate184dd5f. It reproduced the old1-of-6 result on later accepted product bytes, passed the new9-of-9 suite and proved a changed manifest-bound product object is still rejected before fixture execution. Integrated only the test implementation and evidence over the current80-task register; archived manifests remain unchanged and YMP-201 stays paused."
         }
       ]
     },
@@ -4853,7 +4858,7 @@
       ]
     }
   ],
-  "updated_at": "2026-09-14T02:46:00+00:00",
+  "updated_at": "2026-09-14T02:52:00+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",

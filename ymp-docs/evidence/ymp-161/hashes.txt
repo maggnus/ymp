@@ -1,0 +1,30 @@
+YMP-161 branch base
+a24d125178a90e9e2b38d16ae2b91241839d2b5c
+
+Accepted product base
+1c17f4e447b839e20f8efbdee0900963a5d8fcad
+
+Parser candidate used for the compatibility construction
+1ab42b1f3d5d4f0d1e6df28c93633128b659327f
+
+Unchanged production consumer validator
+8f7e10098bed574263937fbc106f2283dfd6419d6984adb430d622895f4d00bf  ymp-rust/crates/ymp-eval-driver/src/bin/weak_pilot/consumer.rs
+
+YMP-161 test source before evidence-only edits
+ed4b7f5b1dbfaed2c25de845242b31414946ef751f5227c2fda3584c56820c47  ymp-rust/crates/ymp-eval-driver/tests/weak_pilot_consumer.rs
+
+Focused runner
+54c3090f6aa151fe1a3d16833b819b1723b0ca130d1547ce40f9dd0dbbda2cb1  /tmp/ymp161-focused-target/debug/ymp-weak-pilot
+
+Inactive historical native manifests
+34993fee70abbffb0db35a77277b42b4d22dc3c7ec6bb77ced8c05e33f70c076  ymp-docs/evidence/ymp-201/consumer-v2/calibration-manifest.proposal.json
+a3eaadab9d484f3d2adabaf486a959f58b49dd2c333490d2bebe6d1053fd282a  ymp-docs/evidence/ymp-201/consumer-v2/pilot-manifest.proposal.json
+b21ad8dc537fe9c11244b43293c6162cf5c774d328fc47c0be9762310386b179  ymp-docs/evidence/ymp-201/proposed-run/calibration-manifest.proposal.json
+dffb4e86c30afe58da32564e474064793aab0c88208bd757f7cc4c41d295f98b  ymp-docs/evidence/ymp-201/proposed-run/pilot-manifest.proposal.json
+b21ad8dc537fe9c11244b43293c6162cf5c774d328fc47c0be9762310386b179  ymp-docs/evidence/ymp-201/rework-round1/calibration-manifest.proposal.json
+dffb4e86c30afe58da32564e474064793aab0c88208bd757f7cc4c41d295f98b  ymp-docs/evidence/ymp-201/rework-round1/pilot-manifest.proposal.json
+
+Relevant Git tree objects
+1c17f4e447b839e20f8efbdee0900963a5d8fcad core=bf95796b2292ea24853175079fb0d271a9c5263a tui=6a882b41839d030a6bbc234e0de7ec526bd56747
+a24d125178a90e9e2b38d16ae2b91241839d2b5c core=bf95796b2292ea24853175079fb0d271a9c5263a tui=8217ef94d183cdbbce2bea1600322023db122152
+1ab42b1f3d5d4f0d1e6df28c93633128b659327f core=29d34181715cdf709a5340e915d8b047924a8461 tui=8217ef94d183cdbbce2bea1600322023db122152

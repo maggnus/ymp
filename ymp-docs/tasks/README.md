@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-14 02:46 UTC.
+Updated: 2026-09-14 02:52 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -16,7 +16,7 @@ A planned task is not implemented functionality. Completed research and planning
 | experiment | 0 | 4 |
 | implementation | 38 | 50 |
 | integration | 0 | 1 |
-| maintenance | 1 | 2 |
+| maintenance | 2 | 2 |
 | research | 11 | 11 |
 | verification | 3 | 3 |
 
@@ -102,7 +102,7 @@ A planned task is not implemented functionality. Completed research and planning
 | `[~]` | [YMP-158](#ymp-158) | P1 | Implement session statistics backend, export and headless progress | 2026-09-14 02:32 |
 | `[~]` | [YMP-159](#ymp-159) | P0 | Parse the final structured decision after non-JSON commentary | 2026-09-14 02:43 |
 | `[=]` | [YMP-160](#ymp-160) | P0 | Honor owner starting preferences when reserving an equal-score reviewer | 2026-09-14 02:34 |
-| `[~]` | [YMP-161](#ymp-161) | P0 | Keep frozen experiment bindings without blocking later product changes | 2026-09-14 02:46 |
+| `[x]` | [YMP-161](#ymp-161) | P0 | Keep frozen experiment bindings without blocking later product changes | 2026-09-14 02:52 |
 | `[=]` | [YMP-162](#ymp-162) | P0 | Release recovery fixes and complete controlled end-to-end session runs | 2026-09-14 02:34 |
 
 ## YMP-001
@@ -2708,11 +2708,11 @@ Starting preferences order eligible candidates, but final-review reservation cur
 
 Keep frozen experiment bindings without blocking later product changes
 
-**State:** `[~]` (in_progress) · **Type:** maintenance · **Priority:** P0
+**State:** `[x]` (done) · **Type:** maintenance · **Priority:** P0
 
-**Last update (UTC):** 2026-09-14 02:46
+**Last update (UTC):** 2026-09-14 02:52
 
-**Current reason:** Candidate184dd5f reports the original5-of-6 failure, strict bound-source mutation rejection,9 focused passes and a clean651-test workspace run. Sent the exact commit to an independent Sol xhigh reviewer using isolated archives. Candidate task-register edits are based on the prior79-task snapshot and will not replace the current80-task register during integration.
+**Current reason:** Independent review accepted exact candidate184dd5f. It reproduced the old1-of-6 result on later accepted product bytes, passed the new9-of-9 suite and proved a changed manifest-bound product object is still rejected before fixture execution. Integrated only the test implementation and evidence over the current80-task register; archived manifests remain unchanged and YMP-201 stays paused.
 
 **Owner:** gpt-5.6-sol xhigh maintenance fork; maintainer owns experiment-safety acceptance
 
@@ -2742,7 +2742,7 @@ Release recovery fixes and complete controlled end-to-end session runs
 
 **Last update (UTC):** 2026-09-14 02:34
 
-**Current reason:** Needs YMP-159, YMP-160, YMP-161
+**Current reason:** Needs YMP-159, YMP-160
 
 **Owner:** Maintainer integrates accepted forks and presents each native session action for final owner approval
 
