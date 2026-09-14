@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-14 07:38 UTC.
+Updated: 2026-09-14 07:57 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -105,7 +105,7 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-161](#ymp-161) | P0 | Keep frozen experiment bindings without blocking later product changes | 2026-09-14 02:52 |
 | `[=]` | [YMP-162](#ymp-162) | P0 | Release recovery fixes and complete controlled end-to-end session runs | 2026-09-14 07:38 |
 | `[~]` | [YMP-163](#ymp-163) | P0 | Recover from broken generated task checks through reviewed replacement | 2026-09-14 07:38 |
-| `[=]` | [YMP-164](#ymp-164) | P0 | Repeat fifteen-puzzle delivery with unified research and acceptance criteria | 2026-09-14 07:38 |
+| `[=]` | [YMP-164](#ymp-164) | P0 | Repeat fifteen-puzzle delivery with unified research and acceptance criteria | 2026-09-14 07:57 |
 
 ## YMP-001
 
@@ -2806,7 +2806,7 @@ Repeat fifteen-puzzle delivery with unified research and acceptance criteria
 
 **State:** `[=]` (planned) · **Type:** experiment · **Priority:** P0
 
-**Last update (UTC):** 2026-09-14 07:38
+**Last update (UTC):** 2026-09-14 07:57
 
 **Current reason:** Needs YMP-163
 
@@ -2818,7 +2818,7 @@ Repeat fifteen-puzzle delivery with unified research and acceptance criteria
 
 The first report retained strong primary evidence but insufficient causal and product analysis. A working artifact and publication did not constitute native completion. The repeat must evaluate all applicable intent dimensions using one predeclared criterion set.
 
-**Latest progress note:** Canonical unified protocol and detailed repeat plan drafted. Astra xhigh agent 46243ad5-b537-419b-8351-5b3e3e7319eb independently assesses the plan and baseline in temporary files while cause repair proceeds. Native repeat awaits acceptance of YMP-163; prior experiment acb9c4e3 remains failed.
+**Latest progress note:** Parent incorporated Astra's six review themes: one explicit repeat phase, same-artifact native/external evidence, frozen behavioral validator semantics, criterion applicability and actual policy versions, context/intervention denominators, and separate validated-skill completion. No extra model trials were added. Opus 5 xhigh independently reviews the plan; native launch still awaits the accepted cause repair.
 
 **Acceptance criteria:**
 

@@ -1,6 +1,6 @@
 # Delivery plan and progress
 
-Updated: 2026-09-14 07:38 UTC.
+Updated: 2026-09-14 07:57 UTC.
 
 [Approved intent](../../intent.md) · [Task details and evidence](README.md) · [Canonical register](tasks.json)
 
@@ -143,9 +143,9 @@ Deferred and post-MVP work:
 
 | Time (UTC) | Task | State | Update |
 | --- | --- | --- | --- |
+| 2026-09-14 07:57 | [YMP-164](README.md#ymp-164) | `[=]` | Parent incorporated Astra's six review themes: one explicit repeat phase, same-artifact native/external evidence, frozen behavioral validator semantics, criterion applicability and actual policy versions, context/intervention denominators, and separate validated-skill completion. No extra model trials were added. Opus 5 xhigh independently reviews the plan; native launch still awaits the accepted cause repair. |
 | 2026-09-14 07:38 | [YMP-162](README.md#ymp-162) | `[=]` | Later owner direction selected a real fifteen-puzzle study with current Luna/Sonnet settings, explicitly reauthorized Astra xhigh as researcher, removed observer ceilings and authorized publication. The first experiment failed natively despite a working published game. Immediate cause repair and the repeat now have explicit YMP-163/YMP-164 ownership; this earlier release/poker task is not marked complete and its historical authorization does not restrict the later approved study. |
 | 2026-09-14 07:38 | [YMP-163](README.md#ymp-163) | `[~]` | Started Sol xhigh agent 02475829-e5e6-4781-949b-baa00a281fd4 in fix/ymp163-check-revision from c18fe31. Both lifecycle staleness and append-only semantics are in scope; no unrelated policy/statistics changes or native run is mixed into this correction. |
-| 2026-09-14 07:38 | [YMP-164](README.md#ymp-164) | `[=]` | Canonical unified protocol and detailed repeat plan drafted. Astra xhigh agent 46243ad5-b537-419b-8351-5b3e3e7319eb independently assesses the plan and baseline in temporary files while cause repair proceeds. Native repeat awaits acceptance of YMP-163; prior experiment acb9c4e3 remains failed. |
 | 2026-09-14 03:31 | [YMP-158](README.md#ymp-158) | `[~]` | Backend candidate52a170b implements consistent statistics snapshots/export, unlinked legacy totals, typed outcome/wait/knowledge summaries and bounded headless progress. Author fmt, strict Clippy and251 storage/runtime tests passed; the pre-YMP-161 base still had five frozen-fixture failures. Sent the exact candidate for one bounded independent review; parent will run the full workspace suite once after integration onto current main. |
 | 2026-09-14 03:31 | [YMP-160](README.md#ymp-160) | `[~]` | YMP-159 and YMP-161 are accepted and integrated with a662-pass workspace run. Started agent6ad87e12-303f-4b57-b68a-ade82893dd84 on gpt-5.6-sol xhigh in an isolated worktree for one exact reviewer-reservation regression and one counterexample; parent owns independent review and the single post-integration full run. |
 

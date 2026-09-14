@@ -5,6 +5,10 @@ its outcome. A study fills in the same criteria before execution and adds its
 observations, explanations and verdicts afterward. It does not maintain separate
 test and acceptance plans with different definitions of success.
 
+Freeze behavioral validation semantics before launch, while allowing selectors
+and other nonsemantic adapters to fit the delivered artifact. An optional control
+or wording in a previous implementation must not become a hidden requirement.
+
 The authoritative objectives are in [intent.md](../../intent.md). The
 [goal-driven trials](../research/goal-driven-trials.md) define the wider research
 questions. The historical [comparative protocol](../research/experiment-protocol.md)
@@ -78,6 +82,11 @@ Runtime acceptance and trusted confirmation remain distinct. External research
 validation must not rewrite runtime state, establish a missing trusted contract
 retroactively, or award reputation. If runtime reports accepted/unconfirmed,
 retain that label alongside the separately scoped external validation.
+
+Bind native evidence, final review and external validation to the same artifact
+version. A final hash alone does not establish the freshness of an earlier check.
+Missing required bindings remain unknown. Assess available artifacts after a
+failed session too; secondary artifact success does not erase native failure.
 
 ## Intent coverage and measures
 

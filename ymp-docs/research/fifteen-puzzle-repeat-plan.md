@@ -33,6 +33,20 @@ of an owner-supplied trusted contract, `accepted/unconfirmed` is an honest nativ
 label and must not be forged into `confirmed`. Independently verified artifact
 success is recorded separately. False confirmation or reputation is a failure.
 
+Bind native checks and final review to task/result and check-definition versions
+and artifact hashes. Final acceptance must concern the same deliverable bytes
+subsequently frozen for Playwright, publication and HTTP verification. Use the
+runtime's existing artifact/evidence links and read-only observations; missing
+bindings remain unknown, rather than inferred from exit 0. A relevant file change
+requires affected checks and review through the runtime, not replay of unchanged
+siblings. At terminal state establish that no writer remains before freezing.
+
+The team produces the game and its own requested report. The external researcher
+produces independent validation, publication and analysis. The external report
+does not substitute for an unfinished native reporting task. Native delivery and
+completion of this research assignment are separate: the latter also requires
+the validated repository-scoped skill specified below.
+
 ## Baseline and mechanism
 
 The unchanged first game passed 14 independent Playwright criteria and was
@@ -55,6 +69,19 @@ These are outer invocation measurements, not native request counts or bills.
 The browser branch used about 52.5% of input and 36.7% of invocation time. That
 does not mean all browser verification was waste: one review found a real test
 defect. Mechanics also included necessary evidence repair despite no game change.
+
+The [recomputed baseline](/tmp/ymp-fifteen-repeat-analysis/baseline-analysis.json)
+uses unrounded timestamps; tiny duration differences from this table reflect
+rounding. Its first-file correction matters: a hash-only observation saw a page
+at 06:47:26.479Z, and the final game hash first appeared at 06:48:16.649Z. The
+snapshot named `first-file.json` was retained later, at 06:48:54.281Z. Earlier
+page hashes differ, so the first implementation did include corrections. Only
+the first *retained* page snapshot equals the final game. Usability was not
+independently observed until the external validation; do not backdate it.
+
+All 20 knowledge retrievals were empty, with zero supplied characters. There
+were eight proposed/unconfirmed knowledge records and no reputation observations.
+This supports the integrity assessment, but supplies no evidence of reuse benefit.
 
 Two source-level mechanisms need correction before another native run:
 
@@ -94,6 +121,10 @@ One negative case must reject an unauthorized, genuinely stale or weakened
 trusted criterion. Existing related checks cover the remaining unchanged
 constraints. Run the required fmt/Clippy/workspace sequence once on final source;
 repeat only if integration changes executable bytes or reveals a new issue.
+
+Choose the negative case at the newly changed boundary: independent replacement
+review must reject an ordinary generated check weakened to a trivial success.
+Tests of immutable trusted contracts alone do not establish that property.
 
 An independent review must accept this narrow correction. No unrelated pending
 statistics, reviewer ranking or UI changes are included just to improve the trial.
@@ -149,6 +180,61 @@ exploratory rows may be unknown or not exercised, with an explanation.
 | U1 | Progress and failure are understandable | Saved console plus optional read-only TUI views; identify what a user learns without raw logs; headless evidence alone cannot establish live TUI correctness | Exploratory |
 | D1 | Published exact result and useful final explanation | Unique Workers URL, HTTP bytes/hashes, excluded private paths, final causal/product report | Required |
 
+The table is the single criterion index. Each row inherits the common record
+fields: its requirement/hypothesis, expected behavior, measurement/evidence and
+rival explanation are defined above; initial verdict is `unknown`, and analysis,
+proposal, tradeoff and next check remain explicitly pending observation. Intent
+links are G1 for A1/A2/N1/N2, G2 for R1/P4, G3 for T1, G4 for H1/U1/C1, and G5
+for K1; P1/P2/P3 assess the corresponding identity, runtime authority, revision
+and recovery principles. Material findings fill the pending fields; an observed
+pass without an improvement need can state `no change justified`. Do not invent
+findings merely to fill every field. Applicability is separate from verdict.
+
+For N2/P3, an absent native revision trigger means `not exercised` in that run;
+the controlled cause-repair reproduction still has to exercise the mechanism.
+Capture all applicable implementations, including retrieval, knowledge projection
+and correction. Baseline IDs are `ymp.bounded-allocation@2`,
+`ymp.bounded-resources@1`, `ymp.ordered-board@1`, `ymp.direct-mvp@1`,
+`ymp.fts5@1`, `ymp.evidence-projection@1`, `ymp.bound-correction@1`, and execution
+backend `ymp.native@0.4.6`. Read the repeat's versions from its records. For
+embedded behavior without a recorded policy ID, bind to source/executable and
+state the limitation instead of inventing an identity.
+
+## Predeclared external game validation
+
+Freeze these semantics before launch; choose selectors from the delivered DOM
+afterward. The old validator's optional Shuffle button, exact word `Victory` and
+post-win input locking are not new product requirements.
+
+1. Open the final `index.html` offline and verify the README against the game.
+   Read the visible board, with one blank and the numbers 1 through 15, zero
+   moves and a solvable unsolved initial state.
+2. Exercise legal/illegal mouse moves and keyboard moves. Verify exact adjacent
+   swaps and counter deltas. Determine an illegal direction from the actual blank
+   position after legal moves to a real boundary; never guess that an arbitrary
+   arrow is illegal.
+3. Perform 20 New Game actions, retaining each board and checking permutation,
+   independent parity, non-solved state, counter reset and cleared victory. Check
+   a separate shuffle control only if it exists. This finite sample cannot prove
+   "always solvable"; inspect the algorithm's invariant independently as well.
+4. Solve the last recorded board with an external solver using deterministic
+   tie-breaking. Do not resample for an easier board, seed the game, inject state
+   or call helper APIs. Independently validate each planned step, perform legal
+   UI moves and require ordered tiles and clear victory feedback. Failure of the
+   external solver is a validation limitation, not proof of a game defect.
+5. Use viewports 390x844 and 1280x800. Retain root/body widths, board and essential
+   control rectangles and screenshots. Require no horizontal overflow and usable
+   unobscured controls; normal vertical scrolling is allowed. Rectangle rounding
+   tolerance is 0.5 CSS pixels and cannot excuse root overflow.
+6. Record network requests and console/page errors. External responses must not
+   be required. Retain validation source, observations and failures. Corrections
+   may fix selectors or a demonstrated observer error, never weaken a failed
+   requirement; preserve the original result and corrected interpretation.
+
+These are local user-validation actions, not model-call quotas or new product
+test matrices. Record the exact browser/version in the manifest. Unexpected
+browser-version changes are visible confounders.
+
 ## Measurements and interpretation
 
 Use the final consistent trace as the main source; retain interim sequence bounds.
@@ -162,6 +248,20 @@ Separate game work, necessary verification, test repair, environment repair and
 unchanged execution. Classification needs messages, diffs/hashes and check output;
 `execute` by itself is not a productive-work measure. Estimate no counterfactual
 time savings by simply deleting all unchanged-file calls.
+
+Record native continuation IDs, supplied prompt/profile characters, context
+references and reported usage per invocation. References may overlap the complete
+prompt, so do not add both as supplied context. Unknown native-loaded history and
+internal request counts stay unknown. Baseline transmitted prompt text totalled
+207,252 characters; that is a different unit from 9,094,673 reported input tokens.
+Sum unique final invocation snapshots, not cumulative stream updates.
+
+Separate native repair interventions from observer setup, diagnosis, validation,
+publication and analysis. Hints, manual edits, restarts and changed controls count
+as interventions; passive observation does not. Observer labor is still real
+delivery overhead and must be reported separately. Unknown active-human time
+remains unknown. Zero repair interventions with blocked status is not autonomous
+delivery. An unreached time to accepted result is not the failed run's duration.
 
 For every useful review, record the defect found, evidence demanded and next
 action. For every rejected board proposal, record age, target version, source
@@ -188,18 +288,22 @@ stream of routine tool results. Retain the native phase through its real termina
 state. Do not interrupt solely for elapsed time or token volume. Distinguish
 silence from an active call, dependency wait or actual non-progressing cycle.
 
-If another product failure prevents completion, retain the attempt as failed,
-diagnose the concrete cause and apply the smallest justified correction. Every
-code/configuration change starts a separately identified subsequent attempt in a
-fresh directory. Do not repeat an unchanged failure hoping for a favorable answer.
-Do not call the experiment complete while it is blocked or merely pending review.
-Broader model comparisons and unrelated new features remain outside this repair.
+The current execution phase is one fresh native repeat on the accepted repair.
+Internal retries under its captured attempt policy belong to that session and
+are all counted. If it fails, retain the failure, all resources and artifacts,
+and return a cause-specific diagnosis to the parent. Do not autonomously launch
+another experiment, resume the failed session or change the running treatment.
+A later native launch needs an explicit continuation for its exact accepted
+source and is a new ledger entry, never a replacement for a failed outcome.
+Do not call the experiment successful while blocked or pending; preservation of
+all attempts is not evidence of a high first-attempt success rate.
 
-After native completion, use a fixed-seed external solver and legal UI clicks to
-reach victory; never call game helper APIs or inject state. Adapt the observer
-only to the delivered selectors, without weakening criteria. Preserve validator
-source, trace, output, hashes and screenshots. Publish the exact final artifact
-with Wrangler using existing account authorization and a distinct run name.
+After any native terminal outcome, assess the artifacts if present using the
+predeclared Playwright checks above. A failed native run still needs an artifact
+verdict or explicit unknown, avoiding evaluation only of completed sessions.
+Diagnostic artifact success cannot rescue failed native acceptance. Publish the
+exact final artifact with Wrangler using existing account authorization and a
+distinct run name; any publication after native failure is labelled diagnostic.
 
 ## Product assessment and final deliverables
 
@@ -220,3 +324,8 @@ agent breakdown, explicit outcome/confirmation distinctions, ranked product
 recommendations and links to the published game and evidence. Integrate the
 validated common procedure into a repository-scoped trial skill after use;
 retain the prior report and hashes without edits.
+
+Completion of the project research task also requires skill validation. Use the
+retained failed baseline for a dry check: the skill must reject "published but
+blocked = success", retain accepted/unconfirmed, and respect the actual launch
+authorization. No additional native run is needed to test those decisions.
