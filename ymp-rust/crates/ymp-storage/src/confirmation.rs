@@ -100,7 +100,7 @@ fn current_aggregate(db: &Connection, session: &str, result: &ResultVersion) -> 
         }
         let Some(component) = components.iter().find(|d| {
             d.session_id == session
-                && d.kind == "result_submitted"
+                && matches!(d.kind.as_str(), "result_submitted" | "result_check_revised")
                 && d.links.task.as_ref() == Some(&TaskAttemptRef::from(&task))
         }) else {
             return Ok(false);
@@ -165,7 +165,7 @@ fn known_result(db: &Connection, session: &str, result: &ResultVersion) -> Resul
     ensure!(
         decisions.iter().any(|d| matches!(
             d.kind.as_str(),
-            "result_submitted" | "result_aggregated"
+            "result_submitted" | "result_check_revised" | "result_aggregated"
         ) && d.links.result.as_ref() == Some(result)),
         "Cannot inspect an unknown or altered result version"
     );
@@ -328,6 +328,7 @@ pub(super) fn validate(db: &Connection, value: &DecisionRecord) -> Result<()> {
     let requires_result = matches!(
         value.kind.as_str(),
         "result_submitted"
+            | "result_check_revised"
             | "result_aggregated"
             | "candidate_review"
             | "candidate_arbitration"
@@ -376,14 +377,22 @@ pub(super) fn validate(db: &Connection, value: &DecisionRecord) -> Result<()> {
     }
     let submissions = all
         .iter()
-        .filter(|d| matches!(d.kind.as_str(), "result_submitted" | "result_aggregated"))
+        .filter(|d| {
+            matches!(
+                d.kind.as_str(),
+                "result_submitted" | "result_check_revised" | "result_aggregated"
+            )
+        })
         .collect::<Vec<_>>();
-    let existing = submissions.iter().find(|d| {
+    let existing_identity = submissions.iter().find(|d| {
         d.links
             .result
             .as_ref()
             .is_some_and(|r| r.id == result.id && r.version == result.version)
     });
+    let existing_exact = submissions
+        .iter()
+        .find(|decision| decision.links.result.as_ref() == Some(result));
     if matches!(
         value.kind.as_str(),
         "final_review" | "final_accepted" | "final_rejected"
@@ -414,10 +423,17 @@ pub(super) fn validate(db: &Connection, value: &DecisionRecord) -> Result<()> {
     }
     let producing = matches!(
         value.kind.as_str(),
-        "result_submitted" | "result_aggregated"
+        "result_submitted" | "result_check_revised" | "result_aggregated"
     );
     if producing {
-        ensure!(existing.is_none(), "Result version already exists");
+        if value.kind == "result_check_revised" {
+            ensure!(
+                existing_exact.is_none() && existing_identity.is_none(),
+                "Revised check result needs a fresh result identity"
+            );
+        } else {
+            ensure!(existing_identity.is_none(), "Result version already exists");
+        }
         if let Some(id) = &result.contract_id {
             let captured: DecisionRecord = record(db, "decisions", id)?;
             let contract = captured
@@ -457,7 +473,7 @@ pub(super) fn validate(db: &Connection, value: &DecisionRecord) -> Result<()> {
         );
     } else {
         ensure!(
-            existing.is_some_and(|d| d.links.result.as_ref() == Some(result)),
+            existing_exact.is_some(),
             "Unknown or altered result version"
         );
     }
@@ -504,6 +520,69 @@ pub(super) fn validate(db: &Connection, value: &DecisionRecord) -> Result<()> {
             "Leaf submission cannot declare components"
         );
     }
+    if value.kind == "result_check_revised" {
+        let revision = value
+            .links
+            .result_check_revision()
+            .context("Revised check result needs its exact predecessor and board provenance")?;
+        ensure!(
+            value.actor.is_none()
+                && revision.attempt_before == revision.attempt_after
+                && revision.attempt_after == result.version
+                && revision.previous.task == result.task
+                && revision.previous.version == result.version,
+            "Check replacement cannot create or reset a production attempt"
+        );
+        let previous = submissions
+            .iter()
+            .find(|decision| decision.links.result.as_ref() == Some(&revision.previous))
+            .context("Revised check result predecessor is unknown")?;
+        ensure!(
+            matches!(
+                previous.kind.as_str(),
+                "result_submitted" | "result_check_revised"
+            ),
+            "Revised check result predecessor is not a leaf candidate"
+        );
+        let BoardChange::ReplaceChecks { replacements, .. } = &revision.proposal.change else {
+            anyhow::bail!("Revised check result needs a check replacement proposal")
+        };
+        let mut expected = revision.previous.clone();
+        expected.id = revised_check_result_id(&revision.previous, &revision.proposal)?;
+        let definition = expected
+            .task_definition
+            .as_mut()
+            .context("Revised check predecessor has no task definition")?;
+        definition.checks = replace_ordinary_checks(&definition.checks, replacements)?;
+        ensure!(
+            &expected == result && current_task(db, result)?,
+            "Revised check result changed production data or does not match the current task"
+        );
+        let board = all.iter().find(|decision| {
+            decision.kind == "board_committed"
+                && decision.links.board.as_deref().is_some_and(|board| {
+                    board.accepted
+                        && board.proposal == revision.proposal
+                        && board.review_ids == vec![revision.review_id.clone()]
+                })
+        });
+        let review: DecisionRecord = record(db, "decisions", &revision.review_id)?;
+        ensure!(
+            board.is_some()
+                && review.kind == "board_check_revision_review"
+                && matches!(review.outcome, Some(DecisionOutcome::Accepted { .. }))
+                && review
+                    .links
+                    .board_check_revision()
+                    .is_some_and(|evidence| evidence.proposal == revision.proposal),
+            "Revised check result lacks the accepted independent board review"
+        );
+    } else {
+        ensure!(
+            value.links.result_check_revision().is_none(),
+            "Only a revised check result may carry check-revision provenance"
+        );
+    }
     if value.kind == "result_aggregated" {
         ensure!(
             value.actor.is_none() && result.task.is_none() && result.contract_id.is_none(),
@@ -515,7 +594,11 @@ pub(super) fn validate(db: &Connection, value: &DecisionRecord) -> Result<()> {
         for id in &result.component_ids {
             let component: DecisionRecord = record(db, "decisions", id)?;
             ensure!(
-                component.session_id == value.session_id && component.kind == "result_submitted",
+                component.session_id == value.session_id
+                    && matches!(
+                        component.kind.as_str(),
+                        "result_submitted" | "result_check_revised"
+                    ),
                 "Aggregate has an invalid component"
             );
             let child = component.links.result.context("Missing component result")?;
@@ -590,7 +673,7 @@ pub(super) fn validate(db: &Connection, value: &DecisionRecord) -> Result<()> {
                 && value.links.assignment_id.as_ref() == Some(&assignment.id),
             "Review must identify its completed reviewer invocation"
         );
-        let submission = existing.context("Review result submission missing")?;
+        let submission = existing_exact.context("Review result submission missing")?;
         let digest = content_digest(&serde_json::to_string(&Some(result))?);
         ensure!(
             assignment

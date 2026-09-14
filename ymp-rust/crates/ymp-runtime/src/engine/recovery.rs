@@ -64,6 +64,8 @@ impl Engine {
     ) -> Result<RecoveryStage> {
         let id = if let Some(proposal) = &links.plan_proposal {
             format!("plan-review-{}-{}", proposal.proposal_id, proposal.revision)
+        } else if let Some(evidence) = links.board_check_revision() {
+            format!("check-revision-review-{}", evidence.proposal.id)
         } else {
             format!(
                 "{kind}-{}",
@@ -465,6 +467,7 @@ impl Engine {
                 && d.links.plan_proposal == links.plan_proposal
                 && d.links.result == links.result
                 && d.links.task == links.task
+                && d.links.check_revision == links.check_revision
         }) {
             let response = RecordedResponse {
                 _access: None,
@@ -540,6 +543,9 @@ impl Engine {
                 .unwrap_or_default();
             if let Some(plan) = &links.plan_proposal {
                 producer_ids.push(plan.producer_assignment_id.clone());
+            }
+            if let Some(evidence) = links.board_check_revision() {
+                producer_ids.push(evidence.proposal.assignment_id.clone());
             }
             let producers = current_trace
                 .assignments

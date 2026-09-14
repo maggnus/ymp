@@ -64,6 +64,7 @@ pub(super) fn snapshot(db: &Connection, session: &str) -> Result<BoardSnapshot> 
                 })
                 .cloned();
             Ok(BoardTask {
+                definition_version: board_task_definition_version(&task)?,
                 task,
                 version,
                 commitment,
@@ -108,11 +109,11 @@ pub(super) fn release_unadmitted(
             outcome: None,
             links: RecordLinks {
                 task: Some(TaskAttemptRef::from(&task.task)),
-                board_release: Some(BoardCommitmentRelease {
+                board_release: Some(Box::new(BoardCommitmentRelease {
                     command_id: command.command_id.clone(),
                     previous: BoardTaskRef { task_id: task.task.id, version: task.version },
                     commitment,
-                }),
+                })),
                 ..Default::default()
             },
             created_at: now(),
@@ -180,6 +181,31 @@ pub(super) fn propose(
                 .iter()
                 .any(|t| t.task.id == reference.task_id && t.version == reference.version),
             "stale_task: task version is no longer current or belongs to another session"
+        );
+    }
+    if let Some(reference) = change.definition_task() {
+        let target = board
+            .tasks
+            .iter()
+            .find(|task| task.task.id == reference.task_id)
+            .context("check_replacement: unknown or foreign task")?;
+        ensure!(
+            target.definition_version == reference.definition_version,
+            "stale_definition: task definition changed before proposal"
+        );
+        let BoardChange::ReplaceChecks { replacements, .. } = &change else {
+            unreachable!("definition-bound board changes are check replacements")
+        };
+        replace_ordinary_checks(&target.task.checks, replacements)?;
+        let assignment: AssignmentRecord = record(tx, "assignments", &grant.assignment_id)?;
+        ensure!(
+            assignment.session_id == grant.session_id
+                && assignment.agent_id == grant.agent_id
+                && assignment.purpose == "execute"
+                && assignment.task.as_ref() == Some(&TaskAttemptRef::from(&target.task))
+                && target.task.state == TaskState::Running
+                && target.task.assignee.as_ref() == Some(&grant.agent_id),
+            "check_replacement_authority: only the active task executor may propose a replacement"
         );
     }
     let proposal = BoardProposal {
@@ -302,6 +328,7 @@ impl Store {
         value: &DecisionRecord,
         updated: &[Task],
         allocation: Option<&DecisionRecord>,
+        followups: &[DecisionRecord],
     ) -> Result<()> {
         let board_decision = value
             .links
@@ -345,6 +372,20 @@ impl Store {
                     "stale_task: task or commitment changed before board commitment"
                 );
                 ensure!(current.task.state == TaskState::Ready, "work_boundary: only unresolved ready tasks can change; inspect uncertain effects first");
+            } else if let Some(reference) = proposal.change.definition_task() {
+                let current = board
+                    .tasks
+                    .iter()
+                    .find(|task| task.task.id == reference.task_id)
+                    .context("Unknown task")?;
+                ensure!(
+                    current.definition_version == reference.definition_version,
+                    "stale_definition: task definition changed before board commitment"
+                );
+                ensure!(
+                    current.task.state == TaskState::Review,
+                    "check_replacement_boundary: source execution must be ended and awaiting review"
+                );
             }
             for assignment in records::<AssignmentRecord>(&tx, "assignments", &value.session_id)? {
                 ensure!(
@@ -363,6 +404,71 @@ impl Store {
                     && origin.grant_ids.contains(&proposal.grant_id),
                 "proposal_origin: incomplete or foreign source cannot commit changes"
             );
+            if proposal.change.definition_task().is_some() {
+                let BoardChange::ReplaceChecks { replacements, .. } = &proposal.change else {
+                    unreachable!("definition-bound changes are check replacements")
+                };
+                if let Some(owner) = super::team_control::state(&tx, &value.session_id)? {
+                    ensure!(
+                        owner.control == OwnerRunControl::Continue,
+                        "owner_paused: check replacement waits for explicit owner continuation"
+                    );
+                }
+                let current = board
+                    .tasks
+                    .iter()
+                    .find(|task| Some(task.task.id.as_str()) == proposal.change.task_id())
+                    .context("Missing check replacement target")?;
+                ensure!(
+                    origin.purpose == "execute"
+                        && origin.task.as_ref() == Some(&TaskAttemptRef::from(&current.task))
+                        && current.task.assignee.as_ref() == Some(&proposal.agent_id),
+                    "check_replacement_authority: proposal must come from the active target executor"
+                );
+                ensure!(
+                    board_decision.review_ids.len() == 1
+                        && value.links.review_ids == board_decision.review_ids,
+                    "check_replacement_review: exactly one bound review is required"
+                );
+                let review: DecisionRecord =
+                    record(&tx, "decisions", &board_decision.review_ids[0])?;
+                let review_assignment: AssignmentRecord = record(
+                    &tx,
+                    "assignments",
+                    review
+                        .links
+                        .assignment_id
+                        .as_deref()
+                        .context("Check replacement review assignment is missing")?,
+                )?;
+                ensure!(
+                    review.kind == "board_check_revision_review"
+                        && matches!(
+                            review.outcome,
+                            Some(DecisionOutcome::Accepted { .. })
+                        )
+                        && review.actor.as_ref() != Some(&proposal.agent_id)
+                        && review.links.task.as_ref()
+                            == Some(&TaskAttemptRef::from(&current.task))
+                        && review
+                            .links
+                            .board_check_revision()
+                            .is_some_and(|evidence| {
+                                evidence.proposal == *proposal
+                                    && evidence.retained_checks == current.task.checks
+                                    && replacements.iter().all(|replacement| {
+                                        evidence.retained_runs.iter().any(|run| {
+                                            run.command == replacement.old && !run.passed
+                                        })
+                                    })
+                                    && evidence.proposed_runs.iter().all(|run| run.passed)
+                            })
+                        && review_assignment.purpose == "review_check_revision"
+                        && review_assignment.agent_id != proposal.agent_id
+                        && review_assignment.state == InvocationState::Completed,
+                    "check_replacement_review: accepted independent evidence is missing or mismatched"
+                );
+            }
             let budget = super::budget::snapshot(&tx, &value.session_id)?
                 .context("Missing captured board budget")?;
             ensure!(
@@ -378,11 +484,40 @@ impl Store {
                 .collect::<Vec<_>>();
             for task in updated {
                 ensure!(
-                    task.session_id == value.session_id && task.state == TaskState::Ready,
+                    task.session_id == value.session_id
+                        && (task.state == TaskState::Ready
+                            || (matches!(proposal.change, BoardChange::ReplaceChecks { .. })
+                                && task.state == TaskState::Review)),
                     "Invalid board task session or state"
                 );
                 if let Some(previous) = resulting.iter_mut().find(|t| t.id == task.id) {
-                    ensure!(previous.state == TaskState::Ready && previous.title == task.title && previous.access == task.access && previous.attempts == task.attempts && previous.checks.iter().all(|c| task.checks.contains(c)) && previous.dependencies.iter().all(|d| task.dependencies.contains(d)) && task.description.starts_with(&previous.description), "preserved_obligations: revisions cannot remove objectives, checks, dependencies, accepted work or authority restrictions");
+                    if let BoardChange::ReplaceChecks { replacements, .. } = &proposal.change {
+                        let expected_checks =
+                            replace_ordinary_checks(&previous.checks, replacements)?;
+                        ensure!(
+                            previous.state == TaskState::Review
+                                && task.state == TaskState::Review
+                                && previous.id == task.id
+                                && previous.session_id == task.session_id
+                                && previous.title == task.title
+                                && previous.description == task.description
+                                && previous.competence == task.competence
+                                && previous.difficulty == task.difficulty
+                                && previous.access == task.access
+                                && previous.dependencies == task.dependencies
+                                && previous.attempts == task.attempts
+                                && previous.assignee == task.assignee
+                                && previous.reviewer == task.reviewer
+                                && previous.workspace == task.workspace
+                                && previous.base_commit == task.base_commit
+                                && previous.interrupted == task.interrupted
+                                && previous.result == task.result
+                                && task.checks == expected_checks,
+                            "preserved_obligations: check replacement changed fields outside ordinary checks and review lifecycle"
+                        );
+                    } else {
+                        ensure!(previous.state == TaskState::Ready && previous.title == task.title && previous.access == task.access && previous.attempts == task.attempts && previous.checks.iter().all(|c| task.checks.contains(c)) && previous.dependencies.iter().all(|d| task.dependencies.contains(d)) && task.description.starts_with(&previous.description), "preserved_obligations: revisions cannot remove objectives, checks, dependencies, accepted work or authority restrictions");
+                    }
                     *previous = task.clone();
                 } else {
                     resulting.push(task.clone());
@@ -408,6 +543,13 @@ impl Store {
         }
         save_proposals(&tx, &value.session_id, &proposals)?;
         decision(&tx, value)?;
+        for followup in followups {
+            ensure!(
+                followup.session_id == value.session_id,
+                "Board follow-up belongs to another session"
+            );
+            decision(&tx, followup)?;
+        }
         tx.commit()?;
         Ok(())
     }

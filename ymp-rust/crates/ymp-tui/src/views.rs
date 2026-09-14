@@ -4826,6 +4826,28 @@ fn board_change_words(ctx: &Ctx, proposal: &BoardProposal) -> (String, String) {
                 ),
             )
         }
+        BoardChange::ReplaceChecks { task, replacements } => {
+            let title = board_task_title(ctx, &task.task_id);
+            // Commands are quoted as the proposal carries them: an independent review approves
+            // these exact strings, so their whitespace is not folded into one line here.
+            let commands = replacements
+                .iter()
+                .map(|replacement| format!("`{}` becomes `{}`", replacement.old, replacement.new))
+                .collect::<Vec<_>>();
+            (
+                format!("replace checks on {title}"),
+                format!(
+                    "{author} asks to replace {} check command(s) of {title} at definition {}, subject to independent review; trusted owner contracts cannot be replaced. {}",
+                    replacements.len(),
+                    text::short_id(&task.definition_version),
+                    if commands.is_empty() {
+                        "No command was named.".to_owned()
+                    } else {
+                        format!("{}.", commands.join("; "))
+                    }
+                ),
+            )
+        }
         BoardChange::AddTask {
             title,
             competence,

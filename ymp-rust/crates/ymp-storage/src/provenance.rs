@@ -135,7 +135,7 @@ fn validate_links(db: &Connection, decision: &DecisionRecord) -> Result<()> {
             "Invocation belongs to another session"
         );
         let linked: AssignmentRecord = record(db, "assignments", &invocation.assignment_id)?;
-        if let Some(assignment) = assignment {
+        if let Some(assignment) = &assignment {
             ensure!(
                 invocation.assignment_id == assignment.id,
                 "Decision invocation and assignment disagree"
@@ -170,6 +170,98 @@ fn validate_links(db: &Connection, decision: &DecisionRecord) -> Result<()> {
     }
     if let Some(version) = &decision.links.plan_proposal {
         validate_plan_version(db, decision, version)?;
+    }
+    if let Some(evidence) = decision.links.board_check_revision() {
+        ensure!(
+            evidence.proposal.session_id == decision.session_id
+                && evidence
+                    .retained_runs
+                    .iter()
+                    .all(|run| !run.output.trim().is_empty())
+                && evidence
+                    .proposed_runs
+                    .iter()
+                    .all(|run| !run.output.trim().is_empty()),
+            "Check replacement evidence is incomplete or belongs to another session"
+        );
+        let board = super::board::snapshot(db, &decision.session_id)?;
+        let saved = board
+            .proposals
+            .iter()
+            .find(|proposal| proposal.id == evidence.proposal.id)
+            .context("Check replacement proposal is missing")?;
+        let mut bound = saved.clone();
+        bound.status = evidence.proposal.status;
+        ensure!(
+            bound == evidence.proposal
+                && (saved.status == BoardProposalStatus::Pending
+                    || decision.kind == "board_rejected"),
+            "Check replacement review must bind the exact pending proposal"
+        );
+        let reference = evidence
+            .proposal
+            .change
+            .definition_task()
+            .context("Check replacement evidence refers to another change kind")?;
+        let target = board
+            .tasks
+            .iter()
+            .find(|task| task.task.id == reference.task_id)
+            .context("Check replacement target is missing")?;
+        let BoardChange::ReplaceChecks { replacements, .. } = &evidence.proposal.change else {
+            unreachable!("definition-bound changes are check replacements")
+        };
+        ensure!(
+            target.definition_version == reference.definition_version
+                && evidence.retained_checks == target.task.checks
+                && evidence.proposed_checks
+                    == replace_ordinary_checks(&target.task.checks, replacements)?
+                && evidence
+                    .retained_runs
+                    .iter()
+                    .map(|run| &run.command)
+                    .eq(evidence.retained_checks.iter())
+                && evidence
+                    .proposed_runs
+                    .iter()
+                    .map(|run| &run.command)
+                    .eq(evidence.proposed_checks.iter()),
+            "Check replacement review evidence differs from the current definition"
+        );
+        if decision.kind == "board_check_revision_review" {
+            let assignment = assignment
+                .as_ref()
+                .context("Check replacement review assignment is missing")?;
+            let invocation: InvocationRecord = record(
+                db,
+                "invocations",
+                decision
+                    .links
+                    .invocation_id
+                    .as_deref()
+                    .context("Check replacement review invocation is missing")?,
+            )?;
+            ensure!(
+                decision.links.task.as_ref() == Some(&TaskAttemptRef::from(&target.task))
+                    && decision.actor.as_ref() == Some(&assignment.agent_id)
+                    && assignment.agent_id != evidence.proposal.agent_id
+                    && assignment.purpose == "review_check_revision"
+                    && assignment.state == InvocationState::Completed
+                    && invocation.state == InvocationState::Completed,
+                "self_review: check replacement requires one completed independent review"
+            );
+            ensure!(
+                !matches!(
+                    decision.outcome,
+                    Some(DecisionOutcome::Accepted { .. })
+                ) || (replacements.iter().all(|replacement| {
+                    evidence.retained_runs.iter().any(|run| {
+                        run.command == replacement.old && !run.passed
+                    })
+                }) && evidence.proposed_runs.iter().all(|run| run.passed)),
+                "A replacement cannot be approved unless each source check fails and all proposed checks pass"
+            );
+        }
     }
     Ok(())
 }

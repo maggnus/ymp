@@ -155,7 +155,7 @@ impl Engine {
             .iter()
             .rev()
             .find(|d| {
-                d.kind == "result_submitted"
+                matches!(d.kind.as_str(), "result_submitted" | "result_check_revised")
                     && d.links.task.as_ref() == Some(&TaskAttemptRef::from(task))
             })
             .and_then(|d| d.links.result.clone())
@@ -314,7 +314,7 @@ impl Engine {
                 .iter()
                 .rev()
                 .find(|d| {
-                    d.kind == "result_submitted"
+                    matches!(d.kind.as_str(), "result_submitted" | "result_check_revised")
                         && d.links.task.as_ref() == Some(&TaskAttemptRef::from(task))
                 })
                 .context("Accepted task has no result identity")?;

@@ -1,6 +1,21 @@
 use super::*;
 use ymp_core::*;
 
+#[test]
+fn task_proposal_schema_exposes_definition_bound_check_replacement() {
+    let tools = tools();
+    let schema = tools
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|tool| tool["name"] == "task_propose")
+        .unwrap();
+    let encoded = serde_json::to_string(schema).unwrap();
+    for required in ["replace_checks", "definition_version", "old", "new"] {
+        assert!(encoded.contains(required), "missing {required}: {encoded}");
+    }
+}
+
 struct Fixture {
     _dir: tempfile::TempDir,
     store: Store,

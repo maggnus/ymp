@@ -394,6 +394,12 @@ impl Engine {
             .await?;
         let mut engine = self.clone();
         engine.workspace_parent = Some(lease.id.clone());
+        if engine
+            .review_task_check_replacement(ctx, task, prompt)
+            .await?
+        {
+            return Ok(());
+        }
         engine.verify_protected(ctx, task, prompt).await
     }
 }

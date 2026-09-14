@@ -260,7 +260,9 @@ pub struct RecordLinks {
     #[serde(default)]
     pub board: Option<Box<crate::BoardDecision>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub board_release: Option<crate::BoardCommitmentRelease>,
+    pub check_revision: Option<Box<crate::CheckRevisionProvenance>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub board_release: Option<Box<crate::BoardCommitmentRelease>>,
     #[serde(default)]
     pub workspace_access: Option<crate::WorkspaceAccessDecision>,
     #[serde(default)]
@@ -287,6 +289,22 @@ pub struct RecordLinks {
     pub allocation: Option<Box<crate::AllocationDecision>>,
     #[serde(default)]
     pub resource_allocation: Option<Box<crate::ResourceAllocationDecision>>,
+}
+
+impl RecordLinks {
+    pub fn board_check_revision(&self) -> Option<&crate::BoardCheckRevisionEvidence> {
+        match self.check_revision.as_deref() {
+            Some(crate::CheckRevisionProvenance::Review(evidence)) => Some(evidence.as_ref()),
+            _ => None,
+        }
+    }
+
+    pub fn result_check_revision(&self) -> Option<&crate::ResultCheckRevision> {
+        match self.check_revision.as_deref() {
+            Some(crate::CheckRevisionProvenance::Result(revision)) => Some(revision.as_ref()),
+            _ => None,
+        }
+    }
 }
 
 /// A concise runtime decision with explicit supporting record identities. Future

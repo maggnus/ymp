@@ -1270,7 +1270,8 @@ impl Engine {
                     if purpose == "final_review" {
                         d.kind == "result_aggregated"
                     } else {
-                        d.kind == "result_submitted" && d.links.task == task
+                        matches!(d.kind.as_str(), "result_submitted" | "result_check_revised")
+                            && d.links.task == task
                     }
                 })
                 .context("Review assignment requires a submitted result version")?;
@@ -1955,13 +1956,12 @@ impl Engine {
             // work discovers a real constraint error. Preserve that error after
             // draining the already committed wave.
             let mut error = selection_error;
+            let mut submitted = Vec::new();
             while let Some(result) = work.join_next().await {
                 match result {
-                    Ok(Ok(mut task)) => {
+                    Ok(Ok(task)) => {
                         if task.state == TaskState::Review {
-                            if let Err(e) = self.verify(ctx, &mut task, prompt).await {
-                                error = Some(e);
-                            }
+                            submitted.push(task);
                         }
                     }
                     Ok(Err(e)) => {
@@ -1970,6 +1970,14 @@ impl Engine {
                     Err(e) => {
                         error = Some(e.into());
                     }
+                }
+            }
+            // A definition-bound replacement is reviewed only after every native
+            // executor in the wave has ended. This is a safe board boundary and
+            // avoids making lifecycle bookkeeping look like a conflicting edit.
+            for mut task in submitted {
+                if let Err(e) = self.verify(ctx, &mut task, prompt).await {
+                    error = Some(e);
                 }
             }
             if let Some(error) = error {
@@ -2600,7 +2608,7 @@ impl Engine {
             .find(|a| Some(&a.id) == task.assignee.as_ref())
             .context("Missing assignee")?;
         let path = task.workspace.as_ref().context("Missing task workspace")?;
-        let request=format!("Execute this assigned task in the current working directory:\n{}\n{}\nAcceptance checks: {}\nPrevious result/review: {}\nRead relevant shared chat and board_read; share discoveries that affect other tasks. Use task_propose with exact plan/task versions to accept responsibility, distribute or reassign ready work, or propose an additive plan revision. Proposals apply after active work ends and grant no authority. Follow the enforced access recorded for this assignment. Return read-only findings in your response; write deliverables only when write permission is granted. Preserve existing behavior outside the task. Do not push or publish externally unless the original request explicitly requires it. Finish with a concrete summary of files and checks.",task.title,task.description,serde_json::to_string(&task.checks)?,task.result.as_deref().unwrap_or("none"));
+        let request=format!("Execute this assigned task in the current working directory:\n{}\n{}\nAcceptance checks: {}\nPrevious result/review: {}\nRead relevant shared chat and board_read; share discoveries that affect other tasks. Use task_propose with exact plan/task versions to accept responsibility, distribute or reassign ready work, or propose an additive plan revision. If a runtime-generated ordinary check is demonstrably broken while an equivalent replacement passes, the active executor may propose replace_checks using the task definition_version and exact old/new commands; the runtime independently reviews the replacement, then reruns the revised checks and ordinary candidate review without another production attempt. Trusted owner acceptance contracts cannot be replaced. Proposals grant no authority. Follow the enforced access recorded for this assignment. Return read-only findings in your response; write deliverables only when write permission is granted. Preserve existing behavior outside the task. Do not push or publish externally unless the original request explicitly requires it. Finish with a concrete summary of files and checks.",task.title,task.description,serde_json::to_string(&task.checks)?,task.result.as_deref().unwrap_or("none"));
         let read_only = self.workspace_policy.execution_read_only(&task);
         anyhow::ensure!(task.access != TaskAccess::ReadOnly || read_only, "unsupported_workspace_guarantee: policy cannot enlarge a read-only task's native authority");
         let text = self

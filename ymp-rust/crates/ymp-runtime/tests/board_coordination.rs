@@ -32,6 +32,8 @@ enum Mode {
     StaleMembership,
     ParallelCommitment,
     ParallelSelectionFailure,
+    CheckReplacement,
+    CheckReplacementRejected,
 }
 struct Script {
     mode: Mode,
@@ -141,7 +143,7 @@ impl ExecutionBackend for Script {
                         self.propose(&req, board, json!({"kind":"membership","members":["one","three"]})).await?;
                     }
                     Mode::Membership => self.propose(&req, board, json!({"kind":"membership","members":["two","three"]})).await?,
-                    Mode::Recovery => {}
+                    Mode::Recovery | Mode::CheckReplacement | Mode::CheckReplacementRejected => {}
                 }
                 if req.purpose == "execute" {
                     std::fs::write(req.cwd.join("proof.txt"), "confirmed sibling\n")?;
@@ -160,6 +162,42 @@ impl ExecutionBackend for Script {
                     "admitted effect requiring inspection\n",
                 )?;
                 bail!("Scripted interruption after an admitted side effect");
+            }
+            if matches!(
+                self.mode,
+                Mode::CheckReplacement | Mode::CheckReplacementRejected
+            ) && req.purpose == "execute"
+                && second
+                && self.second_executions.fetch_add(1, Ordering::SeqCst) == 0
+            {
+                let raw = call(&req, "board_read", json!({})).await?;
+                let board = &raw["value"];
+                let target = board["tasks"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .find(|task| task["task"]["title"] == "Second")
+                    .unwrap();
+                self.propose(
+                    &req,
+                    board,
+                    json!({
+                        "kind":"replace_checks",
+                        "task":{
+                            "task_id":target["task"]["id"],
+                            "definition_version":target["definition_version"]
+                        },
+                        "replacements":[{
+                            "old":"missing-check-binary -f proof.txt",
+                            "new":if self.mode == Mode::CheckReplacementRejected {
+                                "test -d ."
+                            } else {
+                                "/bin/test -f proof.txt"
+                            }
+                        }]
+                    }),
+                )
+                .await?;
             }
             if self.mode == Mode::Malicious && req.purpose == "review" && first {
                 let expired = self
@@ -183,10 +221,31 @@ impl ExecutionBackend for Script {
                 assert_eq!(before["value"]["proposals"], after["value"]["proposals"]);
             }
             let text = match req.purpose.as_str() {
-                "plan" => json!({"summary":"Two checked responsibilities","tasks":[{"title":"First","description":"Write proof.txt containing the exact confirmed sibling text","competence":"implementation","difficulty":"simple","dependencies":[],"checks":[]},{"title":"Second","description":"Explain the resulting fact","competence":"implementation","difficulty":"simple","dependencies":[0],"checks":["test -f proof.txt"]}]}).to_string(),
+                "plan" => json!({"summary":"Two checked responsibilities","tasks":[{"title":"First","description":"Write proof.txt containing the exact confirmed sibling text","competence":"implementation","difficulty":"simple","dependencies":[],"checks":[]},{"title":"Second","description":if matches!(self.mode, Mode::CheckReplacement | Mode::CheckReplacementRejected) {"Verify proof.txt remains present after sibling production"} else {"Explain the resulting fact"},"competence":"implementation","difficulty":"simple","dependencies":[0],"checks":[if matches!(self.mode, Mode::CheckReplacement | Mode::CheckReplacementRejected) {"missing-check-binary -f proof.txt"} else {"test -f proof.txt"}]}]}).to_string(),
                 "review" if self.mode == Mode::Recovery && second && self.second_executions.load(Ordering::SeqCst) == 1 => {
                     assert!(req.cwd.join("uncertain.txt").exists());
                     json!({"approved":false,"reason":"Inspected actual effect; partial file is understood, pending result requires a fresh bounded attempt"}).to_string()
+                }
+                "review_check_revision" => {
+                    assert!(req.prompt.contains("missing-check-binary -f proof.txt"));
+                    assert!(req.prompt.contains(if self.mode == Mode::CheckReplacementRejected {
+                        "test -d ."
+                    } else {
+                        "/bin/test -f proof.txt"
+                    }));
+                    assert!(req.prompt.contains("\"passed\":false"));
+                    assert!(req.prompt.contains("\"passed\":true"));
+                    assert!(req
+                        .prompt
+                        .contains("a zero exit status, or a nonempty output alone"));
+                    json!({
+                        "approved":self.mode != Mode::CheckReplacementRejected,
+                        "reason":if self.mode == Mode::CheckReplacementRejected {
+                            "test -d . is a trivial success that does not preserve the required file check"
+                        } else {
+                            "The exact replacement preserves the proof.txt existence requirement while replacing only an unavailable command implementation"
+                        }
+                    }).to_string()
                 }
                 "review_plan" | "review" | "final_review" => json!({"approved":true,"reason":"Independently inspected the specified result and observed checks"}).to_string(),
                 "execute" => "Completed the assigned result and inspected existing artifacts".into(),
@@ -391,6 +450,230 @@ async fn post_commit_revision_preserves_objectives_contract_and_rejects_stale_pl
             .filter(|d| d.kind == "acceptance_contract_captured")
             .count(),
         1
+    );
+}
+
+#[tokio::test]
+async fn active_executor_can_replace_a_broken_ordinary_check_before_attempts_exhaust() {
+    let mut f = fixture(Mode::CheckReplacement);
+    f.engine.config.limits.attempts = 1;
+    let out = run(&f).await;
+    assert_eq!(out.session.status, "completed", "{}", out.summary);
+    let trace = f.store.trace(&out.session.id).unwrap();
+    let second = trace
+        .tasks
+        .iter()
+        .find(|task| task.title == "Second")
+        .unwrap();
+    assert_eq!(second.checks, vec!["/bin/test -f proof.txt"]);
+    assert_eq!(second.attempts, 1);
+    assert_eq!(second.dependencies, vec![trace.tasks[0].id.clone()]);
+    assert_eq!(second.access, TaskAccess::Write);
+    assert_eq!(
+        trace
+            .assignments
+            .iter()
+            .filter(|assignment| assignment.purpose == "execute"
+                && assignment
+                    .task
+                    .as_ref()
+                    .is_some_and(|task| task.task_id == trace.tasks[0].id))
+            .count(),
+        1,
+        "accepted sibling production was replayed"
+    );
+    let revision = decisions(&f, &out.session.id)
+        .into_iter()
+        .find(|decision| matches!(decision.proposal.change, BoardChange::ReplaceChecks { .. }))
+        .unwrap();
+    assert!(revision.accepted);
+    assert_eq!(revision.review_ids.len(), 1);
+    let revision_review = trace
+        .decisions
+        .iter()
+        .find(|decision| decision.id == revision.review_ids[0])
+        .unwrap();
+    assert_ne!(
+        revision_review.actor.as_ref(),
+        Some(&revision.proposal.agent_id)
+    );
+    let evidence = revision_review.links.board_check_revision().unwrap();
+    assert_eq!(
+        evidence.retained_checks,
+        vec!["missing-check-binary -f proof.txt"]
+    );
+    assert_eq!(evidence.proposed_checks, vec!["/bin/test -f proof.txt"]);
+    assert_eq!(evidence.retained_runs.len(), 1);
+    assert!(!evidence.retained_runs[0].passed);
+    assert!(evidence.retained_runs[0]
+        .output
+        .contains("exit status: 127"));
+    assert_eq!(evidence.proposed_runs.len(), 1);
+    assert!(evidence.proposed_runs[0].passed);
+    assert!(evidence.proposed_runs[0].output.contains("exit status: 0"));
+    assert_eq!(
+        trace
+            .assignments
+            .iter()
+            .filter(|assignment| assignment.purpose == "review_check_revision")
+            .count(),
+        1,
+        "the replacement must have one independently admitted review"
+    );
+    let origin = trace
+        .assignments
+        .iter()
+        .find(|assignment| assignment.id == revision.proposal.assignment_id)
+        .unwrap();
+    assert_eq!(origin.purpose, "execute");
+    assert_eq!(origin.agent_id, revision.proposal.agent_id);
+    assert!(origin.grant_ids.contains(&revision.proposal.grant_id));
+    assert_eq!(
+        trace
+            .assignments
+            .iter()
+            .filter(|assignment| assignment.purpose == "execute"
+                && assignment
+                    .task
+                    .as_ref()
+                    .is_some_and(|task| task.task_id == second.id))
+            .count(),
+        1,
+        "check replacement repeated target production"
+    );
+    assert_eq!(
+        trace
+            .assignments
+            .iter()
+            .filter(|assignment| assignment.purpose == "review"
+                && assignment
+                    .task
+                    .as_ref()
+                    .is_some_and(|task| task.task_id == second.id))
+            .count(),
+        1,
+        "the revised existing result needs one fresh ordinary review"
+    );
+    assert_eq!(
+        trace.budget.as_ref().unwrap().admitted_invocations,
+        trace.assignments.len() as u64,
+        "check and candidate reviews were not charged to the session ledger"
+    );
+    let original_result = trace
+        .decisions
+        .iter()
+        .find(|decision| {
+            decision.kind == "result_submitted"
+                && decision
+                    .links
+                    .task
+                    .as_ref()
+                    .is_some_and(|task| task.task_id == second.id)
+        })
+        .and_then(|decision| decision.links.result.as_ref())
+        .unwrap();
+    let revised_decision = trace
+        .decisions
+        .iter()
+        .find(|decision| decision.kind == "result_check_revised")
+        .unwrap();
+    let revised_result = revised_decision.links.result.as_ref().unwrap();
+    let result_revision = revised_decision.links.result_check_revision().unwrap();
+    assert_ne!(original_result.id, revised_result.id);
+    assert_eq!(original_result.version, revised_result.version);
+    assert_eq!(result_revision.attempt_before, 1);
+    assert_eq!(result_revision.attempt_after, 1);
+    assert!(!f
+        .store
+        .result_is_current(&out.session.id, original_result)
+        .unwrap());
+    assert!(f
+        .store
+        .result_is_current(&out.session.id, revised_result)
+        .unwrap());
+    let checks = f.store.checks(&out.session.id).unwrap();
+    assert_eq!(
+        checks
+            .iter()
+            .filter(|run| run.command.as_deref() == Some("missing-check-binary -f proof.txt"))
+            .count(),
+        1
+    );
+    assert_eq!(
+        checks
+            .iter()
+            .filter(|run| run.command.as_deref() == Some("/bin/test -f proof.txt"))
+            .count(),
+        3,
+        "the reviewed replacement was not rerun for candidate and final acceptance"
+    );
+    let second_acceptance = trace
+        .decisions
+        .iter()
+        .find(|decision| {
+            decision.kind == "task_accepted"
+                && decision
+                    .links
+                    .task
+                    .as_ref()
+                    .is_some_and(|task| task.task_id == second.id)
+        })
+        .unwrap();
+    assert_eq!(
+        second_acceptance.outcome,
+        Some(DecisionOutcome::Accepted {
+            confirmation: ConfirmationStatus::Unconfirmed
+        })
+    );
+    assert_eq!(
+        trace
+            .decisions
+            .iter()
+            .filter(|decision| decision.kind == "acceptance_contract_captured")
+            .count(),
+        1
+    );
+}
+
+#[tokio::test]
+async fn trivial_check_replacement_is_refused_at_independent_review_boundary() {
+    let mut f = fixture(Mode::CheckReplacementRejected);
+    f.engine.config.limits.attempts = 1;
+    let out = run(&f).await;
+    assert_eq!(out.session.status, "blocked", "{}", out.summary);
+    let trace = f.store.trace(&out.session.id).unwrap();
+    assert_eq!(
+        trace
+            .assignments
+            .iter()
+            .filter(|assignment| assignment.purpose == "review_check_revision")
+            .count(),
+        1
+    );
+    let revision = decisions(&f, &out.session.id)
+        .into_iter()
+        .find(|decision| matches!(decision.proposal.change, BoardChange::ReplaceChecks { .. }))
+        .unwrap();
+    assert!(!revision.accepted);
+    assert_eq!(revision.review_ids.len(), 1);
+    let review = trace
+        .decisions
+        .iter()
+        .find(|decision| decision.id == revision.review_ids[0])
+        .unwrap();
+    assert_eq!(review.outcome, Some(DecisionOutcome::Rejected));
+    let evidence = review.links.board_check_revision().unwrap();
+    assert_eq!(evidence.proposed_checks, vec!["test -d ."]);
+    assert!(evidence.proposed_runs.iter().all(|run| run.passed));
+    assert!(evidence.retained_runs.iter().all(|run| !run.passed));
+    assert_eq!(
+        trace
+            .tasks
+            .iter()
+            .find(|task| task.title == "Second")
+            .unwrap()
+            .checks,
+        vec!["missing-check-binary -f proof.txt"]
     );
 }
 #[tokio::test]
