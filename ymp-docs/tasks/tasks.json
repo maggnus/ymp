@@ -4699,9 +4699,39 @@
           "note": "Audit of allocation decision seq1936 established that Sonnet was eligible and second in the preference-sorted list, while reverse reviewer reservation selected last-listed GLM. Queued a deterministic equal-score preference correction after parser159. Existing live-team controls provide the immediate explicit replacement path for the owner session."
         }
       ]
+    },
+    {
+      "id": "YMP-161",
+      "title": "Keep frozen experiment bindings without blocking later product changes",
+      "type": "maintenance",
+      "priority": "P0",
+      "status": "in_progress",
+      "owner": "gpt-5.6-sol xhigh maintenance fork; maintainer owns experiment-safety acceptance",
+      "authorization": "YMP-159 final verification exposed five permanent workspace tests that reject already accepted product changes relative to the paused YMP-201 snapshot. Correcting this test boundary is necessary for the owner-requested parser release. The experiment remains paused and Astra prohibited.",
+      "depends_on": [
+        "YMP-146"
+      ],
+      "reason": "The weak-pilot consumer correctly binds a measured run to frozen source, but its ordinary workspace tests compare the evolving current checkout to fixed product commit1c17f4e. This makes every later accepted product change fail the full test suite.",
+      "acceptance": [
+        "Preserve strict runtime validation that an approved native manifest, executable, wrappers, fixtures and evaluated product bytes match their exact frozen revisions. Do not authorize an inactive or changed experiment.",
+        "Make unattended workspace tests self-contained: validate a constructed/frozen fixture or exact Git object rather than requiring the current checkout to remain byte-identical to1c17f4e forever.",
+        "Demonstrate that accepted UI146 and parser159 source can run all weak-pilot tests, while an actual change to a manifest-bound product object is still rejected by a focused negative control.",
+        "Keep YMP-201 paused, old Astra manifests inactive and no native approval/model invocation. Do not refresh hashes or baselines merely to make tests pass without preserving the measured-source invariant.",
+        "Change only the evaluation consumer/tests/evidence, add no dependency, and run focused controls plus formatting, strict Clippy and the workspace suite on final source."
+      ],
+      "evidence": [
+        "ymp-docs/evidence/ymp-159/README.md"
+      ],
+      "history": [
+        {
+          "at": "2026-09-14T02:08:00+00:00",
+          "status": "in_progress",
+          "note": "Parser159 author proved all parser tests, formatting and strict Clippy pass, but five weak_pilot_consumer tests reject the accepted UI146 base before fixture execution because they pin current product bytes to1c17f4e. Registered a parallel Sol xhigh correction that preserves native frozen-manifest validation while making unattended tests self-contained. No experiment or Astra use."
+        }
+      ]
     }
   ],
-  "updated_at": "2026-09-14T02:05:00+00:00",
+  "updated_at": "2026-09-14T02:08:00+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",

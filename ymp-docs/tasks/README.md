@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-14 02:05 UTC.
+Updated: 2026-09-14 02:08 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -15,7 +15,7 @@ A planned task is not implemented functionality. Completed research and planning
 | documentation | 4 | 4 |
 | experiment | 0 | 4 |
 | implementation | 38 | 50 |
-| maintenance | 1 | 1 |
+| maintenance | 1 | 2 |
 | research | 11 | 11 |
 | verification | 3 | 3 |
 
@@ -101,6 +101,7 @@ A planned task is not implemented functionality. Completed research and planning
 | `[~]` | [YMP-158](#ymp-158) | P1 | Implement session statistics collection, summaries and contribution drilldown | 2026-09-14 02:05 |
 | `[~]` | [YMP-159](#ymp-159) | P0 | Parse the final structured decision after non-JSON commentary | 2026-09-14 02:00 |
 | `[=]` | [YMP-160](#ymp-160) | P1 | Honor owner starting preferences when reserving an equal-score reviewer | 2026-09-14 02:00 |
+| `[~]` | [YMP-161](#ymp-161) | P0 | Keep frozen experiment bindings without blocking later product changes | 2026-09-14 02:08 |
 
 ## YMP-001
 
@@ -2697,6 +2698,36 @@ Starting preferences order eligible candidates, but final-review reservation cur
 **Evidence:**
 
 - ymp-docs/evidence/ymp-155/final-audit.md
+
+## YMP-161
+
+Keep frozen experiment bindings without blocking later product changes
+
+**State:** `[~]` (in_progress) · **Type:** maintenance · **Priority:** P0
+
+**Last update (UTC):** 2026-09-14 02:08
+
+**Current reason:** Parser159 author proved all parser tests, formatting and strict Clippy pass, but five weak_pilot_consumer tests reject the accepted UI146 base before fixture execution because they pin current product bytes to1c17f4e. Registered a parallel Sol xhigh correction that preserves native frozen-manifest validation while making unattended tests self-contained. No experiment or Astra use.
+
+**Owner:** gpt-5.6-sol xhigh maintenance fork; maintainer owns experiment-safety acceptance
+
+**Authorization:** YMP-159 final verification exposed five permanent workspace tests that reject already accepted product changes relative to the paused YMP-201 snapshot. Correcting this test boundary is necessary for the owner-requested parser release. The experiment remains paused and Astra prohibited.
+
+**Depends on:** [YMP-146](#ymp-146)
+
+The weak-pilot consumer correctly binds a measured run to frozen source, but its ordinary workspace tests compare the evolving current checkout to fixed product commit1c17f4e. This makes every later accepted product change fail the full test suite.
+
+**Acceptance criteria:**
+
+- Preserve strict runtime validation that an approved native manifest, executable, wrappers, fixtures and evaluated product bytes match their exact frozen revisions. Do not authorize an inactive or changed experiment.
+- Make unattended workspace tests self-contained: validate a constructed/frozen fixture or exact Git object rather than requiring the current checkout to remain byte-identical to1c17f4e forever.
+- Demonstrate that accepted UI146 and parser159 source can run all weak-pilot tests, while an actual change to a manifest-bound product object is still rejected by a focused negative control.
+- Keep YMP-201 paused, old Astra manifests inactive and no native approval/model invocation. Do not refresh hashes or baselines merely to make tests pass without preserving the measured-source invariant.
+- Change only the evaluation consumer/tests/evidence, add no dependency, and run focused controls plus formatting, strict Clippy and the workspace suite on final source.
+
+**Evidence:**
+
+- ymp-docs/evidence/ymp-159/README.md
 
 ## Intent coverage
 
