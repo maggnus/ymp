@@ -1,0 +1,278 @@
+   Compiling libc v0.2.189
+   Compiling proc-macro2 v1.0.107
+   Compiling quote v1.0.47
+   Compiling unicode-ident v1.0.24
+   Compiling cfg-if v1.0.4
+   Compiling foldhash v0.2.0
+   Compiling equivalent v1.0.2
+   Compiling allocator-api2 v0.2.21
+   Compiling serde_core v1.0.229
+   Compiling version_check v0.9.5
+   Compiling bitflags v2.13.2
+   Compiling serde v1.0.229
+   Compiling itoa v1.0.18
+   Compiling zerocopy v0.8.57
+   Compiling find-msvc-tools v0.1.12
+   Compiling shlex v2.0.1
+   Compiling hashbrown v0.17.1
+   Compiling pkg-config v0.3.34
+   Compiling smallvec v1.16.1
+   Compiling thiserror v2.0.20
+   Compiling unicode-segmentation v1.13.3
+   Compiling parking_lot_core v0.9.12
+   Compiling vcpkg v0.2.15
+   Compiling log v0.4.34
+   Compiling rustversion v1.0.23
+   Compiling scopeguard v1.2.0
+   Compiling memchr v2.8.3
+   Compiling lock_api v0.4.14
+   Compiling generic-array v0.14.7
+   Compiling once_cell v1.21.4
+   Compiling typenum v1.20.1
+   Compiling strsim v0.11.1
+   Compiling ident_case v1.0.1
+   Compiling libm v0.2.16
+   Compiling either v1.18.0
+   Compiling rustix v1.1.4
+   Compiling heck v0.5.0
+   Compiling autocfg v1.5.1
+   Compiling num-traits v0.2.19
+   Compiling itertools v0.14.0
+   Compiling hashbrown v0.16.1
+   Compiling futures-core v0.3.34
+   Compiling syn v3.0.5
+   Compiling syn v2.0.119
+   Compiling errno v0.3.14
+   Compiling jobserver v0.1.35
+   Compiling cc v1.4.5
+   Compiling signal-hook-registry v1.4.8
+   Compiling mio v1.2.3
+   Compiling darling_core v0.24.1
+   Compiling strum_macros v0.28.0
+   Compiling getrandom v0.2.17
+   Compiling parking_lot v0.12.5
+   Compiling getrandom v0.4.3
+   Compiling static_assertions v1.1.0
+   Compiling ryu v1.0.23
+   Compiling unicode-width v0.2.0
+   Compiling unicode-truncate v2.0.1
+   Compiling rand_core v0.6.4
+   Compiling serde_derive v1.0.229
+   Compiling thiserror-impl v2.0.20
+   Compiling strum v0.28.0
+   Compiling ppv-lite86 v0.2.21
+   Compiling darling_macro v0.24.1
+   Compiling lru v0.18.4
+   Compiling instability v0.3.13
+   Compiling signal-hook v0.3.18
+   Compiling castaway v0.2.4
+   Compiling critical-section v1.2.0
+   Compiling zmij v1.0.23
+   Compiling block-buffer v0.10.4
+   Compiling crypto-common v0.1.7
+   Compiling darling v0.24.1
+   Compiling rand_chacha v0.3.1
+   Compiling libz-sys v1.1.29
+   Compiling convert_case v0.10.0
+   Compiling indexmap v2.14.2
+   Compiling ahash v0.8.12
+   Compiling indoc v2.0.7
+   Compiling anyhow v1.0.104
+   Compiling serde_json v1.0.151
+   Compiling core-foundation-sys v0.8.7
+   Compiling toml_write v0.1.2
+   Compiling winnow v0.7.15
+   Compiling iana-time-zone v0.1.65
+   Compiling derive_more-impl v2.1.1
+   Compiling kasuari v0.4.12
+   Compiling rand v0.8.8
+   Compiling compact_str v0.9.1
+   Compiling digest v0.10.7
+   Compiling ratatui-core v0.1.2
+   Compiling cpufeatures v0.2.17
+   Compiling num_threads v0.1.7
+   Compiling pin-project-lite v0.2.17
+   Compiling powerfmt v0.2.0
+   Compiling litrs v1.0.0
+   Compiling time-core v0.1.9
+   Compiling crc32fast v1.5.2
+   Compiling deranged v0.5.8
+   Compiling same-file v1.0.6
+   Compiling num-conv v0.2.2
+   Compiling walkdir v2.5.0
+   Compiling document-features v0.2.12
+   Compiling time v0.3.55
+   Compiling sha2 v0.10.9
+   Compiling rand_distr v0.4.3
+   Compiling derive_more v2.1.1
+   Compiling uuid v1.26.1
+   Compiling tokio-macros v2.7.2
+   Compiling libgit2-sys v0.18.8+1.9.7
+   Compiling libsqlite3-sys v0.30.1
+   Compiling fs2 v0.4.3
+   Compiling serde_spanned v0.6.9
+   Compiling toml_datetime v0.6.11
+   Compiling chrono v0.4.45
+   Compiling socket2 v0.6.5
+   Compiling toml_edit v0.22.27
+   Compiling aho-corasick v1.1.5
+   Compiling signal-hook-mio v0.2.5
+   Compiling line-clipping v0.3.8
+   Compiling bytes v1.12.1
+   Compiling simd-adler32 v0.3.10
+   Compiling toml v0.8.23
+   Compiling bit-vec v0.8.0
+   Compiling adler2 v2.0.1
+   Compiling regex-syntax v0.8.11
+   Compiling miniz_oxide v0.9.1
+   Compiling bit-set v0.8.0
+   Compiling tokio v1.53.1
+   Compiling futures-macro v0.3.34
+   Compiling regex-automata v0.4.18
+   Compiling futures-task v0.3.34
+   Compiling ymp-core v0.4.6 (/private/tmp/ymp155-ui-audit/src/ymp-rust/crates/ymp-core)
+   Compiling slab v0.4.12
+   Compiling futures-util v0.3.34
+   Compiling bincode v1.3.3
+   Compiling hashbrown v0.14.5
+   Compiling enum-ordinalize-derive v4.4.2
+   Compiling hashlink v0.9.1
+   Compiling fallible-streaming-iterator v0.1.9
+   Compiling fnv v1.0.7
+   Compiling fastrand v2.5.0
+   Compiling futures-sink v0.3.34
+   Compiling fancy-regex v0.16.2
+   Compiling fallible-iterator v0.3.0
+   Compiling tempfile v3.27.0
+   Compiling enum-ordinalize v4.4.2
+   Compiling async-trait v0.1.92
+   Compiling flate2 v1.1.10
+   Compiling syntect v5.3.0
+   Compiling crossterm v0.29.0
+   Compiling tui-syntax-highlight v0.2.0
+   Compiling two-face v0.5.2+bat-0.26.1
+   Compiling ratatui-widgets v0.3.2
+   Compiling educe v0.6.0
+   Compiling tokio-util v0.7.19
+   Compiling ymp-providers v0.4.6 (/private/tmp/ymp155-ui-audit/src/ymp-rust/crates/ymp-providers)
+   Compiling rusqlite v0.32.1
+   Compiling ratatui-crossterm v0.1.2
+   Compiling ymp-storage v0.4.6 (/private/tmp/ymp155-ui-audit/src/ymp-rust/crates/ymp-storage)
+   Compiling ratatui-macros v0.7.2
+   Compiling ratatui v0.30.2
+   Compiling ratatui-explorer v0.3.0
+   Compiling ratatui-themes v0.3.0
+   Compiling git2 v0.21.0
+   Compiling ymp-workspace v0.4.6 (/private/tmp/ymp155-ui-audit/src/ymp-rust/crates/ymp-workspace)
+   Compiling ymp-runtime v0.4.6 (/private/tmp/ymp155-ui-audit/src/ymp-rust/crates/ymp-runtime)
+   Compiling ymp-tui v0.4.6 (/private/tmp/ymp155-ui-audit/src/ymp-rust/crates/ymp-tui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 30.58s
+     Running unittests src/lib.rs (/tmp/ymp155-ui-audit/target/debug/deps/ymp_tui-540ba625889d0a28)
+
+running 5 tests
+test tests::ymp155_a_local_notice_is_re_anchored_below_every_later_stored_message ... YMP155 T1 order: [
+    "user#206:Create a game",
+    "chat#207:chat · Workspace inspection",
+    "execute#208:Bootstrapped",
+    "notice#-:Session loaded for reading.",
+]
+ok
+test tests::ymp155_a_stale_board_rejection_reads_as_a_raw_kind_after_the_accepting_review ... YMP155 T5 order: [
+    "review#213:review · accepted · Independent inspecti",
+    "board_rejected#214:board_rejected · Proposal fed6778b by co",
+]
+screen:
+ymp  .tmp5UdwMa  /var/folders/cw/7pn8sb3x6bj69g7j2d8f_ss00000gn/T/.tmp5UdwMa                                           s1  ○ no session  0 tokens  0 / 200 turns
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+                                                                                                                             │ SESSION                          
+                                                                                                                             │ s1                  ○ no session 
+                                                                                                                             │ turns next run           0 / 200 
+                                                                                                                             │ dir …2d8f_ss00000gn/T/.tmp5UdwMa 
+                                                                                                                             │                                  
+                                                                                                                             │ TOKENS                         0 
+                                                                                                                             │ AGENT          TOKENS            
+                                                                                                                             │ unknown model       0            
+                                                                                                                             │ unknown model       0            
+                                                                                                                             │                                  
+                                                                                                                             │ TEAM         preferred · enabled 
+                                                                                                                             │ AGENT            STATE           
+                                                                                                                             │ ○ unknown model  idle            
+                                                                                                                             │ ○ unknown model  idle            
+                                                                                                                             │                                  
+                                                                                                                             │ TASKS                            
+                                                                                                                             │ no task graph yet                
+  · unknown model review · accepted · Independent inspection confirms the bootstrap                                   01:11  │                                  
+  · ymp board_rejected · Proposal fed6778b by codex: stale_task: proposal describes an older task or commitment       01:11  │                                  
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+› Describe a task, or type / for commands.                                                                                                                      
+Ready                                                                                                            composer Enter send  Ctrl+P commands  Tab focus
+ok
+test tests::ymp155_a_stored_chat_of_the_same_agent_erases_its_live_stream ... YMP155 T2 before: [
+    "plan_accepted#210:Plan accepted · ok",
+    "streaming#-:PART-ONE of the execute turn.",
+]
+after chat: [
+    "plan_accepted#210:Plan accepted · ok",
+    "chat#211:chat · Bootstrap complete",
+]
+stream raw after next delta: ["PART-TWO"]
+ok
+test tests::ymp155_messages_keep_arrival_order_not_seq_order ... YMP155 T3 order: [
+    "execute#10:later seq arrives first",
+    "chat#9:chat · earlier seq arrives second",
+]
+ok
+test tests::ymp155_the_sidebar_counts_accepted_tasks_but_lists_only_open_ones ... YMP155 T4 screen:
+ymp  .tmpBAJLk7  /var/folders/cw/7pn8sb3x6bj69g7j2d8f_ss00000gn/T/.tmpBAJLk7                                           s1  ○ no session  0 tokens  0 / 200 turns
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+                                                                                                                             │ SESSION                          
+                                                                                                                             │ s1                  ○ no session 
+                                                                                                                             │ turns next run           0 / 200 
+                                                                                                                             │ dir …2d8f_ss00000gn/T/.tmpBAJLk7 
+                                                                                                                             │                                  
+                                                                                                                             │ TOKENS                         0 
+                                                                                                                             │ AGENT          TOKENS            
+                                                                                                                             │ unknown model       0            
+                                                                                                                             │ unknown model       0            
+                                                                                                                             │                                  
+                                                                                                                             │ TEAM         preferred · enabled 
+                                                                                                                             │ AGENT            STATE           
+                                                                                                                             │ ○ unknown model  idle            
+                                                                                                                             │ ○ unknown model  idle            
+                                                                                                                             │                                  
+                                                                                                                             │ TASKS             accepted 5 / 6 
+                                                                                                                             │ TASK                   STATE     
+                                                                                                                             │ ◇ Verify end-to-end …  in review 
+                                                                                                                             │                                  
+                                                                                                                             │                                  
+                                                                                                                             │                                  
+                                                                                                                             │                                  
+                                                                                                                             │                                  
+                                                                                                                             │                                  
+                                                                                                                             │                                  
+                                                                                                                             │                                  
+                                                                                                                             │                                  
+                                                                                                                             │                                  
+                                                                                                                             │                                  
+                                                                                                                             │                                  
+                                                                                                                             │                                  
+                                                                                                                             │                                  
+                                                                                                                             │                                  
+                                                                                                                             │                                  
+                                                                                                                             │                                  
+                                                                                                                             │                                  
+                                                                                                                             │                                  
+                                                                                                                             │                                  
+                                                                                                                             │                                  
+                                                                                                                             │                                  
+                                                                                                                             │                                  
+  ▌ you                                                                                                               01:11  │                                  
+  ▌ Create a game                                                                                                            │                                  
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+› Describe a task, or type / for commands.                                                                                                                      
+Ready                                                                                                            composer Enter send  Ctrl+P commands  Tab focus
+ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 271 filtered out; finished in 0.04s
+
+exit 0

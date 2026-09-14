@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-14 01:23 UTC.
+Updated: 2026-09-14 01:35 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -14,7 +14,7 @@ A planned task is not implemented functionality. Completed research and planning
 | design | 2 | 2 |
 | documentation | 4 | 4 |
 | experiment | 0 | 4 |
-| implementation | 37 | 46 |
+| implementation | 37 | 47 |
 | maintenance | 1 | 1 |
 | research | 10 | 10 |
 | verification | 2 | 3 |
@@ -95,7 +95,8 @@ A planned task is not implemented functionality. Completed research and planning
 | `[+]` | [YMP-152](#ymp-152) | P2 | Keep the selected palette command visible in very short terminals | 2026-09-13 16:25 |
 | `[x]` | [YMP-153](#ymp-153) | P0 | Decide explicit owner continuation from current files after unverified effects | 2026-09-13 18:42 |
 | `[=]` | [YMP-154](#ymp-154) | P1 | Show substantially more slash-command suggestions when terminal space permits | 2026-09-13 18:49 |
-| `[~]` | [YMP-155](#ymp-155) | P0 | Audit real session behavior, interface expectations and native token accounting | 2026-09-14 01:23 |
+| `[~]` | [YMP-155](#ymp-155) | P0 | Audit real session behavior, interface expectations and native token accounting | 2026-09-14 01:35 |
+| `[=]` | [YMP-156](#ymp-156) | P1 | Keep session progress stable and distinguish new-token usage from cache traffic | 2026-09-14 01:35 |
 
 ## YMP-001
 
@@ -2506,9 +2507,9 @@ Audit real session behavior, interface expectations and native token accounting
 
 **State:** `[~]` (in_progress) · **Type:** verification · **Priority:** P0
 
-**Last update (UTC):** 2026-09-14 01:23
+**Last update (UTC):** 2026-09-14 01:35
 
-**Current reason:** Owner supplied live6e286a3a and asked to audit suspicious tokens, considering a simpler first test. Read-only snapshots confirm installed0.4.6, Luna+GLM from session creation, five retained accepted tasks, and later blocked parsing of a GLM review containing valid terminal JSON after CSS commentary. Luna application counts are mostly cache and await native-log reconciliation. Runtime/usage observer52111c72 and Claude UI auditor8d8b7748 are active; no user files, process state or settings changed. Recommended first functional task is a single-file counter, not another large game.
+**Current reason:** UI audit completed: five projection mechanisms reproduced offline, with chronology/notice anchoring/stream lifetime and accepted-task visibility findings. Owner requested a cost-oriented headline; parent verified cached input is separately priced and queued truthful presentation/fixes as156. Runtime selection, parser and native token reconciliation remain under521; real payment cannot be inferred from raw token counts.
 
 **Owner:** Maintainer owns functional expectations; read-only runtime/native accounting and Claude UI audit forks
 
@@ -2530,6 +2531,42 @@ Before comparing model capability, verify basic session completion and faithful 
 **Evidence:**
 
 - ymp-docs/research/session-functional-audit.md
+- ymp-docs/evidence/ymp-155/ui-findings.md
+
+## YMP-156
+
+Keep session progress stable and distinguish new-token usage from cache traffic
+
+**State:** `[=]` (planned) · **Type:** implementation · **Priority:** P1
+
+**Last update (UTC):** 2026-09-14 01:35
+
+**Current reason:** Needs YMP-146
+
+**Owner:** Claude Code claude-opus-5 high; maintainer owns semantics and independent acceptance
+
+**Authorization:** Owner reported jumping service messages and disappearing completed tasks, requested a careful UI audit, and explicitly requires a headline that does not present repeated cache traffic as paid expense. Parent accepts the five confirmed projection corrections and a truthful derived usage presentation; no billing or budget semantics are changed.
+
+**Depends on:** [YMP-146](#ymp-146)
+
+The UI audit reproduced chronology/stream-lifetime/visibility issues. The raw input+output headline includes cache and can be mistaken for full-price spend; actual per-session billing is not in the current data model.
+
+**Latest progress note:** UI155 audit completed with five passing offline controls. Owner then requested removing cache-driven inflation from the main expense impression. Recorded a truthful new-input/output headline with cache/processed totals in details, not a false paid-token metric; official cached-input/credit pricing confirms cache cannot be assumed free. Scheduled the combined projection/usage fixes after accepted recovery UI integration, without altering the frozen146 candidate or billing/budget logic.
+
+**Acceptance criteria:**
+
+- Insert and retain messages by their stable sequence; anchor local notices to the known message position; do not close a live invocation stream on an interim chat/proposal/board message. Preserve chronological history and exact source messages.
+- Keep accepted tasks inspectable in the sidebar with their real state and subdued style, while retaining active work visibility on small terminals. Keep /tasks as the complete view and do not equate native todos/plan proposals with accepted graph state.
+- Use consistent board-event vocabulary so an outdated proposal after task acceptance is not mistaken for failed accepted work. Blocked summaries should identify the relevant task/participant when reliable data exists.
+- Replace the misleading headline cache-inclusive volume with clearly labeled new input/output or a new-token subtotal. Keep cache and processed totals in details; never call noncached tokens an actual payment or hide unknown/partial observations.
+- Compute derived usage with per-invocation field coverage; unknown cache is not zero and aggregate partial sums are not exact totals. Retain cache writes as new input, reasoning within output and consistent numeric sorting.
+- Preserve stored counts, JSON/MCP, native authentication and budget enforcement. Clearly distinguish processed-token limits from the new headline; no invented money/credits or implicit pricing conversion.
+- Reuse shared UI components, derive tests from the five existing falsifiers plus meaningful cache/coverage cases, and run required checks with independent terminal acceptance. Keep the frozen UI146 candidate unchanged until its review/integration completes.
+
+**Evidence:**
+
+- ymp-docs/evidence/ymp-155/ui-findings.md
+- ymp-docs/guides/usage-presentation.md
 
 ## Intent coverage
 
