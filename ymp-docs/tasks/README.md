@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-14 02:03 UTC.
+Updated: 2026-09-14 02:05 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -98,7 +98,7 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-155](#ymp-155) | P0 | Audit real session behavior, interface expectations and native token accounting | 2026-09-14 02:00 |
 | `[ ]` | [YMP-156](#ymp-156) | P1 | Keep transcript chronology and completed session progress stable | 2026-09-14 01:40 |
 | `[x]` | [YMP-157](#ymp-157) | P1 | Research attributable session statistics and knowledge-use measurements | 2026-09-14 02:03 |
-| `[~]` | [YMP-158](#ymp-158) | P1 | Implement session statistics collection, summaries and contribution drilldown | 2026-09-14 02:03 |
+| `[~]` | [YMP-158](#ymp-158) | P1 | Implement session statistics collection, summaries and contribution drilldown | 2026-09-14 02:05 |
 | `[~]` | [YMP-159](#ymp-159) | P0 | Parse the final structured decision after non-JSON commentary | 2026-09-14 02:00 |
 | `[=]` | [YMP-160](#ymp-160) | P1 | Honor owner starting preferences when reserving an equal-score reviewer | 2026-09-14 02:00 |
 
@@ -2611,9 +2611,9 @@ Implement session statistics collection, summaries and contribution drilldown
 
 **State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P1
 
-**Last update (UTC):** 2026-09-14 02:03
+**Last update (UTC):** 2026-09-14 02:05
 
-**Current reason:** YMP-157 accepted. Starting a Sol backend fork for DTOs, pure projection, minimal collection fields and read/export APIs. Claude /stats work waits for the reviewed backend. Existing usage UI, scheduling, budgets, acceptance and reputation remain unchanged.
+**Current reason:** Owner explicitly requested delegation to Sol xhigh. Started agent3cb28fd2-5249-4405-9d96-c03766cca6ca on gpt-5.6-sol xhigh in isolated feat/ymp158-session-statistics-backend from d3e8995. Scope is the accepted typed statistics backend and optional read-only JSON export; TUI waits for backend review. Astra, real user data, provider calls and token-display changes remain excluded.
 
 **Owner:** Backend implementation fork and Claude Code claude-opus-5 high UI fork; maintainer owns integration and independent acceptance
 

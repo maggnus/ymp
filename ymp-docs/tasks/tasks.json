@@ -4632,6 +4632,11 @@
           "at": "2026-09-14T02:03:00+00:00",
           "status": "in_progress",
           "note": "YMP-157 accepted. Starting a Sol backend fork for DTOs, pure projection, minimal collection fields and read/export APIs. Claude /stats work waits for the reviewed backend. Existing usage UI, scheduling, budgets, acceptance and reputation remain unchanged."
+        },
+        {
+          "at": "2026-09-14T02:05:00+00:00",
+          "status": "in_progress",
+          "note": "Owner explicitly requested delegation to Sol xhigh. Started agent3cb28fd2-5249-4405-9d96-c03766cca6ca on gpt-5.6-sol xhigh in isolated feat/ymp158-session-statistics-backend from d3e8995. Scope is the accepted typed statistics backend and optional read-only JSON export; TUI waits for backend review. Astra, real user data, provider calls and token-display changes remain excluded."
         }
       ]
     },
@@ -4696,7 +4701,7 @@
       ]
     }
   ],
-  "updated_at": "2026-09-14T02:03:00+00:00",
+  "updated_at": "2026-09-14T02:05:00+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",
