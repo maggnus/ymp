@@ -1,6 +1,6 @@
 # Delivery plan and progress
 
-Updated: 2026-09-14 01:35 UTC.
+Updated: 2026-09-14 01:40 UTC.
 
 [Approved intent](../../intent.md) · [Task details and evidence](README.md) · [Canonical register](tasks.json)
 
@@ -35,7 +35,7 @@ A planned task automatically shows `[=]` while prerequisites remain unfinished a
 - `[+]` [YMP-130](README.md#ymp-130) — Show active agent work during headless session runs (2026-09-13 00:54). Read-only diagnosis: poker checks passed at 2026-09-13T00:52:09Z; the following claude-opus-5 review invocation was active. Earlier attempts were cancelled. No active run was stopped or restarted by this investigation.
 - `[~]` [YMP-146](README.md#ymp-146) — Recover interrupted session stages and let the owner change the active team (2026-09-14 01:23). UI author delivered19370d5 from211f314 with a clean tree,632workspace tests passed/two ignored, fmt/strictClippy and11 terminal checks per Unicode/ASCII mode plus restored mutation controls. Parent has read the delivery; independent UI acceptance and integration remain outstanding. New owner-session audit155 distinguishes installed0.4.6 issues from this uninstalled candidate.
 - `[+]` [YMP-152](README.md#ymp-152) — Keep the selected palette command visible in very short terminals (2026-09-13 16:25). Independent reviewer found this in both35786ecand0.4.6using50navigation steps at60x8;60x9and44x10retain selection. Original captures are in /tmp/ymp145-independent-review. Source diagnosis is modal_body_rows(8,true)=2while search+separator take2rows. No fix or new implementation fork started.
-- `[~]` [YMP-155](README.md#ymp-155) — Audit real session behavior, interface expectations and native token accounting (2026-09-14 01:35). UI audit completed: five projection mechanisms reproduced offline, with chronology/notice anchoring/stream lifetime and accepted-task visibility findings. Owner requested a cost-oriented headline; parent verified cached input is separately priced and queued truthful presentation/fixes as156. Runtime selection, parser and native token reconciliation remain under521; real payment cannot be inferred from raw token counts.
+- `[~]` [YMP-155](README.md#ymp-155) — Audit real session behavior, interface expectations and native token accounting (2026-09-14 01:40). Owner deferred token-display changes. Existing presentation remains unchanged. The completed native-accounting audit remains evidence; it does not authorize a new display or billing feature.
 
 ## Ready next
 
@@ -144,8 +144,8 @@ Deferred and post-MVP work:
 
 | Time (UTC) | Task | State | Update |
 | --- | --- | --- | --- |
-| 2026-09-14 01:35 | [YMP-155](README.md#ymp-155) | `[~]` | UI audit completed: five projection mechanisms reproduced offline, with chronology/notice anchoring/stream lifetime and accepted-task visibility findings. Owner requested a cost-oriented headline; parent verified cached input is separately priced and queued truthful presentation/fixes as156. Runtime selection, parser and native token reconciliation remain under521; real payment cannot be inferred from raw token counts. |
-| 2026-09-14 01:35 | [YMP-156](README.md#ymp-156) | `[=]` | UI155 audit completed with five passing offline controls. Owner then requested removing cache-driven inflation from the main expense impression. Recorded a truthful new-input/output headline with cache/processed totals in details, not a false paid-token metric; official cached-input/credit pricing confirms cache cannot be assumed free. Scheduled the combined projection/usage fixes after accepted recovery UI integration, without altering the frozen146 candidate or billing/budget logic. |
+| 2026-09-14 01:40 | [YMP-155](README.md#ymp-155) | `[~]` | Owner deferred token-display changes. Existing presentation remains unchanged. The completed native-accounting audit remains evidence; it does not authorize a new display or billing feature. |
+| 2026-09-14 01:40 | [YMP-156](README.md#ymp-156) | `[=]` | Owner explicitly deferred token-display changes. Removed that implementation scope from156; chronology, completed-task visibility and board-event wording remain queued. No token UI change had been implemented or dispatched. |
 | 2026-09-14 01:23 | [YMP-201](README.md#ymp-201) | `[=]` | Owner requested basic real-session behavior and accounting verification before comparative model trials. Defer the accepted Astra/Luna study while YMP-155 audits supplied live session6e286a3a and prepares a minimal functional case. Exact original study manifests remain retained, but no native quota was approved and no comparative phase has run. |
 | 2026-09-14 01:23 | [YMP-146](README.md#ymp-146) | `[~]` | UI author delivered19370d5 from211f314 with a clean tree,632workspace tests passed/two ignored, fmt/strictClippy and11 terminal checks per Unicode/ASCII mode plus restored mutation controls. Parent has read the delivery; independent UI acceptance and integration remain outstanding. New owner-session audit155 distinguishes installed0.4.6 issues from this uninstalled candidate. |
 | 2026-09-13 18:49 | [YMP-154](README.md#ymp-154) | `[=]` | Owner requested a much longer visible slash-command list as the next Claude UI task after current work. Source confirms COMPLETION_ROWS=6 and PALETTE_ROWS=10; increasing only the constant can hide completion in shorter terminals. Recorded adaptive-height acceptance and sequencing; implementation is not started. |
