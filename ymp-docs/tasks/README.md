@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-14 08:23 UTC.
+Updated: 2026-09-14 08:41 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -14,7 +14,7 @@ A planned task is not implemented functionality. Completed research and planning
 | design | 2 | 2 |
 | documentation | 5 | 5 |
 | experiment | 0 | 5 |
-| implementation | 39 | 51 |
+| implementation | 40 | 52 |
 | integration | 0 | 1 |
 | maintenance | 2 | 2 |
 | research | 11 | 11 |
@@ -104,9 +104,10 @@ A planned task is not implemented functionality. Completed research and planning
 | `[~]` | [YMP-160](#ymp-160) | P0 | Honor owner starting preferences when reserving an equal-score reviewer | 2026-09-14 03:31 |
 | `[x]` | [YMP-161](#ymp-161) | P0 | Keep frozen experiment bindings without blocking later product changes | 2026-09-14 02:52 |
 | `[=]` | [YMP-162](#ymp-162) | P0 | Release recovery fixes and complete controlled end-to-end session runs | 2026-09-14 07:38 |
-| `[~]` | [YMP-163](#ymp-163) | P0 | Recover from broken generated task checks through reviewed replacement | 2026-09-14 07:38 |
-| `[=]` | [YMP-164](#ymp-164) | P0 | Repeat fifteen-puzzle delivery with unified research and acceptance criteria | 2026-09-14 08:21 |
+| `[x]` | [YMP-163](#ymp-163) | P0 | Recover from broken generated task checks through reviewed replacement | 2026-09-14 08:41 |
+| `[~]` | [YMP-164](#ymp-164) | P0 | Repeat fifteen-puzzle delivery with unified research and acceptance criteria | 2026-09-14 08:41 |
 | `[x]` | [YMP-165](#ymp-165) | P0 | Provide a reusable intent-based system evaluation plan and project skill | 2026-09-14 08:23 |
+| `[=]` | [YMP-166](#ymp-166) | P1 | Make generated verification artifacts reproducible and reviewer-accessible | 2026-09-14 08:41 |
 
 ## YMP-001
 
@@ -2775,11 +2776,11 @@ Recovery and live team controls are implemented, but the ordinary owner journey 
 
 Recover from broken generated task checks through reviewed replacement
 
-**State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P0
+**State:** `[x]` (done) · **Type:** implementation · **Priority:** P0
 
-**Last update (UTC):** 2026-09-14 07:38
+**Last update (UTC):** 2026-09-14 08:41
 
-**Current reason:** Started Sol xhigh agent 02475829-e5e6-4781-949b-baa00a281fd4 in fix/ymp163-check-revision from c18fe31. Both lifecycle staleness and append-only semantics are in scope; no unrelated policy/statistics changes or native run is mixed into this correction.
+**Current reason:** Accepted candidate b1d8cba2 after independent ACCEPT, required formatting/Clippy/workspace tests and CLI build; two existing tests ignored. Integrated as e063494 with identical product/bridge/evaluation source bytes. Parent verified executable SHA256 4848b1bb...f48. Final-attempt check replacement preserves production count and accepted siblings; negative review rejects trivial replacement. Initial stack-size regression and its correction remain documented.
 
 **Owner:** Sol xhigh implementation fork; parent owns contract and independent acceptance
 
@@ -2800,16 +2801,19 @@ A useful current-task check revision became stale after lifecycle transitions, a
 **Evidence:**
 
 - ymp-docs/research/fifteen-puzzle-repeat-plan.md
+- ymp-docs/evidence/ymp-163/design.md
+- ymp-docs/evidence/ymp-163/independent-review.md
+- ymp-docs/evidence/ymp-163/validation.md
 
 ## YMP-164
 
 Repeat fifteen-puzzle delivery with unified research and acceptance criteria
 
-**State:** `[=]` (planned) · **Type:** experiment · **Priority:** P0
+**State:** `[~]` (in_progress) · **Type:** experiment · **Priority:** P0
 
-**Last update (UTC):** 2026-09-14 08:21
+**Last update (UTC):** 2026-09-14 08:41
 
-**Current reason:** Needs YMP-163
+**Current reason:** Cause repair accepted and integrated. Preparing authorized native launch on the exact tested binary and frozen unified case plan; same Luna/Sonnet IDs, native settings and standard limits. No claim that the new session has started until its ID/process record is received. Findings now map to fifteen-findings-action-plan.md and the next proposed verification-artifact correction YMP-166.
 
 **Owner:** Astra xhigh researcher; parent owns criteria, repair acceptance and project skill
 
@@ -2818,8 +2822,6 @@ Repeat fifteen-puzzle delivery with unified research and acceptance criteria
 **Depends on:** [YMP-163](#ymp-163)
 
 The first report retained strong primary evidence but insufficient causal and product analysis. A working artifact and publication did not constitute native completion. The repeat must evaluate all applicable intent dimensions using one predeclared criterion set.
-
-**Latest progress note:** Durable baseline archive complete at /Users/maggnus/ymp-research/fifteen-2026-09-14. Researcher verified 1,228 copied files and19 original manifest entries; parent rechecked the19 entries and archive-verification hash. Four scratch files/seven Chrome profiles were reversibly moved with provenance. Updated case links and accepted the20 native prompt hash matches totalling207,252 characters. No isolation claim or native repeat; accepted cause-repair source is the remaining technical launch condition, not a new request for owner permission.
 
 **Acceptance criteria:**
 
@@ -2866,6 +2868,37 @@ The prior shared protocol still emphasized native sessions and postponed skill c
 - .agents/skills/ymp-trials/assets/evaluation-plan.md
 - ymp-docs/guides/session-trial-and-acceptance.md
 - ymp-docs/evidence/ymp-165/README.md
+
+## YMP-166
+
+Make generated verification artifacts reproducible and reviewer-accessible
+
+**State:** `[=]` (planned) · **Type:** implementation · **Priority:** P1
+
+**Last update (UTC):** 2026-09-14 08:41
+
+**Current reason:** Needs YMP-164
+
+**Owner:** Parent schedules a bounded backend correction after the diagnostic repeat
+
+**Authorization:** Owner requested turning experimental shortcomings into an actionable work plan. This card records the proposed next correction; it does not start implementation, broaden reviewer permissions or authorize another native trial.
+
+**Depends on:** [YMP-164](#ymp-164)
+
+A temporary extracted script was deleted before runtime recheck, and another check source was unavailable to the independent reviewer. A passing command log alone did not establish inspectable reproducible evidence.
+
+**Latest progress note:** Proposed from the failed fifteen-puzzle run's missing /tmp script and reviewer-inaccessible harness. Sequenced after the already authorized repeat to avoid mixing extra implementation changes into that diagnostic comparison. Existing statistics/UI/coordination and experience cards cover other findings.
+
+**Acceptance criteria:**
+
+- Define a narrow persistent source/result binding for generated verification using existing workspace and evidence facilities; separate original requirements from the chosen checker implementation.
+- Allow the independently admitted reviewer to inspect the exact check source and outputs within its supported access. Do not grant general access to unrelated temporary files or silently expand native permissions.
+- Retain check source, version and dependencies after executor completion; missing, changed or stale sources invalidate the corresponding evidence rather than silently passing.
+- Demonstrate one lost-check reproduction and one changed-source boundary while preserving original acceptance/confirmation and runtime history. Do not create a new evaluation framework or broad test matrix.
+
+**Evidence:**
+
+- ymp-docs/research/fifteen-findings-action-plan.md
 
 ## Intent coverage
 

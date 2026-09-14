@@ -1,6 +1,6 @@
 # Delivery plan and progress
 
-Updated: 2026-09-14 08:23 UTC.
+Updated: 2026-09-14 08:41 UTC.
 
 [Approved intent](../../intent.md) · [Task details and evidence](README.md) · [Canonical register](tasks.json)
 
@@ -34,7 +34,7 @@ A planned task automatically shows `[=]` while prerequisites remain unfinished a
 
 - `[~]` [YMP-158](README.md#ymp-158) — Implement session statistics backend, export and headless progress (2026-09-14 03:31). Backend candidate52a170b implements consistent statistics snapshots/export, unlinked legacy totals, typed outcome/wait/knowledge summaries and bounded headless progress. Author fmt, strict Clippy and251 storage/runtime tests passed; the pre-YMP-161 base still had five frozen-fixture failures. Sent the exact candidate for one bounded independent review; parent will run the full workspace suite once after integration onto current main.
 - `[~]` [YMP-160](README.md#ymp-160) — Honor owner starting preferences when reserving an equal-score reviewer (2026-09-14 03:31). YMP-159 and YMP-161 are accepted and integrated with a662-pass workspace run. Started agent6ad87e12-303f-4b57-b68a-ade82893dd84 on gpt-5.6-sol xhigh in an isolated worktree for one exact reviewer-reservation regression and one counterexample; parent owns independent review and the single post-integration full run.
-- `[~]` [YMP-163](README.md#ymp-163) — Recover from broken generated task checks through reviewed replacement (2026-09-14 07:38). Started Sol xhigh agent 02475829-e5e6-4781-949b-baa00a281fd4 in fix/ymp163-check-revision from c18fe31. Both lifecycle staleness and append-only semantics are in scope; no unrelated policy/statistics changes or native run is mixed into this correction.
+- `[~]` [YMP-164](README.md#ymp-164) — Repeat fifteen-puzzle delivery with unified research and acceptance criteria (2026-09-14 08:41). Cause repair accepted and integrated. Preparing authorized native launch on the exact tested binary and frozen unified case plan; same Luna/Sonnet IDs, native settings and standard limits. No claim that the new session has started until its ID/process record is received. Findings now map to fifteen-findings-action-plan.md and the next proposed verification-artifact correction YMP-166.
 
 ## Ready next
 
@@ -143,11 +143,11 @@ Deferred and post-MVP work:
 
 | Time (UTC) | Task | State | Update |
 | --- | --- | --- | --- |
+| 2026-09-14 08:41 | [YMP-163](README.md#ymp-163) | `[x]` | Accepted candidate b1d8cba2 after independent ACCEPT, required formatting/Clippy/workspace tests and CLI build; two existing tests ignored. Integrated as e063494 with identical product/bridge/evaluation source bytes. Parent verified executable SHA256 4848b1bb...f48. Final-attempt check replacement preserves production count and accepted siblings; negative review rejects trivial replacement. Initial stack-size regression and its correction remain documented. |
+| 2026-09-14 08:41 | [YMP-164](README.md#ymp-164) | `[~]` | Cause repair accepted and integrated. Preparing authorized native launch on the exact tested binary and frozen unified case plan; same Luna/Sonnet IDs, native settings and standard limits. No claim that the new session has started until its ID/process record is received. Findings now map to fifteen-findings-action-plan.md and the next proposed verification-artifact correction YMP-166. |
+| 2026-09-14 08:41 | [YMP-166](README.md#ymp-166) | `[=]` | Proposed from the failed fifteen-puzzle run's missing /tmp script and reviewer-inaccessible harness. Sequenced after the already authorized repeat to avoid mixing extra implementation changes into that diagnostic comparison. Existing statistics/UI/coordination and experience cards cover other findings. |
 | 2026-09-14 08:23 | [YMP-165](README.md#ymp-165) | `[x]` | Opus 5 xhigh's single non-game forward application preserved read-only scope, required no browser/publication/native run and refused unsupported retrieval-benefit claims. Parent corrected its four findings: canonical mode list, authorized phase plus retained-evidence appraisal, conditional trigger semantics and scoped register updates. Skill validation and39 local links pass; exact reviewer output is retained with matching SHA-256. This accepts the reusable documentation/skill, not runtime or model benefits. |
-| 2026-09-14 08:21 | [YMP-164](README.md#ymp-164) | `[=]` | Durable baseline archive complete at /Users/maggnus/ymp-research/fifteen-2026-09-14. Researcher verified 1,228 copied files and19 original manifest entries; parent rechecked the19 entries and archive-verification hash. Four scratch files/seven Chrome profiles were reversibly moved with provenance. Updated case links and accepted the20 native prompt hash matches totalling207,252 characters. No isolation claim or native repeat; accepted cause-repair source is the remaining technical launch condition, not a new request for owner permission. |
 | 2026-09-14 07:38 | [YMP-162](README.md#ymp-162) | `[=]` | Later owner direction selected a real fifteen-puzzle study with current Luna/Sonnet settings, explicitly reauthorized Astra xhigh as researcher, removed observer ceilings and authorized publication. The first experiment failed natively despite a working published game. Immediate cause repair and the repeat now have explicit YMP-163/YMP-164 ownership; this earlier release/poker task is not marked complete and its historical authorization does not restrict the later approved study. |
-| 2026-09-14 07:38 | [YMP-163](README.md#ymp-163) | `[~]` | Started Sol xhigh agent 02475829-e5e6-4781-949b-baa00a281fd4 in fix/ymp163-check-revision from c18fe31. Both lifecycle staleness and append-only semantics are in scope; no unrelated policy/statistics changes or native run is mixed into this correction. |
-| 2026-09-14 03:31 | [YMP-158](README.md#ymp-158) | `[~]` | Backend candidate52a170b implements consistent statistics snapshots/export, unlinked legacy totals, typed outcome/wait/knowledge summaries and bounded headless progress. Author fmt, strict Clippy and251 storage/runtime tests passed; the pre-YMP-161 base still had five frozen-fixture failures. Sent the exact candidate for one bounded independent review; parent will run the full workspace suite once after integration onto current main. |
 
 ## Maintenance
 

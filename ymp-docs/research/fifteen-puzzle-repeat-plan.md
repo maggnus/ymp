@@ -1,8 +1,16 @@
 # Fifteen-puzzle recovery and product trial
 
-Status: preregistered plan; evidence archival verified; cause repair in progress;
-native repeat not started. Freeze the final plan revision with the accepted
-source/executable manifest before launch.
+Status: evidence archival verified; cause repair accepted and integrated as
+`e063494c5d339427c24f830bf9c152b53dee71be`; native repeat authorized for launch.
+Freeze this plan revision with the source/executable manifest before the first call.
+
+The integrated product sources match reviewed candidate
+`b1d8cba2d2a246f406abe24356baa2bf0fa35bc6` byte-for-byte. Required formatting,
+Clippy, workspace tests and the CLI build passed on those bytes. The exact
+executable SHA-256 is
+`4848b1bbc26129a8383b17270dca79cf36508e125df98378b0733654ba4b6f48`.
+See [repair validation](../evidence/ymp-163/validation.md) and the
+[finding-to-action plan](fifteen-findings-action-plan.md).
 
 This study instantiates the [shared trial and acceptance protocol](../guides/session-trial-and-acceptance.md).
 Its purpose is to determine whether ymp can finish an ordinary task autonomously
