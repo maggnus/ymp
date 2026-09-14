@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-14 02:27 UTC.
+Updated: 2026-09-14 02:37 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -15,6 +15,7 @@ A planned task is not implemented functionality. Completed research and planning
 | documentation | 4 | 4 |
 | experiment | 0 | 4 |
 | implementation | 38 | 50 |
+| integration | 0 | 1 |
 | maintenance | 1 | 2 |
 | research | 11 | 11 |
 | verification | 3 | 3 |
@@ -70,7 +71,7 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-127](#ymp-127) | P0 | Build and display the agent pool from provider-returned native names | 2026-09-12 20:43 |
 | `[x]` | [YMP-128](#ymp-128) | P1 | Support internal team transport with long metadata paths | 2026-09-12 21:24 |
 | `[x]` | [YMP-129](#ymp-129) | P1 | Recover bounded independent reviews after ACP output exhaustion | 2026-09-13 00:34 |
-| `[+]` | [YMP-130](#ymp-130) | P1 | Show active agent work during headless session runs | 2026-09-13 00:54 |
+| `[!]` | [YMP-130](#ymp-130) | P1 | Show active agent work during headless session runs | 2026-09-14 02:32 |
 | `[x]` | [YMP-131](#ymp-131) | P1 | Support deliberate double Ctrl+C exit and print session reopening command | 2026-09-13 04:25 |
 | `[x]` | [YMP-132](#ymp-132) | P1 | Attribute chat output to the actual agent invocation instead of provider-shaped actor IDs | 2026-09-13 04:25 |
 | `[x]` | [YMP-133](#ymp-133) | P1 | Present non-popup data collections as consistent keyboard-navigable tables | 2026-09-13 07:01 |
@@ -88,20 +89,21 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-145](#ymp-145) | P1 | Unify full-row popup selection and verify stable scrolling geometry | 2026-09-13 16:31 |
 | `[x]` | [YMP-146](#ymp-146) | P0 | Recover interrupted session stages and let the owner change the active team | 2026-09-14 02:00 |
 | `[x]` | [YMP-147](#ymp-147) | P1 | Translate product goals into a focused comparative trial program | 2026-09-13 15:38 |
-| `[ ]` | [YMP-148](#ymp-148) | P1 | Make session coordination replaceable through a typed strategy contract | 2026-09-13 16:13 |
+| `[=]` | [YMP-148](#ymp-148) | P1 | Make session coordination replaceable through a typed strategy contract | 2026-09-14 02:32 |
 | `[x]` | [YMP-149](#ymp-149) | P1 | Use concise professional terminology throughout the interface | 2026-09-13 18:44 |
-| `[=]` | [YMP-150](#ymp-150) | P1 | Make /team the session control page and separate the /agents catalog | 2026-09-13 16:13 |
-| `[=]` | [YMP-151](#ymp-151) | P1 | Prepare reproducible offline comparisons of coordination strategies | 2026-09-13 16:17 |
-| `[+]` | [YMP-152](#ymp-152) | P2 | Keep the selected palette command visible in very short terminals | 2026-09-13 16:25 |
+| `[=]` | [YMP-150](#ymp-150) | P1 | Select coordination strategies on /team and finish catalog separation | 2026-09-14 02:32 |
+| `[!]` | [YMP-151](#ymp-151) | P1 | Prepare reproducible offline comparisons of coordination strategies | 2026-09-14 02:32 |
+| `[!]` | [YMP-152](#ymp-152) | P2 | Keep the selected palette command visible in very short terminals | 2026-09-14 02:32 |
 | `[x]` | [YMP-153](#ymp-153) | P0 | Decide explicit owner continuation from current files after unverified effects | 2026-09-13 18:42 |
-| `[ ]` | [YMP-154](#ymp-154) | P1 | Show substantially more slash-command suggestions when terminal space permits | 2026-09-13 18:49 |
+| `[!]` | [YMP-154](#ymp-154) | P1 | Show substantially more slash-command suggestions when terminal space permits | 2026-09-14 02:32 |
 | `[x]` | [YMP-155](#ymp-155) | P0 | Audit real session behavior, interface expectations and native token accounting | 2026-09-14 02:00 |
-| `[ ]` | [YMP-156](#ymp-156) | P1 | Keep transcript chronology and completed session progress stable | 2026-09-14 02:27 |
+| `[=]` | [YMP-156](#ymp-156) | P1 | Keep transcript chronology and completed session progress stable | 2026-09-14 02:32 |
 | `[x]` | [YMP-157](#ymp-157) | P1 | Research attributable session statistics and knowledge-use measurements | 2026-09-14 02:03 |
-| `[~]` | [YMP-158](#ymp-158) | P1 | Implement session statistics collection, summaries and contribution drilldown | 2026-09-14 02:05 |
-| `[~]` | [YMP-159](#ymp-159) | P0 | Parse the final structured decision after non-JSON commentary | 2026-09-14 02:00 |
-| `[=]` | [YMP-160](#ymp-160) | P1 | Honor owner starting preferences when reserving an equal-score reviewer | 2026-09-14 02:00 |
-| `[~]` | [YMP-161](#ymp-161) | P0 | Keep frozen experiment bindings without blocking later product changes | 2026-09-14 02:08 |
+| `[~]` | [YMP-158](#ymp-158) | P1 | Implement session statistics backend, export and headless progress | 2026-09-14 02:32 |
+| `[~]` | [YMP-159](#ymp-159) | P0 | Parse the final structured decision after non-JSON commentary | 2026-09-14 02:37 |
+| `[=]` | [YMP-160](#ymp-160) | P0 | Honor owner starting preferences when reserving an equal-score reviewer | 2026-09-14 02:34 |
+| `[~]` | [YMP-161](#ymp-161) | P0 | Keep frozen experiment bindings without blocking later product changes | 2026-09-14 02:37 |
+| `[=]` | [YMP-162](#ymp-162) | P0 | Release recovery fixes and complete controlled end-to-end session runs | 2026-09-14 02:34 |
 
 ## YMP-001
 
@@ -1706,11 +1708,11 @@ The real GLM review ended max_tokens at 8192 output tokens, 8185 reasoning; the 
 
 Show active agent work during headless session runs
 
-**State:** `[+]` (new) · **Type:** implementation · **Priority:** P1
+**State:** `[!]` (rejected) · **Type:** implementation · **Priority:** P1
 
-**Last update (UTC):** 2026-09-13 00:54
+**Last update (UTC):** 2026-09-14 02:32
 
-**Current reason:** Read-only diagnosis: poker checks passed at 2026-09-13T00:52:09Z; the following claude-opus-5 review invocation was active. Earlier attempts were cancelled. No active run was stopped or restarted by this investigation.
+**Current reason:** Superseded by YMP-158, which now owns the same live assignment/status/usage observations alongside consistent session statistics and export. The headless visibility outcome remains required; no separate event projection or UI implementation will be created.
 
 **Owner:** Maintainer
 
@@ -2288,21 +2290,21 @@ Recent discussion concentrated on interchangeable policies while the five produc
 
 Make session coordination replaceable through a typed strategy contract
 
-**State:** `[ ]` (planned) · **Type:** implementation · **Priority:** P1
+**State:** `[=]` (planned) · **Type:** implementation · **Priority:** P1
 
-**Last update (UTC):** 2026-09-13 16:13
+**Last update (UTC):** 2026-09-14 02:32
 
-**Current reason:** Ready to start
+**Current reason:** Needs YMP-158, YMP-162
 
 **Owner:** Background backend fork; maintainer owns product contract and independent acceptance
 
 **Authorization:** Owner accepted the CoordinationPolicy interface direction and explicitly limited policy selection to /team and the discussed policies, then identified duplication between /agents and /team. No policy controls in /settings or a separate strategies page are requested.
 
-**Depends on:** [YMP-146](#ymp-146)
+**Depends on:** [YMP-146](#ymp-146), [YMP-158](#ymp-158), [YMP-162](#ymp-162)
 
 Allocation and resource interfaces exist, but whole-session interaction remains partly hardcoded. Current team view repeats the full pool, and both agent/team membership actions edit starting preferences rather than live session membership.
 
-**Latest progress note:** Owner requested preserving the /team and policy discussion as a concrete task pool. Split the former broad148 into backend148, UI150 and offline comparison151, linked to existing live experiment201. No duplicate umbrella delivery count and no implementation completion claim; explicit recovery146 remains first.
+**Latest progress note:** Open-work review defers coordination strategy work until ordinary-session recovery162 and statistics158 are accepted. Absorbed YMP-151's remaining scripted comparison into this task and require reuse of the accepted YMP-201 runner. No strategy implementation or experiment starts now.
 
 **Acceptance criteria:**
 
@@ -2311,7 +2313,8 @@ Allocation and resource interfaces exist, but whole-session interaction remains 
 - Apply claimed information-sharing scope consistently to prompts, board/tool access and native continuation; report shared-artifact or backend limitations and never claim blind independence without evidence.
 - Expose real registered strategy descriptions and typed versioned session-selection APIs for coordination, allocation and resources. Preserve active assignments, historical identities/configuration and saved stages across switching, stale requests and restart.
 - Keep model-assisted consultation within admitted recorded assignments; no hidden inference, mutable policy Store or bypass of owner/resource/independent-review constraints. Use compiled implementations without new runtime dependencies or universal parameterization.
-- Run meaningful failing controls, actual consumer/substitution tests, required Rust checks and independent acceptance. UI and experiment package implementation are separately tracked as150 and151; P0 recovery is not delayed.
+- Reuse the accepted YMP-201 fixtures and runner to compare coordination implementations on identical snapshots and scripted full executions. Preserve failures, decision provenance, resource coverage and external scoring; no native trial is authorized.
+- Run meaningful failing controls, actual consumer/substitution tests, required Rust checks and independent acceptance. UI remains YMP-150; no second evaluation runner or generic strategy marketplace is added.
 
 **Evidence:**
 
@@ -2355,11 +2358,11 @@ Primary rows currently include provenance prose and ambiguous membership values.
 
 ## YMP-150
 
-Make /team the session control page and separate the /agents catalog
+Select coordination strategies on /team and finish catalog separation
 
 **State:** `[=]` (planned) · **Type:** implementation · **Priority:** P1
 
-**Last update (UTC):** 2026-09-13 16:13
+**Last update (UTC):** 2026-09-14 02:32
 
 **Current reason:** Needs YMP-148
 
@@ -2369,13 +2372,13 @@ Make /team the session control page and separate the /agents catalog
 
 **Depends on:** [YMP-148](#ymp-148), [YMP-149](#ymp-149)
 
-Current /team repeats the full catalog, and membership actions mutate next-run preferences. The owner needs actual session controls and only the discussed policy choices.
+YMP-146 now provides current-session membership and recovery. The remaining /team work is strategy selection and removing the duplicated full catalog while preserving the separate /agents responsibility.
 
-**Latest progress note:** Extracted the already-approved UI scope from148. Queued after strategy APIs148 and language149, with recovery146 transitively first. No new UI fork or source changes launched by this planning update.
+**Latest progress note:** Narrowed after YMP-146 delivery: live membership and recovery are complete. YMP-150 now owns only real coordination/allocation/resource selectors on /team and the remaining /agents catalog separation. It stays blocked on YMP-148.
 
 **Acceptance criteria:**
 
-- Use the accepted runtime APIs for current-session add/remove/replace and pending departures, displaying temporary responsibilities and actual state. Clearly identify a next-session draft when no session is selected.
+- Reuse the delivered YMP-146 current-session add/remove/replace, pending-departure and recovery controls without reimplementing them. Clearly identify a next-session draft when no session is selected.
 - Expose real available coordination, allocation and resource implementations only in /team, with concise descriptions, session-level versioned selection and visible pending application. Do not add /settings defaults, a separate strategy page, recovery selection or generic parameter forms.
 - Keep /agents as native availability/capability/profile configuration; remove the permanently duplicated full pool from /team and reuse the catalog in its add-member chooser. Eliminate duplicate preference-only team mutations.
 - Preserve actual native identities, current/historical scope, active assignments, unknown states and source messages. Apply the accepted concise UI terminology, including true/false for known membership.
@@ -2390,11 +2393,11 @@ Current /team repeats the full catalog, and membership actions mutate next-run p
 
 Prepare reproducible offline comparisons of coordination strategies
 
-**State:** `[=]` (planned) · **Type:** implementation · **Priority:** P1
+**State:** `[!]` (rejected) · **Type:** implementation · **Priority:** P1
 
-**Last update (UTC):** 2026-09-13 16:17
+**Last update (UTC):** 2026-09-14 02:32
 
-**Current reason:** Needs YMP-148
+**Current reason:** Superseded by YMP-148. YMP-201 already delivered an accepted reusable fixture/runner foundation; the remaining coordination-policy comparison belongs with the policy consumer and must reuse that runner. No comparison behavior or approval boundary is discarded.
 
 **Owner:** Background evaluation fork; maintainer owns hypotheses and independent acceptance
 
@@ -2403,8 +2406,6 @@ Prepare reproducible offline comparisons of coordination strategies
 **Depends on:** [YMP-148](#ymp-148), [YMP-147](#ymp-147)
 
 Policy substitution must support goal-oriented comparisons through the actual runtime, with concrete fixtures and unbiased independent outcome checks.
-
-**Latest progress note:** Owner approval boundary made explicit:151 prepares fixtures/runner/manifests and scripted correctness checks only; it does not launch comparative product trials. Subsequent201–204 experiments require separate owner approval.
 
 **Acceptance criteria:**
 
@@ -2425,11 +2426,11 @@ Policy substitution must support goal-oriented comparisons through the actual ru
 
 Keep the selected palette command visible in very short terminals
 
-**State:** `[+]` (new) · **Type:** implementation · **Priority:** P2
+**State:** `[!]` (rejected) · **Type:** implementation · **Priority:** P2
 
-**Last update (UTC):** 2026-09-13 16:25
+**Last update (UTC):** 2026-09-14 02:32
 
-**Current reason:** Independent reviewer found this in both35786ecand0.4.6using50navigation steps at60x8;60x9and44x10retain selection. Original captures are in /tmp/ymp145-independent-review. Source diagnosis is modal_body_rows(8,true)=2while search+separator take2rows. No fix or new implementation fork started.
+**Current reason:** Superseded by the consolidated YMP-156 composer/transcript UI pass. The 60x8 selected-command requirement and original controls remain mandatory there alongside adaptive slash and mention popups.
 
 **Owner:** Future Claude Code claude-opus-5 high UI fork; maintainer owns scheduling and acceptance
 
@@ -2481,11 +2482,11 @@ Fresh read-only review can recover a saved proposal, but current records cannot 
 
 Show substantially more slash-command suggestions when terminal space permits
 
-**State:** `[ ]` (planned) · **Type:** implementation · **Priority:** P1
+**State:** `[!]` (rejected) · **Type:** implementation · **Priority:** P1
 
-**Last update (UTC):** 2026-09-13 18:49
+**Last update (UTC):** 2026-09-14 02:32
 
-**Current reason:** Ready to start
+**Current reason:** Superseded by YMP-156 so slash and @ mention completion share one adaptive popup implementation and one Claude verification pass. The owner's 16--20 visible-row target where space permits remains required.
 
 **Owner:** Claude Code claude-opus-5 high; maintainer owns sequencing and acceptance
 
@@ -2494,8 +2495,6 @@ Show substantially more slash-command suggestions when terminal space permits
 **Depends on:** [YMP-146](#ymp-146), [YMP-149](#ymp-149)
 
 Inline slash-command completion currently has a six-row limit even in a tall terminal. The owner wants a substantially longer visible list.
-
-**Latest progress note:** Owner requested a much longer visible slash-command list as the next Claude UI task after current work. Source confirms COMPLETION_ROWS=6 and PALETTE_ROWS=10; increasing only the constant can hide completion in shorter terminals. Recorded adaptive-height acceptance and sequencing; implementation is not started.
 
 **Acceptance criteria:**
 
@@ -2545,21 +2544,21 @@ Before comparing model capability, verify basic session completion and faithful 
 
 Keep transcript chronology and completed session progress stable
 
-**State:** `[ ]` (planned) · **Type:** implementation · **Priority:** P1
+**State:** `[=]` (planned) · **Type:** implementation · **Priority:** P1
 
-**Last update (UTC):** 2026-09-14 02:27
+**Last update (UTC):** 2026-09-14 02:32
 
-**Current reason:** Ready to start
+**Current reason:** Needs YMP-158, YMP-162
 
 **Owner:** Claude Code claude-opus-5 high; maintainer owns semantics and independent acceptance
 
 **Authorization:** Owner reported jumping service messages and disappearing completed tasks; the UI audit confirmed bounded corrections. The owner subsequently deferred token-display changes. This task now covers chronology/progress only and must preserve the existing usage display.
 
-**Depends on:** [YMP-146](#ymp-146)
+**Depends on:** [YMP-146](#ymp-146), [YMP-158](#ymp-158), [YMP-162](#ymp-162)
 
 Notices and live-stream updates can distort chronology, and accepted tasks are filtered out of the sidebar. Token presentation is explicitly deferred by the owner.
 
-**Latest progress note:** Owner specified immediate @ completion with filtering as text is entered. Fixed composer behavior: open on bare @, incremental filtering, stable selection by full ID, explicit no-match state, Enter/Tab inserts without sending, Escape preserves the draft, and shared popup behavior remains consistent with slash completion.
+**Latest progress note:** Consolidated one Claude UI pass after backend statistics158 and real-session release162. Absorbed YMP-152/YMP-154: chronology, accepted tasks, board wording, /stats, @ addressing and responsive slash/mention popup behavior now share one implementation and acceptance cycle. Token presentation remains deferred.
 
 **Acceptance criteria:**
 
@@ -2569,6 +2568,8 @@ Notices and live-stream updates can distort chronology, and accepted tasks are f
 - Typing `@` at a mention boundary immediately opens the effective-participant popup; every subsequent edit filters by exact model label, current role/state and stable ID. Preserve the highlighted full agent_id, show zero matches explicitly, and never fall back to broadcast.
 - Support owner `@agent` messages resolved to a stable full agent_id in the selected session. Duplicate model labels require an explicit chooser; Enter/Tab inserts a structured mention without sending, Escape preserves the draft, and `@team` is the explicit broadcast form.
 - Keep addressed messages visible in shared history and state that they do not create an assignment, interrupt a call or promise a reply. Bind submission to session/team revision, preserve the original recipient across restart and report departure without redirecting the message.
+- Add the accepted /stats session-to-agent-to-assignment view using YMP-158 readers. Keep /usage, /tasks, /assignments, /decisions and /checks as linked specialized views rather than duplicating raw tables.
+- Use one adaptive shared popup for slash and @ completion. Show roughly 16--20 slash commands where space permits, keep the selected command visible at the 60x8 boundary, and preserve stable full-row selection/filtering/scrolling at small sizes.
 - Preserve the existing token display and its labels. The owner deferred changes to token/cache/cost presentation; stored accounting and budget enforcement also remain unchanged.
 - Reuse shared UI components, derive meaningful regressions from the five existing UI falsifiers, and run required checks with independent terminal acceptance. Keep the frozen UI146 candidate unchanged until its review/integration completes.
 
@@ -2611,17 +2612,17 @@ The owner needs a reliable explanation of who performed each contribution. Exist
 
 ## YMP-158
 
-Implement session statistics collection, summaries and contribution drilldown
+Implement session statistics backend, export and headless progress
 
 **State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P1
 
-**Last update (UTC):** 2026-09-14 02:05
+**Last update (UTC):** 2026-09-14 02:32
 
-**Current reason:** Owner explicitly requested delegation to Sol xhigh. Started agent3cb28fd2-5249-4405-9d96-c03766cca6ca on gpt-5.6-sol xhigh in isolated feat/ymp158-session-statistics-backend from d3e8995. Scope is the accepted typed statistics backend and optional read-only JSON export; TUI waits for backend review. Astra, real user data, provider calls and token-display changes remain excluded.
+**Current reason:** Open-work review narrows YMP-158 to backend/export and absorbs YMP-130's headless live progress from the same attribution/events. /stats TUI moves to consolidated YMP-156 after backend acceptance. The previous agent was no longer active, but its uncommitted worktree was preserved; relaunched agent b99f10e9-437a-4817-a4f4-e6013727479a on gpt-5.6-sol xhigh to inspect and complete it.
 
-**Owner:** Backend implementation fork and Claude Code claude-opus-5 high UI fork; maintainer owns integration and independent acceptance
+**Owner:** gpt-5.6-sol xhigh backend fork; maintainer owns integration and independent acceptance
 
-**Authorization:** Owner explicitly requested implementation after the separate session-statistics research. YMP-157 is accepted in session-statistics-design.md. Backend implementation starts on the owner-selected gpt-5.6-sol; UI follows on Claude Code claude-opus-5 high. Astra is prohibited.
+**Authorization:** Owner explicitly requested implementation after the separate session-statistics research. YMP-157 is accepted in session-statistics-design.md. Backend/export/headless progress implementation uses owner-selected gpt-5.6-sol xhigh. The /stats TUI is consolidated into YMP-156. Astra is prohibited.
 
 **Depends on:** [YMP-157](#ymp-157)
 
@@ -2632,7 +2633,8 @@ The accepted research should become usable, attributable session statistics rath
 - Implement only the accepted157 metric/source contract, reusing existing records and adding the minimum missing typed instrumentation without changing scheduling, access, budgets, acceptance or reputation.
 - Provide consistent per-session, per-agent and per-assignment views, captured model/settings attribution and secondary model rollups, with actual completeness and legacy limitations.
 - Retain incremental/restart-safe aggregation and prevent duplicate accounting; distinguish outcomes, errors, retries, timing overlap and knowledge retrieval/use according to the accepted definitions.
-- Expose a versioned typed read/export interface and the accepted UI/drilldown through Claude Code high, with consistent summary and raw-evidence links.
+- Expose a versioned typed read/export interface with consistent summary and raw-evidence links. The TUI consumes it later in YMP-156.
+- Expose bounded live AgentStatus, assignment, Delta and usage progress in the existing headless event consumer so a pending native review is distinguishable from a stalled local check. Do not start duplicate requests or change cancellation.
 - Validate the research acceptance cases, bounded collection overhead and existing runtime invariants with offline/scripted tests, required checks and independent review. No experiment or real-provider quota is implied.
 
 **Evidence:**
@@ -2646,9 +2648,9 @@ Parse the final structured decision after non-JSON commentary
 
 **State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P0
 
-**Last update (UTC):** 2026-09-14 02:00
+**Last update (UTC):** 2026-09-14 02:37
 
-**Current reason:** Read-only audit proved the final GLM message contains CSS braces before one valid approved JSON object; runtime stopped with five accepted tasks and the sixth in review. Created an isolated Sol implementation task after integrating accepted recovery UI. No real session action or provider invocation is authorized during the correction.
+**Current reason:** Independent review returned candidate1ab42b1: it fixes the real CSS case but can skip malformed draft decisions and accept nested fragments from malformed wrappers; one whitespace behavior also lacked a sensitive test. Relaunched agent6dd93a08-3a2f-4834-a375-e693034e45a4 on gpt-5.6-sol xhigh in the existing clean worktree for bounded rework and controls.
 
 **Owner:** Owner-selected gpt-5.6-sol implementation fork; maintainer owns integration and independent acceptance
 
@@ -2674,9 +2676,9 @@ Session6e286a3a stopped on its last review because CSS commentary contained a ba
 
 Honor owner starting preferences when reserving an equal-score reviewer
 
-**State:** `[=]` (planned) · **Type:** implementation · **Priority:** P1
+**State:** `[=]` (planned) · **Type:** implementation · **Priority:** P0
 
-**Last update (UTC):** 2026-09-14 02:00
+**Last update (UTC):** 2026-09-14 02:34
 
 **Current reason:** Needs YMP-159
 
@@ -2688,7 +2690,7 @@ Honor owner starting preferences when reserving an equal-score reviewer
 
 Starting preferences order eligible candidates, but final-review reservation currently walks the list backwards and selects the last equal-score candidate. This makes a nonpreferred GLM reviewer replace an eligible preferred Sonnet without a constraint-based reason.
 
-**Latest progress note:** Audit of allocation decision seq1936 established that Sonnet was eligible and second in the preference-sorted list, while reverse reviewer reservation selected last-listed GLM. Queued a deterministic equal-score preference correction after parser159. Existing live-team controls provide the immediate explicit replacement path for the owner session.
+**Latest progress note:** Raised to P0 in the open-work review because the owner prioritized the complete ordinary-session run and error controls. The correction is a prerequisite of YMP-162 and still requires independent acceptance before any live-session action.
 
 **Acceptance criteria:**
 
@@ -2708,9 +2710,9 @@ Keep frozen experiment bindings without blocking later product changes
 
 **State:** `[~]` (in_progress) · **Type:** maintenance · **Priority:** P0
 
-**Last update (UTC):** 2026-09-14 02:08
+**Last update (UTC):** 2026-09-14 02:37
 
-**Current reason:** Parser159 author proved all parser tests, formatting and strict Clippy pass, but five weak_pilot_consumer tests reject the accepted UI146 base before fixture execution because they pin current product bytes to1c17f4e. Registered a parallel Sol xhigh correction that preserves native frozen-manifest validation while making unattended tests self-contained. No experiment or Astra use.
+**Current reason:** The first Sol xhigh attempt stopped twice at provider capacity after reproducing the issue and left one uncommitted test change. Removed its retry heartbeat to prevent duplication and relaunched agent7e64be32-bdcf-4276-8f76-804332552dcb on the same model and worktree to inspect, complete and fully verify the correction.
 
 **Owner:** gpt-5.6-sol xhigh maintenance fork; maintainer owns experiment-safety acceptance
 
@@ -2731,6 +2733,42 @@ The weak-pilot consumer correctly binds a measured run to frozen source, but its
 **Evidence:**
 
 - ymp-docs/evidence/ymp-159/README.md
+
+## YMP-162
+
+Release recovery fixes and complete controlled end-to-end session runs
+
+**State:** `[=]` (planned) · **Type:** integration · **Priority:** P0
+
+**Last update (UTC):** 2026-09-14 02:34
+
+**Current reason:** Needs YMP-159, YMP-160, YMP-161
+
+**Owner:** Maintainer integrates accepted forks and presents each native session action for final owner approval
+
+**Authorization:** The owner made the complete end-to-end run and error controls the immediate priority and accepted the proposed sequence. Preparing, integrating and verifying the release is authorized. Installing it, changing the real poker session or starting a new native counter session requires a final explicit owner action after the exact command, team, directory and allowance are presented. Astra is prohibited.
+
+**Depends on:** [YMP-159](#ymp-159), [YMP-160](#ymp-160), [YMP-161](#ymp-161)
+
+Recovery and live team controls are implemented, but the ordinary owner journey is not proven until the parser, reviewer preference and frozen-test boundary are integrated, the full suite passes and both the interrupted poker session and a minimal fresh session are checked under controlled conditions.
+
+**Latest progress note:** Created by the open-work review as the P0 integration and controlled-run boundary. The owner prioritized a complete run and error controls and accepted the sequence. No release installation, real-session mutation or native provider call is authorized by this planning entry.
+
+**Acceptance criteria:**
+
+- Integrate independently accepted YMP-159, YMP-160 and YMP-161 on the accepted YMP-146 baseline. Run formatting, strict Clippy and the complete workspace suite, then build and independently verify supported macOS and Linux release artifacts without using Astra or native model calls.
+- Before any real-session mutation, read the exact poker session, captured team, recovery stages, current files and active processes from /Users/maggnus/Downloads/_ymp3 and ~/.ymp2. Present one explicit owner action with the target session, replacement from GLM to the exact installed Sonnet agent ID, expected revision and continuation command.
+- After explicit approval, preserve the historical GLM response and attribution, replace only future participation, and resume through the supported recovery API. The five accepted tasks must not execute again; the stored final review must be reparsed before any new model invocation, and every unexpected invocation or changed file must be recorded.
+- Verify the poker session reaches an honest terminal state and inspect the generated game without editing it outside the session. Preserve messages, errors, usage completeness, task history and unconfirmed outcomes; report any remaining browser or provider limitation explicitly.
+- Then prepare an exact single-file counter run in a new empty directory with deterministic +1, +1 and reset checks, a small explicit native allowance and the selected team. Do not start it until the owner approves the final command and allowance; retain its full session evidence when run.
+- Use the counter only for lifecycle, recovery, messaging, statistics and completion. Record a separate later fixture for meaningful parallelism instead of claiming the counter validates concurrent work.
+
+**Evidence:**
+
+- ymp-docs/tasks/open-work-review-2026-09-14.md
+- ymp-docs/research/session-functional-audit.md
+- ymp-docs/evidence/ymp-155/final-audit.md
+- ymp-docs/evidence/ymp-146/ui-acceptance.md
 
 ## Intent coverage
 

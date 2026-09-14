@@ -3141,7 +3141,7 @@
       "title": "Show active agent work during headless session runs",
       "type": "implementation",
       "priority": "P1",
-      "status": "new",
+      "status": "rejected",
       "owner": "Maintainer",
       "authorization": "Owner reported a silent headless resume and interrupted/restarted it because it appeared hung. Diagnosis confirmed that local checks had passed and independent review was active while the terminal still showed the previous check command.",
       "depends_on": [
@@ -3160,6 +3160,11 @@
           "at": "2026-09-13T00:54:50.136793+00:00",
           "status": "new",
           "note": "Read-only diagnosis: poker checks passed at 2026-09-13T00:52:09Z; the following claude-opus-5 review invocation was active. Earlier attempts were cancelled. No active run was stopped or restarted by this investigation."
+        },
+        {
+          "at": "2026-09-14T02:32:00+00:00",
+          "status": "rejected",
+          "note": "Superseded by YMP-158, which now owns the same live assignment/status/usage observations alongside consistent session statistics and export. The headless visibility outcome remains required; no separate event projection or UI implementation will be created."
         }
       ]
     },
@@ -4215,7 +4220,9 @@
       "owner": "Background backend fork; maintainer owns product contract and independent acceptance",
       "authorization": "Owner accepted the CoordinationPolicy interface direction and explicitly limited policy selection to /team and the discussed policies, then identified duplication between /agents and /team. No policy controls in /settings or a separate strategies page are requested.",
       "depends_on": [
-        "YMP-146"
+        "YMP-146",
+        "YMP-158",
+        "YMP-162"
       ],
       "reason": "Allocation and resource interfaces exist, but whole-session interaction remains partly hardcoded. Current team view repeats the full pool, and both agent/team membership actions edit starting preferences rather than live session membership.",
       "acceptance": [
@@ -4224,7 +4231,8 @@
         "Apply claimed information-sharing scope consistently to prompts, board/tool access and native continuation; report shared-artifact or backend limitations and never claim blind independence without evidence.",
         "Expose real registered strategy descriptions and typed versioned session-selection APIs for coordination, allocation and resources. Preserve active assignments, historical identities/configuration and saved stages across switching, stale requests and restart.",
         "Keep model-assisted consultation within admitted recorded assignments; no hidden inference, mutable policy Store or bypass of owner/resource/independent-review constraints. Use compiled implementations without new runtime dependencies or universal parameterization.",
-        "Run meaningful failing controls, actual consumer/substitution tests, required Rust checks and independent acceptance. UI and experiment package implementation are separately tracked as150 and151; P0 recovery is not delayed."
+        "Reuse the accepted YMP-201 fixtures and runner to compare coordination implementations on identical snapshots and scripted full executions. Preserve failures, decision provenance, resource coverage and external scoring; no native trial is authorized.",
+        "Run meaningful failing controls, actual consumer/substitution tests, required Rust checks and independent acceptance. UI remains YMP-150; no second evaluation runner or generic strategy marketplace is added."
       ],
       "evidence": [
         "ymp-docs/architecture/team-and-agent-surfaces.md",
@@ -4240,6 +4248,11 @@
           "at": "2026-09-13T16:13:38.839717+00:00",
           "status": "planned",
           "note": "Owner requested preserving the /team and policy discussion as a concrete task pool. Split the former broad148 into backend148, UI150 and offline comparison151, linked to existing live experiment201. No duplicate umbrella delivery count and no implementation completion claim; explicit recovery146 remains first."
+        },
+        {
+          "at": "2026-09-14T02:32:00+00:00",
+          "status": "planned",
+          "note": "Open-work review defers coordination strategy work until ordinary-session recovery162 and statistics158 are accepted. Absorbed YMP-151's remaining scripted comparison into this task and require reuse of the accepted YMP-201 runner. No strategy implementation or experiment starts now."
         }
       ]
     },
@@ -4315,7 +4328,7 @@
     },
     {
       "id": "YMP-150",
-      "title": "Make /team the session control page and separate the /agents catalog",
+      "title": "Select coordination strategies on /team and finish catalog separation",
       "type": "implementation",
       "priority": "P1",
       "status": "planned",
@@ -4325,9 +4338,9 @@
         "YMP-148",
         "YMP-149"
       ],
-      "reason": "Current /team repeats the full catalog, and membership actions mutate next-run preferences. The owner needs actual session controls and only the discussed policy choices.",
+      "reason": "YMP-146 now provides current-session membership and recovery. The remaining /team work is strategy selection and removing the duplicated full catalog while preserving the separate /agents responsibility.",
       "acceptance": [
-        "Use the accepted runtime APIs for current-session add/remove/replace and pending departures, displaying temporary responsibilities and actual state. Clearly identify a next-session draft when no session is selected.",
+        "Reuse the delivered YMP-146 current-session add/remove/replace, pending-departure and recovery controls without reimplementing them. Clearly identify a next-session draft when no session is selected.",
         "Expose real available coordination, allocation and resource implementations only in /team, with concise descriptions, session-level versioned selection and visible pending application. Do not add /settings defaults, a separate strategy page, recovery selection or generic parameter forms.",
         "Keep /agents as native availability/capability/profile configuration; remove the permanently duplicated full pool from /team and reuse the catalog in its add-member chooser. Eliminate duplicate preference-only team mutations.",
         "Preserve actual native identities, current/historical scope, active assignments, unknown states and source messages. Apply the accepted concise UI terminology, including true/false for known membership.",
@@ -4342,6 +4355,11 @@
           "at": "2026-09-13T16:13:38.839717+00:00",
           "status": "planned",
           "note": "Extracted the already-approved UI scope from148. Queued after strategy APIs148 and language149, with recovery146 transitively first. No new UI fork or source changes launched by this planning update."
+        },
+        {
+          "at": "2026-09-14T02:32:00+00:00",
+          "status": "planned",
+          "note": "Narrowed after YMP-146 delivery: live membership and recovery are complete. YMP-150 now owns only real coordination/allocation/resource selectors on /team and the remaining /agents catalog separation. It stays blocked on YMP-148."
         }
       ]
     },
@@ -4350,7 +4368,7 @@
       "title": "Prepare reproducible offline comparisons of coordination strategies",
       "type": "implementation",
       "priority": "P1",
-      "status": "planned",
+      "status": "rejected",
       "owner": "Background evaluation fork; maintainer owns hypotheses and independent acceptance",
       "authorization": "Owner explicitly requested an interface enabling targeted experiments and asked to formalize the discussion into tasks. Offline preparation is authorized; native comparative runs remain under the separately budgeted YMP-201.",
       "depends_on": [
@@ -4381,6 +4399,11 @@
           "at": "2026-09-13T16:17:00.229942+00:00",
           "status": "planned",
           "note": "Owner approval boundary made explicit:151 prepares fixtures/runner/manifests and scripted correctness checks only; it does not launch comparative product trials. Subsequent201–204 experiments require separate owner approval."
+        },
+        {
+          "at": "2026-09-14T02:32:00+00:00",
+          "status": "rejected",
+          "note": "Superseded by YMP-148. YMP-201 already delivered an accepted reusable fixture/runner foundation; the remaining coordination-policy comparison belongs with the policy consumer and must reuse that runner. No comparison behavior or approval boundary is discarded."
         }
       ]
     },
@@ -4389,7 +4412,7 @@
       "title": "Keep the selected palette command visible in very short terminals",
       "type": "implementation",
       "priority": "P2",
-      "status": "new",
+      "status": "rejected",
       "owner": "Future Claude Code claude-opus-5 high UI fork; maintainer owns scheduling and acceptance",
       "authorization": "Follow-up defect discovered during authorized YMP-145 independent popup verification. Recorded for later scheduling; it must not delay P0 recovery or expand the accepted selection fix.",
       "depends_on": [
@@ -4409,6 +4432,11 @@
           "at": "2026-09-13T16:25:35.129681+00:00",
           "status": "new",
           "note": "Independent reviewer found this in both35786ecand0.4.6using50navigation steps at60x8;60x9and44x10retain selection. Original captures are in /tmp/ymp145-independent-review. Source diagnosis is modal_body_rows(8,true)=2while search+separator take2rows. No fix or new implementation fork started."
+        },
+        {
+          "at": "2026-09-14T02:32:00+00:00",
+          "status": "rejected",
+          "note": "Superseded by the consolidated YMP-156 composer/transcript UI pass. The 60x8 selected-command requirement and original controls remain mandatory there alongside adaptive slash and mention popups."
         }
       ]
     },
@@ -4450,7 +4478,7 @@
       "title": "Show substantially more slash-command suggestions when terminal space permits",
       "type": "implementation",
       "priority": "P1",
-      "status": "planned",
+      "status": "rejected",
       "owner": "Claude Code claude-opus-5 high; maintainer owns sequencing and acceptance",
       "authorization": "Owner requested this as a Claude follow-up after the current work is finished, on 2026-09-14.",
       "depends_on": [
@@ -4470,6 +4498,11 @@
           "at": "2026-09-13T18:49:42.166240+00:00",
           "status": "planned",
           "note": "Owner requested a much longer visible slash-command list as the next Claude UI task after current work. Source confirms COMPLETION_ROWS=6 and PALETTE_ROWS=10; increasing only the constant can hide completion in shorter terminals. Recorded adaptive-height acceptance and sequencing; implementation is not started."
+        },
+        {
+          "at": "2026-09-14T02:32:00+00:00",
+          "status": "rejected",
+          "note": "Superseded by YMP-156 so slash and @ mention completion share one adaptive popup implementation and one Claude verification pass. The owner's 16--20 visible-row target where space permits remains required."
         }
       ]
     },
@@ -4530,7 +4563,9 @@
       "owner": "Claude Code claude-opus-5 high; maintainer owns semantics and independent acceptance",
       "authorization": "Owner reported jumping service messages and disappearing completed tasks; the UI audit confirmed bounded corrections. The owner subsequently deferred token-display changes. This task now covers chronology/progress only and must preserve the existing usage display.",
       "depends_on": [
-        "YMP-146"
+        "YMP-146",
+        "YMP-158",
+        "YMP-162"
       ],
       "reason": "Notices and live-stream updates can distort chronology, and accepted tasks are filtered out of the sidebar. Token presentation is explicitly deferred by the owner.",
       "acceptance": [
@@ -4540,6 +4575,8 @@
         "Typing `@` at a mention boundary immediately opens the effective-participant popup; every subsequent edit filters by exact model label, current role/state and stable ID. Preserve the highlighted full agent_id, show zero matches explicitly, and never fall back to broadcast.",
         "Support owner `@agent` messages resolved to a stable full agent_id in the selected session. Duplicate model labels require an explicit chooser; Enter/Tab inserts a structured mention without sending, Escape preserves the draft, and `@team` is the explicit broadcast form.",
         "Keep addressed messages visible in shared history and state that they do not create an assignment, interrupt a call or promise a reply. Bind submission to session/team revision, preserve the original recipient across restart and report departure without redirecting the message.",
+        "Add the accepted /stats session-to-agent-to-assignment view using YMP-158 readers. Keep /usage, /tasks, /assignments, /decisions and /checks as linked specialized views rather than duplicating raw tables.",
+        "Use one adaptive shared popup for slash and @ completion. Show roughly 16--20 slash commands where space permits, keep the selected command visible at the 60x8 boundary, and preserve stable full-row selection/filtering/scrolling at small sizes.",
         "Preserve the existing token display and its labels. The owner deferred changes to token/cache/cost presentation; stored accounting and budget enforcement also remain unchanged.",
         "Reuse shared UI components, derive meaningful regressions from the five existing UI falsifiers, and run required checks with independent terminal acceptance. Keep the frozen UI146 candidate unchanged until its review/integration completes."
       ],
@@ -4567,6 +4604,11 @@
           "at": "2026-09-14T02:27:00+00:00",
           "status": "planned",
           "note": "Owner specified immediate @ completion with filtering as text is entered. Fixed composer behavior: open on bare @, incremental filtering, stable selection by full ID, explicit no-match state, Enter/Tab inserts without sending, Escape preserves the draft, and shared popup behavior remains consistent with slash completion."
+        },
+        {
+          "at": "2026-09-14T02:32:00+00:00",
+          "status": "planned",
+          "note": "Consolidated one Claude UI pass after backend statistics158 and real-session release162. Absorbed YMP-152/YMP-154: chronology, accepted tasks, board wording, /stats, @ addressing and responsive slash/mention popup behavior now share one implementation and acceptance cycle. Token presentation remains deferred."
         }
       ]
     },
@@ -4614,12 +4656,12 @@
     },
     {
       "id": "YMP-158",
-      "title": "Implement session statistics collection, summaries and contribution drilldown",
+      "title": "Implement session statistics backend, export and headless progress",
       "type": "implementation",
       "priority": "P1",
       "status": "in_progress",
-      "owner": "Backend implementation fork and Claude Code claude-opus-5 high UI fork; maintainer owns integration and independent acceptance",
-      "authorization": "Owner explicitly requested implementation after the separate session-statistics research. YMP-157 is accepted in session-statistics-design.md. Backend implementation starts on the owner-selected gpt-5.6-sol; UI follows on Claude Code claude-opus-5 high. Astra is prohibited.",
+      "owner": "gpt-5.6-sol xhigh backend fork; maintainer owns integration and independent acceptance",
+      "authorization": "Owner explicitly requested implementation after the separate session-statistics research. YMP-157 is accepted in session-statistics-design.md. Backend/export/headless progress implementation uses owner-selected gpt-5.6-sol xhigh. The /stats TUI is consolidated into YMP-156. Astra is prohibited.",
       "depends_on": [
         "YMP-157"
       ],
@@ -4628,7 +4670,8 @@
         "Implement only the accepted157 metric/source contract, reusing existing records and adding the minimum missing typed instrumentation without changing scheduling, access, budgets, acceptance or reputation.",
         "Provide consistent per-session, per-agent and per-assignment views, captured model/settings attribution and secondary model rollups, with actual completeness and legacy limitations.",
         "Retain incremental/restart-safe aggregation and prevent duplicate accounting; distinguish outcomes, errors, retries, timing overlap and knowledge retrieval/use according to the accepted definitions.",
-        "Expose a versioned typed read/export interface and the accepted UI/drilldown through Claude Code high, with consistent summary and raw-evidence links.",
+        "Expose a versioned typed read/export interface with consistent summary and raw-evidence links. The TUI consumes it later in YMP-156.",
+        "Expose bounded live AgentStatus, assignment, Delta and usage progress in the existing headless event consumer so a pending native review is distinguishable from a stalled local check. Do not start duplicate requests or change cancellation.",
         "Validate the research acceptance cases, bounded collection overhead and existing runtime invariants with offline/scripted tests, required checks and independent review. No experiment or real-provider quota is implied."
       ],
       "evidence": [
@@ -4650,6 +4693,11 @@
           "at": "2026-09-14T02:05:00+00:00",
           "status": "in_progress",
           "note": "Owner explicitly requested delegation to Sol xhigh. Started agent3cb28fd2-5249-4405-9d96-c03766cca6ca on gpt-5.6-sol xhigh in isolated feat/ymp158-session-statistics-backend from d3e8995. Scope is the accepted typed statistics backend and optional read-only JSON export; TUI waits for backend review. Astra, real user data, provider calls and token-display changes remain excluded."
+        },
+        {
+          "at": "2026-09-14T02:32:00+00:00",
+          "status": "in_progress",
+          "note": "Open-work review narrows YMP-158 to backend/export and absorbs YMP-130's headless live progress from the same attribution/events. /stats TUI moves to consolidated YMP-156 after backend acceptance. The previous agent was no longer active, but its uncommitted worktree was preserved; relaunched agent b99f10e9-437a-4817-a4f4-e6013727479a on gpt-5.6-sol xhigh to inspect and complete it."
         }
       ]
     },
@@ -4680,6 +4728,11 @@
           "at": "2026-09-14T02:00:00+00:00",
           "status": "in_progress",
           "note": "Read-only audit proved the final GLM message contains CSS braces before one valid approved JSON object; runtime stopped with five accepted tasks and the sixth in review. Created an isolated Sol implementation task after integrating accepted recovery UI. No real session action or provider invocation is authorized during the correction."
+        },
+        {
+          "at": "2026-09-14T02:37:00+00:00",
+          "status": "in_progress",
+          "note": "Independent review returned candidate1ab42b1: it fixes the real CSS case but can skip malformed draft decisions and accept nested fragments from malformed wrappers; one whitespace behavior also lacked a sensitive test. Relaunched agent6dd93a08-3a2f-4834-a375-e693034e45a4 on gpt-5.6-sol xhigh in the existing clean worktree for bounded rework and controls."
         }
       ]
     },
@@ -4687,7 +4740,7 @@
       "id": "YMP-160",
       "title": "Honor owner starting preferences when reserving an equal-score reviewer",
       "type": "implementation",
-      "priority": "P1",
+      "priority": "P0",
       "status": "planned",
       "owner": "Owner-selected gpt-5.6-sol implementation fork after YMP-159; maintainer owns policy scope and independent acceptance",
       "authorization": "The owner reported that a preferred Sonnet participant was replaced by GLM Air. The read-only audit proved Sonnet remained eligible and the built-in reverse fallback selected the last candidate. Implement the bounded preference correction after the parser fix; Astra remains prohibited.",
@@ -4710,6 +4763,11 @@
           "at": "2026-09-14T02:00:00+00:00",
           "status": "planned",
           "note": "Audit of allocation decision seq1936 established that Sonnet was eligible and second in the preference-sorted list, while reverse reviewer reservation selected last-listed GLM. Queued a deterministic equal-score preference correction after parser159. Existing live-team controls provide the immediate explicit replacement path for the owner session."
+        },
+        {
+          "at": "2026-09-14T02:34:00+00:00",
+          "status": "planned",
+          "note": "Raised to P0 in the open-work review because the owner prioritized the complete ordinary-session run and error controls. The correction is a prerequisite of YMP-162 and still requires independent acceptance before any live-session action."
         }
       ]
     },
@@ -4740,11 +4798,52 @@
           "at": "2026-09-14T02:08:00+00:00",
           "status": "in_progress",
           "note": "Parser159 author proved all parser tests, formatting and strict Clippy pass, but five weak_pilot_consumer tests reject the accepted UI146 base before fixture execution because they pin current product bytes to1c17f4e. Registered a parallel Sol xhigh correction that preserves native frozen-manifest validation while making unattended tests self-contained. No experiment or Astra use."
+        },
+        {
+          "at": "2026-09-14T02:37:00+00:00",
+          "status": "in_progress",
+          "note": "The first Sol xhigh attempt stopped twice at provider capacity after reproducing the issue and left one uncommitted test change. Removed its retry heartbeat to prevent duplication and relaunched agent7e64be32-bdcf-4276-8f76-804332552dcb on the same model and worktree to inspect, complete and fully verify the correction."
+        }
+      ]
+    },
+    {
+      "id": "YMP-162",
+      "title": "Release recovery fixes and complete controlled end-to-end session runs",
+      "type": "integration",
+      "priority": "P0",
+      "status": "planned",
+      "owner": "Maintainer integrates accepted forks and presents each native session action for final owner approval",
+      "authorization": "The owner made the complete end-to-end run and error controls the immediate priority and accepted the proposed sequence. Preparing, integrating and verifying the release is authorized. Installing it, changing the real poker session or starting a new native counter session requires a final explicit owner action after the exact command, team, directory and allowance are presented. Astra is prohibited.",
+      "depends_on": [
+        "YMP-159",
+        "YMP-160",
+        "YMP-161"
+      ],
+      "reason": "Recovery and live team controls are implemented, but the ordinary owner journey is not proven until the parser, reviewer preference and frozen-test boundary are integrated, the full suite passes and both the interrupted poker session and a minimal fresh session are checked under controlled conditions.",
+      "acceptance": [
+        "Integrate independently accepted YMP-159, YMP-160 and YMP-161 on the accepted YMP-146 baseline. Run formatting, strict Clippy and the complete workspace suite, then build and independently verify supported macOS and Linux release artifacts without using Astra or native model calls.",
+        "Before any real-session mutation, read the exact poker session, captured team, recovery stages, current files and active processes from /Users/maggnus/Downloads/_ymp3 and ~/.ymp2. Present one explicit owner action with the target session, replacement from GLM to the exact installed Sonnet agent ID, expected revision and continuation command.",
+        "After explicit approval, preserve the historical GLM response and attribution, replace only future participation, and resume through the supported recovery API. The five accepted tasks must not execute again; the stored final review must be reparsed before any new model invocation, and every unexpected invocation or changed file must be recorded.",
+        "Verify the poker session reaches an honest terminal state and inspect the generated game without editing it outside the session. Preserve messages, errors, usage completeness, task history and unconfirmed outcomes; report any remaining browser or provider limitation explicitly.",
+        "Then prepare an exact single-file counter run in a new empty directory with deterministic +1, +1 and reset checks, a small explicit native allowance and the selected team. Do not start it until the owner approves the final command and allowance; retain its full session evidence when run.",
+        "Use the counter only for lifecycle, recovery, messaging, statistics and completion. Record a separate later fixture for meaningful parallelism instead of claiming the counter validates concurrent work."
+      ],
+      "evidence": [
+        "ymp-docs/tasks/open-work-review-2026-09-14.md",
+        "ymp-docs/research/session-functional-audit.md",
+        "ymp-docs/evidence/ymp-155/final-audit.md",
+        "ymp-docs/evidence/ymp-146/ui-acceptance.md"
+      ],
+      "history": [
+        {
+          "at": "2026-09-14T02:34:00+00:00",
+          "status": "planned",
+          "note": "Created by the open-work review as the P0 integration and controlled-run boundary. The owner prioritized a complete run and error controls and accepted the sequence. No release installation, real-session mutation or native provider call is authorized by this planning entry."
         }
       ]
     }
   ],
-  "updated_at": "2026-09-14T02:27:00+00:00",
+  "updated_at": "2026-09-14T02:37:00+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",
