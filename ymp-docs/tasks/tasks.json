@@ -4478,7 +4478,7 @@
       "title": "Audit real session behavior, interface expectations and native token accounting",
       "type": "verification",
       "priority": "P0",
-      "status": "in_progress",
+      "status": "done",
       "owner": "Maintainer owns functional expectations; read-only runtime/native accounting and Claude UI audit forks",
       "authorization": "Owner explicitly deferred comparative trials in favor of ordinary session testing, requested analysis of message order, member substitution, task visibility, coordination, parallelism, waiting and cost, and supplied active session6e286a3a in Downloads/_ymp3 for observation. Read-only access to that session and its originating native accounting is authorized. New native attempts require a concrete bounded allowance; observation does not authorize interfering with the owner run.",
       "depends_on": [
@@ -4495,7 +4495,8 @@
       ],
       "evidence": [
         "ymp-docs/research/session-functional-audit.md",
-        "ymp-docs/evidence/ymp-155/ui-findings.md"
+        "ymp-docs/evidence/ymp-155/ui-findings.md",
+        "ymp-docs/evidence/ymp-155/final-audit.md"
       ],
       "history": [
         {
@@ -4512,6 +4513,11 @@
           "at": "2026-09-14T01:40:53.118963+00:00",
           "status": "in_progress",
           "note": "Owner deferred token-display changes. Existing presentation remains unchanged. The completed native-accounting audit remains evidence; it does not authorize a new display or billing feature."
+        },
+        {
+          "at": "2026-09-14T02:00:00+00:00",
+          "status": "done",
+          "note": "Completed the read-only6e286a3a audit. Established the CSS-brace parser stop, reverse-order GLM reviewer selection despite eligible Sonnet, sequential dependency-limited execution, five retained accepted tasks, stale responsibility proposals, partial GLM accounting and native-verified Luna counts without duplicate accumulation. Registered parser159 and UI156; reviewer-selection160 follows. No live action, display change or new provider call occurred."
         }
       ]
     },
@@ -4644,6 +4650,36 @@
           "at": "2026-09-14T02:00:00+00:00",
           "status": "in_progress",
           "note": "Read-only audit proved the final GLM message contains CSS braces before one valid approved JSON object; runtime stopped with five accepted tasks and the sixth in review. Created an isolated Sol implementation task after integrating accepted recovery UI. No real session action or provider invocation is authorized during the correction."
+        }
+      ]
+    },
+    {
+      "id": "YMP-160",
+      "title": "Honor owner starting preferences when reserving an equal-score reviewer",
+      "type": "implementation",
+      "priority": "P1",
+      "status": "planned",
+      "owner": "Owner-selected gpt-5.6-sol implementation fork after YMP-159; maintainer owns policy scope and independent acceptance",
+      "authorization": "The owner reported that a preferred Sonnet participant was replaced by GLM Air. The read-only audit proved Sonnet remained eligible and the built-in reverse fallback selected the last candidate. Implement the bounded preference correction after the parser fix; Astra remains prohibited.",
+      "depends_on": [
+        "YMP-159"
+      ],
+      "reason": "Starting preferences order eligible candidates, but final-review reservation currently walks the list backwards and selects the last equal-score candidate. This makes a nonpreferred GLM reviewer replace an eligible preferred Sonnet without a constraint-based reason.",
+      "acceptance": [
+        "On an equal-score fixture with preferred Luna and Sonnet plus eligible nonpreferred GLM, reserve Luna for production and Sonnet for independent review. Record the exact allocation reason and actual captured team.",
+        "Preserve capability, independence, fixed-roster/size, explicit eligibility, availability, resource and reputation constraints. A preference is a ranking input, not a guaranteed roster and never makes an ineligible participant eligible.",
+        "Define deterministic tie-breaking for every reserved role without relying on accidental forward/reverse iterator direction. Do not globally force preferred agents when another score or constraint justifies a different choice.",
+        "Prove the regression against the pre-fix allocation, and retain counterexamples where GLM should win or Sonnet is unavailable. Preserve native identifiers and no silent model substitution.",
+        "Run formatting, strict Clippy and workspace tests on final source with independent review. Do not start a real session, scan a provider or change the owner configuration as part of the implementation."
+      ],
+      "evidence": [
+        "ymp-docs/evidence/ymp-155/final-audit.md"
+      ],
+      "history": [
+        {
+          "at": "2026-09-14T02:00:00+00:00",
+          "status": "planned",
+          "note": "Audit of allocation decision seq1936 established that Sonnet was eligible and second in the preference-sorted list, while reverse reviewer reservation selected last-listed GLM. Queued a deterministic equal-score preference correction after parser159. Existing live-team controls provide the immediate explicit replacement path for the owner session."
         }
       ]
     }

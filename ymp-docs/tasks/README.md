@@ -14,10 +14,10 @@ A planned task is not implemented functionality. Completed research and planning
 | design | 2 | 2 |
 | documentation | 4 | 4 |
 | experiment | 0 | 4 |
-| implementation | 38 | 49 |
+| implementation | 38 | 50 |
 | maintenance | 1 | 1 |
 | research | 10 | 11 |
-| verification | 2 | 3 |
+| verification | 3 | 3 |
 
 ## Index
 
@@ -95,11 +95,12 @@ A planned task is not implemented functionality. Completed research and planning
 | `[+]` | [YMP-152](#ymp-152) | P2 | Keep the selected palette command visible in very short terminals | 2026-09-13 16:25 |
 | `[x]` | [YMP-153](#ymp-153) | P0 | Decide explicit owner continuation from current files after unverified effects | 2026-09-13 18:42 |
 | `[ ]` | [YMP-154](#ymp-154) | P1 | Show substantially more slash-command suggestions when terminal space permits | 2026-09-13 18:49 |
-| `[~]` | [YMP-155](#ymp-155) | P0 | Audit real session behavior, interface expectations and native token accounting | 2026-09-14 01:40 |
+| `[x]` | [YMP-155](#ymp-155) | P0 | Audit real session behavior, interface expectations and native token accounting | 2026-09-14 02:00 |
 | `[ ]` | [YMP-156](#ymp-156) | P1 | Keep transcript chronology and completed session progress stable | 2026-09-14 01:40 |
 | `[~]` | [YMP-157](#ymp-157) | P1 | Research attributable session statistics and knowledge-use measurements | 2026-09-14 01:54 |
 | `[=]` | [YMP-158](#ymp-158) | P1 | Implement session statistics collection, summaries and contribution drilldown | 2026-09-14 01:50 |
 | `[~]` | [YMP-159](#ymp-159) | P0 | Parse the final structured decision after non-JSON commentary | 2026-09-14 02:00 |
+| `[=]` | [YMP-160](#ymp-160) | P1 | Honor owner starting preferences when reserving an equal-score reviewer | 2026-09-14 02:00 |
 
 ## YMP-001
 
@@ -2510,11 +2511,11 @@ Inline slash-command completion currently has a six-row limit even in a tall ter
 
 Audit real session behavior, interface expectations and native token accounting
 
-**State:** `[~]` (in_progress) · **Type:** verification · **Priority:** P0
+**State:** `[x]` (done) · **Type:** verification · **Priority:** P0
 
-**Last update (UTC):** 2026-09-14 01:40
+**Last update (UTC):** 2026-09-14 02:00
 
-**Current reason:** Owner deferred token-display changes. Existing presentation remains unchanged. The completed native-accounting audit remains evidence; it does not authorize a new display or billing feature.
+**Current reason:** Completed the read-only6e286a3a audit. Established the CSS-brace parser stop, reverse-order GLM reviewer selection despite eligible Sonnet, sequential dependency-limited execution, five retained accepted tasks, stale responsibility proposals, partial GLM accounting and native-verified Luna counts without duplicate accumulation. Registered parser159 and UI156; reviewer-selection160 follows. No live action, display change or new provider call occurred.
 
 **Owner:** Maintainer owns functional expectations; read-only runtime/native accounting and Claude UI audit forks
 
@@ -2537,6 +2538,7 @@ Before comparing model capability, verify basic session completion and faithful 
 
 - ymp-docs/research/session-functional-audit.md
 - ymp-docs/evidence/ymp-155/ui-findings.md
+- ymp-docs/evidence/ymp-155/final-audit.md
 
 ## YMP-156
 
@@ -2663,6 +2665,38 @@ Session6e286a3a stopped on its last review because CSS commentary contained a ba
 **Evidence:**
 
 - ymp-docs/research/session-functional-audit.md
+
+## YMP-160
+
+Honor owner starting preferences when reserving an equal-score reviewer
+
+**State:** `[=]` (planned) · **Type:** implementation · **Priority:** P1
+
+**Last update (UTC):** 2026-09-14 02:00
+
+**Current reason:** Needs YMP-159
+
+**Owner:** Owner-selected gpt-5.6-sol implementation fork after YMP-159; maintainer owns policy scope and independent acceptance
+
+**Authorization:** The owner reported that a preferred Sonnet participant was replaced by GLM Air. The read-only audit proved Sonnet remained eligible and the built-in reverse fallback selected the last candidate. Implement the bounded preference correction after the parser fix; Astra remains prohibited.
+
+**Depends on:** [YMP-159](#ymp-159)
+
+Starting preferences order eligible candidates, but final-review reservation currently walks the list backwards and selects the last equal-score candidate. This makes a nonpreferred GLM reviewer replace an eligible preferred Sonnet without a constraint-based reason.
+
+**Latest progress note:** Audit of allocation decision seq1936 established that Sonnet was eligible and second in the preference-sorted list, while reverse reviewer reservation selected last-listed GLM. Queued a deterministic equal-score preference correction after parser159. Existing live-team controls provide the immediate explicit replacement path for the owner session.
+
+**Acceptance criteria:**
+
+- On an equal-score fixture with preferred Luna and Sonnet plus eligible nonpreferred GLM, reserve Luna for production and Sonnet for independent review. Record the exact allocation reason and actual captured team.
+- Preserve capability, independence, fixed-roster/size, explicit eligibility, availability, resource and reputation constraints. A preference is a ranking input, not a guaranteed roster and never makes an ineligible participant eligible.
+- Define deterministic tie-breaking for every reserved role without relying on accidental forward/reverse iterator direction. Do not globally force preferred agents when another score or constraint justifies a different choice.
+- Prove the regression against the pre-fix allocation, and retain counterexamples where GLM should win or Sonnet is unavailable. Preserve native identifiers and no silent model substitution.
+- Run formatting, strict Clippy and workspace tests on final source with independent review. Do not start a real session, scan a provider or change the owner configuration as part of the implementation.
+
+**Evidence:**
+
+- ymp-docs/evidence/ymp-155/final-audit.md
 
 ## Intent coverage
 
