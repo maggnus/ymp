@@ -15,11 +15,19 @@ externally checked outcome as one higher-capability model, on the declared small
 tasks and within the declared total allowance? Distinguish reaching the result,
 spending fewer resources, and finishing sooner. They are separate claims.
 
-The discovered candidate pair is gpt-5.6-luna and gpt-6-astra via the installed
-Codex model catalog. Both offer low effort. This is a proposed comparison, not a
-measured capability ordering or a guarantee of current quota. Record exact native
-versions and requested, sent and reported controls. A weak-solo condition checks
-whether the selected cases exhibit a capability gap at all.
+The owner selected claude-sonnet-5 instead of gpt-6-astra for the strong solo
+baseline on 2026-09-14. Weak participants remain gpt-5.6-luna through Codex; the
+strong participant uses the existing Claude provider. Native Paseo discovery
+confirms claude-sonnet-5 and supports low; select the ordinary identifier, not the
+separate 1M variant. Preserve explicit low for both conditions. The model change
+is not approval of the previous numerical spending proposal. Existing Astra
+manifests are superseded for execution and remain historical evidence.
+
+The pilot now compares configured models through different native backends.
+Record both backends, versions, settings and accounting conventions. Equal token
+counts are not equal currency cost or compute across them. A weak-solo condition
+still checks whether the selected tasks exhibit a capability gap; the proposed
+strong/weak labels are not measured conclusions.
 
 ## Scientific basis and competing explanations
 
@@ -238,3 +246,23 @@ measured failure; a cancellation with unknown accounting still triggers the
 unknown-usage stop rule. Do not solve this by relabeling all failures successful
 or by ignoring shared resource restrictions. Freeze the final continuation rules
 and revised manifests before requesting owner approval.
+
+## Sonnet baseline implementation follow-up
+
+The accepted d12d40a runner was bound to Codex for every condition. The same author
+now prepares a narrow provider-aware strong-solo path using the existing Claude
+backend and SDK bridge. Preserve all accepted outcome, deadline, candidate-access
+and one-phase-approval controls. Do not relabel Sonnet as a Codex model or create
+a parallel production provider. Weak conditions stay on their accepted Codex path.
+
+Verify Claude-native context, tools, memory/subagent suppression, effective low,
+access restrictions and canonical usage without model inference. Reuse existing
+normalizers rather than assuming identical wire cache/input semantics. Fresh
+protocol fixtures must reach the same selection/seal/score consumer. Freeze new
+source, provider controls, executable and manifests for independent acceptance.
+Existing numerical limits remain proposals without enlargement; any changed
+resource interpretation must be stated before the next owner decision.
+
+The earlier approval question is superseded by this model correction. No consent
+to spend on either the Astra or Sonnet proposal is inferred from it, and no real
+phase, calibration or model-quality result has been produced.

@@ -1,4 +1,8 @@
-# Exact YMP-201 run proposal awaiting acceptance and owner approval
+# Historical YMP-201 Astra run proposal
+
+Superseded for execution on 2026-09-14: the owner selected claude-sonnet-5 in place
+of gpt-6-astra. No spending approval was given. These exact Astra manifests remain
+unchanged as evidence; new Sonnet manifests must be prepared and approved.
 
 Candidate d12d40a, executable consumer 75f60a6. The owner requested the small
 comparison; no concrete experimental allocation has been approved. These are

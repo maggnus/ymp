@@ -34,3 +34,11 @@ The next action is the owner's explicit decision on the two
 record, native phase marker, calibration or measured call is created. Execution
 must use the accepted frozen checkout and executable; do not silently rebuild,
 substitute models, alter manifests, repeat a phase or enlarge its allowance.
+
+## Subsequent owner model correction
+
+The owner selected Sonnet 5 instead of Astra on 2026-09-14. The acceptance above
+remains evidence for the previous Codex-only runner and its source. The old exact
+manifests are no longer the active spending proposal. The same isolated author
+is adapting the strong baseline to the existing Claude provider; no native study
+has started and the model correction itself allocates no quota.

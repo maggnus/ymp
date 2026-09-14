@@ -944,9 +944,9 @@
       "title": "Test whether two or three weaker agents can match a stronger solo agent",
       "type": "experiment",
       "priority": "P2",
-      "status": "owner_question",
+      "status": "in_progress",
       "owner": "Experiment lead",
-      "authorization": "On 2026-09-14 the owner explicitly requested a simple weak-agent comparative run and scientific grounding. Preparation and bounded readiness research start now. The earlier requirement to approve concrete native settings and the resource envelope remains; no numeric quota has yet been selected. This does not authorize the broader YMP-202--204 studies.",
+      "authorization": "Owner requested a simple comparison and on 2026-09-14 selected claude-sonnet-5 instead of gpt-6-astra for the strong solo baseline. This authorizes the narrow provider-aware adaptation and retains weak gpt-5.6-luna participants. Concrete native spending remains unapproved; the earlier Astra manifest question is superseded, not accepted.",
       "depends_on": [
         "YMP-121",
         "YMP-147"
@@ -969,9 +969,10 @@
         "ymp-docs/evidence/ymp-201/independent-round1/review-result.json",
         "ymp-docs/evidence/ymp-201/proposed-run/README.md",
         "ymp-docs/evidence/ymp-201/acceptance.md",
-        "ymp-docs/evidence/ymp-201/independent-final/review-result.json"
+        "ymp-docs/evidence/ymp-201/independent-final/review-result.json",
+        "ymp-docs/evidence/ymp-201/sonnet-model-discovery.json"
       ],
-      "budget": "Pending owner approval of exact manifests b21ad8dc... and dffb4e86...: six calibration outcomes, 80,000 observed-token stop threshold/12 outer calls/480 seconds each; conditional twelve measured outcomes,160,000/16/900 each. Aggregate threshold sums480,000+1,920,000=2,400,000; outer calls72+192=264; group deadlines48+180=228minutes. In-flight overshoot and currency cost are not hard-bounded/known. No native allocation yet; one-use scope and unknown-usage stop remain mandatory.",
+      "budget": "No native quota allocated. The accepted Astra proposals b21ad8dc.../dffb4e86... are superseded for execution by the owner-selected Sonnet5 baseline. Prepare newly bound Claude/Codex manifests with existing numerical limits as proposals, no hidden enlargement, provider-specific canonical accounting and unchanged shared deadlines. Obtain the concrete owner decision after acceptance; model selection alone is not spending approval.",
       "history": [
         {
           "at": "2026-09-12T05:53:25.655548+00:00",
@@ -1057,6 +1058,11 @@
           "at": "2026-09-13T22:50:38.071688+00:00",
           "status": "owner_question",
           "note": "Independent C1/C2/C3 re-review accepted d12d40a; parent integrated the byte-identical full executable source as d48b081 and retained verified evidence. Owner question: approve both exact phases (6 calibration plus conditional12 measured outcomes) using gpt-5.6-luna low and gpt-6-astra low, with the recorded shared thresholds/time/call ceilings and possible in-flight overshoot? Calibration validity, not answer correctness, controls pilot entry. No owner answer or native spend is recorded; the experiment result remains outstanding."
+        },
+        {
+          "at": "2026-09-14T00:21:15.017161+00:00",
+          "status": "in_progress",
+          "note": "Owner corrected the strong baseline to Sonnet5 instead of Astra. Native Claude discovery confirms claude-sonnet-5 with low, without selecting the separate1M variant. Same author bfa857e3 is adapting the existing provider-aware evaluation path while preserving C1/C2/C3 and weak Codex conditions. Old approval question/manifests are superseded; no native spend was approved or performed. Production backends and UI remain unchanged by this assignment."
         }
       ]
     },
@@ -4441,7 +4447,7 @@
       ]
     }
   ],
-  "updated_at": "2026-09-13T22:50:38.071688+00:00",
+  "updated_at": "2026-09-14T00:21:15.017161+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",

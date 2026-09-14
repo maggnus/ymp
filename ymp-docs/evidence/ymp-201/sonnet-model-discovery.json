@@ -1,0 +1,47 @@
+{
+  "source": {
+    "method": "Paseo list_models",
+    "provider": "claude"
+  },
+  "models": [
+    {
+      "provider": "claude",
+      "id": "claude-sonnet-5",
+      "label": "Sonnet 5",
+      "description": "Sonnet 5 · Best for everyday tasks",
+      "contextWindowMaxTokens": 200000,
+      "thinkingOptions": [
+        {
+          "id": "off",
+          "label": "Off"
+        },
+        {
+          "id": "low",
+          "label": "Low"
+        },
+        {
+          "id": "medium",
+          "label": "Medium"
+        },
+        {
+          "id": "high",
+          "label": "High",
+          "isDefault": true
+        },
+        {
+          "id": "xhigh",
+          "label": "Extra High"
+        },
+        {
+          "id": "max",
+          "label": "Max"
+        },
+        {
+          "id": "ultracode",
+          "label": "Ultra Code"
+        }
+      ],
+      "defaultThinkingOptionId": "high"
+    }
+  ]
+}
