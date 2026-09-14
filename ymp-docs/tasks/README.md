@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-14 02:00 UTC.
+Updated: 2026-09-14 02:03 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -16,7 +16,7 @@ A planned task is not implemented functionality. Completed research and planning
 | experiment | 0 | 4 |
 | implementation | 38 | 50 |
 | maintenance | 1 | 1 |
-| research | 10 | 11 |
+| research | 11 | 11 |
 | verification | 3 | 3 |
 
 ## Index
@@ -97,8 +97,8 @@ A planned task is not implemented functionality. Completed research and planning
 | `[ ]` | [YMP-154](#ymp-154) | P1 | Show substantially more slash-command suggestions when terminal space permits | 2026-09-13 18:49 |
 | `[x]` | [YMP-155](#ymp-155) | P0 | Audit real session behavior, interface expectations and native token accounting | 2026-09-14 02:00 |
 | `[ ]` | [YMP-156](#ymp-156) | P1 | Keep transcript chronology and completed session progress stable | 2026-09-14 01:40 |
-| `[~]` | [YMP-157](#ymp-157) | P1 | Research attributable session statistics and knowledge-use measurements | 2026-09-14 01:54 |
-| `[=]` | [YMP-158](#ymp-158) | P1 | Implement session statistics collection, summaries and contribution drilldown | 2026-09-14 01:50 |
+| `[x]` | [YMP-157](#ymp-157) | P1 | Research attributable session statistics and knowledge-use measurements | 2026-09-14 02:03 |
+| `[~]` | [YMP-158](#ymp-158) | P1 | Implement session statistics collection, summaries and contribution drilldown | 2026-09-14 02:03 |
 | `[~]` | [YMP-159](#ymp-159) | P0 | Parse the final structured decision after non-JSON commentary | 2026-09-14 02:00 |
 | `[=]` | [YMP-160](#ymp-160) | P1 | Honor owner starting preferences when reserving an equal-score reviewer | 2026-09-14 02:00 |
 
@@ -2577,11 +2577,11 @@ Notices and live-stream updates can distort chronology, and accepted tasks are f
 
 Research attributable session statistics and knowledge-use measurements
 
-**State:** `[~]` (in_progress) · **Type:** research · **Priority:** P1
+**State:** `[x]` (done) · **Type:** research · **Priority:** P1
 
-**Last update (UTC):** 2026-09-14 01:54
+**Last update (UTC):** 2026-09-14 02:03
 
-**Current reason:** Owner explicitly requested Sol instead of Astra for this research. Interrupted the current read-only turn, updated the same Paseo agent52111c72 to discovered gpt-5.6-sol and resumed with preserved context. Reasoning and scope unchanged; no repeated research or change to the deferred YMP-201 comparison models.
+**Current reason:** Accepted the Sol research result. Existing SessionTrace supports most attributable statistics from one transactional snapshot; finalized definitions separate actor/model, elapsed/work/overlap/wait, transport/response/task/confirmation, technical errors, communication and knowledge stages. Added six bounded collection gaps, typed read/export contract and eight acceptance cases. No implementation, native call or token-display change occurred.
 
 **Owner:** Researcher52111c72 on owner-selected gpt-5.6-sol; maintainer owns metric definitions and acceptance
 
@@ -2603,26 +2603,25 @@ The owner needs a reliable explanation of who performed each contribution. Exist
 **Evidence:**
 
 - ymp-docs/research/session-statistics-brief.md
+- ymp-docs/research/session-statistics-design.md
 
 ## YMP-158
 
 Implement session statistics collection, summaries and contribution drilldown
 
-**State:** `[=]` (planned) · **Type:** implementation · **Priority:** P1
+**State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P1
 
-**Last update (UTC):** 2026-09-14 01:50
+**Last update (UTC):** 2026-09-14 02:03
 
-**Current reason:** Needs YMP-157
+**Current reason:** YMP-157 accepted. Starting a Sol backend fork for DTOs, pure projection, minimal collection fields and read/export APIs. Claude /stats work waits for the reviewed backend. Existing usage UI, scheduling, budgets, acceptance and reputation remain unchanged.
 
 **Owner:** Backend implementation fork and Claude Code claude-opus-5 high UI fork; maintainer owns integration and independent acceptance
 
-**Authorization:** Owner explicitly requested implementation after the separate session-statistics research. Exact fields, sources and UI are to be fixed by acceptance of YMP-157; no code implementation starts before it.
+**Authorization:** Owner explicitly requested implementation after the separate session-statistics research. YMP-157 is accepted in session-statistics-design.md. Backend implementation starts on the owner-selected gpt-5.6-sol; UI follows on Claude Code claude-opus-5 high. Astra is prohibited.
 
 **Depends on:** [YMP-157](#ymp-157)
 
 The accepted research should become usable, attributable session statistics rather than repeated manual database/native-log inspection.
-
-**Latest progress note:** Created the dependent implementation task requested by the owner. It remains blocked on157 research acceptance; source changes and UI placement are not yet selected or implemented.
 
 **Acceptance criteria:**
 
@@ -2635,6 +2634,7 @@ The accepted research should become usable, attributable session statistics rath
 **Evidence:**
 
 - ymp-docs/research/session-statistics-brief.md
+- ymp-docs/research/session-statistics-design.md
 
 ## YMP-159
 

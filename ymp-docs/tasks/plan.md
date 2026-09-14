@@ -1,6 +1,6 @@
 # Delivery plan and progress
 
-Updated: 2026-09-14 02:00 UTC.
+Updated: 2026-09-14 02:03 UTC.
 
 [Approved intent](../../intent.md) · [Task details and evidence](README.md) · [Canonical register](tasks.json)
 
@@ -34,7 +34,7 @@ A planned task automatically shows `[=]` while prerequisites remain unfinished a
 
 - `[+]` [YMP-130](README.md#ymp-130) — Show active agent work during headless session runs (2026-09-13 00:54). Read-only diagnosis: poker checks passed at 2026-09-13T00:52:09Z; the following claude-opus-5 review invocation was active. Earlier attempts were cancelled. No active run was stopped or restarted by this investigation.
 - `[+]` [YMP-152](README.md#ymp-152) — Keep the selected palette command visible in very short terminals (2026-09-13 16:25). Independent reviewer found this in both35786ecand0.4.6using50navigation steps at60x8;60x9and44x10retain selection. Original captures are in /tmp/ymp145-independent-review. Source diagnosis is modal_body_rows(8,true)=2while search+separator take2rows. No fix or new implementation fork started.
-- `[~]` [YMP-157](README.md#ymp-157) — Research attributable session statistics and knowledge-use measurements (2026-09-14 01:54). Owner explicitly requested Sol instead of Astra for this research. Interrupted the current read-only turn, updated the same Paseo agent52111c72 to discovered gpt-5.6-sol and resumed with preserved context. Reasoning and scope unchanged; no repeated research or change to the deferred YMP-201 comparison models.
+- `[~]` [YMP-158](README.md#ymp-158) — Implement session statistics collection, summaries and contribution drilldown (2026-09-14 02:03). YMP-157 accepted. Starting a Sol backend fork for DTOs, pure projection, minimal collection fields and read/export APIs. Claude /stats work waits for the reviewed backend. Existing usage UI, scheduling, budgets, acceptance and reputation remain unchanged.
 - `[~]` [YMP-159](README.md#ymp-159) — Parse the final structured decision after non-JSON commentary (2026-09-14 02:00). Read-only audit proved the final GLM message contains CSS braces before one valid approved JSON object; runtime stopped with five accepted tasks and the sixth in review. Created an isolated Sol implementation task after integrating accepted recovery UI. No real session action or provider invocation is authorized during the correction.
 
 ## Ready next
@@ -144,11 +144,11 @@ Deferred and post-MVP work:
 
 | Time (UTC) | Task | State | Update |
 | --- | --- | --- | --- |
+| 2026-09-14 02:03 | [YMP-157](README.md#ymp-157) | `[x]` | Accepted the Sol research result. Existing SessionTrace supports most attributable statistics from one transactional snapshot; finalized definitions separate actor/model, elapsed/work/overlap/wait, transport/response/task/confirmation, technical errors, communication and knowledge stages. Added six bounded collection gaps, typed read/export contract and eight acceptance cases. No implementation, native call or token-display change occurred. |
+| 2026-09-14 02:03 | [YMP-158](README.md#ymp-158) | `[~]` | YMP-157 accepted. Starting a Sol backend fork for DTOs, pure projection, minimal collection fields and read/export APIs. Claude /stats work waits for the reviewed backend. Existing usage UI, scheduling, budgets, acceptance and reputation remain unchanged. |
 | 2026-09-14 02:00 | [YMP-146](README.md#ymp-146) | `[x]` | Independent Claude review accepted UI19370d5 after five focused recovery tests and11 terminal checks in each of Unicode/ASCII. Parent integrated it as a8367c4 with byte-identical TUI/scenario source. YMP-146 now delivers saved-stage recovery, current-session team changes, effect inspection and explicit current-files continuation. Installed0.4.6 and the real poker session remain unchanged; release follows parser159. |
 | 2026-09-14 02:00 | [YMP-155](README.md#ymp-155) | `[x]` | Completed the read-only6e286a3a audit. Established the CSS-brace parser stop, reverse-order GLM reviewer selection despite eligible Sonnet, sequential dependency-limited execution, five retained accepted tasks, stale responsibility proposals, partial GLM accounting and native-verified Luna counts without duplicate accumulation. Registered parser159 and UI156; reviewer-selection160 follows. No live action, display change or new provider call occurred. |
 | 2026-09-14 02:00 | [YMP-159](README.md#ymp-159) | `[~]` | Read-only audit proved the final GLM message contains CSS braces before one valid approved JSON object; runtime stopped with five accepted tasks and the sixth in review. Created an isolated Sol implementation task after integrating accepted recovery UI. No real session action or provider invocation is authorized during the correction. |
-| 2026-09-14 02:00 | [YMP-160](README.md#ymp-160) | `[=]` | Audit of allocation decision seq1936 established that Sonnet was eligible and second in the preference-sorted list, while reverse reviewer reservation selected last-listed GLM. Queued a deterministic equal-score preference correction after parser159. Existing live-team controls provide the immediate explicit replacement path for the owner session. |
-| 2026-09-14 01:57 | [YMP-201](README.md#ymp-201) | `[=]` | Owner prohibited any use of gpt-6-astra until an explicit future request. Audited current Paseo agents: no active agent uses Astra; YMP-157 is running on gpt-5.6-sol. Historical Astra records and accepted manifests remain evidence only and are inactive. No replacement strong model, probe, calibration, quota or execution is inferred. |
 
 ## Maintenance
 

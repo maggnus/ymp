@@ -4562,7 +4562,7 @@
       "title": "Research attributable session statistics and knowledge-use measurements",
       "type": "research",
       "priority": "P1",
-      "status": "in_progress",
+      "status": "done",
       "owner": "Researcher52111c72 on owner-selected gpt-5.6-sol; maintainer owns metric definitions and acceptance",
       "authorization": "Owner explicitly requested a separate research study of session participants/models, work time, token usage, knowledge hits, successes/failures and errors, followed by implementation. This is read-only research, not implementation or native expenditure.",
       "depends_on": [
@@ -4578,7 +4578,8 @@
         "Do not alter code, user records, current token presentation, budgets or acceptance; no native scans/calls or new experiment. Return a reviewable research result and implementation boundary."
       ],
       "evidence": [
-        "ymp-docs/research/session-statistics-brief.md"
+        "ymp-docs/research/session-statistics-brief.md",
+        "ymp-docs/research/session-statistics-design.md"
       ],
       "history": [
         {
@@ -4590,6 +4591,11 @@
           "at": "2026-09-14T01:54:18.199205+00:00",
           "status": "in_progress",
           "note": "Owner explicitly requested Sol instead of Astra for this research. Interrupted the current read-only turn, updated the same Paseo agent52111c72 to discovered gpt-5.6-sol and resumed with preserved context. Reasoning and scope unchanged; no repeated research or change to the deferred YMP-201 comparison models."
+        },
+        {
+          "at": "2026-09-14T02:03:00+00:00",
+          "status": "done",
+          "note": "Accepted the Sol research result. Existing SessionTrace supports most attributable statistics from one transactional snapshot; finalized definitions separate actor/model, elapsed/work/overlap/wait, transport/response/task/confirmation, technical errors, communication and knowledge stages. Added six bounded collection gaps, typed read/export contract and eight acceptance cases. No implementation, native call or token-display change occurred."
         }
       ]
     },
@@ -4598,9 +4604,9 @@
       "title": "Implement session statistics collection, summaries and contribution drilldown",
       "type": "implementation",
       "priority": "P1",
-      "status": "planned",
+      "status": "in_progress",
       "owner": "Backend implementation fork and Claude Code claude-opus-5 high UI fork; maintainer owns integration and independent acceptance",
-      "authorization": "Owner explicitly requested implementation after the separate session-statistics research. Exact fields, sources and UI are to be fixed by acceptance of YMP-157; no code implementation starts before it.",
+      "authorization": "Owner explicitly requested implementation after the separate session-statistics research. YMP-157 is accepted in session-statistics-design.md. Backend implementation starts on the owner-selected gpt-5.6-sol; UI follows on Claude Code claude-opus-5 high. Astra is prohibited.",
       "depends_on": [
         "YMP-157"
       ],
@@ -4613,13 +4619,19 @@
         "Validate the research acceptance cases, bounded collection overhead and existing runtime invariants with offline/scripted tests, required checks and independent review. No experiment or real-provider quota is implied."
       ],
       "evidence": [
-        "ymp-docs/research/session-statistics-brief.md"
+        "ymp-docs/research/session-statistics-brief.md",
+        "ymp-docs/research/session-statistics-design.md"
       ],
       "history": [
         {
           "at": "2026-09-14T01:50:37.667567+00:00",
           "status": "planned",
           "note": "Created the dependent implementation task requested by the owner. It remains blocked on157 research acceptance; source changes and UI placement are not yet selected or implemented."
+        },
+        {
+          "at": "2026-09-14T02:03:00+00:00",
+          "status": "in_progress",
+          "note": "YMP-157 accepted. Starting a Sol backend fork for DTOs, pure projection, minimal collection fields and read/export APIs. Claude /stats work waits for the reviewed backend. Existing usage UI, scheduling, budgets, acceptance and reputation remain unchanged."
         }
       ]
     },
@@ -4684,7 +4696,7 @@
       ]
     }
   ],
-  "updated_at": "2026-09-14T02:00:00+00:00",
+  "updated_at": "2026-09-14T02:03:00+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",
