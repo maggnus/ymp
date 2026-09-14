@@ -1,0 +1,32 @@
+{"case":"c01_message233_shape","result":"ok approved=true reason=\"The browser checks pass.\""}
+{"case":"c02_direct","result":"ok approved=true reason=\"r\""}
+{"case":"c03_fenced_json","result":"ok approved=false reason=\"r\""}
+{"case":"c04_fenced_plain","result":"ok approved=true reason=\"r\""}
+{"case":"c05_commentary_then_fenced","result":"ok approved=true reason=\"r\""}
+{"case":"c06_json_whitespace","result":"ok approved=true reason=\"ok\""}
+{"case":"c07_utf8_commentary","result":"ok approved=true reason=\"всё ок ✓\""}
+{"case":"c08_braces_escapes_in_strings","result":"ok approved=true reason=\"a } { \\\" \\\\ b\""}
+{"case":"c09_nested_arrays_objects","result":"ok approved=true items=2 meta=1"}
+{"case":"c10_css_block_after_decision","result":"err Agent returned text after its JSON decision; a final unambiguous response is required"}
+{"case":"c11_two_valid","result":"err Agent returned multiple JSON objects; the decision is ambiguous"}
+{"case":"c12_malformed_quoted_before_valid","result":"err Agent returned malformed JSON: expected ident at line 1 column 16"}
+{"case":"c13_incomplete","result":"err Agent returned an incomplete JSON object"}
+{"case":"c14_trailing_prose","result":"err Agent returned text after its JSON decision; a final unambiguous response is required"}
+{"case":"c15_nested_in_malformed_quoted_outer","result":"err Agent returned malformed JSON: expected value at line 1 column 52"}
+{"case":"c16_js_style_draft_opposite_before_final","result":"err Agent returned malformed JSON: key must be a string at line 1 column 2"}
+{"case":"c17_python_dict_draft_before_final","result":"err Agent returned malformed JSON: key must be a string at line 1 column 2"}
+{"case":"c18_unclosed_unquoted_outer_with_nested","result":"err Agent returned an incomplete JSON object"}
+{"case":"c19_malformed_inner_in_non_json_block","result":"err Agent returned malformed JSON: key must be a string at line 1 column 3"}
+{"case":"c20_empty_object_code_then_final","result":"err Agent returned multiple JSON objects; the decision is ambiguous"}
+{"case":"c21_unbalanced_code_brace_then_final","result":"err Agent returned an incomplete JSON object"}
+{"case":"c22_balanced_non_json_wrapping_decision","result":"err Agent returned malformed JSON: key must be a string at line 1 column 3"}
+{"case":"c23_css_single_quoted_brace","result":"ok approved=true reason=\"r\""}
+{"case":"c24_nbsp_after_brace","result":"err Agent did not return a complete JSON object"}
+{"case":"c25_valid_non_decision_example_then_final","result":"err Agent returned multiple JSON objects; the decision is ambiguous"}
+{"case":"c26_wrong_schema_only_after_css","result":"err missing field `reason` at line 1 column 17"}
+{"case":"c27_json_draft_inside_css_fence","result":"err Agent returned multiple JSON objects; the decision is ambiguous"}
+{"case":"c28_unmatched_quote_outside_braces","result":"ok approved=true reason=\"r\""}
+{"case":"c29_unmatched_quote_inside_css_block","result":"ok approved=true reason=\"r\""}
+{"case":"c30_two_identical_valid","result":"err Agent returned multiple JSON objects; the decision is ambiguous"}
+{"case":"c31_css_after_decision_no_fence","result":"err Agent returned text after its JSON decision; a final unambiguous response is required"}
+{"case":"c32_yaml_like_draft_multiline","result":"err Agent returned malformed JSON: key must be a string at line 2 column 3"}

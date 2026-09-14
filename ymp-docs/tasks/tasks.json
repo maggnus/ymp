@@ -4706,7 +4706,7 @@
       "title": "Parse the final structured decision after non-JSON commentary",
       "type": "implementation",
       "priority": "P0",
-      "status": "in_progress",
+      "status": "done",
       "owner": "Owner-selected gpt-5.6-sol implementation fork; maintainer owns integration and independent acceptance",
       "authorization": "Owner asked how to finish the supplied poker session after the read-only audit established a parser defect. Implement the bounded parser correction and prepare a release before any explicit live-session continuation. Astra is prohibited.",
       "depends_on": [
@@ -4743,6 +4743,16 @@
           "at": "2026-09-14T03:17:00+00:00",
           "status": "in_progress",
           "note": "Second review returned one bounded defect: valid or malformed decisions nested inside an outer code/CSS block were skipped. Parent decision: exact schema key approved makes a one-field unquoted block malformed; unrelated verdict syntax remains prose. Sent only c34/c35/c44 plus the one-field rule to the same Sol xhigh author; no expanded scenario suite."
+        },
+        {
+          "at": "2026-09-14T03:22:00+00:00",
+          "status": "done",
+          "note": "Independent review accepted final candidateff09a49 after a six-case isolated check: nested opposing decisions are ambiguous, nested malformed JSON and unquoted approved are rejected, unrelated verdict syntax and CSS remain commentary, and the sanitized poker response parses. Integrated the exact source and evidence with the already accepted YMP-161 correction; parent full checks follow on current main."
+        },
+        {
+          "at": "2026-09-14T03:29:00+00:00",
+          "status": "done",
+          "note": "Parent integration passed15 focused parser tests, formatting, strict workspace Clippy and the complete workspace suite:662 passed,0 failed,2 existing ignored. No provider, installed release or real session was touched."
         }
       ]
     },
@@ -4863,7 +4873,7 @@
       ]
     }
   ],
-  "updated_at": "2026-09-14T03:17:00+00:00",
+  "updated_at": "2026-09-14T03:29:00+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",

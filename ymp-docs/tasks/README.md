@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-14 03:17 UTC.
+Updated: 2026-09-14 03:29 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -14,7 +14,7 @@ A planned task is not implemented functionality. Completed research and planning
 | design | 2 | 2 |
 | documentation | 4 | 4 |
 | experiment | 0 | 4 |
-| implementation | 38 | 50 |
+| implementation | 39 | 50 |
 | integration | 0 | 1 |
 | maintenance | 2 | 2 |
 | research | 11 | 11 |
@@ -100,8 +100,8 @@ A planned task is not implemented functionality. Completed research and planning
 | `[=]` | [YMP-156](#ymp-156) | P1 | Keep transcript chronology and completed session progress stable | 2026-09-14 02:32 |
 | `[x]` | [YMP-157](#ymp-157) | P1 | Research attributable session statistics and knowledge-use measurements | 2026-09-14 02:03 |
 | `[~]` | [YMP-158](#ymp-158) | P1 | Implement session statistics backend, export and headless progress | 2026-09-14 02:32 |
-| `[~]` | [YMP-159](#ymp-159) | P0 | Parse the final structured decision after non-JSON commentary | 2026-09-14 03:17 |
-| `[=]` | [YMP-160](#ymp-160) | P0 | Honor owner starting preferences when reserving an equal-score reviewer | 2026-09-14 02:34 |
+| `[x]` | [YMP-159](#ymp-159) | P0 | Parse the final structured decision after non-JSON commentary | 2026-09-14 03:29 |
+| `[ ]` | [YMP-160](#ymp-160) | P0 | Honor owner starting preferences when reserving an equal-score reviewer | 2026-09-14 02:34 |
 | `[x]` | [YMP-161](#ymp-161) | P0 | Keep frozen experiment bindings without blocking later product changes | 2026-09-14 02:52 |
 | `[=]` | [YMP-162](#ymp-162) | P0 | Release recovery fixes and complete controlled end-to-end session runs | 2026-09-14 02:34 |
 
@@ -2646,11 +2646,11 @@ The accepted research should become usable, attributable session statistics rath
 
 Parse the final structured decision after non-JSON commentary
 
-**State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P0
+**State:** `[x]` (done) · **Type:** implementation · **Priority:** P0
 
-**Last update (UTC):** 2026-09-14 03:17
+**Last update (UTC):** 2026-09-14 03:29
 
-**Current reason:** Second review returned one bounded defect: valid or malformed decisions nested inside an outer code/CSS block were skipped. Parent decision: exact schema key approved makes a one-field unquoted block malformed; unrelated verdict syntax remains prose. Sent only c34/c35/c44 plus the one-field rule to the same Sol xhigh author; no expanded scenario suite.
+**Current reason:** Parent integration passed15 focused parser tests, formatting, strict workspace Clippy and the complete workspace suite:662 passed,0 failed,2 existing ignored. No provider, installed release or real session was touched.
 
 **Owner:** Owner-selected gpt-5.6-sol implementation fork; maintainer owns integration and independent acceptance
 
@@ -2676,11 +2676,11 @@ Session6e286a3a stopped on its last review because CSS commentary contained a ba
 
 Honor owner starting preferences when reserving an equal-score reviewer
 
-**State:** `[=]` (planned) · **Type:** implementation · **Priority:** P0
+**State:** `[ ]` (planned) · **Type:** implementation · **Priority:** P0
 
 **Last update (UTC):** 2026-09-14 02:34
 
-**Current reason:** Needs YMP-159
+**Current reason:** Ready to start
 
 **Owner:** Owner-selected gpt-5.6-sol implementation fork after YMP-159; maintainer owns policy scope and independent acceptance
 
@@ -2742,7 +2742,7 @@ Release recovery fixes and complete controlled end-to-end session runs
 
 **Last update (UTC):** 2026-09-14 02:34
 
-**Current reason:** Needs YMP-159, YMP-160
+**Current reason:** Needs YMP-160
 
 **Owner:** Maintainer integrates accepted forks and presents each native session action for final owner approval
 

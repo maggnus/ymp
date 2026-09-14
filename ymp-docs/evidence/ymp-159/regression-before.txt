@@ -1,0 +1,24 @@
+Command:
+CARGO_TARGET_DIR=/tmp/ymp159-parser-target cargo test -p ymp-core parses_final_review_after_css_commentary -- --nocapture
+
+Base parser implementation: a8367c4169bf17a33566d45b5bd537ce30d59869
+Exit code: 101
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.04s
+     Running unittests src/lib.rs (/tmp/ymp159-parser-target/debug/deps/ymp_core-0ebf98cb64040e60)
+
+running 1 test
+
+thread 'model::tests::parses_final_review_after_css_commentary' panicked at ymp-rust/crates/ymp-core/src/model.rs:405:55:
+called `Result::unwrap()` on an `Err` value: Agent returned malformed JSON: key must be a string at line 1 column 2
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test model::tests::parses_final_review_after_css_commentary ... FAILED
+
+failures:
+
+failures:
+    model::tests::parses_final_review_after_css_commentary
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 11 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p ymp-core --lib`

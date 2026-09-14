@@ -284,6 +284,111 @@ fn unknown_confirmation() -> crate::ConfirmationStatus {
     crate::ConfirmationStatus::Unknown
 }
 
+fn unquoted_member_name(bytes: &[u8]) -> Option<&[u8]> {
+    let mut cursor = bytes
+        .iter()
+        .position(|byte| !matches!(byte, b' ' | b'\t' | b'\r' | b'\n'))
+        .unwrap_or(bytes.len());
+    if cursor == bytes.len() || !matches!(bytes[cursor], b'a'..=b'z' | b'A'..=b'Z' | b'_' | b'$') {
+        return None;
+    }
+    let start = cursor;
+    cursor += 1;
+    while cursor < bytes.len()
+        && matches!(
+            bytes[cursor],
+            b'a'..=b'z' | b'A'..=b'Z' | b'0'..=b'9' | b'_' | b'$'
+        )
+    {
+        cursor += 1;
+    }
+    let end = cursor;
+    while cursor < bytes.len() && matches!(bytes[cursor], b' ' | b'\t') {
+        cursor += 1;
+    }
+    (bytes.get(cursor) == Some(&b':')).then_some(&bytes[start..end])
+}
+
+fn starts_single_quoted_member(bytes: &[u8]) -> bool {
+    let mut escaped = false;
+    let Some(end) = bytes[1..].iter().position(|byte| {
+        if escaped {
+            escaped = false;
+            false
+        } else if *byte == b'\\' {
+            escaped = true;
+            false
+        } else {
+            *byte == b'\''
+        }
+    }) else {
+        return false;
+    };
+    let mut cursor = end + 2;
+    while cursor < bytes.len() && matches!(bytes[cursor], b' ' | b'\t') {
+        cursor += 1;
+    }
+    bytes.get(cursor) == Some(&b':')
+}
+
+fn has_multiple_unquoted_members(bytes: &[u8], first: usize) -> bool {
+    let mut nested = 0usize;
+    let mut quote = None;
+    let mut escaped = false;
+    let mut css_declaration_ended = false;
+    for (index, byte) in bytes[first..].iter().enumerate() {
+        if let Some(delimiter) = quote {
+            if escaped {
+                escaped = false;
+            } else if *byte == b'\\' {
+                escaped = true;
+            } else if *byte == delimiter {
+                quote = None;
+            }
+            continue;
+        }
+        match *byte {
+            b'"' | b'\'' => quote = Some(*byte),
+            b'{' | b'[' | b'(' => nested += 1,
+            b'}' | b']' | b')' => nested = nested.saturating_sub(1),
+            b';' if nested == 0 => css_declaration_ended = true,
+            b',' if nested == 0 => {
+                if unquoted_member_name(&bytes[first + index + 1..]).is_some() {
+                    return true;
+                }
+            }
+            b'\n' | b'\r' if nested == 0 && !css_declaration_ended => {
+                if unquoted_member_name(&bytes[first + index + 1..]).is_some() {
+                    return true;
+                }
+            }
+            _ => {}
+        }
+    }
+    false
+}
+
+fn looks_like_json_object(bytes: &[u8]) -> bool {
+    let Some(first) = bytes
+        .iter()
+        .position(|byte| !matches!(byte, b' ' | b'\t' | b'\r' | b'\n'))
+    else {
+        return true;
+    };
+
+    match bytes[first] {
+        // A quoted JSON member, an empty object, and a nested candidate must
+        // all be handled as one candidate.
+        b'"' | b'}' | b'{' => true,
+        b'\'' => starts_single_quoted_member(&bytes[first..]),
+        _ => unquoted_member_name(&bytes[first..]).is_some_and(|name| {
+            // An unquoted Review field is a malformed decision; unrelated
+            // one-member prose such as `{verdict: reject}` remains skippable.
+            name == b"approved" || has_multiple_unquoted_members(bytes, first)
+        }),
+    }
+}
+
 #[derive(Debug, Clone)]
 pub enum UiEvent {
     Usage {
@@ -324,51 +429,64 @@ pub fn parse_response<T: serde::de::DeserializeOwned>(text: &str) -> Result<T> {
         return Ok(value);
     }
 
-    let mut depth = 0usize;
-    let mut start = 0;
-    let mut quoted = false;
-    let mut escaped = false;
+    let bytes = trimmed.as_bytes();
+    let mut cursor = 0;
     let mut object = None;
-    for (index, ch) in trimmed.char_indices() {
-        if depth == 0 {
-            if ch == '{' {
-                start = index;
-                depth = 1;
-                quoted = false;
-            }
-            continue;
-        }
-        if quoted {
-            if escaped {
-                escaped = false;
-            } else if ch == '\\' {
-                escaped = true;
-            } else if ch == '"' {
-                quoted = false;
-            }
-            continue;
-        }
-        match ch {
-            '"' => quoted = true,
-            '{' => depth += 1,
-            '}' => {
-                depth -= 1;
-                if depth == 0 {
-                    if object.is_some() {
-                        bail!("Agent returned multiple JSON objects; the decision is ambiguous");
-                    }
-                    let end = index + 1;
-                    let candidate = &trimmed[start..end];
-                    serde_json::from_str::<serde_json::Value>(candidate)
-                        .map_err(|e| anyhow::anyhow!("Agent returned malformed JSON: {e}"))?;
-                    object = Some((candidate, end));
+    while let Some(relative_start) = trimmed[cursor..].find('{') {
+        let start = cursor + relative_start;
+        let mut depth = 1usize;
+        let mut quoted = false;
+        let mut escaped = false;
+        let mut end = None;
+        for (relative_index, byte) in bytes[start + 1..].iter().enumerate() {
+            let index = start + 1 + relative_index;
+            if quoted {
+                if escaped {
+                    escaped = false;
+                } else if *byte == b'\\' {
+                    escaped = true;
+                } else if *byte == b'"' {
+                    quoted = false;
                 }
+                continue;
             }
-            _ => {}
+            match *byte {
+                b'"' => quoted = true,
+                b'{' => depth += 1,
+                b'}' => {
+                    depth -= 1;
+                    if depth == 0 {
+                        end = Some(index + 1);
+                        break;
+                    }
+                }
+                _ => {}
+            }
         }
-    }
-    if depth != 0 {
-        bail!("Agent returned an incomplete JSON object");
+
+        let json_looking = looks_like_json_object(
+            end.map_or(&bytes[start + 1..], |end| &bytes[start + 1..end - 1]),
+        );
+        let Some(end) = end else {
+            if json_looking {
+                bail!("Agent returned an incomplete JSON object");
+            }
+            cursor = start + 1;
+            continue;
+        };
+        if !json_looking {
+            cursor = start + 1;
+            continue;
+        }
+
+        let candidate = &trimmed[start..end];
+        serde_json::from_str::<serde_json::Value>(candidate)
+            .map_err(|e| anyhow::anyhow!("Agent returned malformed JSON: {e}"))?;
+        if object.is_some() {
+            bail!("Agent returned multiple JSON objects; the decision is ambiguous");
+        }
+        object = Some((candidate, end));
+        cursor = end;
     }
     let (candidate, end) =
         object.ok_or_else(|| anyhow::anyhow!("Agent did not return a complete JSON object"))?;
@@ -384,6 +502,19 @@ pub fn parse_response<T: serde::de::DeserializeOwned>(text: &str) -> Result<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn valid_review(approved: bool) -> String {
+        format!(r#"{{"approved":{approved},"reason":"checked"}}"#)
+    }
+
+    fn assert_review_error(text: &str, expected: &str) {
+        let error = parse_response::<Review>(text).unwrap_err().to_string();
+        assert!(
+            error.contains(expected),
+            "expected {expected:?} in parse error, got {error:?}"
+        );
+    }
+
     #[test]
     fn parses_review_after_streamed_commentary() {
         let response = "The revised plan addresses my prior feedback. I verified the checks by inspection.\n\n{\"approved\":true,\"reason\":\"One self-contained index.html; checks cover required markup.\"}";
@@ -393,6 +524,186 @@ mod tests {
         let review: Review = parse_response(fenced).unwrap();
         assert!(!review.approved);
     }
+    #[test]
+    fn parses_final_review_after_css_commentary() {
+        let response = r#"I inspected the browser output and verified the responsive stylesheet:
+```css
+body{overflow-x:hidden}
+```
+The implementation meets the acceptance criteria.
+{"approved":true,"reason":"The browser checks pass.","lesson":"Keep the layout responsive."}"#;
+
+        let review: Review = parse_response(response).unwrap();
+
+        assert!(review.approved);
+        assert_eq!(review.reason, "The browser checks pass.");
+    }
+
+    #[test]
+    fn ignores_non_json_braces_in_quoted_commentary_and_code_fences() {
+        let response = r#"The stylesheet note says "body { overflow-x: hidden; }".
+```css
+.card::before { content: "{quoted brace}"; }
+```
+{"approved":true,"reason":"checked"}"#;
+
+        let review: Review = parse_response(response).unwrap();
+
+        assert!(review.approved);
+
+        let single_quoted_brace =
+            ".card::before { content: '{'; }\n{\"approved\":true,\"reason\":\"checked\"}";
+        let review: Review = parse_response(single_quoted_brace).unwrap();
+
+        assert!(review.approved);
+
+        let review: Review =
+            parse_response("Checked a{color:red}.\n{\"approved\":true,\"reason\":\"checked\"}")
+                .unwrap();
+
+        assert!(review.approved);
+    }
+
+    #[test]
+    fn parses_json_whitespace_after_a_non_json_brace_block() {
+        let response =
+            "Checked body{x:y}.\n{ \r\n\t\"approved\":true,\n \"reason\":\"exact ✓ { source }\" }";
+
+        let review: Review = parse_response(response).unwrap();
+
+        assert!(review.approved);
+        assert_eq!(review.reason, "exact ✓ { source }");
+    }
+
+    #[test]
+    fn preserves_direct_and_fenced_json_responses() {
+        let direct: Review = parse_response(&valid_review(true)).unwrap();
+        let fenced: Review =
+            parse_response("```json\n{\"approved\":false,\"reason\":\"checked\"}\n```").unwrap();
+
+        assert!(direct.approved);
+        assert!(!fenced.approved);
+    }
+
+    #[test]
+    fn rejects_two_valid_decisions_as_ambiguous() {
+        let response = format!(
+            "First: {}\nSecond: {}",
+            valid_review(true),
+            valid_review(false)
+        );
+
+        assert_review_error(&response, "multiple JSON objects");
+    }
+
+    #[test]
+    fn rejects_nested_decision_inside_malformed_json_looking_object() {
+        let response = r#"Result: {"wrapper":{"approved":true,"reason":"nested"},"broken":}"#;
+
+        assert_review_error(response, "malformed JSON");
+    }
+
+    #[test]
+    fn rejects_malformed_json_looking_object_before_valid_decision() {
+        let response = r#"Draft: {"approved":tru,"reason":"draft"}
+Final: {"approved":true,"reason":"checked"}"#;
+
+        assert_review_error(response, "malformed JSON");
+    }
+
+    #[test]
+    fn rejects_non_json_object_drafts_and_nested_fragments() {
+        for (case, response, expected) in [
+            (
+                "c16_js_style_draft_opposite_before_final",
+                "Draft: {approved: false, reason: \"draft\"}\nFinal: {\"approved\":true,\"reason\":\"checked\"}",
+                "malformed JSON",
+            ),
+            (
+                "c17_python_dict_draft_before_final",
+                "Draft: {'approved': False, 'reason': 'draft'}\nFinal: {\"approved\":true,\"reason\":\"checked\"}",
+                "malformed JSON",
+            ),
+            (
+                "c18_unclosed_unquoted_outer_with_nested",
+                "Result: {approved: true, details: {\"approved\":true,\"reason\":\"nested\"}",
+                "incomplete JSON object",
+            ),
+            (
+                "c19_malformed_inner_in_non_json_block",
+                ".card { {\"approved\":tru} }\n{\"approved\":true,\"reason\":\"checked\"}",
+                "malformed JSON",
+            ),
+            (
+                "c32_yaml_like_draft_multiline",
+                "Draft:\n{\n  approved: false\n  reason: draft\n}\nFinal: {\"approved\":true,\"reason\":\"checked\"}",
+                "malformed JSON",
+            ),
+        ] {
+            let error = parse_response::<Review>(response).unwrap_err().to_string();
+            assert!(
+                error.contains(expected),
+                "{case}: expected {expected:?} in parse error, got {error:?}"
+            );
+        }
+
+        assert_review_error(
+            "Draft: {approved: false}\nFinal: {\"approved\":true,\"reason\":\"checked\"}",
+            "malformed JSON",
+        );
+        let review: Review = parse_response(
+            "Note: {verdict: reject}\nFinal: {\"approved\":true,\"reason\":\"checked\"}",
+        )
+        .unwrap();
+        assert!(review.approved);
+    }
+
+    #[test]
+    fn detects_decisions_nested_in_non_json_blocks() {
+        for (case, response, expected) in [
+            (
+                "c34_valid_decision_inside_code_block",
+                r#"Example:
+function f() { return {"approved":false,"reason":"draft"}; }
+Final: {"approved":true,"reason":"checked"}"#,
+                "multiple JSON objects",
+            ),
+            (
+                "c35_malformed_json_after_css_declaration",
+                r#".card { color: red; {"approved":tru} }
+{"approved":true,"reason":"checked"}"#,
+                "malformed JSON",
+            ),
+            (
+                "c44_valid_decision_after_css_declaration",
+                r#".a { x: y; {"approved":false,"reason":"draft"} }
+{"approved":true,"reason":"checked"}"#,
+                "multiple JSON objects",
+            ),
+        ] {
+            let error = parse_response::<Review>(response).unwrap_err().to_string();
+            assert!(
+                error.contains(expected),
+                "{case}: expected {expected:?} in parse error, got {error:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn rejects_incomplete_json_looking_candidate() {
+        let response = r#"Final: {"approved":true,"reason":"checked""#;
+
+        assert_review_error(response, "incomplete JSON object");
+    }
+
+    #[test]
+    fn rejects_prose_after_final_decision() {
+        let response = r#"{"approved":true,"reason":"checked"}
+Actually, reject this result."#;
+
+        assert_review_error(response, "text after its JSON decision");
+    }
+
     #[test]
     fn rejects_ambiguous_malformed_or_wrong_schema_responses() {
         for text in [

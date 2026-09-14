@@ -1,0 +1,23 @@
+Base commit:
+a8367c4169bf17a33566d45b5bd537ce30d59869
+
+Base ymp-rust/crates/ymp-core/src/model.rs SHA-256:
+417b3f0aa72449733c3a0182041606d72618a4e83e88ad13b56a345ac2407069
+
+Final ymp-rust/crates/ymp-core/src/model.rs SHA-256 before commit:
+fd00c8d2e59dc8f667c819b1b8990394416bbb6d533268645ba39660a4ad95d4
+
+Final Git blob ID before commit:
+032f3001d2d8943ad5f1fd6eb40b01ad9a1a5b2a
+
+Reworked ymp-rust/crates/ymp-core/src/model.rs SHA-256 before commit:
+8d3aa8c52ae1293d7c900b806cd0b1b30afc1671bf0d52784789b329592cf479
+
+Reworked Git blob ID before commit:
+f4ce5584e0c5f97184686aaadc24c42f18cd3eaf
+
+Second rework ymp-rust/crates/ymp-core/src/model.rs SHA-256 before commit:
+0315a05136d95883d7f141797798142dbe06bb5cd7bb38ac92ac4d141a409c8f
+
+Second rework Git blob ID before commit:
+0a632e77ce28bd53d9966754efbef752f5ef747f
