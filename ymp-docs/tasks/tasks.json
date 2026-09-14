@@ -4545,7 +4545,7 @@
       "type": "research",
       "priority": "P1",
       "status": "in_progress",
-      "owner": "Bounded research fork; maintainer owns metric definitions and acceptance",
+      "owner": "Researcher52111c72 on owner-selected gpt-5.6-sol; maintainer owns metric definitions and acceptance",
       "authorization": "Owner explicitly requested a separate research study of session participants/models, work time, token usage, knowledge hits, successes/failures and errors, followed by implementation. This is read-only research, not implementation or native expenditure.",
       "depends_on": [
         "YMP-121"
@@ -4567,6 +4567,11 @@
           "at": "2026-09-14T01:50:37.667567+00:00",
           "status": "in_progress",
           "note": "Owner requested statistics as a separate research-then-implementation track. Recorded the dictionary/source-map brief, agent/assignment attribution, timing/usage coverage, knowledge-use distinctions and outcome/error semantics. Dispatching bounded read-only research; current token display and comparative-study pause remain unchanged."
+        },
+        {
+          "at": "2026-09-14T01:54:18.199205+00:00",
+          "status": "in_progress",
+          "note": "Owner explicitly requested Sol instead of Astra for this research. Interrupted the current read-only turn, updated the same Paseo agent52111c72 to discovered gpt-5.6-sol and resumed with preserved context. Reasoning and scope unchanged; no repeated research or change to the deferred YMP-201 comparison models."
         }
       ]
     },
@@ -4601,7 +4606,7 @@
       ]
     }
   ],
-  "updated_at": "2026-09-14T01:50:37.667567+00:00",
+  "updated_at": "2026-09-14T01:54:18.199205+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",

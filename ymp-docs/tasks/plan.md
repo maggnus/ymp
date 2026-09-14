@@ -1,6 +1,6 @@
 # Delivery plan and progress
 
-Updated: 2026-09-14 01:50 UTC.
+Updated: 2026-09-14 01:54 UTC.
 
 [Approved intent](../../intent.md) · [Task details and evidence](README.md) · [Canonical register](tasks.json)
 
@@ -36,7 +36,7 @@ A planned task automatically shows `[=]` while prerequisites remain unfinished a
 - `[~]` [YMP-146](README.md#ymp-146) — Recover interrupted session stages and let the owner change the active team (2026-09-14 01:23). UI author delivered19370d5 from211f314 with a clean tree,632workspace tests passed/two ignored, fmt/strictClippy and11 terminal checks per Unicode/ASCII mode plus restored mutation controls. Parent has read the delivery; independent UI acceptance and integration remain outstanding. New owner-session audit155 distinguishes installed0.4.6 issues from this uninstalled candidate.
 - `[+]` [YMP-152](README.md#ymp-152) — Keep the selected palette command visible in very short terminals (2026-09-13 16:25). Independent reviewer found this in both35786ecand0.4.6using50navigation steps at60x8;60x9and44x10retain selection. Original captures are in /tmp/ymp145-independent-review. Source diagnosis is modal_body_rows(8,true)=2while search+separator take2rows. No fix or new implementation fork started.
 - `[~]` [YMP-155](README.md#ymp-155) — Audit real session behavior, interface expectations and native token accounting (2026-09-14 01:40). Owner deferred token-display changes. Existing presentation remains unchanged. The completed native-accounting audit remains evidence; it does not authorize a new display or billing feature.
-- `[~]` [YMP-157](README.md#ymp-157) — Research attributable session statistics and knowledge-use measurements (2026-09-14 01:50). Owner requested statistics as a separate research-then-implementation track. Recorded the dictionary/source-map brief, agent/assignment attribution, timing/usage coverage, knowledge-use distinctions and outcome/error semantics. Dispatching bounded read-only research; current token display and comparative-study pause remain unchanged.
+- `[~]` [YMP-157](README.md#ymp-157) — Research attributable session statistics and knowledge-use measurements (2026-09-14 01:54). Owner explicitly requested Sol instead of Astra for this research. Interrupted the current read-only turn, updated the same Paseo agent52111c72 to discovered gpt-5.6-sol and resumed with preserved context. Reasoning and scope unchanged; no repeated research or change to the deferred YMP-201 comparison models.
 
 ## Ready next
 
@@ -145,7 +145,7 @@ Deferred and post-MVP work:
 
 | Time (UTC) | Task | State | Update |
 | --- | --- | --- | --- |
-| 2026-09-14 01:50 | [YMP-157](README.md#ymp-157) | `[~]` | Owner requested statistics as a separate research-then-implementation track. Recorded the dictionary/source-map brief, agent/assignment attribution, timing/usage coverage, knowledge-use distinctions and outcome/error semantics. Dispatching bounded read-only research; current token display and comparative-study pause remain unchanged. |
+| 2026-09-14 01:54 | [YMP-157](README.md#ymp-157) | `[~]` | Owner explicitly requested Sol instead of Astra for this research. Interrupted the current read-only turn, updated the same Paseo agent52111c72 to discovered gpt-5.6-sol and resumed with preserved context. Reasoning and scope unchanged; no repeated research or change to the deferred YMP-201 comparison models. |
 | 2026-09-14 01:50 | [YMP-158](README.md#ymp-158) | `[=]` | Created the dependent implementation task requested by the owner. It remains blocked on157 research acceptance; source changes and UI placement are not yet selected or implemented. |
 | 2026-09-14 01:40 | [YMP-155](README.md#ymp-155) | `[~]` | Owner deferred token-display changes. Existing presentation remains unchanged. The completed native-accounting audit remains evidence; it does not authorize a new display or billing feature. |
 | 2026-09-14 01:40 | [YMP-156](README.md#ymp-156) | `[=]` | Owner explicitly deferred token-display changes. Removed that implementation scope from156; chronology, completed-task visibility and board-event wording remain queued. No token UI change had been implemented or dispatched. |

@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-14 01:50 UTC.
+Updated: 2026-09-14 01:54 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -97,7 +97,7 @@ A planned task is not implemented functionality. Completed research and planning
 | `[=]` | [YMP-154](#ymp-154) | P1 | Show substantially more slash-command suggestions when terminal space permits | 2026-09-13 18:49 |
 | `[~]` | [YMP-155](#ymp-155) | P0 | Audit real session behavior, interface expectations and native token accounting | 2026-09-14 01:40 |
 | `[=]` | [YMP-156](#ymp-156) | P1 | Keep transcript chronology and completed session progress stable | 2026-09-14 01:40 |
-| `[~]` | [YMP-157](#ymp-157) | P1 | Research attributable session statistics and knowledge-use measurements | 2026-09-14 01:50 |
+| `[~]` | [YMP-157](#ymp-157) | P1 | Research attributable session statistics and knowledge-use measurements | 2026-09-14 01:54 |
 | `[=]` | [YMP-158](#ymp-158) | P1 | Implement session statistics collection, summaries and contribution drilldown | 2026-09-14 01:50 |
 
 ## YMP-001
@@ -2574,11 +2574,11 @@ Research attributable session statistics and knowledge-use measurements
 
 **State:** `[~]` (in_progress) · **Type:** research · **Priority:** P1
 
-**Last update (UTC):** 2026-09-14 01:50
+**Last update (UTC):** 2026-09-14 01:54
 
-**Current reason:** Owner requested statistics as a separate research-then-implementation track. Recorded the dictionary/source-map brief, agent/assignment attribution, timing/usage coverage, knowledge-use distinctions and outcome/error semantics. Dispatching bounded read-only research; current token display and comparative-study pause remain unchanged.
+**Current reason:** Owner explicitly requested Sol instead of Astra for this research. Interrupted the current read-only turn, updated the same Paseo agent52111c72 to discovered gpt-5.6-sol and resumed with preserved context. Reasoning and scope unchanged; no repeated research or change to the deferred YMP-201 comparison models.
 
-**Owner:** Bounded research fork; maintainer owns metric definitions and acceptance
+**Owner:** Researcher52111c72 on owner-selected gpt-5.6-sol; maintainer owns metric definitions and acceptance
 
 **Authorization:** Owner explicitly requested a separate research study of session participants/models, work time, token usage, knowledge hits, successes/failures and errors, followed by implementation. This is read-only research, not implementation or native expenditure.
 
