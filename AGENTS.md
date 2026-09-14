@@ -36,3 +36,10 @@ Favor narrow typed subsystem interfaces and injectable implementations. Runtime 
 The owner directed library unification on 2026-09-13. Reuse existing libraries and shared adapters for the same responsibility across features. Add a new or overlapping dependency only for a demonstrated capability gap, with its integration and maintenance cost recorded. Prefer a consolidated replacement that removes superseded dependencies over permanently keeping parallel implementations. Complementary libraries with distinct roles are not duplication; do not force unrelated responsibilities into one component merely to reduce the dependency count. Apply this rule to file previews, agent-output highlighting and the proposed Git view. This direction does not lift a task's research-only restriction or authorize implementation by itself. The owner also excluded new runtime dependencies on locally installed tools for these features: Git functionality must use an embedded library rather than require a Git executable. ymp itself is distributed as one executable for Linux and one for macOS. Installed agent providers and their execution runtimes are the owner-confirmed exception; preserve their native authentication and existing provider contracts.
 
 After changes, run `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, and `cargo test --workspace`. Real provider checks are separate from unattended tests.
+
+For test planning, run observation, acceptance and product research, use the
+repository skill `.agents/skills/ymp-trials/SKILL.md` and its shared system
+evaluation protocol. Keep one criterion set from planning through final analysis.
+Scale tested coverage to the requested scope; do not turn a focused check into
+a full-system or native experiment. Case-specific models, limits and artifacts
+belong in each evaluation plan, not in the reusable skill.

@@ -4927,7 +4927,7 @@
         "Preserve every failed attempt and its cost. Do not call a blocked, incomplete or externally repaired session successful; keep runtime accepted/unconfirmed distinct from external verification and never manufacture reputation.",
         "Evaluate result quality, protocol transitions, captured policy compliance versus effectiveness, communication, useful concurrency, resource attribution, intervention and knowledge with pass/fail/unknown/not-exercised evidence.",
         "Deliver cause chains, competing explanations, prioritized product proposals, tradeoffs and smallest discriminating checks. No claim of model superiority, causal speedup or learning benefit from this one repeated case.",
-        "After practical use, create a repository-scoped trial skill that reuses the shared protocol without copying case-specific model choices or inventing budgets. Validate the skill, evidence references and generated task views."
+        "Apply the general project evaluation skill delivered independently by YMP-165. After this run, update it only with supported reusable lessons; keep case-specific choices in the case plan and validate evidence references and generated task views."
       ],
       "evidence": ["ymp-docs/guides/session-trial-and-acceptance.md", "ymp-docs/research/fifteen-puzzle-repeat-plan.md"],
       "history": [{
@@ -4942,10 +4942,37 @@
         "at": "2026-09-14T08:06:00+00:00",
         "status": "planned",
         "note": "Opus returned five material gaps. Updated protocol/plan with last-attempt Ready/Blocked boundary and unchanged counters, check-replacement-only version handling, residue/native-transcript audit, per-requirement native evidence power, and durable archival as a launch prerequisite. Implementation clarification sent to Sol; Astra is preserving baseline/analysis/reviews and confirmed scratch residue under a durable research root. Archival and repaired code are not yet claimed verified; repeat remains unstarted."
+      }, {
+        "at": "2026-09-14T08:18:00+00:00",
+        "status": "planned",
+        "note": "Owner corrected the generalization scope: the reusable system evaluation plan and skill cover all tests/runs and research directions, independently of this game. Tracked as YMP-165; this repeat is one later application and does not define universal models, limits or browser requirements."
+      }]
+    },
+    {
+      "id": "YMP-165",
+      "title": "Provide a reusable intent-based system evaluation plan and project skill",
+      "type": "documentation",
+      "priority": "P0",
+      "status": "in_progress",
+      "owner": "Parent owns shared contract and skill; Opus 5 xhigh checks non-game applicability",
+      "authorization": "Owner explicitly requested reusable plans and project skills for all tests/runs covering every system dimension and the product's research goals. This corrects the earlier case-specific scope; delivery must not depend on completion of the fifteen-puzzle study.",
+      "depends_on": ["YMP-010"],
+      "reason": "The prior shared protocol still emphasized native sessions and postponed skill creation until one game experiment. General evaluation must cover focused tests, integration, diagnostic runs, policy comparisons, experience, UX and reliability with proportionate evidence.",
+      "acceptance": [
+        "One reusable protocol and template cover all five intent goals and the system responsibilities: requirements, identity, planning, allocation, communication, adapters, concurrency, resources, recovery, verification, persistence, knowledge, reputation, UX, interfaces and packaging.",
+        "Use one criterion set from planning through findings/acceptance. Distinguish scope/coverage, protocol compliance and policy effectiveness, artifact/native/confirmed outcomes, causal claims and explicit research gaps.",
+        "Create the discoverable repository skill under .agents/skills/ymp-trials with linked reusable template and reference it from AGENTS.md. Do not embed a game's models, budgets, browser or publication requirement as universal defaults.",
+        "Validate skill syntax, local references and task views, and perform one bounded non-game plan-only application to check that it respects scope and does not invent native execution authority. No new live trial is required."
+      ],
+      "evidence": [".agents/skills/ymp-trials/SKILL.md", ".agents/skills/ymp-trials/assets/evaluation-plan.md", "ymp-docs/guides/session-trial-and-acceptance.md"],
+      "history": [{
+        "at": "2026-09-14T08:18:00+00:00",
+        "status": "in_progress",
+        "note": "Created the general skill and plan/report template, expanded the canonical guide to seven evaluation modes and sixteen system dimensions, and linked it from AGENTS.md. Skill Creator validation passed. Opus 5 xhigh is applying the skill to one plan-only non-game knowledge-policy scenario; no native experiment or product change is included."
       }]
     }
   ],
-  "updated_at": "2026-09-14T08:06:00+00:00",
+  "updated_at": "2026-09-14T08:18:00+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",

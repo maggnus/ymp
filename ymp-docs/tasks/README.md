@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-14 08:06 UTC.
+Updated: 2026-09-14 08:18 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -12,7 +12,7 @@ A planned task is not implemented functionality. Completed research and planning
 | --- | ---: | ---: |
 | decision | 2 | 3 |
 | design | 2 | 2 |
-| documentation | 4 | 4 |
+| documentation | 4 | 5 |
 | experiment | 0 | 5 |
 | implementation | 39 | 51 |
 | integration | 0 | 1 |
@@ -105,7 +105,8 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-161](#ymp-161) | P0 | Keep frozen experiment bindings without blocking later product changes | 2026-09-14 02:52 |
 | `[=]` | [YMP-162](#ymp-162) | P0 | Release recovery fixes and complete controlled end-to-end session runs | 2026-09-14 07:38 |
 | `[~]` | [YMP-163](#ymp-163) | P0 | Recover from broken generated task checks through reviewed replacement | 2026-09-14 07:38 |
-| `[=]` | [YMP-164](#ymp-164) | P0 | Repeat fifteen-puzzle delivery with unified research and acceptance criteria | 2026-09-14 08:06 |
+| `[=]` | [YMP-164](#ymp-164) | P0 | Repeat fifteen-puzzle delivery with unified research and acceptance criteria | 2026-09-14 08:18 |
+| `[~]` | [YMP-165](#ymp-165) | P0 | Provide a reusable intent-based system evaluation plan and project skill | 2026-09-14 08:18 |
 
 ## YMP-001
 
@@ -2806,7 +2807,7 @@ Repeat fifteen-puzzle delivery with unified research and acceptance criteria
 
 **State:** `[=]` (planned) · **Type:** experiment · **Priority:** P0
 
-**Last update (UTC):** 2026-09-14 08:06
+**Last update (UTC):** 2026-09-14 08:18
 
 **Current reason:** Needs YMP-163
 
@@ -2818,7 +2819,7 @@ Repeat fifteen-puzzle delivery with unified research and acceptance criteria
 
 The first report retained strong primary evidence but insufficient causal and product analysis. A working artifact and publication did not constitute native completion. The repeat must evaluate all applicable intent dimensions using one predeclared criterion set.
 
-**Latest progress note:** Opus returned five material gaps. Updated protocol/plan with last-attempt Ready/Blocked boundary and unchanged counters, check-replacement-only version handling, residue/native-transcript audit, per-requirement native evidence power, and durable archival as a launch prerequisite. Implementation clarification sent to Sol; Astra is preserving baseline/analysis/reviews and confirmed scratch residue under a durable research root. Archival and repaired code are not yet claimed verified; repeat remains unstarted.
+**Latest progress note:** Owner corrected the generalization scope: the reusable system evaluation plan and skill cover all tests/runs and research directions, independently of this game. Tracked as YMP-165; this repeat is one later application and does not define universal models, limits or browser requirements.
 
 **Acceptance criteria:**
 
@@ -2827,12 +2828,43 @@ The first report retained strong primary evidence but insufficient causal and pr
 - Preserve every failed attempt and its cost. Do not call a blocked, incomplete or externally repaired session successful; keep runtime accepted/unconfirmed distinct from external verification and never manufacture reputation.
 - Evaluate result quality, protocol transitions, captured policy compliance versus effectiveness, communication, useful concurrency, resource attribution, intervention and knowledge with pass/fail/unknown/not-exercised evidence.
 - Deliver cause chains, competing explanations, prioritized product proposals, tradeoffs and smallest discriminating checks. No claim of model superiority, causal speedup or learning benefit from this one repeated case.
-- After practical use, create a repository-scoped trial skill that reuses the shared protocol without copying case-specific model choices or inventing budgets. Validate the skill, evidence references and generated task views.
+- Apply the general project evaluation skill delivered independently by YMP-165. After this run, update it only with supported reusable lessons; keep case-specific choices in the case plan and validate evidence references and generated task views.
 
 **Evidence:**
 
 - ymp-docs/guides/session-trial-and-acceptance.md
 - ymp-docs/research/fifteen-puzzle-repeat-plan.md
+
+## YMP-165
+
+Provide a reusable intent-based system evaluation plan and project skill
+
+**State:** `[~]` (in_progress) · **Type:** documentation · **Priority:** P0
+
+**Last update (UTC):** 2026-09-14 08:18
+
+**Current reason:** Created the general skill and plan/report template, expanded the canonical guide to seven evaluation modes and sixteen system dimensions, and linked it from AGENTS.md. Skill Creator validation passed. Opus 5 xhigh is applying the skill to one plan-only non-game knowledge-policy scenario; no native experiment or product change is included.
+
+**Owner:** Parent owns shared contract and skill; Opus 5 xhigh checks non-game applicability
+
+**Authorization:** Owner explicitly requested reusable plans and project skills for all tests/runs covering every system dimension and the product's research goals. This corrects the earlier case-specific scope; delivery must not depend on completion of the fifteen-puzzle study.
+
+**Depends on:** [YMP-010](#ymp-010)
+
+The prior shared protocol still emphasized native sessions and postponed skill creation until one game experiment. General evaluation must cover focused tests, integration, diagnostic runs, policy comparisons, experience, UX and reliability with proportionate evidence.
+
+**Acceptance criteria:**
+
+- One reusable protocol and template cover all five intent goals and the system responsibilities: requirements, identity, planning, allocation, communication, adapters, concurrency, resources, recovery, verification, persistence, knowledge, reputation, UX, interfaces and packaging.
+- Use one criterion set from planning through findings/acceptance. Distinguish scope/coverage, protocol compliance and policy effectiveness, artifact/native/confirmed outcomes, causal claims and explicit research gaps.
+- Create the discoverable repository skill under .agents/skills/ymp-trials with linked reusable template and reference it from AGENTS.md. Do not embed a game's models, budgets, browser or publication requirement as universal defaults.
+- Validate skill syntax, local references and task views, and perform one bounded non-game plan-only application to check that it respects scope and does not invent native execution authority. No new live trial is required.
+
+**Evidence:**
+
+- .agents/skills/ymp-trials/SKILL.md
+- .agents/skills/ymp-trials/assets/evaluation-plan.md
+- ymp-docs/guides/session-trial-and-acceptance.md
 
 ## Intent coverage
 

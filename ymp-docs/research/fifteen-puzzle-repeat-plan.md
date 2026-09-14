@@ -417,11 +417,13 @@ failure. These are hypotheses and proposals, not new authorized implementations.
 
 Deliver the completed unified criterion table, all-attempt run ledger, phase and
 agent breakdown, explicit outcome/confirmation distinctions, ranked product
-recommendations and links to the published game and evidence. Integrate the
-validated common procedure into a repository-scoped trial skill after use;
-retain the prior report and hashes without edits.
+recommendations and links to the published game and evidence. Update the
+reusable [project trial skill](../../.agents/skills/ymp-trials/SKILL.md) with any
+general lessons supported by this application; retain the prior report and
+hashes without edits. The general skill exists independently of this game study.
 
-Completion of the project research task also requires skill validation. Use the
+Completion of the project research task also requires checking this application
+of the already-created general skill. Use the
 retained failed baseline for a dry check: the skill must reject "published but
 blocked = success", retain accepted/unconfirmed, and respect the actual launch
 authorization. No additional native run is needed to test those decisions. Include

@@ -1,9 +1,100 @@
-# Session trial and acceptance protocol
+# System testing, research and acceptance protocol
 
-This is the common protocol for investigating a real ymp session and accepting
-its outcome. A study fills in the same criteria before execution and adds its
-observations, explanations and verdicts afterward. It does not maintain separate
-test and acceptance plans with different definitions of success.
+This is ymp's reusable protocol for tests, integration checks, native runs,
+product evaluations and research experiments. It evaluates the system across
+its responsibilities and the five goals in intent.md. It is not a game-specific
+runbook. The existing filename is retained to preserve references.
+
+Use one document: define the question and criteria before execution, then fill
+the same rows with observations, explanations, acceptance verdicts and product
+decisions. The [project skill](../../.agents/skills/ymp-trials/SKILL.md) and its
+[reusable plan/report template](../../.agents/skills/ymp-trials/assets/evaluation-plan.md)
+provide the entry point. Case plans are instances, not competing protocols.
+
+Coverage of the system is mandatory in a comprehensive assessment; running every
+possible test in each assignment is not. For each dimension below, mark it
+directly tested, observed indirectly, relevant but not observed, or outside the
+current scope, with a reason. A focused parser or storage regression need not
+launch a model, publish an application or test every product goal.
+
+## Select the evaluation mode
+
+| Mode | Primary question | Minimum useful approach | Valid conclusion |
+| --- | --- | --- | --- |
+| Focused regression | Does a specific defect occur, and does the correction address its cause? | Reproduce trigger, check corrected behavior and one relevant boundary; use existing tests | Bounded behavior is corrected; not general product quality |
+| Integration or release | Do cooperating components preserve their contracts on the selected build/platform? | Required project checks plus changed-boundary/consumer checks | Named integration/platform accepted with explicit gaps |
+| Diagnostic native run | Can the product complete the requested user workflow, and where does it fail? | Natural execution, artifact validation, causal trace and intervention ledger | Case outcome and mechanisms observed, not model superiority |
+| Policy or model comparison | Does a proposed alternative improve the selected goal? | Matched inputs/criteria and permitted controls, declared resource basis, retained failures | Effect estimate within tested tasks/settings and uncertainty |
+| Experience/longitudinal study | Does verified experience improve later work? | Disjoint acquisition and evaluation cases, comparable initial state, retrieval/use evidence | Scoped learning value including acquisition cost |
+| Product/UX evaluation | Can a user understand and finish a real workflow? | Representative interaction, actual UI state and task outcome, recovery path | Observed usability and intervention costs; untested accessibility stays unknown |
+| Reliability/capacity study | Under what conditions does progress or correctness fail? | Authorized workload/faults, resource and liveness observations, preserved state | Failure/recovery envelope for observed conditions |
+
+Select modes by the decision, not by the available tools. A negative-control
+test succeeds when it correctly rejects invalid input; that does not mean an
+ordinary user session failing to deliver is successful. A diagnostic study can
+finish its analysis with a failed product outcome. When the owner requires fully
+successful delivery, keep that objective open until its completion criteria pass.
+
+## Whole-system coverage map
+
+Use this map to avoid blind spots. Add new responsibilities when the architecture
+changes. Existing subsystem boundaries and their contracts remain authoritative;
+do not create a parallel vocabulary or telemetry framework.
+
+| Dimension | System question and a falsifying observation | Evidence to seek |
+| --- | --- | --- |
+| Goal and requirement integrity | Is the original objective preserved through decomposition, revision and delivery? A convenient replacement drops a requirement. | Original request, approved constraints, task/check/result versions and final artifact |
+| Catalog, identity and settings | Are actual native agents and supported settings used and historically attributed? An alias or later configuration rewrites an earlier identity. | Native discovery snapshots; requested/sent/reported settings; assignment origins |
+| Planning and contribution value | Does each assignment address unfinished work or missing evidence? Several calls repeat a solved subproblem without adding assurance. | Plan revisions, dependencies, output diffs, check/review contributions |
+| Team and allocation | Are assignments admissible and appropriate? A preferred or capable participant is excluded without a policy reason. | Captured team, policy inputs/version, candidate exclusions, actual assignments |
+| Communication and coordination | Does criticism reach the right participants and cause a timely decision? A useful proposal becomes obsolete solely through internal bookkeeping. | Shared/addressed messages, proposal receipt/decision/effect, versions and latencies |
+| Execution adapters and tools | Do declared capabilities match real execution? A requested read-only check cannot be performed or a wrapper reports completion prematurely. | Actual backend/access settings, native transcripts, tool output and terminal evidence |
+| Concurrency and workspace ownership | Is independent work overlapped safely? Runnable independent work waits without an applicable constraint, or conflicting writers overlap. | Readiness, dependencies, access scopes, reservations, interval overlap and wait causes |
+| Resources and efficiency | Is full work attributed and are constraints preserved? Partial/cached/cumulative counts are misrepresented or repair consumes unexplained calls. | Final unique usage snapshots, coverage, per-phase costs, limits/reservations, context sources |
+| Recovery, cancellation and owner control | Does failure change the next appropriate action and preserve completed work? Unchanged retries exhaust attempts, or a team edit releases a hold. | Failure classification, retry cause, state transitions, holds, counters and retained results |
+| Verification and confirmation | Does evidence distinguish correct results and belong to the accepted version? A successful command measures only file existence. | Criterion-to-check mapping, check source/output, independence, artifact bindings, confirmation |
+| Persistence and reproducibility | Can the same event history reconstruct outcomes after interruption? Reopen duplicates an effect, loses a result or depends on vanished scratch data. | Consistent traces, stored versions, idempotence records, restart/control evidence |
+| Knowledge acquisition and retrieval | Is relevant qualified knowledge selected and actually used? A hit is claimed useful despite no inclusion or an invalid source. | Candidate/selected/supplied/referenced stages, query, scope, versions and provenance |
+| Reputation and knowledge correction | Do only appropriately confirmed outcomes affect future selection? Consensus earns unsupported credit or obsolete knowledge remains active. | Qualification rules, observations, corrections, supersession and downstream selection |
+| User experience and observability | Can the user tell what is happening and what to do next? Messages jump, work disappears or status contradicts artifact/verification state. | Actual TUI/CLI interaction, ordered events, task views, actionable error and intervention evidence |
+| External interfaces and publication | Are CLI/MCP/export/publication contracts usable and scoped? A wrong artifact is published or commands create undocumented side effects. | Inputs/responses, identity and permission boundaries, exact exported/published bytes |
+| Packaging, environment and operability | Does the claimed standalone product run in supported environments? An undeclared local dependency or stale installation invalidates the result. | Source/build/platform binding, environment manifest, dependencies, startup/exit behavior |
+
+Use [system architecture](../architecture/system.md),
+[runtime contract](../architecture/runtime-contract.md),
+[subsystem interfaces](../architecture/subsystem-interfaces.md),
+[assignment authority](../architecture/assignment-authority.md),
+[board coordination](../architecture/board-coordination.md),
+[provenance](../architecture/provenance.md),
+[confirmation](../architecture/confirmation.md),
+[resource budgets](../architecture/session-resource-budgets.md),
+[memory retrieval](../architecture/memory-retrieval.md),
+[knowledge correction](../architecture/knowledge-correction.md), and
+[public MCP](../architecture/public-mcp.md) for applicable contracts.
+Read only the domain documents needed to interpret the selected coverage.
+
+## Turn coverage into research questions
+
+For every selected question state which decision its answer will change. Examples:
+
+- Does independent review reduce escaped defects enough to justify its measured
+  work? Compare evidence added and defects found; mere agreement is not proof.
+- Does coordination improve on independent attempts with the same total resource
+  basis? Separate extra attempts and selection from benefits of interaction.
+- Does a policy select the next useful contribution or merely finish a fixed
+  sequence? Follow unfinished requirements and evidence through actual decisions.
+- Does concurrency reduce time to a verified result, or create conflict and
+  rework? Include failed/cancelled branches and actual access serialization.
+- Does recovery address the diagnosed cause while preserving acceptance
+  integrity? Distinguish game/content, check, environment, protocol and provider
+  failures instead of treating every rejection as another execution request.
+- Does experience help on later, different tasks? Include collection, review,
+  retrieval and correction cost, and examine stale or irrelevant knowledge.
+
+These are reusable directions, not an instruction to execute six studies every
+time. Pick the primary question and the observations that can change a decision;
+retain other dimensions as explicit gaps. New hypotheses discovered during work
+are exploratory until tested under a declared design.
 
 Freeze behavioral validation semantics before launch, while allowing selectors
 and other nonsemantic adapters to fit the delivered artifact. An optional control
@@ -63,6 +154,9 @@ an otherwise valid experiment, but cannot excuse a failed primary endpoint.
 ## Acceptance layers
 
 Keep separate recorded verdicts even when they live in one report:
+
+Select required layers according to the declared evaluation mode. Layers not
+exercised by a focused test are outside its acceptance claim, not implicit passes.
 
 1. **Artifact:** externally observed satisfaction of the original task.
 2. **Native completion:** real session outcome, task completion, final review,
@@ -223,6 +317,7 @@ Do not overwrite the baseline report. If publication is in scope, use a distinct
 URL/version per run and verify the uploaded bytes without publishing private logs
 or configuration.
 
-After an actual use, update the project trial skill with reusable lessons that
+The project trial skill is available independently of any particular experiment.
+After an actual use, update it with reusable lessons that
 changed decisions. Keep case-specific IDs, models, budgets and browser commands
 in the study card, not in universal skill requirements.
