@@ -11,6 +11,8 @@ and acceptance.
 - [Architecture](ymp-docs/architecture.md) defines responsibility and dependency boundaries.
 - [Foundation contract](ymp-docs/foundation.md) defines the current executable scope.
 - [Roadmap](ymp-docs/roadmap.md) describes ordered product outcomes and links their task records.
+- [Self-organizing team domain model](ymp-docs/self-organizing-team-domain-model.md) is the unapproved target specification behind later roadmap stages; it does not override the current contracts.
+- [Proposed domain-model amendments](ymp-docs/domain-model-amendments.md) record three changes that remain pending owner approval.
 - [Development task workflow](ymp-docs/development-tasks.md) defines the canonical file-based task register.
 - [Development task guide](ymp-docs/tasks/README.md) documents bounded task selection and updates.
 - [Contributing](CONTRIBUTING.md) describes development and verification.
