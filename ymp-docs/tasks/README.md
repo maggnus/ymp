@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-14 02:08 UTC.
+Updated: 2026-09-14 02:24 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -96,7 +96,7 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-153](#ymp-153) | P0 | Decide explicit owner continuation from current files after unverified effects | 2026-09-13 18:42 |
 | `[ ]` | [YMP-154](#ymp-154) | P1 | Show substantially more slash-command suggestions when terminal space permits | 2026-09-13 18:49 |
 | `[x]` | [YMP-155](#ymp-155) | P0 | Audit real session behavior, interface expectations and native token accounting | 2026-09-14 02:00 |
-| `[ ]` | [YMP-156](#ymp-156) | P1 | Keep transcript chronology and completed session progress stable | 2026-09-14 01:40 |
+| `[ ]` | [YMP-156](#ymp-156) | P1 | Keep transcript chronology and completed session progress stable | 2026-09-14 02:24 |
 | `[x]` | [YMP-157](#ymp-157) | P1 | Research attributable session statistics and knowledge-use measurements | 2026-09-14 02:03 |
 | `[~]` | [YMP-158](#ymp-158) | P1 | Implement session statistics collection, summaries and contribution drilldown | 2026-09-14 02:05 |
 | `[~]` | [YMP-159](#ymp-159) | P0 | Parse the final structured decision after non-JSON commentary | 2026-09-14 02:00 |
@@ -2547,7 +2547,7 @@ Keep transcript chronology and completed session progress stable
 
 **State:** `[ ]` (planned) · **Type:** implementation · **Priority:** P1
 
-**Last update (UTC):** 2026-09-14 01:40
+**Last update (UTC):** 2026-09-14 02:24
 
 **Current reason:** Ready to start
 
@@ -2559,13 +2559,15 @@ Keep transcript chronology and completed session progress stable
 
 Notices and live-stream updates can distort chronology, and accepted tasks are filtered out of the sidebar. Token presentation is explicitly deferred by the owner.
 
-**Latest progress note:** Owner explicitly deferred token-display changes. Removed that implementation scope from156; chronology, completed-task visibility and board-event wording remain queued. No token UI change had been implemented or dispatched.
+**Latest progress note:** Owner accepted @agent as the logical addressing form and asked how to distinguish three copies of one model. Added structured recipient semantics: full stable agent_id, explicit chooser for duplicate exact model labels, model/role/short-ID presentation, @team broadcast, shared visibility and no automatic invocation. This joins156 because it shares composer/transcript state; implementation waits for current P0 work.
 
 **Acceptance criteria:**
 
 - Insert and retain messages by their stable sequence; anchor local notices to the known message position; do not close a live invocation stream on an interim chat/proposal/board message. Preserve chronological history and exact source messages.
 - Keep accepted tasks inspectable in the sidebar with their real state and subdued style, while retaining active work visibility on small terminals. Keep /tasks as the complete view and do not equate native todos/plan proposals with accepted graph state.
 - Use consistent board-event vocabulary so an outdated proposal after task acceptance is not mistaken for failed accepted work. Blocked summaries should identify the relevant task/participant when reliable data exists.
+- Support owner `@agent` messages resolved to a stable full agent_id in the selected session. Duplicate model labels require an explicit chooser using exact model, current role/state and a short unique ID; `@team` is the explicit broadcast form.
+- Keep addressed messages visible in shared history and state that they do not create an assignment, interrupt a call or promise a reply. Bind submission to session/team revision, preserve the original recipient across restart and report departure without redirecting the message.
 - Preserve the existing token display and its labels. The owner deferred changes to token/cache/cost presentation; stored accounting and budget enforcement also remain unchanged.
 - Reuse shared UI components, derive meaningful regressions from the five existing UI falsifiers, and run required checks with independent terminal acceptance. Keep the frozen UI146 candidate unchanged until its review/integration completes.
 

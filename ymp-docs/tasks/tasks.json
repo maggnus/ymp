@@ -4537,6 +4537,8 @@
         "Insert and retain messages by their stable sequence; anchor local notices to the known message position; do not close a live invocation stream on an interim chat/proposal/board message. Preserve chronological history and exact source messages.",
         "Keep accepted tasks inspectable in the sidebar with their real state and subdued style, while retaining active work visibility on small terminals. Keep /tasks as the complete view and do not equate native todos/plan proposals with accepted graph state.",
         "Use consistent board-event vocabulary so an outdated proposal after task acceptance is not mistaken for failed accepted work. Blocked summaries should identify the relevant task/participant when reliable data exists.",
+        "Support owner `@agent` messages resolved to a stable full agent_id in the selected session. Duplicate model labels require an explicit chooser using exact model, current role/state and a short unique ID; `@team` is the explicit broadcast form.",
+        "Keep addressed messages visible in shared history and state that they do not create an assignment, interrupt a call or promise a reply. Bind submission to session/team revision, preserve the original recipient across restart and report departure without redirecting the message.",
         "Preserve the existing token display and its labels. The owner deferred changes to token/cache/cost presentation; stored accounting and budget enforcement also remain unchanged.",
         "Reuse shared UI components, derive meaningful regressions from the five existing UI falsifiers, and run required checks with independent terminal acceptance. Keep the frozen UI146 candidate unchanged until its review/integration completes."
       ],
@@ -4554,6 +4556,11 @@
           "at": "2026-09-14T01:40:53.118963+00:00",
           "status": "planned",
           "note": "Owner explicitly deferred token-display changes. Removed that implementation scope from156; chronology, completed-task visibility and board-event wording remain queued. No token UI change had been implemented or dispatched."
+        },
+        {
+          "at": "2026-09-14T02:24:00+00:00",
+          "status": "planned",
+          "note": "Owner accepted @agent as the logical addressing form and asked how to distinguish three copies of one model. Added structured recipient semantics: full stable agent_id, explicit chooser for duplicate exact model labels, model/role/short-ID presentation, @team broadcast, shared visibility and no automatic invocation. This joins156 because it shares composer/transcript state; implementation waits for current P0 work."
         }
       ]
     },
@@ -4731,7 +4738,7 @@
       ]
     }
   ],
-  "updated_at": "2026-09-14T02:08:00+00:00",
+  "updated_at": "2026-09-14T02:24:00+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",
