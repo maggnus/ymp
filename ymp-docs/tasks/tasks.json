@@ -4733,6 +4733,11 @@
           "at": "2026-09-14T02:37:00+00:00",
           "status": "in_progress",
           "note": "Independent review returned candidate1ab42b1: it fixes the real CSS case but can skip malformed draft decisions and accept nested fragments from malformed wrappers; one whitespace behavior also lacked a sensitive test. Relaunched agent6dd93a08-3a2f-4834-a375-e693034e45a4 on gpt-5.6-sol xhigh in the existing clean worktree for bounded rework and controls."
+        },
+        {
+          "at": "2026-09-14T02:43:00+00:00",
+          "status": "in_progress",
+          "note": "Rework candidate90eda29 closes c16/c17/c18/c19/c32 and the whitespace-test gap;14 targeted tests,32 independent scenarios, formatting and strict Clippy passed. Sent the clean commit to the same Claude Opus high reviewer for independent re-acceptance. Full workspace tests remain blocked on YMP-161 and are not claimed."
         }
       ]
     },
@@ -4843,7 +4848,7 @@
       ]
     }
   ],
-  "updated_at": "2026-09-14T02:37:00+00:00",
+  "updated_at": "2026-09-14T02:43:00+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",

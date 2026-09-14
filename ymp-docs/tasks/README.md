@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-14 02:37 UTC.
+Updated: 2026-09-14 02:43 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -100,7 +100,7 @@ A planned task is not implemented functionality. Completed research and planning
 | `[=]` | [YMP-156](#ymp-156) | P1 | Keep transcript chronology and completed session progress stable | 2026-09-14 02:32 |
 | `[x]` | [YMP-157](#ymp-157) | P1 | Research attributable session statistics and knowledge-use measurements | 2026-09-14 02:03 |
 | `[~]` | [YMP-158](#ymp-158) | P1 | Implement session statistics backend, export and headless progress | 2026-09-14 02:32 |
-| `[~]` | [YMP-159](#ymp-159) | P0 | Parse the final structured decision after non-JSON commentary | 2026-09-14 02:37 |
+| `[~]` | [YMP-159](#ymp-159) | P0 | Parse the final structured decision after non-JSON commentary | 2026-09-14 02:43 |
 | `[=]` | [YMP-160](#ymp-160) | P0 | Honor owner starting preferences when reserving an equal-score reviewer | 2026-09-14 02:34 |
 | `[~]` | [YMP-161](#ymp-161) | P0 | Keep frozen experiment bindings without blocking later product changes | 2026-09-14 02:37 |
 | `[=]` | [YMP-162](#ymp-162) | P0 | Release recovery fixes and complete controlled end-to-end session runs | 2026-09-14 02:34 |
@@ -2648,9 +2648,9 @@ Parse the final structured decision after non-JSON commentary
 
 **State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P0
 
-**Last update (UTC):** 2026-09-14 02:37
+**Last update (UTC):** 2026-09-14 02:43
 
-**Current reason:** Independent review returned candidate1ab42b1: it fixes the real CSS case but can skip malformed draft decisions and accept nested fragments from malformed wrappers; one whitespace behavior also lacked a sensitive test. Relaunched agent6dd93a08-3a2f-4834-a375-e693034e45a4 on gpt-5.6-sol xhigh in the existing clean worktree for bounded rework and controls.
+**Current reason:** Rework candidate90eda29 closes c16/c17/c18/c19/c32 and the whitespace-test gap;14 targeted tests,32 independent scenarios, formatting and strict Clippy passed. Sent the clean commit to the same Claude Opus high reviewer for independent re-acceptance. Full workspace tests remain blocked on YMP-161 and are not claimed.
 
 **Owner:** Owner-selected gpt-5.6-sol implementation fork; maintainer owns integration and independent acceptance
 

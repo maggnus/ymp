@@ -1,6 +1,6 @@
 # Delivery plan and progress
 
-Updated: 2026-09-14 02:37 UTC.
+Updated: 2026-09-14 02:43 UTC.
 
 [Approved intent](../../intent.md) · [Task details and evidence](README.md) · [Canonical register](tasks.json)
 
@@ -33,7 +33,7 @@ A planned task automatically shows `[=]` while prerequisites remain unfinished a
 ## Current work and owner questions
 
 - `[~]` [YMP-158](README.md#ymp-158) — Implement session statistics backend, export and headless progress (2026-09-14 02:32). Open-work review narrows YMP-158 to backend/export and absorbs YMP-130's headless live progress from the same attribution/events. /stats TUI moves to consolidated YMP-156 after backend acceptance. The previous agent was no longer active, but its uncommitted worktree was preserved; relaunched agent b99f10e9-437a-4817-a4f4-e6013727479a on gpt-5.6-sol xhigh to inspect and complete it.
-- `[~]` [YMP-159](README.md#ymp-159) — Parse the final structured decision after non-JSON commentary (2026-09-14 02:37). Independent review returned candidate1ab42b1: it fixes the real CSS case but can skip malformed draft decisions and accept nested fragments from malformed wrappers; one whitespace behavior also lacked a sensitive test. Relaunched agent6dd93a08-3a2f-4834-a375-e693034e45a4 on gpt-5.6-sol xhigh in the existing clean worktree for bounded rework and controls.
+- `[~]` [YMP-159](README.md#ymp-159) — Parse the final structured decision after non-JSON commentary (2026-09-14 02:43). Rework candidate90eda29 closes c16/c17/c18/c19/c32 and the whitespace-test gap;14 targeted tests,32 independent scenarios, formatting and strict Clippy passed. Sent the clean commit to the same Claude Opus high reviewer for independent re-acceptance. Full workspace tests remain blocked on YMP-161 and are not claimed.
 - `[~]` [YMP-161](README.md#ymp-161) — Keep frozen experiment bindings without blocking later product changes (2026-09-14 02:37). The first Sol xhigh attempt stopped twice at provider capacity after reproducing the issue and left one uncommitted test change. Removed its retry heartbeat to prevent duplication and relaunched agent7e64be32-bdcf-4276-8f76-804332552dcb on the same model and worktree to inspect, complete and fully verify the correction.
 
 ## Ready next
@@ -143,7 +143,7 @@ Deferred and post-MVP work:
 
 | Time (UTC) | Task | State | Update |
 | --- | --- | --- | --- |
-| 2026-09-14 02:37 | [YMP-159](README.md#ymp-159) | `[~]` | Independent review returned candidate1ab42b1: it fixes the real CSS case but can skip malformed draft decisions and accept nested fragments from malformed wrappers; one whitespace behavior also lacked a sensitive test. Relaunched agent6dd93a08-3a2f-4834-a375-e693034e45a4 on gpt-5.6-sol xhigh in the existing clean worktree for bounded rework and controls. |
+| 2026-09-14 02:43 | [YMP-159](README.md#ymp-159) | `[~]` | Rework candidate90eda29 closes c16/c17/c18/c19/c32 and the whitespace-test gap;14 targeted tests,32 independent scenarios, formatting and strict Clippy passed. Sent the clean commit to the same Claude Opus high reviewer for independent re-acceptance. Full workspace tests remain blocked on YMP-161 and are not claimed. |
 | 2026-09-14 02:37 | [YMP-161](README.md#ymp-161) | `[~]` | The first Sol xhigh attempt stopped twice at provider capacity after reproducing the issue and left one uncommitted test change. Removed its retry heartbeat to prevent duplication and relaunched agent7e64be32-bdcf-4276-8f76-804332552dcb on the same model and worktree to inspect, complete and fully verify the correction. |
 | 2026-09-14 02:34 | [YMP-160](README.md#ymp-160) | `[=]` | Raised to P0 in the open-work review because the owner prioritized the complete ordinary-session run and error controls. The correction is a prerequisite of YMP-162 and still requires independent acceptance before any live-session action. |
 | 2026-09-14 02:34 | [YMP-162](README.md#ymp-162) | `[=]` | Created by the open-work review as the P0 integration and controlled-run boundary. The owner prioritized a complete run and error controls and accepted the sequence. No release installation, real-session mutation or native provider call is authorized by this planning entry. |
