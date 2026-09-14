@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-14 08:41 UTC.
+Updated: 2026-09-14 08:53 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -105,7 +105,7 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-161](#ymp-161) | P0 | Keep frozen experiment bindings without blocking later product changes | 2026-09-14 02:52 |
 | `[=]` | [YMP-162](#ymp-162) | P0 | Release recovery fixes and complete controlled end-to-end session runs | 2026-09-14 07:38 |
 | `[x]` | [YMP-163](#ymp-163) | P0 | Recover from broken generated task checks through reviewed replacement | 2026-09-14 08:41 |
-| `[~]` | [YMP-164](#ymp-164) | P0 | Repeat fifteen-puzzle delivery with unified research and acceptance criteria | 2026-09-14 08:41 |
+| `[~]` | [YMP-164](#ymp-164) | P0 | Repeat fifteen-puzzle delivery with unified research and acceptance criteria | 2026-09-14 08:53 |
 | `[x]` | [YMP-165](#ymp-165) | P0 | Provide a reusable intent-based system evaluation plan and project skill | 2026-09-14 08:23 |
 | `[=]` | [YMP-166](#ymp-166) | P1 | Make generated verification artifacts reproducible and reviewer-accessible | 2026-09-14 08:41 |
 
@@ -2811,9 +2811,9 @@ Repeat fifteen-puzzle delivery with unified research and acceptance criteria
 
 **State:** `[~]` (in_progress) · **Type:** experiment · **Priority:** P0
 
-**Last update (UTC):** 2026-09-14 08:41
+**Last update (UTC):** 2026-09-14 08:53
 
-**Current reason:** Cause repair accepted and integrated. Preparing authorized native launch on the exact tested binary and frozen unified case plan; same Luna/Sonnet IDs, native settings and standard limits. No claim that the new session has started until its ID/process record is received. Findings now map to fifteen-findings-action-plan.md and the next proposed verification-artifact correction YMP-166.
+**Current reason:** Repeat 8c5c1381 ran 08:46:42–08:48:03 UTC and failed before Claude spawn: the copied binary's default bridge path in its build worktree was absent. Two admissions and Luna usage remain recorded; no game or accepted plan. Parent verified existing main bridge hash5b9c0d15...f22ba7 and Node syntax. Owner subsequently requested a new run; next attempt uses supported YMP_CLAUDE_BRIDGE override with otherwise identical source/team/settings. Study remains unsuccessful pending actual completion.
 
 **Owner:** Astra xhigh researcher; parent owns criteria, repair acceptance and project skill
 

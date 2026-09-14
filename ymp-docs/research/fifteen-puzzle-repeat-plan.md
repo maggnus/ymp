@@ -12,6 +12,24 @@ executable SHA-256 is
 See [repair validation](../evidence/ymp-163/validation.md) and the
 [finding-to-action plan](fifteen-findings-action-plan.md).
 
+## Launch amendment after local adapter failure
+
+Authorized repeat `8c5c1381-a0ac-4f7b-8f87-e94d24a1c051` failed before plan review
+could reach Claude: the copied executable's build-worktree default points to a
+missing Claude bridge. It ran for 80.770168 seconds, admitted two invocations and
+created no game files. The completed Luna call used 89,726 input and 3,538 output
+tokens; the failed Sonnet call retains unknown usage. The repair mechanism was
+not exercised. Retain the [diagnosis and original records](/Users/maggnus/ymp-research/fifteen-2026-09-14/repeat-20260914T084441Z-8cl8je80/failure-diagnosis.md).
+
+The owner's subsequent request to start a new run authorizes the next distinct
+attempt. Preserve product bytes, task, team, native settings and resource policy.
+The only intentional launch correction is setting `YMP_CLAUDE_BRIDGE` to
+`/Users/maggnus/Code/ymp2/ymp-bridges/claude/dist/index.js`, SHA-256
+`5b9c0d15d4b54e4af5f05eac5c8495d7dba78470c40a6e55f126e0e886f22ba7`.
+Parent checked file identity and Node syntax without inference. Capture dependency
+readiness in the next manifest, use a new directory/session, and count this failed
+attempt in the experiment ledger. No failed native record is rewritten.
+
 This study instantiates the [shared trial and acceptance protocol](../guides/session-trial-and-acceptance.md).
 Its purpose is to determine whether ymp can finish an ordinary task autonomously
 when its agents discover that a generated acceptance command is broken. It also

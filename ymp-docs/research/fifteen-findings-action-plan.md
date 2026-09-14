@@ -36,6 +36,15 @@ dependencies and separate decisions about budgets and experimental treatments.
 
 ## What each proposed change must preserve
 
+The first repeat adds a concrete delivery finding: a copied build referred to a
+Claude adapter absent from its build worktree, and failed only after Luna had
+already planned. Native readiness needs the binary's external adapter paths and
+dependencies, not just a successful Rust build. Preserve a safe specific missing-
+adapter error rather than a generic provider failure. The next run binds the
+existing compatible adapter through the supported environment override; a product
+readiness/diagnostic correction is proposed separately from this launcher fix.
+See the [repeat diagnosis](/Users/maggnus/ymp-research/fifteen-2026-09-14/repeat-20260914T084441Z-8cl8je80/failure-diagnosis.md).
+
 **Verification artifacts.** Use existing workspace/evidence mechanisms rather
 than opening general access to `/tmp`. Preserve declared access and native
 authentication. Storage alone is insufficient: the reviewer must inspect the
