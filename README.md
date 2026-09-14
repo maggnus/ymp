@@ -10,7 +10,9 @@ and acceptance.
 - [Domain](ymp-docs/domain.md) defines the canonical names.
 - [Architecture](ymp-docs/architecture.md) defines responsibility and dependency boundaries.
 - [Foundation contract](ymp-docs/foundation.md) defines the current executable scope.
-- [Roadmap](ymp-docs/roadmap.md) separates delivered foundations from planned capabilities.
+- [Roadmap](ymp-docs/roadmap.md) describes ordered product outcomes and links their task records.
+- [Development task workflow](ymp-docs/development-tasks.md) defines the canonical file-based task register.
+- [Development task guide](ymp-docs/tasks/README.md) documents bounded task selection and updates.
 - [Contributing](CONTRIBUTING.md) describes development and verification.
 
 ## Foundation
@@ -72,4 +74,11 @@ cargo build --workspace --offline
 cargo fmt --all --check
 cargo clippy --workspace --all-targets --offline -- -D warnings
 cargo test --workspace --offline
+```
+
+Development work starts with a bounded task query rather than reading every record:
+
+```sh
+python3 ymp-docs/tasks/manage.py next
+python3 ymp-docs/tasks/manage.py show DEV-0004
 ```

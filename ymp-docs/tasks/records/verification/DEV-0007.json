@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "id": "DEV-0007",
+  "area": "verification",
+  "title": "Define the checked delivery contract",
+  "type": "design",
+  "priority": 70,
+  "status": "new",
+  "depends_on": [
+    "DEV-0006"
+  ],
+  "owner": null,
+  "goal": "Define how versioned results, evidence, independent review, acceptance, and confirmation form an accountable delivery contract.",
+  "scope": [
+    "Specify immutable ResultVersion records and evidence bound to exact criteria, checks, sources, and environments.",
+    "Define independent review and AcceptanceAuthority decisions without treating agreement as confirmation.",
+    "Define the final report and how it preserves unmet criteria and uncertainty."
+  ],
+  "acceptance": [
+    "The reviewed contract requires applicable new checks for changed result contents and prevents evidence reuse across versions.",
+    "Acceptance, independent review, and deterministic or external confirmation are distinct recorded facts.",
+    "The contract prevents applicable failures from being overridden by agent agreement or self-assessment.",
+    "The acceptance scenarios define honest rejected and accepted outcomes, including accepted-but-unconfirmed results, with criterion-level evidence."
+  ],
+  "evidence": [],
+  "context": [
+    "This task is intentionally unscheduled until bounded native execution is implemented and accepted."
+  ],
+  "revision": 2,
+  "history": [
+    {
+      "revision": 1,
+      "at": "2026-09-14T18:27:59Z",
+      "actor": "maintainer",
+      "status": "new",
+      "note": "Recorded as unscheduled future work."
+    },
+    {
+      "revision": 2,
+      "at": "2026-09-14T19:19:43.368183Z",
+      "actor": "manage.py",
+      "status": "new",
+      "note": "Clarified that acceptance and confirmation are independent; accepted results may remain unconfirmed."
+    }
+  ]
+}

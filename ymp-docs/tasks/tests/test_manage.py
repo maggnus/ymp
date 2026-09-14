@@ -1,0 +1,587 @@
+from __future__ import annotations
+
+import hashlib
+import json
+import os
+import subprocess
+import sys
+import tempfile
+import unittest
+from pathlib import Path
+
+
+SCRIPT = Path(__file__).resolve().parents[1] / "manage.py"
+
+
+def record(
+    task_id: str,
+    *,
+    area: str = "test",
+    status: str = "planned",
+    dependencies: list[str] | None = None,
+    evidence: list[str] | None = None,
+    owner: str | None = None,
+    title: str | None = None,
+    note: str = "Initial record.",
+    revision: int = 1,
+) -> dict[str, object]:
+    history = [
+        {
+            "revision": index,
+            "at": f"2026-09-15T00:{index % 60:02d}:00Z",
+            "actor": owner or "test",
+            "status": status,
+            "note": note,
+        }
+        for index in range(1, revision + 1)
+    ]
+    return {
+        "schema_version": 1,
+        "id": task_id,
+        "area": area,
+        "title": title or f"Task {task_id}",
+        "type": "test",
+        "priority": int(task_id.split("-")[1]),
+        "status": status,
+        "depends_on": dependencies or [],
+        "owner": owner,
+        "goal": f"Exercise {task_id}.",
+        "scope": ["Keep the fixture bounded."],
+        "acceptance": ["The stated behavior is observed."],
+        "evidence": evidence or [],
+        "context": ["Synthetic test data."],
+        "revision": revision,
+        "history": history,
+    }
+
+
+class ManageCliTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.temporary = tempfile.TemporaryDirectory(prefix="ymp-tasks-test-")
+        self.root = Path(self.temporary.name) / "tasks"
+        (self.root / "records").mkdir(parents=True)
+
+    def tearDown(self) -> None:
+        self.temporary.cleanup()
+
+    def run_cli(
+        self, *arguments: str, expected: int | None = 0
+    ) -> subprocess.CompletedProcess[str]:
+        result = subprocess.run(
+            [sys.executable, str(SCRIPT), "--root", str(self.root), *arguments],
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        if expected is not None:
+            self.assertEqual(
+                result.returncode,
+                expected,
+                msg=f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}",
+            )
+        return result
+
+    def write_record(self, value: dict[str, object], *, area: str | None = None) -> Path:
+        directory = self.root / "records" / (area or str(value["area"]))
+        directory.mkdir(parents=True, exist_ok=True)
+        path = directory / f"{value['id']}.json"
+        path.write_text(json.dumps(value, indent=2) + "\n")
+        return path
+
+    def write_input(self, name: str, value: object) -> Path:
+        path = Path(self.temporary.name) / name
+        path.write_text(json.dumps(value, indent=2) + "\n")
+        return path
+
+    def snapshot(self) -> dict[str, str]:
+        return {
+            str(path.relative_to(self.root)): hashlib.sha256(path.read_bytes()).hexdigest()
+            for path in self.root.rglob("*.json")
+        }
+
+    def test_full_cli_lifecycle_changes_only_one_record(self) -> None:
+        baseline = self.write_record(
+            record("DEV-0001", status="done", evidence=["baseline evidence"])
+        )
+        baseline_hash = hashlib.sha256(baseline.read_bytes()).hexdigest()
+        draft = self.write_input(
+            "draft.json",
+            {
+                "area": "tooling",
+                "title": "Create a lifecycle fixture",
+                "type": "tooling",
+                "priority": 2,
+                "status": "planned",
+                "depends_on": ["DEV-0001"],
+                "goal": "Exercise every writer command.",
+                "scope": ["Use only the temporary task root."],
+                "acceptance": ["The task reaches done with evidence."],
+            },
+        )
+        created = json.loads(self.run_cli("create", "--file", str(draft)).stdout)
+        self.assertEqual(created["created"], "DEV-0002")
+
+        shown = self.run_cli("show", "DEV-0002").stdout
+        self.assertIn("history excluded", shown)
+        self.assertNotIn("Task created.", shown)
+        claimed = json.loads(
+            self.run_cli(
+                "claim", "DEV-0002", "--owner", "worker-a", "--expect-revision", "1"
+            ).stdout
+        )
+        self.assertEqual(claimed["revision"], 2)
+        patch = self.write_input("patch.json", {"title": "Completed lifecycle fixture"})
+        updated = json.loads(
+            self.run_cli(
+                "update",
+                "DEV-0002",
+                "--file",
+                str(patch),
+                "--expect-revision",
+                "2",
+                "--note",
+                "Refined the title.",
+            ).stdout
+        )
+        self.assertEqual(updated["revision"], 3)
+        finished = json.loads(
+            self.run_cli(
+                "status",
+                "DEV-0002",
+                "done",
+                "--expect-revision",
+                "3",
+                "--note",
+                "Verified the lifecycle.",
+                "--actor",
+                "reviewer",
+                "--evidence",
+                "temporary CLI transcript",
+            ).stdout
+        )
+        self.assertEqual(finished["revision"], 4)
+        final = json.loads((self.root / "records/tooling/DEV-0002.json").read_text())
+        self.assertEqual(final["status"], "done")
+        self.assertEqual(final["owner"], "worker-a")
+        self.assertEqual([entry["revision"] for entry in final["history"]], [1, 2, 3, 4])
+        self.assertEqual(final["history"][-1]["actor"], "reviewer")
+        self.assertEqual(hashlib.sha256(baseline.read_bytes()).hexdigest(), baseline_hash)
+        self.run_cli("check")
+
+    def test_stale_and_invalid_updates_leave_record_unchanged(self) -> None:
+        self.write_record(record("DEV-0001"))
+        patch = self.write_input("patch.json", {"goal": "A changed goal."})
+        first = self.run_cli(
+            "update",
+            "DEV-0001",
+            "--file",
+            str(patch),
+            "--expect-revision",
+            "1",
+            "--note",
+            "Applied once.",
+        )
+        self.assertIn('"revision": 2', first.stdout)
+        before = self.snapshot()
+        stale = self.run_cli(
+            "update",
+            "DEV-0001",
+            "--file",
+            str(patch),
+            "--expect-revision",
+            "1",
+            "--note",
+            "Must not apply.",
+            expected=4,
+        )
+        self.assertIn("stale revision", stale.stderr)
+        immutable = self.write_input("immutable.json", {"area": "other"})
+        self.run_cli(
+            "update",
+            "DEV-0001",
+            "--file",
+            str(immutable),
+            "--expect-revision",
+            "2",
+            "--note",
+            "Must not apply.",
+            expected=3,
+        )
+        self.assertEqual(self.snapshot(), before)
+
+    def test_dependencies_cycles_and_started_states_are_validated(self) -> None:
+        first_path = self.write_record(record("DEV-0001"))
+        second_path = self.write_record(record("DEV-0002", dependencies=["DEV-0001"]))
+        self.run_cli("check")
+
+        original_first = first_path.read_bytes()
+        original_second = second_path.read_bytes()
+        bad = json.loads(second_path.read_text())
+        bad["depends_on"] = ["DEV-9999"]
+        second_path.write_text(json.dumps(bad))
+        self.assertIn("unknown dependency", self.run_cli("check", expected=3).stderr)
+
+        second_path.write_bytes(original_second)
+        cycle = json.loads(first_path.read_text())
+        cycle["depends_on"] = ["DEV-0002"]
+        first_path.write_text(json.dumps(cycle))
+        self.assertIn("dependency cycle", self.run_cli("check", expected=3).stderr)
+
+        first_path.write_bytes(original_first)
+        started = json.loads(second_path.read_text())
+        started["status"] = "in_progress"
+        started["history"][-1]["status"] = "in_progress"
+        second_path.write_text(json.dumps(started))
+        self.assertIn("unfinished dependencies", self.run_cli("check", expected=3).stderr)
+
+        done_first = record("DEV-0001", status="done", evidence=["checked"])
+        first_path.write_text(json.dumps(done_first))
+        self.run_cli("check")
+
+    def test_premature_claim_completion_and_missing_evidence_are_rejected(self) -> None:
+        self.write_record(record("DEV-0001"))
+        blocked_path = self.write_record(record("DEV-0002", dependencies=["DEV-0001"]))
+        before = self.snapshot()
+        claim = self.run_cli(
+            "claim", "DEV-0002", "--owner", "worker", "--expect-revision", "1", expected=4
+        )
+        self.assertIn("not ready", claim.stderr)
+        done = self.run_cli(
+            "status",
+            "DEV-0002",
+            "done",
+            "--expect-revision",
+            "1",
+            "--note",
+            "Premature.",
+            "--evidence",
+            "not sufficient",
+            expected=3,
+        )
+        self.assertIn("unfinished dependencies", done.stderr)
+        self.assertEqual(self.snapshot(), before)
+
+        blocked = json.loads(blocked_path.read_text())
+        blocked["depends_on"] = []
+        blocked_path.write_text(json.dumps(blocked))
+        no_evidence = self.run_cli(
+            "status",
+            "DEV-0002",
+            "done",
+            "--expect-revision",
+            "1",
+            "--note",
+            "No evidence.",
+            expected=3,
+        )
+        self.assertIn("only from in_progress", no_evidence.stderr)
+        self.run_cli(
+            "claim", "DEV-0002", "--owner", "worker", "--expect-revision", "1"
+        )
+        before_done = blocked_path.read_bytes()
+        no_evidence_after_start = self.run_cli(
+            "status",
+            "DEV-0002",
+            "done",
+            "--expect-revision",
+            "2",
+            "--note",
+            "Still no evidence.",
+            expected=3,
+        )
+        self.assertIn("without evidence", no_evidence_after_start.stderr)
+        self.assertEqual(blocked_path.read_bytes(), before_done)
+
+        new_path = self.write_record(record("DEV-0003", status="new"))
+        before_new = new_path.read_bytes()
+        start_new = self.run_cli(
+            "status",
+            "DEV-0003",
+            "in_progress",
+            "--expect-revision",
+            "1",
+            "--note",
+            "Bypass scheduling.",
+            expected=3,
+        )
+        self.assertIn("use claim", start_new.stderr)
+        self.assertEqual(new_path.read_bytes(), before_new)
+
+    def test_rejected_dependency_never_satisfies_readiness(self) -> None:
+        self.write_record(record("DEV-0001", status="rejected"))
+        self.write_record(record("DEV-0002", dependencies=["DEV-0001"]))
+        result = json.loads(self.run_cli("next", "--json").stdout)
+        self.assertEqual(result["page"]["total"], 0)
+        waiting = json.loads(
+            self.run_cli("list", "--readiness", "waiting", "--json").stdout
+        )
+        self.assertEqual([task["id"] for task in waiting["tasks"]], ["DEV-0002"])
+
+    def test_malformed_history_and_revision_are_rejected_then_fixed(self) -> None:
+        path = self.write_record(record("DEV-0001", revision=2))
+        self.run_cli("check")
+        value = json.loads(path.read_text())
+        value["history"][1]["revision"] = 7
+        path.write_text(json.dumps(value))
+        self.assertIn("contiguous", self.run_cli("check", expected=3).stderr)
+        value["history"][1]["revision"] = 2
+        value["revision"] = 3
+        path.write_text(json.dumps(value))
+        self.assertIn("length must equal revision", self.run_cli("check", expected=3).stderr)
+        path.write_text(json.dumps(record("DEV-0001", revision=2)))
+        self.run_cli("check")
+
+    def test_schema_and_field_types_are_strictly_validated(self) -> None:
+        path = self.write_record(record("DEV-0001"))
+        original = path.read_bytes()
+        cases = (
+            ("schema_version", True, "schema_version"),
+            ("priority", "1", "priority"),
+            ("acceptance", "not-an-array", "acceptance"),
+            ("type", "UPPER CASE", "safe slug"),
+        )
+        for field, invalid, message in cases:
+            with self.subTest(field=field):
+                value = json.loads(original)
+                value[field] = invalid
+                path.write_text(json.dumps(value))
+                result = self.run_cli("check", expected=3)
+                self.assertIn(message, result.stderr)
+        path.write_bytes(original)
+        self.run_cli("check")
+
+    def test_duplicate_ids_path_mismatch_and_unsafe_names_are_rejected(self) -> None:
+        self.write_record(record("DEV-0001", area="one"))
+        self.write_record(record("DEV-0001", area="two"))
+        self.assertIn("duplicate task ID", self.run_cli("check", expected=3).stderr)
+        (self.root / "records/two/DEV-0001.json").unlink()
+
+        mismatch = record("DEV-0002", area="one")
+        mismatch_path = self.write_record(mismatch)
+        mismatch["id"] = "DEV-0003"
+        mismatch_path.write_text(json.dumps(mismatch))
+        self.assertIn("does not match its stable path", self.run_cli("check", expected=3).stderr)
+        mismatch_path.unlink()
+
+        draft = self.write_input(
+            "traversal.json",
+            {
+                "area": "../outside",
+                "title": "Unsafe",
+                "type": "test",
+                "priority": 1,
+                "status": "new",
+                "depends_on": [],
+                "goal": "Must be rejected.",
+                "scope": ["No traversal."],
+                "acceptance": ["Rejected."],
+            },
+        )
+        self.assertIn(
+            "safe slug", self.run_cli("create", "--file", str(draft), expected=3).stderr
+        )
+        self.assertFalse((self.root / "outside").exists())
+
+    @unittest.skipUnless(hasattr(os, "symlink"), "symlinks are unavailable")
+    def test_symlinked_record_directory_is_rejected(self) -> None:
+        external = Path(self.temporary.name) / "external"
+        external.mkdir()
+        (self.root / "records/link").symlink_to(external, target_is_directory=True)
+        self.assertIn("symlinked record path", self.run_cli("check", expected=3).stderr)
+
+    def test_two_process_claim_has_exactly_one_winner(self) -> None:
+        self.write_record(record("DEV-0001"))
+        command = [
+            sys.executable,
+            str(SCRIPT),
+            "--root",
+            str(self.root),
+            "claim",
+            "DEV-0001",
+            "--expect-revision",
+            "1",
+        ]
+        first = subprocess.Popen(
+            [*command, "--owner", "worker-a"], text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+        )
+        second = subprocess.Popen(
+            [*command, "--owner", "worker-b"], text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+        )
+        first_output = first.communicate(timeout=10)
+        second_output = second.communicate(timeout=10)
+        codes = [first.returncode, second.returncode]
+        self.assertEqual(sorted(codes), [0, 4], msg=str((first_output, second_output)))
+        final = json.loads((self.root / "records/test/DEV-0001.json").read_text())
+        self.assertIn(final["owner"], {"worker-a", "worker-b"})
+        self.assertEqual(final["revision"], 2)
+        self.assertEqual(len(final["history"]), 2)
+        self.assertTrue((self.root / ".manage.lock").exists())
+        repeated = self.run_cli(
+            "claim",
+            "DEV-0001",
+            "--owner",
+            str(final["owner"]),
+            "--expect-revision",
+            "2",
+            expected=4,
+        )
+        self.assertIn("cannot be claimed", repeated.stderr)
+
+    def test_large_deep_graph_validates_and_paginates_without_overlap(self) -> None:
+        directory = self.root / "records" / "scale"
+        directory.mkdir()
+        for number in range(1, 1501):
+            task_id = f"DEV-{number:04d}"
+            value = record(
+                task_id,
+                area="scale",
+                dependencies=[f"DEV-{number - 1:04d}"] if number > 1 else [],
+            )
+            value["priority"] = 1
+            (directory / f"{task_id}.json").write_text(json.dumps(value))
+        checked = self.run_cli("check")
+        self.assertIn("1500 tasks", checked.stdout)
+
+        default_page = json.loads(self.run_cli("list", "--json").stdout)
+        self.assertEqual(default_page["page"]["returned"], 20)
+        all_ids: list[str] = []
+        for offset in range(0, 1500, 100):
+            result = json.loads(
+                self.run_cli(
+                    "list", "--limit", "100", "--offset", str(offset), "--json"
+                ).stdout
+            )
+            page_ids = [task["id"] for task in result["tasks"]]
+            self.assertEqual(len(page_ids), 100)
+            self.assertFalse(set(all_ids) & set(page_ids))
+            all_ids.extend(page_ids)
+        self.assertEqual(all_ids, [f"DEV-{number:04d}" for number in range(1, 1501)])
+        self.assertNotIn("history", default_page["tasks"][0])
+        self.assertNotIn("goal", default_page["tasks"][0])
+
+        dependencies = json.loads(
+            self.run_cli("deps", "DEV-1500", "--limit", "100", "--json").stdout
+        )
+        self.assertEqual(dependencies["page"]["total"], 1499)
+        self.assertEqual(dependencies["dependencies"][0]["id"], "DEV-1499")
+        self.assertEqual(dependencies["dependencies"][-1]["id"], "DEV-1400")
+
+    def test_long_text_is_explicitly_bounded(self) -> None:
+        long_text = "x" * 100_000
+        value = record("DEV-0001", title=long_text, note=long_text, revision=25)
+        value["goal"] = long_text
+        value["scope"] = [long_text]
+        self.write_record(value)
+
+        listed = self.run_cli("list").stdout
+        self.assertLess(len(listed), 1_000)
+        self.assertIn("truncated", listed)
+
+        shown = self.run_cli("show", "DEV-0001").stdout
+        self.assertLess(len(shown), 13_000)
+        self.assertIn("Output truncated", shown)
+        shown_json = json.loads(self.run_cli("show", "DEV-0001", "--json").stdout)
+        self.assertEqual(shown_json["page"]["returned_characters"], 12_000)
+        self.assertIsNotNone(shown_json["page"]["next_offset"])
+
+        history = self.run_cli("history", "DEV-0001").stdout
+        self.assertLess(len(history), 23_000)
+        self.assertIn("truncated", history)
+        self.assertIn("More history", history)
+        rendered = self.run_cli("render").stdout
+        self.assertLess(len(rendered), 2_000)
+        self.assertIn("truncated", rendered)
+
+    def test_read_commands_do_not_modify_the_task_root(self) -> None:
+        self.write_record(record("DEV-0001"))
+        before = {
+            str(path.relative_to(self.root)): (path.stat().st_mtime_ns, path.read_bytes())
+            for path in self.root.rglob("*")
+            if path.is_file()
+        }
+        for command in (
+            ("next",),
+            ("list",),
+            ("show", "DEV-0001"),
+            ("deps", "DEV-0001"),
+            ("history", "DEV-0001"),
+            ("summary",),
+            ("render",),
+            ("check",),
+        ):
+            self.run_cli(*command)
+        after = {
+            str(path.relative_to(self.root)): (path.stat().st_mtime_ns, path.read_bytes())
+            for path in self.root.rglob("*")
+            if path.is_file()
+        }
+        self.assertEqual(after, before)
+        self.assertFalse((self.root / ".manage.lock").exists())
+
+    def test_filters_defaults_and_summary_json(self) -> None:
+        self.write_record(record("DEV-0001", area="alpha"))
+        self.write_record(record("DEV-0002", area="alpha", status="done", evidence=["ok"]))
+        self.write_record(record("DEV-0003", area="beta", status="new"))
+        default = json.loads(self.run_cli("list", "--json").stdout)
+        self.assertEqual([item["id"] for item in default["tasks"]], ["DEV-0001", "DEV-0003"])
+        terminal = json.loads(
+            self.run_cli("list", "--readiness", "terminal", "--all", "--json").stdout
+        )
+        self.assertEqual([item["id"] for item in terminal["tasks"]], ["DEV-0002"])
+        filtered = json.loads(
+            self.run_cli("list", "--area", "beta", "--status", "new", "--json").stdout
+        )
+        self.assertEqual([item["id"] for item in filtered["tasks"]], ["DEV-0003"])
+        summary = json.loads(self.run_cli("summary", "--json").stdout)
+        self.assertEqual(summary["tasks"], 3)
+        self.assertEqual(summary["page"]["total"], 3)
+
+    def test_allocation_supports_ids_above_9999(self) -> None:
+        self.write_record(record("DEV-10000"))
+        draft = self.write_input(
+            "draft.json",
+            {
+                "area": "test",
+                "title": "Allocated above four digits",
+                "type": "test",
+                "priority": 1,
+                "depends_on": [],
+                "goal": "Verify allocation.",
+                "scope": ["Allocate the next global ID."],
+                "acceptance": ["DEV-10001 is created."],
+            },
+        )
+        result = json.loads(self.run_cli("create", "--file", str(draft)).stdout)
+        self.assertEqual(result["created"], "DEV-10001")
+        self.assertTrue((self.root / "records/test/DEV-10001.json").exists())
+
+    def test_patch_that_creates_cycle_is_rejected_atomically(self) -> None:
+        self.write_record(record("DEV-0001"))
+        self.write_record(record("DEV-0002", dependencies=["DEV-0001"]))
+        patch = self.write_input("cycle.json", {"depends_on": ["DEV-0002"]})
+        before = self.snapshot()
+        result = self.run_cli(
+            "update",
+            "DEV-0001",
+            "--file",
+            str(patch),
+            "--expect-revision",
+            "1",
+            "--note",
+            "Attempt a cycle.",
+            expected=3,
+        )
+        self.assertIn("dependency cycle", result.stderr)
+        self.assertEqual(self.snapshot(), before)
+
+    def test_limit_caps_and_unknown_tasks_return_readable_errors(self) -> None:
+        self.write_record(record("DEV-0001"))
+        too_large = self.run_cli("list", "--limit", "101", expected=3)
+        self.assertIn("between 1 and 100", too_large.stderr)
+        unknown = self.run_cli("show", "DEV-9999", expected=3)
+        self.assertIn("unknown task DEV-9999", unknown.stderr)
+        self.assertNotIn("Traceback", too_large.stderr + unknown.stderr)
+
+
+if __name__ == "__main__":
+    unittest.main()

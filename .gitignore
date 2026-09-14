@@ -1,2 +1,6 @@
 /target/
 .DS_Store
+__pycache__/
+*.py[cod]
+/ymp-docs/tasks/.manage.lock
+/ymp-docs/tasks/records/**/.DEV-*.tmp-*

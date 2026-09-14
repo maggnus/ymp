@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "id": "DEV-0005",
+  "area": "persistence",
+  "title": "Implement persistent Journal storage and restart recovery",
+  "type": "implementation",
+  "priority": 50,
+  "status": "new",
+  "depends_on": [
+    "DEV-0004"
+  ],
+  "owner": null,
+  "goal": "Implement the storage adapter selected by the durable Journal contract and demonstrate coherent session recovery after process restart.",
+  "scope": [
+    "Implement only the adapter and assembly changes admitted by DEV-0004.",
+    "Preserve atomic expected-revision append, exact event order, schema versions, and typed failures.",
+    "Verify restart, concurrent writer, interrupted write, and corrupt-state behavior through kernel consumers."
+  ],
+  "acceptance": [
+    "The selected adapter satisfies every invariant and failure case in the reviewed durable Journal contract.",
+    "A session opened by one process can be read coherently after restart without weakening kernel projection validation.",
+    "Failed or stale appends do not expose partial history, and deliberately corrupt state is not reported as an empty or valid session.",
+    "User-facing documentation states storage ownership, location, lifetime, migration, and recovery limits."
+  ],
+  "evidence": [],
+  "context": [
+    "This task is intentionally unscheduled until DEV-0004 selects and reviews the contract and storage approach."
+  ],
+  "revision": 1,
+  "history": [
+    {
+      "revision": 1,
+      "at": "2026-09-14T18:27:59Z",
+      "actor": "maintainer",
+      "status": "new",
+      "note": "Recorded as unscheduled future work."
+    }
+  ]
+}

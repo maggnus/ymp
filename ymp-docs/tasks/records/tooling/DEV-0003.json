@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "id": "DEV-0003",
+  "area": "tooling",
+  "title": "Implement the file-based development task workflow",
+  "type": "tooling",
+  "priority": 30,
+  "status": "in_progress",
+  "depends_on": [
+    "DEV-0001",
+    "DEV-0002"
+  ],
+  "owner": "maintainer",
+  "goal": "Provide a bounded, repository-local workflow for selecting and coordinating many development tasks without loading a combined backlog.",
+  "scope": [
+    "Store one validated JSON record per task under a stable area path.",
+    "Provide bounded read commands and optimistic, locked, atomic write commands.",
+    "Seed project-specific records and connect the workflow to contributor guidance and the roadmap.",
+    "Test command behavior, adverse writes, concurrency, deep dependency graphs, and output bounds."
+  ],
+  "acceptance": [
+    "All commands and storage rules in ymp-docs/development-tasks.md are implemented with Python 3.11 or newer and the standard library.",
+    "Rejected writes leave canonical records unchanged, and two same-revision claims have exactly one winner.",
+    "A 1,500-task dataset with a dependency chain longer than 1,000 validates without recursion failure and paginates without gaps or duplicates.",
+    "The repository task guide, contributor guidance, root README, roadmap, and ignore rules accurately describe the delivered workflow.",
+    "Python and required offline Rust verification commands complete successfully, with external logs and a hash manifest retained for review."
+  ],
+  "evidence": [],
+  "context": [
+    "Development task ownership is cooperative coordination, not authentication or runtime execution authority.",
+    "Independent acceptance and the final done transition are intentionally left to the parent reviewer."
+  ],
+  "revision": 1,
+  "history": [
+    {
+      "revision": 1,
+      "at": "2026-09-14T18:27:59Z",
+      "actor": "maintainer",
+      "status": "in_progress",
+      "note": "Implementation is in progress under the owner-authorized development task contract."
+    }
+  ]
+}

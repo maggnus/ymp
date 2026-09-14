@@ -30,14 +30,36 @@ objective. Keep unsupported claims and unexecuted checks explicit.
 Before committing code, run:
 
 ```sh
+cargo build --workspace --offline
 cargo fmt --all --check
-cargo clippy --workspace --all-targets -- -D warnings
-cargo test --workspace
+cargo clippy --workspace --all-targets --offline -- -D warnings
+cargo test --workspace --offline
 ```
 
 Read the diff and check affected consumers. Use independent review for changes to
 public contracts, resource ownership, persistence or execution authority. Keep
 parallel work read-only unless writers have disjoint, explicitly owned worktrees.
 
-Record delivered outcomes in Git and keep `ymp-docs/roadmap.md` accurate. Do not
-create a second task database or record speculative progress as completion.
+Record delivered outcomes in Git. Development task records under
+`ymp-docs/tasks/records/` are the single source of task status; follow
+`ymp-docs/development-tasks.md`. Start with `manage.py next`, then `show ID` for the
+selected task, instead of reading every record. Use the task tool for coordinated
+updates and retain its expected-revision checks. The roadmap describes product
+outcomes and links to records; do not maintain duplicate status labels there.
+Task ownership is cooperative development coordination, not runtime authority.
+Do not record speculative progress as completion or create another task database.
+
+Use these exact development-task commands from the repository root:
+
+```sh
+python3 ymp-docs/tasks/manage.py next
+python3 ymp-docs/tasks/manage.py show DEV-0004
+python3 ymp-docs/tasks/manage.py check
+```
+
+Before committing changes to the task workflow itself, also run:
+
+```sh
+python3 -m unittest discover -s ymp-docs/tasks/tests -v
+python3 ymp-docs/tasks/manage.py render --limit 20 >/dev/null
+```

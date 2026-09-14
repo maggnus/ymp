@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "id": "DEV-0006",
+  "area": "execution",
+  "title": "Define the bounded native execution contract",
+  "type": "design",
+  "priority": 60,
+  "status": "new",
+  "depends_on": [
+    "DEV-0005"
+  ],
+  "owner": null,
+  "goal": "Define an implementable contract for one bounded agent execution that preserves native identities, settings, resources, workspace constraints, and uncertain outcomes.",
+  "scope": [
+    "Specify only the trusted ports and behavior needed by one admitted execution scenario.",
+    "Define native provider discovery without copying credentials or inventing unsupported metadata.",
+    "Define admission, invocation, cancellation, termination, and uncertainty as distinct recorded facts."
+  ],
+  "acceptance": [
+    "A reviewed contract assigns the final admission check for current eligibility, resources, settings, and enforceable workspace access to the kernel.",
+    "The contract defines scripted provider checks for success, denial, failure, cancellation, and uncertain termination without real user-data mutation.",
+    "The required execution record distinguishes requested, sent, and observed settings and retains typed provider failures.",
+    "The contract requires implementations to state which resource and workspace guarantees are enforced and which remain unknown."
+  ],
+  "evidence": [],
+  "context": [
+    "This task is intentionally unscheduled until durable session state is implemented and accepted."
+  ],
+  "revision": 1,
+  "history": [
+    {
+      "revision": 1,
+      "at": "2026-09-14T18:27:59Z",
+      "actor": "maintainer",
+      "status": "new",
+      "note": "Recorded as unscheduled future work."
+    }
+  ]
+}
