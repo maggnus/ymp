@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-14 09:57 UTC.
+Updated: 2026-09-14 09:59 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -107,7 +107,7 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-163](#ymp-163) | P0 | Recover from broken generated task checks through reviewed replacement | 2026-09-14 08:41 |
 | `[x]` | [YMP-164](#ymp-164) | P0 | Repeat fifteen-puzzle delivery with unified research and acceptance criteria | 2026-09-14 09:57 |
 | `[x]` | [YMP-165](#ymp-165) | P0 | Provide a reusable intent-based system evaluation plan and project skill | 2026-09-14 08:23 |
-| `[ ]` | [YMP-166](#ymp-166) | P1 | Make generated verification artifacts reproducible and reviewer-accessible | 2026-09-14 09:57 |
+| `[~]` | [YMP-166](#ymp-166) | P1 | Make generated verification artifacts reproducible and reviewer-accessible | 2026-09-14 09:59 |
 | `[ ]` | [YMP-167](#ymp-167) | P1 | Check selected local adapter readiness before inference and retain specific errors | 2026-09-14 09:57 |
 
 ## YMP-001
@@ -2875,21 +2875,19 @@ The prior shared protocol still emphasized native sessions and postponed skill c
 
 Make generated verification artifacts reproducible and reviewer-accessible
 
-**State:** `[ ]` (planned) · **Type:** implementation · **Priority:** P1
+**State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P1
 
-**Last update (UTC):** 2026-09-14 09:57
+**Last update (UTC):** 2026-09-14 09:59
 
-**Current reason:** Ready to start
+**Current reason:** Started Sol xhigh agent f8485e5b-cacb-4cab-a1d4-b7ad1829c38b in isolated fix/ymp166-verification-evidence from2a26b34. Scope is persistent version-bound check material and narrow reviewer access through existing facilities, with one lost-source and one changed-source control. No native run, broad permissions, new runner or unrelated readiness/allocation redesign.
 
-**Owner:** Parent schedules a bounded backend correction after the diagnostic repeat
+**Owner:** Sol xhigh implementation fork; parent owns bounded independent acceptance
 
 **Authorization:** Owner agreed to the two next steps: complete the repeat, then fix verification organization so source persists, the independent reviewer can inspect it and actual behavior is checked. Repeat is accepted; bounded implementation is authorized. Do not broaden reviewer permissions or start another native trial.
 
 **Depends on:** [YMP-164](#ymp-164)
 
 A temporary extracted script was deleted before runtime recheck, and another check source was unavailable to the independent reviewer. A passing command log alone did not establish inspectable reproducible evidence.
-
-**Latest progress note:** Repeat is accepted and the owner already agreed this next implementation step. Evidence scope strengthened: persistent reviewer-visible check material and precise result binding; capability mismatch must not be hidden by broader access or misleading rendering claims. Prepare the smallest supported implementation through existing facilities.
 
 **Acceptance criteria:**
 
