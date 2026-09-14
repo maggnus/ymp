@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-14 03:29 UTC.
+Updated: 2026-09-14 03:31 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -101,7 +101,7 @@ A planned task is not implemented functionality. Completed research and planning
 | `[x]` | [YMP-157](#ymp-157) | P1 | Research attributable session statistics and knowledge-use measurements | 2026-09-14 02:03 |
 | `[~]` | [YMP-158](#ymp-158) | P1 | Implement session statistics backend, export and headless progress | 2026-09-14 02:32 |
 | `[x]` | [YMP-159](#ymp-159) | P0 | Parse the final structured decision after non-JSON commentary | 2026-09-14 03:29 |
-| `[ ]` | [YMP-160](#ymp-160) | P0 | Honor owner starting preferences when reserving an equal-score reviewer | 2026-09-14 02:34 |
+| `[~]` | [YMP-160](#ymp-160) | P0 | Honor owner starting preferences when reserving an equal-score reviewer | 2026-09-14 03:31 |
 | `[x]` | [YMP-161](#ymp-161) | P0 | Keep frozen experiment bindings without blocking later product changes | 2026-09-14 02:52 |
 | `[=]` | [YMP-162](#ymp-162) | P0 | Release recovery fixes and complete controlled end-to-end session runs | 2026-09-14 02:34 |
 
@@ -2676,11 +2676,11 @@ Session6e286a3a stopped on its last review because CSS commentary contained a ba
 
 Honor owner starting preferences when reserving an equal-score reviewer
 
-**State:** `[ ]` (planned) · **Type:** implementation · **Priority:** P0
+**State:** `[~]` (in_progress) · **Type:** implementation · **Priority:** P0
 
-**Last update (UTC):** 2026-09-14 02:34
+**Last update (UTC):** 2026-09-14 03:31
 
-**Current reason:** Ready to start
+**Current reason:** YMP-159 and YMP-161 are accepted and integrated with a662-pass workspace run. Started agent6ad87e12-303f-4b57-b68a-ade82893dd84 on gpt-5.6-sol xhigh in an isolated worktree for one exact reviewer-reservation regression and one counterexample; parent owns independent review and the single post-integration full run.
 
 **Owner:** Owner-selected gpt-5.6-sol implementation fork after YMP-159; maintainer owns policy scope and independent acceptance
 
@@ -2689,8 +2689,6 @@ Honor owner starting preferences when reserving an equal-score reviewer
 **Depends on:** [YMP-159](#ymp-159)
 
 Starting preferences order eligible candidates, but final-review reservation currently walks the list backwards and selects the last equal-score candidate. This makes a nonpreferred GLM reviewer replace an eligible preferred Sonnet without a constraint-based reason.
-
-**Latest progress note:** Raised to P0 in the open-work review because the owner prioritized the complete ordinary-session run and error controls. The correction is a prerequisite of YMP-162 and still requires independent acceptance before any live-session action.
 
 **Acceptance criteria:**
 

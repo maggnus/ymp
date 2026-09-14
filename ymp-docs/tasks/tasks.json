@@ -4761,7 +4761,7 @@
       "title": "Honor owner starting preferences when reserving an equal-score reviewer",
       "type": "implementation",
       "priority": "P0",
-      "status": "planned",
+      "status": "in_progress",
       "owner": "Owner-selected gpt-5.6-sol implementation fork after YMP-159; maintainer owns policy scope and independent acceptance",
       "authorization": "The owner reported that a preferred Sonnet participant was replaced by GLM Air. The read-only audit proved Sonnet remained eligible and the built-in reverse fallback selected the last candidate. Implement the bounded preference correction after the parser fix; Astra remains prohibited.",
       "depends_on": [
@@ -4788,6 +4788,11 @@
           "at": "2026-09-14T02:34:00+00:00",
           "status": "planned",
           "note": "Raised to P0 in the open-work review because the owner prioritized the complete ordinary-session run and error controls. The correction is a prerequisite of YMP-162 and still requires independent acceptance before any live-session action."
+        },
+        {
+          "at": "2026-09-14T03:31:00+00:00",
+          "status": "in_progress",
+          "note": "YMP-159 and YMP-161 are accepted and integrated with a662-pass workspace run. Started agent6ad87e12-303f-4b57-b68a-ade82893dd84 on gpt-5.6-sol xhigh in an isolated worktree for one exact reviewer-reservation regression and one counterexample; parent owns independent review and the single post-integration full run."
         }
       ]
     },
@@ -4873,7 +4878,7 @@
       ]
     }
   ],
-  "updated_at": "2026-09-14T03:29:00+00:00",
+  "updated_at": "2026-09-14T03:31:00+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",
