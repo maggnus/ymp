@@ -1,0 +1,192 @@
+#![forbid(unsafe_code)]
+
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
+
+pub use ymp_domain::{
+    AcceptanceContract, Constraints, Criterion, CriterionId, DomainError, Goal, SessionId, Task,
+    TaskId,
+};
+use ymp_kernel::Dispatcher;
+pub use ymp_kernel::{
+    DispatchError, Journal, JournalEntry, JournalError, Revision, SessionEvent, SessionStatus,
+    SessionView,
+};
+
+pub const APPLICATION_NAME: &str = "ymp";
+pub const APPLICATION_VERSION: &str = env!("CARGO_PKG_VERSION");
+pub const CAPABILITY_LIMIT: &str = "YMP records an in-memory session lifecycle; it does not execute agents or tasks, and state is not persisted.";
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct ApplicationMetadata {
+    name: &'static str,
+    version: &'static str,
+    capability_limit: &'static str,
+}
+
+impl ApplicationMetadata {
+    pub const fn name(self) -> &'static str {
+        self.name
+    }
+
+    pub const fn version(self) -> &'static str {
+        self.version
+    }
+
+    pub const fn capability_limit(self) -> &'static str {
+        self.capability_limit
+    }
+}
+
+pub const fn application_metadata() -> ApplicationMetadata {
+    ApplicationMetadata {
+        name: APPLICATION_NAME,
+        version: APPLICATION_VERSION,
+        capability_limit: CAPABILITY_LIMIT,
+    }
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct MemoryJournal {
+    store: Arc<Mutex<HashMap<SessionId, Vec<JournalEntry>>>>,
+}
+
+impl MemoryJournal {
+    pub fn new() -> Self {
+        Self::default()
+    }
+}
+
+impl Journal for MemoryJournal {
+    fn read(&self, session_id: &SessionId) -> Result<Vec<JournalEntry>, JournalError> {
+        let store = self
+            .store
+            .lock()
+            .map_err(|_| JournalError::AdapterFailure {
+                message: "memory journal lock is poisoned".to_owned(),
+            })?;
+        Ok(store.get(session_id).cloned().unwrap_or_default())
+    }
+
+    fn append(
+        &self,
+        session_id: &SessionId,
+        expected_revision: Revision,
+        events: Vec<SessionEvent>,
+    ) -> Result<Revision, JournalError> {
+        if events.is_empty() {
+            return Err(JournalError::EmptyBatch);
+        }
+
+        let mut store = self
+            .store
+            .lock()
+            .map_err(|_| JournalError::AdapterFailure {
+                message: "memory journal lock is poisoned".to_owned(),
+            })?;
+        let actual_revision = store
+            .get(session_id)
+            .and_then(|stream| stream.last())
+            .map_or(Revision::INITIAL, JournalEntry::revision);
+        if actual_revision != expected_revision {
+            return Err(JournalError::StaleRevision {
+                expected: expected_revision,
+                actual: actual_revision,
+            });
+        }
+
+        let mut next_revision = actual_revision;
+        let mut entries = Vec::with_capacity(events.len());
+        for event in events {
+            next_revision = next_revision
+                .checked_next()
+                .ok_or(JournalError::RevisionOverflow)?;
+            entries.push(JournalEntry::new(next_revision, event));
+        }
+        store.entry(session_id.clone()).or_default().extend(entries);
+        Ok(next_revision)
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct Application {
+    dispatcher: Dispatcher<MemoryJournal>,
+}
+
+impl Application {
+    pub fn in_memory() -> Self {
+        Self::new(MemoryJournal::new())
+    }
+
+    pub fn new(journal: MemoryJournal) -> Self {
+        Self {
+            dispatcher: Dispatcher::new(journal),
+        }
+    }
+
+    pub fn metadata(&self) -> ApplicationMetadata {
+        application_metadata()
+    }
+
+    pub fn open_session(
+        &self,
+        session_id: SessionId,
+        task: Task,
+    ) -> Result<SessionView, DispatchError> {
+        self.dispatcher.open(session_id, task)
+    }
+
+    pub fn read_session(&self, session_id: &SessionId) -> Result<SessionView, DispatchError> {
+        self.dispatcher.read(session_id)
+    }
+
+    pub fn cancel_session(
+        &self,
+        session_id: &SessionId,
+        expected_revision: Revision,
+    ) -> Result<SessionView, DispatchError> {
+        self.dispatcher.cancel(session_id, expected_revision)
+    }
+}
+
+impl Default for Application {
+    fn default() -> Self {
+        Self::in_memory()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn revision_overflow_leaves_the_memory_stream_unchanged() {
+        let journal = MemoryJournal::new();
+        let session_id = SessionId::new("overflow").expect("valid session ID");
+        let existing = JournalEntry::new(
+            Revision::new(u64::MAX),
+            SessionEvent::SessionCancelled {
+                session_id: session_id.clone(),
+            },
+        );
+        journal
+            .store
+            .lock()
+            .expect("memory journal lock is available")
+            .insert(session_id.clone(), vec![existing.clone()]);
+
+        let result = journal.append(
+            &session_id,
+            Revision::new(u64::MAX),
+            vec![SessionEvent::SessionCancelled {
+                session_id: session_id.clone(),
+            }],
+        );
+
+        assert_eq!(result, Err(JournalError::RevisionOverflow));
+        assert_eq!(
+            journal.read(&session_id).expect("history reads"),
+            vec![existing]
+        );
+    }
+}
