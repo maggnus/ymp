@@ -269,7 +269,11 @@ fn codex_registry_scan_reports_ready_agent_with_configured_offering() {
         "codex",
         "#!/bin/sh\nprintf 'codex-cli 0.154.0\\n'\nexit 0\n",
     );
-    let mut registry = CodexRegistry::new(agent_id(), offering(), codex.to_string_lossy().as_ref());
+    // Pool composition is the property under test. Give process scheduling
+    // its own generous allowance; the short-deadline behavior is covered by
+    // the dedicated timeout test below.
+    let mut registry = CodexRegistry::new(agent_id(), offering(), codex.to_string_lossy().as_ref())
+        .with_probe_timeout(Duration::from_secs(30));
 
     let pool = registry.scan().expect("the scan runs");
 
