@@ -1726,6 +1726,79 @@ fn host_limit_accumulation_spans_multiple_observe_attempts() {
     }
 }
 
+/// Cumulative usage reports advance monotonically across separate observe
+/// attempts, so later turn totals reach the host limit and later output totals
+/// are not understated.
+#[test]
+fn cumulative_usage_advances_across_observe_attempts() {
+    let (_, scenario, id) = prepared(ManualClock::new());
+    scenario.script_outcome(ScriptedOutcome::never_reports());
+    let request = AssignmentRequest::new(
+        agent(),
+        Role::new("implementer").expect("valid role"),
+        default_settings(),
+        tight_allowance(),
+        vec![workspace_access(scope())],
+    )
+    .expect("valid assignment request");
+    let assignment = scenario
+        .admit(&id, request, Revision::new(1))
+        .expect("admission commits");
+    scenario
+        .invoke(&id, assignment.invocation(), Revision::new(2))
+        .expect("invocation starts");
+
+    for (turns, output_chars) in [(1, 20), (2, 40)] {
+        scenario.with_backend_mut(|backend| {
+            backend.deliver_observation(
+                assignment.invocation(),
+                ExecutionObservation::UsageObserved {
+                    usage: ObservedUsage::unknown()
+                        .with_turns(turns)
+                        .with_output_chars(output_chars),
+                },
+            );
+        });
+        match scenario
+            .observe(&id, assignment.invocation(), Revision::new(4))
+            .expect("cumulative usage observation resolves")
+        {
+            ObservationOutcome::WaitingForTermination {
+                accumulation,
+                enforcement,
+            } => {
+                assert_eq!(accumulation.usage().turns(), Some(turns));
+                assert_eq!(accumulation.usage().output_chars(), Some(output_chars));
+                assert!(!enforcement.turns_capped);
+            }
+            other => panic!("expected a waiting observation, got {other:?}"),
+        }
+    }
+
+    scenario.with_backend_mut(|backend| {
+        backend.deliver_observation(
+            assignment.invocation(),
+            ExecutionObservation::UsageObserved {
+                usage: ObservedUsage::unknown().with_turns(3).with_output_chars(60),
+            },
+        );
+    });
+    match scenario
+        .observe(&id, assignment.invocation(), Revision::new(4))
+        .expect("the limit-reaching observation resolves")
+    {
+        ObservationOutcome::WaitingForTermination {
+            accumulation,
+            enforcement,
+        } => {
+            assert_eq!(accumulation.usage().turns(), Some(3));
+            assert_eq!(accumulation.usage().output_chars(), Some(60));
+            assert!(enforcement.turns_capped);
+        }
+        other => panic!("expected a waiting observation, got {other:?}"),
+    }
+}
+
 /// "Bounded cancellation: once the bounded wait deadline passes without a
 /// termination observation the state is recorded as `uncertain` with
 /// reservation and workspace hold intact, and the conflicting successor is
