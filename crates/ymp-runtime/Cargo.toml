@@ -8,6 +8,10 @@ publish.workspace = true
 [dependencies]
 ymp-domain = { path = "../ymp-domain" }
 ymp-kernel = { path = "../ymp-kernel" }
+serde_json.workspace = true
+
+[dev-dependencies]
+serde.workspace = true
 
 [lints]
 workspace = true

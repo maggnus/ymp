@@ -8,10 +8,12 @@ An evolving terminal interface exposes this behavior.
 
 ## Starting point
 
-This iteration starts with a new implementation. The architecture and development
-task tooling are available; no application functionality is credited as delivered.
-An empty placeholder skeleton of the crates exists by owner decision (see
-[the proposed layout](ymp-docs/project-worktree.md)); it contains no behavior.
+This iteration starts with a new implementation. The journal foundation supplies
+validated values, atomic in-memory events and replayable method decisions; see
+[the implementation boundary and evidence](ymp-docs/journal-implementation.md).
+The remaining modules are placeholders under
+[the proposed layout](ymp-docs/project-worktree.md). The executable still has no
+interactive or task-execution behavior.
 Earlier source material and implementation notes are historical references, not a
 baseline to extend or a reason to omit planned work. The previous iteration's code
 was removed from the working tree and is reachable only at git tag `legacy-foundation`;

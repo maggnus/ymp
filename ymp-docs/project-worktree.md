@@ -1,9 +1,10 @@
 # Proposed crate and module layout
 
-Status: layout checked in as an empty placeholder skeleton by owner decision,
-2026-09-16. Every file below exists but contains no behavior; a placeholder is
-not delivered functionality. Task W1-0001 owns the initial Rust mapping and may
-rename or move placeholders; later tasks own the files they are listed against
+The layout was checked in as an empty placeholder skeleton by owner decision,
+2026-09-16. Owning tasks fill its modules; placeholders are not delivered
+functionality. The [journal mapping](journal-implementation.md) documents the first
+concrete consumer and its implementation boundaries. Task W1-0001 owns the initial
+Rust mapping and may rename or move placeholders; later tasks own the files they are listed against
 and fill them. `AGENTS.md` records this as the single exception to its
 no-placeholder rule; no further placeholders are added.
 
@@ -43,10 +44,10 @@ ymp/
 │   └── legacy_scan.py              # make legacy-scan: rejects code copied from legacy-* tags
 └── crates/
     ├── ymp-domain/                 # pure values and validation, no I/O
-    │   ├── Cargo.toml              # sha2, serde
+    │   ├── Cargo.toml              # sha2, serde, serde_json
     │   ├── src/
     │   │   ├── lib.rs              # W1-0001: Id<T>, Digest, Ref, PolicyRef, Proposal, Denial
-    │   │   ├── journal.rs          # W1-0001: Envelope, Seq, payload versions
+    │   │   ├── journal.rs          # W1-0001: Envelope, codec, policy parameters, Method value
     │   │   ├── task.rs             # W1-0002: Task, Goal, Criterion, AcceptanceContract, Pins
     │   │   ├── identity.rs         # W1-0003: Agent, Provider, ModelOffering, ExecutionProfile, Pool
     │   │   ├── resources.rs        # W1-0004: Budget, PriceBook, Reservation, Receipt, Allowance
@@ -62,7 +63,7 @@ ymp/
     │       └── validation.rs
     │
     ├── ymp-kernel/                 # trusted operations, ports, replay
-    │   ├── Cargo.toml              # ymp-domain
+    │   ├── Cargo.toml              # ymp-domain, serde, serde_json
     │   ├── src/
     │   │   ├── lib.rs
     │   │   ├── journal.rs          # W1-0001: trait Journal, append with expected revision
@@ -212,8 +213,9 @@ ymp/
 ## Consequences to keep in mind
 
 - The `ymp` binary exists as a placeholder with an empty `main` until W1-0015;
-  it does nothing. Until then the real consumer for tests is `Application` in
-  `ymp-runtime` and scenarios over a temporary filesystem.
-- The skeleton passes the four required checks from `AGENTS.md` with zero tests.
-  Every task commit must keep them passing; the placeholders declare no external
-  dependencies, so each task adds the crates it actually uses.
+  it does nothing. The first real consumer is `DecisionConsumer` composed with
+  `MemoryJournal` in the runtime tests. W1-0002 and W1-0014 add `Application` and
+  filesystem session scenarios.
+- The original skeleton passed the four required checks with zero tests.
+  Implementation tasks add focused evidence and the dependencies they actually
+  use; each commit must keep the required checks passing.
