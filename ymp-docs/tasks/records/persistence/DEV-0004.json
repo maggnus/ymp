@@ -5,18 +5,18 @@
   "title": "Define the durable Journal contract",
   "type": "design",
   "priority": 40,
-  "status": "planned",
+  "status": "in_progress",
   "depends_on": [
     "DEV-0002",
     "DEV-0003"
   ],
-  "owner": null,
+  "owner": "maintainer",
   "goal": "Turn durable session recovery into an implementable contract before selecting or adding a storage adapter.",
   "scope": [
     "Specify durability, atomicity, ordering, schema-version, recovery, corruption, and concurrent-writer behavior at the Journal port boundary.",
     "Define how storage location, ownership, lifetime, migration, and deletion are selected and exposed to the user.",
     "Identify the kernel consumer scenarios and failure observations needed to verify a future adapter.",
-    "Compare proportionate storage approaches against the contract without selecting a technology or path in advance."
+    "Compare proportionate storage approaches against the contract and select the approach DEV-0005 must implement, with recorded justification, as directed by the acceptance authority."
   ],
   "acceptance": [
     "A reviewed repository document states the durable Journal invariants and typed failure behavior.",
@@ -30,7 +30,7 @@
     "This task becomes ready only after the task workflow is accepted.",
     "No database, file format, storage path, or migration mechanism has been selected."
   ],
-  "revision": 1,
+  "revision": 6,
   "history": [
     {
       "revision": 1,
@@ -38,6 +38,41 @@
       "actor": "maintainer",
       "status": "planned",
       "note": "Contract work is planned and waits for completion of DEV-0003."
+    },
+    {
+      "revision": 2,
+      "at": "2026-09-14T23:51:24.627928Z",
+      "actor": "maintainer",
+      "status": "in_progress",
+      "note": "Claimed by maintainer."
+    },
+    {
+      "revision": 3,
+      "at": "2026-09-14T23:55:51.502806Z",
+      "actor": "maintainer",
+      "status": "in_progress",
+      "note": "Scope now records the directed storage selection with justification instead of deferring it."
+    },
+    {
+      "revision": 4,
+      "at": "2026-09-15T00:55:35.422903Z",
+      "actor": "maintainer",
+      "status": "in_progress",
+      "note": "R1 9/10 RETURN fixed and R2 7/10 RETURN fixed: the authority's four prescribed R2 corrections are applied to durable-journal-contract.md (JournalError shape, indeterminate-commit resolution, recovery matrix, format v1 final). Review limit: two more returns allowed, total cap four; the next review is scoped to only these four defects and non-contradiction with F2 and F5."
+    },
+    {
+      "revision": 5,
+      "at": "2026-09-15T01:03:56.541768Z",
+      "actor": "maintainer",
+      "status": "in_progress",
+      "note": "Correction to the r4 note: the actual R1 verdict was 5/10 RETURN (not 9/10, which was DEV-0003's R1 score); R2 was 7/10 RETURN. Scores corrected per the acceptance authority (board SEQ 55). No other change; the contract file is unchanged (SHA-256 7baf18e0a64cd7124d1e8ebe79cb146a7a4e8e649eb53142157b92921060864b) and awaits R3."
+    },
+    {
+      "revision": 6,
+      "at": "2026-09-15T01:21:03.766045Z",
+      "actor": "maintainer",
+      "status": "in_progress",
+      "note": "R3 returned only F3 (recovery-matrix refinement), now applied to the contract's crash-recovery matrix and DEV-0005 criterion 2. R4 of the file schema is deliberately not requested until the storage-comparison decision (owner-directed: own format only over a confirmed advantage vs the existing SQLite approach; comparison in progress)."
     }
   ]
 }

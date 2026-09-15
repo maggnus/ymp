@@ -5,11 +5,13 @@
   "title": "Implement persistent Journal storage and restart recovery",
   "type": "implementation",
   "priority": 50,
-  "status": "new",
+  "status": "in_progress",
   "depends_on": [
-    "DEV-0004"
+    "DEV-0001",
+    "DEV-0002",
+    "DEV-0003"
   ],
-  "owner": null,
+  "owner": "maintainer",
   "goal": "Implement the storage adapter selected by the durable Journal contract and demonstrate coherent session recovery after process restart.",
   "scope": [
     "Implement only the adapter and assembly changes admitted by DEV-0004.",
@@ -24,9 +26,10 @@
   ],
   "evidence": [],
   "context": [
-    "This task is intentionally unscheduled until DEV-0004 selects and reviews the contract and storage approach."
+    "The reviewed durable Journal contract (ymp-docs/durable-journal-contract.md) fixes the storage format, failure behavior and acceptance criteria this task implements.",
+    "2026-09-15 acceptance-authority order change (board SEQ 53): DEV-0004 completion in main is a prerequisite of acceptance and integration, not of starting this task; implementation proceeds in parallel in a separate worktree. Startup dependencies are the completed foundation (DEV-0001, DEV-0002) and the task tool (DEV-0003)."
   ],
-  "revision": 1,
+  "revision": 5,
   "history": [
     {
       "revision": 1,
@@ -34,6 +37,34 @@
       "actor": "maintainer",
       "status": "new",
       "note": "Recorded as unscheduled future work."
+    },
+    {
+      "revision": 2,
+      "at": "2026-09-15T01:16:29.436518Z",
+      "actor": "manage.py",
+      "status": "new",
+      "note": "Order change by the acceptance authority (board SEQ 53, 2026-09-15): DEV-0004 in main is a prerequisite of acceptance and integration, not of starting. Startup dependencies are the completed foundation (DEV-0001, DEV-0002) and the task tool (DEV-0003); the durable Journal contract under review fixes the implemented format and criteria."
+    },
+    {
+      "revision": 3,
+      "at": "2026-09-15T01:16:33.509625Z",
+      "actor": "maintainer",
+      "status": "planned",
+      "note": "Ready for immediate start under the 2026-09-15 order change."
+    },
+    {
+      "revision": 4,
+      "at": "2026-09-15T01:16:33.551806Z",
+      "actor": "maintainer",
+      "status": "in_progress",
+      "note": "Claimed by maintainer."
+    },
+    {
+      "revision": 5,
+      "at": "2026-09-15T01:16:33.592750Z",
+      "actor": "maintainer",
+      "status": "in_progress",
+      "note": "Started implementation now (2026-09-15 order change): durable Journal per the fixed contract, in a separate worktree (branch dev-durable-journal from 7077645). DEV-0004 completion in main remains a prerequisite of acceptance and integration."
     }
   ]
 }
