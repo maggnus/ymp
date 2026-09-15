@@ -439,7 +439,14 @@ entity Reservation {
 entity Receipt { id; invocation: Id<Invocation>; usage: Usage; coverage: Complete | Partial | Unknown; cost: Opt<CostUnits> }
 value Usage { input: Int; cache_read: Int; cache_write: Int; output: Int; reasoning: Opt<Int> }
 value Allowance { cost: CostUnits; timeout: Duration; native_turns: Int; output_chars: Int }
+value ReportingPlan { narration: Opt<Allowance>; correction: Opt<Allowance> }
 ```
+
+`ReportingPlan` represents the bounded narration and single correction required
+by A11. Both allowances are present, or both are absent for DeterministicReport;
+their combined cost determines the protected reporting reserve. W1-0004 uses this
+value to make ResourcePolicy's reserve derivation inspectable. The plan does not
+authorize a model call or override a user stop.
 
 ### 3.8. Experience
 

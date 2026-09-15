@@ -5,13 +5,13 @@
   "title": "Charge invocations while protecting verification and policy-derived reporting capacity",
   "type": "implementation",
   "priority": 104,
-  "status": "planned",
+  "status": "in_progress",
   "depends_on": [
     "W1-0001",
     "W1-0002",
     "W1-0003"
   ],
-  "owner": null,
+  "owner": "codex",
   "goal": "Make replaceable cost/resource policies allocate bounded work while Treasury protects verification and reporting, retains unknown cost, and accounts for every invocation.",
   "scope": [
     "Implement Budget, PriceBook/Rates, Reservation, Receipt/Usage and Allowance with normalized CostUnits and immutable price version. Budget has verification_reserve and reporting_reserve; purposes are Production/Verification/Coordination/Reporting. Retain Held/Settled/Released and Complete/Partial/Unknown coverage; normalize total input including cache reads/writes and optional reasoning counts.",
@@ -30,9 +30,12 @@
     "Greenfield: create this behavior in the new implementation. Paths below are PROPOSED target modules under the layout owned by W1-0001; only completed prerequisite tasks supply implementation. Prior source, APIs, fixtures and delivery claims are not a baseline.",
     "Create proposed crates/ymp-domain/src/resources.rs, crates/ymp-kernel/src/treasury.rs and crates/ymp-runtime/src/policies/resources.rs. Dependencies supply model values, explicit constraints and execution-profile/offerings facts. Implement Budget/Treasury and cost/allowance policies from scratch.",
     "Treasury’s own reserve/settle consumer establishes budget behavior here; W1-0006 binds reservations to actual admission, W1-0017 supplies invocation receipts, and W1-0013 demonstrates paid reporting/fallback. Test references at these seams must not be described as a completed agent invocation.",
-    "§5.8 requires whole CostModel/ResourcePolicy replacement with named/validated/defaulted, recoverable values. Derive reporting_reserve(task_view,pool_view) into Budget and validate both reserves. R-19 separates financial settlement/release_unstarted from workspace cessation; incomplete coverage follows the exact A13 Stop/Estimate rules."
+    "§5.8 requires whole CostModel/ResourcePolicy replacement with named/validated/defaulted, recoverable values. Derive reporting_reserve(task_view,pool_view) into Budget and validate both reserves. R-19 separates financial settlement/release_unstarted from workspace cessation; incomplete coverage follows the exact A13 Stop/Estimate rules.",
+    "Implementation mapping/checkpoint: ymp-docs/resources-implementation.md. Pure values, read-only policy views and PriceWeighted/PurposeBounded are implemented; Treasury remains to be built and the task is not complete. Preserve original PolicySelection after typed decoding; integer JSON must not silently change the params digest.",
+    "Treasury design: observe receipts before pricing; immutable PriceBook, per-purpose totals reconstructed conservatively; account for the full verified upper-bound exposure, including residual uncertainty after an allowance estimate; Unknown Stop blocks unprotected purposes and unbounded prior exposure blocks all paid work. ReportingPlan records narration plus one correction or deterministic fallback; reporting mode restricts but cannot authorize native calls after a user stop.",
+    "Evidence seam: use a private non-deserializable AccountingEvidence bound to reservation/assignment/invocation and recorded bases. Treasury can prove never-authorized work did not start; verified executor bounds/complete-cost proof production belongs to W1-0017. Test-only private evidence constructors can exercise the real financial consumer but must not be described as completed native invocations. Raw Receipt.cost or adapter/proposal booleans cannot grant certainty. Consumer/replay/SQLite and alternate-policy tests remain required."
   ],
-  "revision": 3,
+  "revision": 5,
   "history": [
     {
       "revision": 1,
@@ -54,6 +57,20 @@
       "actor": "owner",
       "status": "planned",
       "note": "Start decision 2026-09-16: W1 scheduled; readiness follows dependencies."
+    },
+    {
+      "revision": 4,
+      "at": "2026-09-15T21:08:35.115197Z",
+      "actor": "codex",
+      "status": "in_progress",
+      "note": "Claimed by codex."
+    },
+    {
+      "revision": 5,
+      "at": "2026-09-15T21:24:26.902079Z",
+      "actor": "codex",
+      "status": "in_progress",
+      "note": "Checkpoint: added resource values, conservative arithmetic, explicit policy parameters and PriceWeighted/PurposeBounded with focused tests. Treasury and real-consumer accounting/replay checks remain outstanding; this is not task completion."
     }
   ]
 }
