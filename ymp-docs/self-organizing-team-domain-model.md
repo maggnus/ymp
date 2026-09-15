@@ -7,6 +7,11 @@ the development target; it does not claim that every capability is implemented,
 tested, or empirically beneficial. Numerical values remain initial assumptions
 to be calibrated. A local build or test does not authorize native model calls,
 installation, publication, or mutation of real user data.
+The owner's standing authorization for bounded Codex, Claude and Glm development
+experiments, including the preference for low token use and supported native
+`low` settings, is recorded in [AGENTS.md](../AGENTS.md#standing-authorization-for-native-experiments).
+It supplies explicit experiment permission while preserving the model's runtime
+authority and resource rules.
 
 [Intent](../intent.md) explains the independent product purpose and user
 expectations. A mismatch may motivate a proposed model change; it does not

@@ -25,6 +25,7 @@ authority through a returned verdict. Never label planned behavior as implemente
 
 Preserve native agent identities and authentication. No inference, installation,
 publication or real user-data mutation is implied by a local build or test.
+The explicit standing authorization below covers native development experiments.
 
 Use existing dependencies for shared responsibilities. Add dependencies only for
 an actual capability need. Avoid placeholder crates, generic service containers,
@@ -75,3 +76,30 @@ Before committing changes to the task workflow itself, also run:
 python3 -m unittest discover -s ymp-docs/tasks/tests -v
 python3 ymp-docs/tasks/manage.py render --limit 20 >/dev/null
 ```
+
+## Standing authorization for native experiments
+
+Owner decision, 2026-09-16: contributors may use Codex, Claude and GLM (the model's
+`Glm` provider kind) for bounded ymp development and evaluation experiments through
+available native providers and existing authentication. This permission persists
+across tasks and sessions until the owner changes or revokes it. Do not request
+per-run confirmation for experiments within this scope. It satisfies task-record
+requirements for a "separately authorized" or "explicitly authorized" native run.
+
+Prefer available models and execution profiles that minimize expected token use
+for the experiment. Use the native `low` reasoning setting when supported;
+otherwise choose the lowest supported reasoning setting or an available model
+with evidence of low token use. Discover actual model offerings and supported
+settings at run time; do not invent model IDs, translate effort scales between
+providers, or assume that `low` guarantees the fewest tokens. When comparable
+usage evidence is unavailable, record that uncertainty and start with a small
+bounded run. Do not automatically escalate to higher reasoning effort or a more
+token-intensive profile under this permission.
+
+Record the experiment purpose, selected provider/model, requested/sent/reported
+settings, finite resource limits, actual usage and unknown coverage with its
+evidence. Preserve the model's accounting, workspace and authority rules, and
+keep native results distinct from Scripted runs and protocol fixtures. This
+permission covers inference for experiments; installation, publication and
+mutation of real user data retain their separate authorization requirements.
+A later user stop or narrower instruction takes precedence.
