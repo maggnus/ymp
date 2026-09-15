@@ -22,10 +22,10 @@ use ymp_runtime::{
     ExecutionObservation, ExecutionScenario, Goal, IndependenceConflict, InvocationLimits,
     InvocationStatus, Journal, JournalError, ManualClock, MemoryJournal, ModelOffering,
     ObservationOutcome, ObservedUsage, OfferingId, ReservationPurpose, ResourceAmount, Revision,
-    Role, ScriptedBackend, ScriptedOutcome, ScriptedProvider, ScriptedRegistry, SessionEvent,
-    SessionId, SessionStatus, SettingKey, SettingValue, Settings, StartOutcome, SupportedControl,
-    Task, TaskId, Termination, UncertaintyCause, WorkspaceAccess, WorkspaceAccessRefusal,
-    WorkspaceOperation, WorkspaceScope,
+    Role, ScriptedBackend, ScriptedOutcome, ScriptedProvider, ScriptedReceiptSpec,
+    ScriptedRegistry, SessionEvent, SessionId, SessionStatus, SettingKey, SettingValue, Settings,
+    StartOutcome, SupportedControl, Task, TaskId, Termination, UncertaintyCause, WorkspaceAccess,
+    WorkspaceAccessRefusal, WorkspaceOperation, WorkspaceScope,
 };
 
 const AGENT: &str = "claude-opus-5";
@@ -1311,7 +1311,8 @@ fn failed_observation_append_preserves_stream_and_receipt_observations() {
 /// pending for the observation step, whatever the append outcome.
 #[test]
 fn effect_evidence_preserves_other_observation_kinds() {
-    let (_, scenario, id) = prepared(ManualClock::new());
+    let clock = ManualClock::new();
+    let (_, scenario, id) = prepared(clock.clone());
     scenario.script_outcome(ScriptedOutcome::never_reports_with(vec![
         ExecutionObservation::OutputObserved { chars: 60 },
         ExecutionObservation::WritesEnded,
@@ -1323,27 +1324,33 @@ fn effect_evidence_preserves_other_observation_kinds() {
         .invoke(&id, assignment.invocation(), Revision::new(2))
         .expect("starts");
 
-    // The stream head is output, not evidence: nothing is consumed.
-    assert_eq!(
+    // Effect evidence is not a valid transition before uncertainty, and the
+    // rejected attempt consumes nothing from the stream.
+    assert!(matches!(
         scenario
             .evidence(&id, assignment.invocation(), Revision::new(4))
-            .expect("evidence step resolves"),
-        ymp_runtime::EvidenceOutcome::NotObserved
-    );
-    // The observation step still sees the output the evidence step left.
+            .expect_err("evidence from started is rejected"),
+        ExecutionError::WrongPhase {
+            actual: InvocationStatus::Started,
+            ..
+        }
+    ));
+    // At the deadline the observation step still sees the output, leaves
+    // writes-ended pending, and records uncertainty.
+    clock.advance(Duration::from_millis(60_000));
     match scenario
         .observe(&id, assignment.invocation(), Revision::new(4))
         .expect("observation resolves")
     {
-        ObservationOutcome::WaitingForTermination { accumulation, .. } => {
-            assert_eq!(accumulation.usage().output_chars(), Some(60));
+        ObservationOutcome::UncertainAfterDeadline { partial_usage } => {
+            assert_eq!(partial_usage.output_chars(), Some(60));
         }
-        other => panic!("expected a waiting observation, got {other:?}"),
+        other => panic!("expected uncertainty after the deadline, got {other:?}"),
     }
     // The writes-ended observation is now at the head and records.
     assert_eq!(
         scenario
-            .evidence(&id, assignment.invocation(), Revision::new(4))
+            .evidence(&id, assignment.invocation(), Revision::new(5))
             .expect("evidence records"),
         ymp_runtime::EvidenceOutcome::Recorded
     );
@@ -1351,7 +1358,7 @@ fn effect_evidence_preserves_other_observation_kinds() {
     let invocation = view
         .invocation(assignment.invocation())
         .expect("invocation");
-    assert_eq!(invocation.status(), InvocationStatus::Started);
+    assert_eq!(invocation.status(), InvocationStatus::Uncertain);
     assert!(invocation.effect_evidence_recorded());
     assert!(
         scenario
@@ -1398,7 +1405,7 @@ fn reattach_keeps_only_the_reservation_after_termination() {
 #[test]
 fn reattach_keeps_only_the_reservation_after_effect_evidence() {
     let clock = ManualClock::new();
-    let (journal, scenario, id) = prepared(clock);
+    let (journal, scenario, id) = prepared(clock.clone());
     scenario.script_outcome(ScriptedOutcome::never_reports_with(vec![
         ExecutionObservation::WritesEnded,
     ]));
@@ -1408,9 +1415,16 @@ fn reattach_keeps_only_the_reservation_after_effect_evidence() {
     scenario
         .invoke(&id, assignment.invocation(), Revision::new(2))
         .expect("invocation starts");
+    clock.advance(Duration::from_millis(60_000));
+    assert!(matches!(
+        scenario
+            .observe(&id, assignment.invocation(), Revision::new(4))
+            .expect("deadline records uncertainty"),
+        ObservationOutcome::UncertainAfterDeadline { .. }
+    ));
     assert_eq!(
         scenario
-            .evidence(&id, assignment.invocation(), Revision::new(4))
+            .evidence(&id, assignment.invocation(), Revision::new(5))
             .expect("effect evidence records"),
         ymp_runtime::EvidenceOutcome::Recorded
     );
@@ -2029,13 +2043,12 @@ fn bounded_cancellation_records_uncertainty_and_waits() {
         .expect("the successor is admitted after the effect evidence");
     assert_eq!(successor_assignment.invocation().as_str(), "invocation-2");
 
-    // The same effect observation may arrive in the final receipt rather
-    // than the stream; it releases every held workspace area through the
-    // same journal event.
-    let (_, scenario, id) = prepared(ManualClock::new());
-    scenario.script_outcome(
-        ScriptedOutcome::completes(None, ObservedUsage::unknown()).with_receipt_effect_evidence(),
-    );
+    // The same effect observation may arrive in a late final receipt rather
+    // than the stream. The receipt is delivered only after uncertainty, then
+    // releases every held workspace area through the same journal event.
+    let clock = ManualClock::new();
+    let (_, scenario, id) = prepared(clock.clone());
+    scenario.script_outcome(ScriptedOutcome::never_reports());
     let receipt_request = AssignmentRequest::new(
         agent(),
         Role::new("implementer").expect("valid role"),
@@ -2050,10 +2063,32 @@ fn bounded_cancellation_records_uncertainty_and_waits() {
     scenario
         .invoke(&id, receipt_assignment.invocation(), Revision::new(2))
         .expect("starts");
-    assert_eq!(
+    assert!(matches!(
         scenario
             .evidence(&id, receipt_assignment.invocation(), Revision::new(4))
-            .expect("receipt evidence records"),
+            .expect_err("evidence from started is rejected"),
+        ExecutionError::WrongPhase {
+            actual: InvocationStatus::Started,
+            ..
+        }
+    ));
+    clock.advance(Duration::from_millis(60_000));
+    assert!(matches!(
+        scenario
+            .observe(&id, receipt_assignment.invocation(), Revision::new(4))
+            .expect("deadline records uncertainty"),
+        ObservationOutcome::UncertainAfterDeadline { .. }
+    ));
+    scenario.with_backend_mut(|backend| {
+        backend.deliver_receipt(
+            receipt_assignment.invocation(),
+            ScriptedReceiptSpec::completes(None, ObservedUsage::unknown()).with_effect_evidence(),
+        );
+    });
+    assert_eq!(
+        scenario
+            .evidence(&id, receipt_assignment.invocation(), Revision::new(5))
+            .expect("late receipt evidence records"),
         ymp_runtime::EvidenceOutcome::Recorded
     );
     assert!(
@@ -2062,6 +2097,15 @@ fn bounded_cancellation_records_uncertainty_and_waits() {
             .is_empty()
     );
     assert_eq!(scenario.treasury_held().value(), 2);
+    assert_eq!(
+        scenario
+            .execution_view(&id)
+            .expect("view replays")
+            .invocation(receipt_assignment.invocation())
+            .expect("invocation")
+            .status(),
+        InvocationStatus::Uncertain
+    );
 
     // Contrast: with a termination observation the successor is admitted
     // after the settlement.

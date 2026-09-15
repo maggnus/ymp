@@ -1075,10 +1075,7 @@ where
                 invocation: invocation.clone(),
             })?;
     let status = invocation_view.status();
-    if status != InvocationStatus::Started
-        && status != InvocationStatus::Cancelling
-        && status != InvocationStatus::Uncertain
-    {
+    if status != InvocationStatus::Uncertain {
         return Err(ExecutionError::WrongPhase {
             invocation: invocation.clone(),
             actual: status,

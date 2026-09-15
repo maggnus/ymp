@@ -179,6 +179,12 @@ impl ScriptedReceiptSpec {
             only_after_cancel: false,
         }
     }
+
+    /// Adds a writes-ended effect observation to this receipt.
+    pub fn with_effect_evidence(mut self) -> Self {
+        self.writes_ended = true;
+        self
+    }
 }
 
 /// One configured invocation outcome: an optional typed start failure (with
@@ -395,6 +401,13 @@ impl ScriptedBackend {
     ) {
         if let Some(running) = self.running.get_mut(invocation) {
             running.outcome.stream.push(observation);
+        }
+    }
+
+    /// Delivers a deferred final receipt to a running invocation.
+    pub fn deliver_receipt(&mut self, invocation: &InvocationId, receipt: ScriptedReceiptSpec) {
+        if let Some(running) = self.running.get_mut(invocation) {
+            running.outcome.receipt = Some(receipt);
         }
     }
 }
