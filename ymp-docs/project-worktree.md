@@ -155,7 +155,7 @@ ymp/
     │       └── fixtures/           # W1-0018: local Codex protocol fixtures
     │
     ├── ymp-storage/                # W1-0016
-    │   ├── Cargo.toml              # ymp-domain, ymp-kernel, rusqlite, serde
+    │   ├── Cargo.toml              # ymp-domain, ymp-kernel, rusqlite with bundled SQLite
     │   ├── src/
     │   │   ├── lib.rs
     │   │   ├── journal.rs          # SqliteJournal

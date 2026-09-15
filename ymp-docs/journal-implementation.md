@@ -7,6 +7,8 @@ The [intake extension](intake-implementation.md) adds task/contract projections,
 CriteriaCommitted, ClarificationRecorded and AssumptionRecorded through W1-0002.
 The [Registry extension](registry-implementation.md) adds PoolRecorded through
 W1-0003, preserving discovery facts and profile-bound readiness decisions.
+The [durable adapter](storage-implementation.md) implements the same contract and
+adds explicit immutable-content requirements and read-only append resolution.
 
 ## Boundaries
 
@@ -90,7 +92,7 @@ strategies or recreate stochastic responses: it restores the recorded proposal.
 MemoryJournal holds all events in memory and reconstructs views by replay. The
 implementation favors a transparent reference contract over an incremental
 index; it makes no crash durability, restart, throughput or migration claim.
-W1-0016 owns persistent contents and atomic durable append.
+W1-0016 supplies persistent contents and atomic durable append in SqliteJournal.
 
 ## Focused evidence
 

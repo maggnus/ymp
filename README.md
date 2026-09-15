@@ -15,6 +15,8 @@ The [Application intake](ymp-docs/intake-implementation.md) records explicit goa
 constraints and versioned criteria, including attributable user refinements.
 The [Registry](ymp-docs/registry-implementation.md) records profile readiness,
 native metadata and typed exclusions without model calls.
+The [SQLite journal and content store](ymp-docs/storage-implementation.md) retain
+those events and immutable bytes across restart, with explicit commit resolution.
 The remaining modules are placeholders under
 [the proposed layout](ymp-docs/project-worktree.md). The executable still has no
 interactive or task-execution behavior.

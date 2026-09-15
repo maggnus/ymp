@@ -3,8 +3,8 @@
 use crate::{events::Event, view::SessionView};
 use std::collections::BTreeMap;
 use ymp_domain::{
-    Denial, Id, Result,
-    journal::{Envelope, MethodParameters, PolicySelection},
+    Denial, Digest, Id, Result,
+    journal::{Envelope, MethodParameters, PolicySelection, encode},
     require_text,
 };
 
@@ -133,6 +133,75 @@ pub trait Journal: Send + Sync {
         self.read(session)?
             .view_with_schemas(session, through, self.schemas())
     }
+
+    /// Read-only resolution of a possibly lost acknowledgement. Never resubmits.
+    fn resolve_append(
+        &self,
+        session: &Id,
+        expected: u64,
+        events: &[Envelope<Event>],
+    ) -> Result<AppendResolution> {
+        resolve_append(
+            &self.read(session)?,
+            session,
+            expected,
+            events,
+            self.schemas(),
+        )
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum AppendResolution {
+    Committed(u64),
+    Absent,
+    Conflict { revision: u64 },
+}
+
+pub fn resolve_append(
+    current: &JournalRead,
+    session: &Id,
+    expected: u64,
+    events: &[Envelope<Event>],
+    schemas: &ParameterSchemas,
+) -> Result<AppendResolution> {
+    current.view_with_schemas(session, None, schemas)?;
+    if events.is_empty() {
+        return Err(Denial::new("empty_append", "An append must contain events"));
+    }
+    let end = expected
+        .checked_add(events.len() as u64)
+        .ok_or_else(|| Denial::new("revision_overflow", "Journal sequence exhausted"))?;
+    if current.revision < expected {
+        return Ok(AppendResolution::Conflict {
+            revision: current.revision,
+        });
+    }
+    let offset = usize::try_from(expected)
+        .map_err(|_| Denial::new("revision_overflow", "Revision is not addressable"))?;
+    let prefix = JournalRead {
+        revision: expected,
+        events: current.events[..offset].to_vec(),
+    };
+    validate_append(&prefix, session, expected, events, schemas)?;
+    if current.revision == expected {
+        return Ok(AppendResolution::Absent);
+    }
+    if current.revision >= end {
+        let stored = &current.events[offset..offset + events.len()];
+        if encode(&stored)? == encode(&events)? {
+            return Ok(AppendResolution::Committed(end));
+        }
+    }
+    Ok(AppendResolution::Conflict {
+        revision: current.revision,
+    })
+}
+
+/// Immutable bytes addressed by SHA-256. Readers provide an allocation bound.
+pub trait ContentStore: Send + Sync {
+    fn put(&self, bytes: &[u8]) -> Result<Digest>;
+    fn get(&self, digest: &Digest, limit: usize) -> Result<Vec<u8>>;
 }
 
 pub fn validate_append(
