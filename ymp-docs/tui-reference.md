@@ -1,9 +1,21 @@
-# TUI basis: ymp2
+# TUI direction: OpenCode, k9s and ymp2
 
-Owner decision, 2026-09-16: use the TUI of `ymp2` as the visual and interaction
-basis for the new `ymp` interface. W1-0015 owns its adaptation to the working W1
-session. This reference makes the starting design concrete while allowing it to
-evolve with the approved model.
+Owner decisions, 2026-09-16: OpenCode is the primary inspiration for the overall
+TUI; k9s is the inspiration for lists, tables and descriptions/detail views.
+Use the TUI of `ymp2` as the practical visual and interaction basis for the new
+`ymp` interface. W1-0015 owns its adaptation to the working W1 session.
+
+These references have distinct roles:
+
+- **OpenCode:** overall interaction and visual direction, including the
+  conversation-centered workspace and command-driven interaction.
+- **k9s:** lists, tables, keyboard navigation and readable descriptions/details
+  of the selected record.
+- **ymp2:** the concrete starting interface whose observed patterns are captured
+  below, adapted according to those inspirations and the approved model.
+
+The owner-selected direction guides adaptations where the ymp2 reference leaves
+choices open. The current model supplies domain names, data and available actions.
 
 ## Reference and provenance
 
@@ -33,7 +45,7 @@ inspection.
 | Composer | Input stays at the bottom, supports multiline text and slash-command completion, and remains usable in short or narrow terminals. |
 | Status row | Show the region that owns keyboard focus, relevant shortcuts and actionable status. |
 | Command palette | Make supported commands discoverable without memorizing their spelling. |
-| Inspection pages | Use aligned tables, right-aligned numbers, filtering and sorting. Open the selected record in a scrollable detail overlay. |
+| Inspection pages | Follow the k9s-inspired list/table/detail direction: aligned tables, right-aligned numbers, filtering, sorting and keyboard selection. Open the selected record's description and details in a scrollable overlay. |
 | Conversation details | Expand compact activity to its attributed full content. Preserve source text, code spacing and the distinction between reported output and verified results. |
 | Scrolling | Scrolling back suspends automatic following; new output does not move the reader's position. Returning to the end resumes following. |
 | Appearance | Retain the restrained separators, consistent typography and palette-based styling of the reference. State and selection remain understandable without color. |
@@ -73,9 +85,10 @@ The new implementation follows the repository's greenfield rules.
 
 ## W1 acceptance evidence
 
-W1-0015 must demonstrate the recognizable conversation/sidebar/composer layout,
-keyboard navigation and detail inspection in a real terminal journey over the W1
-runtime. Include a narrow-terminal case and show that reading older activity is
+W1-0015 must demonstrate the OpenCode-inspired conversation workspace adapted
+from ymp2, with the sidebar/composer layout and k9s-inspired list/table/detail
+navigation, in a real terminal journey over the W1 runtime. Include a
+narrow-terminal case and show that reading older activity is
 stable while output arrives. Record intentional adaptations with their reason.
 The same journey must meet the task's existing start, interrupt, recovery,
 accounting and report requirements. Documentation or visual similarity alone

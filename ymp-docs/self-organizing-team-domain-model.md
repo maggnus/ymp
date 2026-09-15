@@ -478,8 +478,10 @@ The primary human-facing interface is an interactive TUI over deterministic
 `*View` projections and trusted application commands. It supports task intake,
 clarification, progress, agent interaction, resource inspection, interruption,
 recovery, and results. Its layout and exact command vocabulary may evolve;
-by owner decision (2026-09-16), the Ratatui interface uses the `ymp2` TUI as its
-visual and interaction basis, captured in [the TUI reference](tui-reference.md).
+by owner decisions (2026-09-16), OpenCode is the primary TUI inspiration and k9s
+guides lists, tables and descriptions/detail views. The Ratatui interface uses
+the `ymp2` TUI as its practical visual and interaction basis, captured in
+[the TUI reference](tui-reference.md).
 W1-0015 adapts its conversation, sidebar, composer, navigation and inspection
 patterns to the current model. Product development prioritizes useful
 communication and self-organization over visual polish. Presentation never owns
@@ -1450,8 +1452,9 @@ tasks that own the behavior; none narrows earlier scope.
    matches the task (W6-0003); kernel concurrency serializes journal appends per session
    under the expected revision while independent sessions proceed concurrently, with the
    concrete form fixed by W1-0014 and preserved by W3-0008.
-7. **TUI basis** (section 3.9): use the `ymp2` TUI as the visual and interaction
-   basis, with the source revision and observed patterns recorded in
+7. **TUI basis** (section 3.9): OpenCode is the primary inspiration; k9s guides
+   lists, tables and descriptions/detail views. Use the `ymp2` TUI as the practical
+   visual and interaction basis, with its revision and observed patterns recorded in
    [tui-reference.md](tui-reference.md). W1-0015 adapts it to the new application's
    operations and projections; current domain names, runtime authority and
    greenfield implementation rules continue to apply.

@@ -20,8 +20,10 @@ defer a requirement from that model. Proposed amendments outside the model are
 not applied. Other evidence may explain the implementation baseline or help
 choose an order only when that order remains consistent with the model.
 
-The TUI remains in scope, with Ratatui and the `ymp2` TUI as its visual and
-interaction basis by owner decision (2026-09-16; see [the reference](tui-reference.md)).
+The TUI remains in scope, with Ratatui, OpenCode as its primary inspiration and
+k9s as the inspiration for lists, tables and descriptions/detail views. The
+`ymp2` TUI supplies the practical visual and interaction basis by owner decisions
+(2026-09-16; see [the reference](tui-reference.md)).
 Detailed adaptations and command vocabulary may evolve. The main product focus
 is useful agent communication and self-organization, including experimental replacement of key mechanisms
 through their strategy interfaces. The approved model governs the domain and
@@ -72,8 +74,10 @@ Intermediate simplifications are named and removed by a later wave.
 
 The TUI is an evolving presentation/control adapter over the approved model. A
 primitive working interface belongs to W1 and can grow as capabilities arrive.
-The `ymp2` conversation, sidebar, composer, command palette and inspection patterns
-provide its starting design, as recorded in [tui-reference.md](tui-reference.md).
+OpenCode guides the overall TUI, while k9s guides lists, tables and descriptions/
+detail views. The `ymp2` conversation, sidebar, composer, command palette and
+inspection patterns provide its starting design, as recorded in
+[tui-reference.md](tui-reference.md).
 They do not prescribe an exhaustive per-wave command list. Existing projections
 and application operations should serve both experimentation and the interface.
 
