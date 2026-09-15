@@ -156,6 +156,32 @@ impl SqliteJournal {
         &self.inner.database_path
     }
 
+    /// Lists every journal stream identifier in a stable order.
+    ///
+    /// This read-only catalog lets runtime assembly rebuild resource holds
+    /// whose authority is recorded in more than one session. Each returned
+    /// identifier is validated as a domain value; an invalid stored value is
+    /// corruption, never an omitted stream.
+    pub fn session_ids(&self) -> Result<Vec<SessionId>, JournalError> {
+        let connection = self.lock()?;
+        let mut statement = connection
+            .prepare("SELECT session_id FROM journal_streams ORDER BY session_id")
+            .map_err(map_sqlite_error)?;
+        let rows = statement
+            .query_map([], |row| row.get::<_, String>(0))
+            .map_err(map_sqlite_error)?;
+        let mut session_ids = Vec::new();
+        for row in rows {
+            let stored = row.map_err(map_sqlite_error)?;
+            let session_id =
+                SessionId::new(stored.clone()).map_err(|error| JournalError::Corruption {
+                    message: format!("stored session ID {stored:?} is invalid: {error}"),
+                })?;
+            session_ids.push(session_id);
+        }
+        Ok(session_ids)
+    }
+
     /// Arms a one-shot fault consumed by the next `append` (see
     /// [`FaultPoint`]). Test seam only, compiled with the non-default
     /// `fault-injection` feature.
@@ -784,6 +810,90 @@ fn content_checksum(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn catalog_task(tag: &str) -> ymp_domain::Task {
+        ymp_domain::Task::new(
+            ymp_domain::TaskId::new(format!("task-{tag}")).expect("valid task ID"),
+            ymp_domain::Goal::new(format!("catalog task {tag}")).expect("valid goal"),
+            ymp_domain::AcceptanceContract::new(vec![
+                ymp_domain::Criterion::new(
+                    ymp_domain::CriterionId::new("criterion").expect("valid criterion ID"),
+                    "catalog entry is durable",
+                )
+                .expect("valid criterion"),
+            ])
+            .expect("valid acceptance contract"),
+            ymp_domain::Constraints::new(Vec::new()).expect("valid constraints"),
+        )
+    }
+
+    #[test]
+    fn session_catalog_is_empty_then_sorted() {
+        let unique = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("system clock follows the Unix epoch")
+            .as_nanos();
+        let root = std::env::temp_dir().join(format!(
+            "ymp-storage-session-catalog-{}-{unique}",
+            std::process::id()
+        ));
+        let journal = SqliteJournal::open(&root).expect("journal opens");
+        assert!(
+            journal
+                .session_ids()
+                .expect("empty catalog reads")
+                .is_empty()
+        );
+        for value in ["session-z", "session-a"] {
+            let session_id = SessionId::new(value).expect("valid session ID");
+            journal
+                .append(
+                    &session_id,
+                    Revision::INITIAL,
+                    vec![SessionEvent::SessionOpened {
+                        session_id: session_id.clone(),
+                        task: catalog_task(value),
+                    }],
+                )
+                .expect("session opening is stored");
+        }
+        assert_eq!(
+            journal.session_ids().expect("populated catalog reads"),
+            vec![
+                SessionId::new("session-a").expect("valid session ID"),
+                SessionId::new("session-z").expect("valid session ID"),
+            ]
+        );
+        drop(journal);
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn session_catalog_rejects_an_invalid_stored_identifier() {
+        let unique = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("system clock follows the Unix epoch")
+            .as_nanos();
+        let root = std::env::temp_dir().join(format!(
+            "ymp-storage-invalid-session-catalog-{}-{unique}",
+            std::process::id()
+        ));
+        let journal = SqliteJournal::open(&root).expect("journal opens");
+        journal
+            .lock()
+            .expect("connection lock is available")
+            .execute(
+                "INSERT INTO journal_streams (session_id, head_hi, head_lo) VALUES (?1, 0, 0)",
+                ["   "],
+            )
+            .expect("invalid stored identifier is injected");
+        assert!(matches!(
+            journal.session_ids(),
+            Err(JournalError::Corruption { .. })
+        ));
+        drop(journal);
+        let _ = std::fs::remove_dir_all(root);
+    }
 
     #[test]
     fn split_compose_round_trips_the_full_u64_range() {

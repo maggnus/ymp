@@ -12,7 +12,7 @@ use std::sync::{Arc, Mutex};
 pub use ymp_domain::{
     AcceptanceContract, Check, CheckMethod, Constraints, Criterion, CriterionEvaluation,
     CriterionId, CriterionStatus, DomainError, Evidence, EvidenceFile, Goal, SessionId, Task,
-    TaskId, VerifierDigest,
+    TaskId, VerifierDigest, sha256,
 };
 use ymp_kernel::Dispatcher;
 pub use ymp_kernel::{

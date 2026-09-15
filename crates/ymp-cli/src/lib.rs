@@ -1,6 +1,7 @@
 #![forbid(unsafe_code)]
 
 use std::ffi::{OsStr, OsString};
+use std::fs::{File, OpenOptions, TryLockError};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -15,7 +16,7 @@ use ymp_runtime::{
     ModelOffering, ObservationOutcome, ObservedUsage, OfferingId, Registry, ReservationPurpose,
     ResourceAmount, Role, SessionExecutionView, SessionId, SessionStatus, Settings, StartOutcome,
     SystemClock, Task, TaskId, Termination, UncertaintyCause, WorkspaceAccess, WorkspaceOperation,
-    WorkspaceScope, application_metadata, read_execution,
+    WorkspaceScope, application_metadata, read_execution, sha256,
 };
 use ymp_storage::SqliteJournal;
 
@@ -33,6 +34,7 @@ const IMPLEMENTER_ROLE: &str = "implementer";
 const COMPLETION_CRITERION_ID: &str = "requested-work-completed";
 const COMPLETION_CRITERION: &str = "the agent completed the requested work";
 const DATABASE_FILE_NAME: &str = "journal.db";
+const WORKSPACE_LOCK_PREFIX: &str = "workspace-";
 
 static ID_SEQUENCE: AtomicU64 = AtomicU64::new(0);
 
@@ -416,6 +418,7 @@ fn run_command(
     let data_dir = data_dir.canonicalize().map_err(|error| {
         CliFailure::operational(format!("cannot resolve session data directory: {error}"))
     })?;
+    let _process_lock = WorkspaceProcessLock::acquire(&data_dir, &workspace)?;
     let workspace_mode = WorkspaceMode::for_paths(&workspace, &data_dir);
     let access = workspace_access(&workspace, workspace_mode)?;
     let request = assignment_request(access.clone(), limits)?;
@@ -433,6 +436,12 @@ fn run_command(
         DEFAULT_RESERVATION,
         clock,
     );
+    let session_ids = journal.session_ids().map_err(|error| {
+        CliFailure::operational(format!("cannot list session journal streams: {error}"))
+    })?;
+    scenario
+        .restore_workspace_holds(session_ids.iter())
+        .map_err(|error| CliFailure::operational(error.to_string()))?;
 
     let mut report = run_one(
         &application,
@@ -492,6 +501,43 @@ fn run_command(
         ),
         succeeded,
     ))
+}
+
+struct WorkspaceProcessLock {
+    _file: File,
+}
+
+impl WorkspaceProcessLock {
+    fn acquire(data_dir: &Path, workspace: &Path) -> Result<Self, CliFailure> {
+        let workspace = workspace
+            .to_str()
+            .ok_or_else(|| CliFailure::operational("working directory path must be valid UTF-8"))?;
+        let lock_path = data_dir.join(format!(
+            "{WORKSPACE_LOCK_PREFIX}{}.lock",
+            sha256(workspace.as_bytes())
+        ));
+        let file = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .truncate(false)
+            .open(&lock_path)
+            .map_err(|error| {
+                CliFailure::operational(format!(
+                    "cannot open workspace lock {}: {error}",
+                    lock_path.display()
+                ))
+            })?;
+        match file.try_lock() {
+            Ok(()) => Ok(Self { _file: file }),
+            Err(TryLockError::WouldBlock) => Err(CliFailure::operational(format!(
+                "workspace is already in use by another ymp process: {workspace}"
+            ))),
+            Err(TryLockError::Error(error)) => Err(CliFailure::operational(format!(
+                "cannot lock workspace {workspace}: {error}"
+            ))),
+        }
+    }
 }
 
 fn show_command(session_id: String, data_dir: PathBuf) -> Result<CommandOutput, CliFailure> {
@@ -1109,16 +1155,27 @@ fn usage(metadata: ApplicationMetadata) -> String {
 
 fn storage_help() -> String {
     format!(
-        "Session storage:\n  The default data directory is ./{DEFAULT_DATA_DIR}, relative to the current\n  working directory. It contains journal.db; SQLite may create journal.db-wal\n  and journal.db-shm while the journal is open or leave them after interruption.\n  Session history persists across ymp processes until the user deletes the whole\n  data directory. Do not delete or copy individual database files while ymp runs."
+        "Session storage:\n  The default data directory is ./{DEFAULT_DATA_DIR}, relative to the current\n  working directory. It contains journal.db; SQLite may create journal.db-wal\n  and journal.db-shm while the journal is open or leave them after interruption.\n  Session history persists across ymp processes until the user deletes the whole\n  data directory. Workspace lock files named workspace-<sha256>.lock coordinate\n  run processes that use this same data directory; different data directories do\n  not coordinate. Do not delete lock files or delete or copy individual database\n  files while ymp runs."
     )
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::process::{Command, Stdio};
+    use std::thread;
+    use std::time::Instant;
     use ymp_runtime::{
         ManualClock, ScriptedBackend, ScriptedOutcome, ScriptedProvider, ScriptedRegistry,
     };
+
+    const WORKSPACE_LOCK_TEST_ROLE: &str = "YMP_WORKSPACE_LOCK_TEST_ROLE";
+    const WORKSPACE_LOCK_TEST_WORKSPACE: &str = "YMP_WORKSPACE_LOCK_TEST_WORKSPACE";
+    const WORKSPACE_LOCK_TEST_DATA_DIR: &str = "YMP_WORKSPACE_LOCK_TEST_DATA_DIR";
+    const WORKSPACE_LOCK_TEST_HELD: &str = "YMP_WORKSPACE_LOCK_TEST_HELD";
+    const WORKSPACE_LOCK_TEST_CONFLICT: &str = "YMP_WORKSPACE_LOCK_TEST_CONFLICT";
+    const WORKSPACE_LOCK_TEST_RELEASE: &str = "YMP_WORKSPACE_LOCK_TEST_RELEASE";
+    const WORKSPACE_LOCK_TEST_RETRY: &str = "YMP_WORKSPACE_LOCK_TEST_RETRY";
 
     struct TestDir(PathBuf);
 
@@ -1221,6 +1278,172 @@ mod tests {
                 report.revision,
             )
             .expect("kernel records evidence")
+    }
+
+    fn wait_for_file(path: &Path, description: &str) {
+        let deadline = Instant::now() + Duration::from_secs(5);
+        while !path.exists() && Instant::now() < deadline {
+            thread::sleep(Duration::from_millis(10));
+        }
+        assert!(path.exists(), "{description}");
+    }
+
+    fn workspace_lock_test_path(name: &str) -> PathBuf {
+        PathBuf::from(std::env::var_os(name).expect("workspace lock test path is supplied"))
+    }
+
+    #[test]
+    fn workspace_lock_child() {
+        let Some(role) = std::env::var_os(WORKSPACE_LOCK_TEST_ROLE) else {
+            return;
+        };
+        let workspace = workspace_lock_test_path(WORKSPACE_LOCK_TEST_WORKSPACE)
+            .canonicalize()
+            .expect("workspace resolves");
+        let data_dir = workspace_lock_test_path(WORKSPACE_LOCK_TEST_DATA_DIR);
+        let journal = SqliteJournal::open(&data_dir).expect("durable journal opens");
+        let data_dir = data_dir.canonicalize().expect("data directory resolves");
+
+        match role.to_str().expect("test role is UTF-8") {
+            "holder" => {
+                let _lock = WorkspaceProcessLock::acquire(&data_dir, &workspace)
+                    .expect("first process takes the operating-system lock");
+                let (report, _, _) = scripted_run(
+                    journal,
+                    &workspace,
+                    ScriptedOutcome::start_outcome_unknown("provider-start-unknown"),
+                    true,
+                    "session-uncertain-holder",
+                )
+                .expect("the uncertain invocation is journaled");
+                assert!(matches!(report.outcome, RunOutcome::UncertainAtStart(_)));
+                std::fs::write(workspace_lock_test_path(WORKSPACE_LOCK_TEST_HELD), b"held")
+                    .expect("held marker is written");
+                wait_for_file(
+                    &workspace_lock_test_path(WORKSPACE_LOCK_TEST_RELEASE),
+                    "the holder receives its release marker",
+                );
+            }
+            "contender" => {
+                match WorkspaceProcessLock::acquire(&data_dir, &workspace) {
+                    Err(error) => assert!(error.message.contains("workspace is already in use")),
+                    Ok(_) => panic!("the concurrent process must not acquire the workspace lock"),
+                }
+                std::fs::write(
+                    workspace_lock_test_path(WORKSPACE_LOCK_TEST_CONFLICT),
+                    b"conflict",
+                )
+                .expect("conflict marker is written");
+                wait_for_file(
+                    &workspace_lock_test_path(WORKSPACE_LOCK_TEST_RETRY),
+                    "the contender receives its retry marker",
+                );
+
+                let _lock = WorkspaceProcessLock::acquire(&data_dir, &workspace)
+                    .expect("the operating-system lock is released after holder exit");
+                let access = workspace_access(&workspace, WorkspaceMode::ReadWrite)
+                    .expect("workspace access is valid");
+                let provider = ScriptedProvider::new(
+                    codex_agent().expect("valid agent"),
+                    codex_offering().expect("valid offering"),
+                )
+                .with_effective_workspace_accesses([access.clone()]);
+                let scenario = ExecutionScenario::over(
+                    journal.clone(),
+                    ScriptedBackend::for_provider(&provider)
+                        .with_outcome(ScriptedOutcome::completes(None, ObservedUsage::unknown())),
+                    [access.clone()],
+                    ScriptedRegistry::new([provider]),
+                    DEFAULT_RESERVATION,
+                    Arc::new(ManualClock::new()),
+                );
+                scenario
+                    .restore_workspace_holds(
+                        journal.session_ids().expect("session catalog reads").iter(),
+                    )
+                    .expect("durable workspace holds restore");
+                let session_id = SessionId::new("session-conflicting-successor")
+                    .expect("valid successor session ID");
+                scenario
+                    .open_session(
+                        session_id.clone(),
+                        build_task("conflicting work", "durable-hold-successor")
+                            .expect("valid task"),
+                    )
+                    .expect("successor session opens");
+                scenario.scan().expect("registry scan succeeds");
+                assert!(matches!(
+                    scenario
+                        .admit(
+                            &session_id,
+                            assignment_request(access, test_limits()).expect("valid request"),
+                            ymp_runtime::Revision::new(1),
+                        )
+                        .expect_err("the durable uncertain hold refuses a successor"),
+                    AdmissionFailure::Denied(AdmissionDenial::WorkspaceNotEnforceable {
+                        refusal: ymp_runtime::WorkspaceAccessRefusal::HeldByPredecessor { .. },
+                        ..
+                    })
+                ));
+            }
+            other => panic!("unknown workspace lock test role {other:?}"),
+        }
+    }
+
+    #[test]
+    fn concurrent_runs_restore_uncertain_workspace_hold_across_processes() {
+        let workspace = TestDir::new("process-lock-workspace");
+        let data_dir = TestDir::new("process-lock-data");
+        let held = data_dir.path().join("held");
+        let conflict = data_dir.path().join("conflict");
+        let release = data_dir.path().join("release");
+        let retry = data_dir.path().join("retry");
+        let spawn_child = |role: &str| {
+            Command::new(std::env::current_exe().expect("test executable path is available"))
+                .args(["--exact", "tests::workspace_lock_child", "--nocapture"])
+                .env(WORKSPACE_LOCK_TEST_ROLE, role)
+                .env(WORKSPACE_LOCK_TEST_WORKSPACE, workspace.path())
+                .env(WORKSPACE_LOCK_TEST_DATA_DIR, data_dir.path())
+                .env(WORKSPACE_LOCK_TEST_HELD, &held)
+                .env(WORKSPACE_LOCK_TEST_CONFLICT, &conflict)
+                .env(WORKSPACE_LOCK_TEST_RELEASE, &release)
+                .env(WORKSPACE_LOCK_TEST_RETRY, &retry)
+                .stdout(Stdio::piped())
+                .stderr(Stdio::piped())
+                .spawn()
+                .expect("workspace lock child starts")
+        };
+
+        let holder = spawn_child("holder");
+        wait_for_file(
+            &held,
+            "the first child journals uncertainty and holds the lock",
+        );
+        let contender = spawn_child("contender");
+        wait_for_file(
+            &conflict,
+            "the second child observes the operating-system lock conflict",
+        );
+        std::fs::write(&release, b"release").expect("holder release is requested");
+        let holder = holder
+            .wait_with_output()
+            .expect("holder child is collected");
+        assert!(
+            holder.status.success(),
+            "holder child failed: {}{}",
+            String::from_utf8_lossy(&holder.stdout),
+            String::from_utf8_lossy(&holder.stderr)
+        );
+        std::fs::write(&retry, b"retry").expect("contender retry is requested");
+        let contender = contender
+            .wait_with_output()
+            .expect("contender child is collected");
+        assert!(
+            contender.status.success(),
+            "contender child failed: {}{}",
+            String::from_utf8_lossy(&contender.stdout),
+            String::from_utf8_lossy(&contender.stderr)
+        );
     }
 
     #[test]

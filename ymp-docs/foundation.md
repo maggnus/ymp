@@ -107,6 +107,16 @@ of wall-clock time. The command requests cancellation five seconds before that
 deadline. Without observed termination, the invocation remains `uncertain`; the
 CLI never reports it as cancelled or timed out by inference.
 
+Before admission, `run` takes a nonblocking operating-system lock on a file in the
+canonical data directory keyed by the SHA-256 digest of the canonical workspace
+path. Within that data directory, the lock serializes cooperating `ymp` processes
+while they rebuild workspace holds from every session stream and execute in that
+workspace. A journaled admitted, started, cancelling or uncertain invocation
+continues to block later admission after the process lock is released; only
+journaled termination, confirmed never-started failure or effect evidence releases
+the durable workspace hold. Different data directories are independent
+coordination domains and do not prevent concurrent execution in the same workspace.
+
 When `--check` is present and the invocation completed, YMP runs the exact command
 through `/bin/sh` in the actual workspace with the inherited environment. An
 operating-system sandbox denies writes to the canonical data-directory subtree,
