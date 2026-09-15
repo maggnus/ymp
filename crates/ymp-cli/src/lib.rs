@@ -4,7 +4,7 @@ use std::ffi::{OsStr, OsString};
 use std::fs::{File, OpenOptions, TryLockError};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use ymp_runtime::{
@@ -28,6 +28,7 @@ pub const DEFAULT_MAX_WALL_CLOCK: Duration = Duration::from_secs(30 * 60);
 const DEFAULT_RESERVATION: ResourceAmount = ResourceAmount::new(1);
 const OBSERVATION_INTERVAL: Duration = Duration::from_millis(100);
 const CANCELLATION_LEAD: Duration = Duration::from_secs(5);
+const INTERRUPT_WAIT: Duration = Duration::from_secs(5);
 const CODEX_AGENT_ID: &str = "codex";
 const CODEX_OFFERING_ID: &str = "codex-cli-local";
 const IMPLEMENTER_ROLE: &str = "implementer";
@@ -39,7 +40,8 @@ const WORKSPACE_LOCK_PREFIX: &str = "workspace-";
 static ID_SEQUENCE: AtomicU64 = AtomicU64::new(0);
 
 /// Fully rendered process result. Operational failures use exit code 1,
-/// command-line usage errors use 2, and only successful commands use 0.
+/// command-line usage errors use 2, SIGINT uses 130, and only successful
+/// commands use 0.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CommandOutput {
     stdout: String,
@@ -137,13 +139,24 @@ enum ParsedCommand {
 
 /// Executes one CLI command without exiting the process.
 pub fn command(arguments: &[OsString]) -> CommandOutput {
-    match parse_command(arguments).and_then(execute) {
-        Ok(output) => output,
-        Err(failure) => CommandOutput::failure(failure),
-    }
+    let interrupted = AtomicBool::new(false);
+    command_with_interrupt(arguments, &interrupted)
 }
 
-fn execute(command: ParsedCommand) -> Result<CommandOutput, CliFailure> {
+/// Executes one CLI command while observing the process SIGINT flag.
+pub fn command_with_interrupt(arguments: &[OsString], interrupted: &AtomicBool) -> CommandOutput {
+    let mut output =
+        match parse_command(arguments).and_then(|command| execute(command, interrupted)) {
+            Ok(output) => output,
+            Err(failure) => CommandOutput::failure(failure),
+        };
+    if interrupted.load(Ordering::SeqCst) {
+        output.exit_code = 130;
+    }
+    output
+}
+
+fn execute(command: ParsedCommand, interrupted: &AtomicBool) -> Result<CommandOutput, CliFailure> {
     let metadata = application_metadata();
     match command {
         ParsedCommand::Help => Ok(CommandOutput::success(help(metadata))),
@@ -158,7 +171,7 @@ fn execute(command: ParsedCommand) -> Result<CommandOutput, CliFailure> {
             goal,
             data_dir,
             check,
-        } => run_command(goal, data_dir, check),
+        } => run_command(goal, data_dir, check, interrupted),
         ParsedCommand::Show {
             session_id,
             data_dir,
@@ -382,6 +395,7 @@ fn run_command(
     goal: String,
     data_dir: PathBuf,
     check_command: Option<String>,
+    interrupted: &AtomicBool,
 ) -> Result<CommandOutput, CliFailure> {
     let current_dir = std::env::current_dir().map_err(|error| {
         CliFailure::operational(format!("cannot read working directory: {error}"))
@@ -450,10 +464,12 @@ fn run_command(
         task,
         request,
         limits,
+        interrupted,
         std::thread::sleep,
     )
     .map_err(|failure| failure.with_session_context(&session_id, &data_dir))?;
     if report.outcome.succeeded()
+        && !interrupted.load(Ordering::SeqCst)
         && let Some((executor, check)) = check.as_ref()
     {
         let evidence = executor
@@ -488,18 +504,18 @@ fn run_command(
         || CriterionEvaluation::evaluate(session.task().acceptance_contract(), &stored_evidence)
             .map_err(|error| CliFailure::operational(error.to_string()))?
             .satisfied();
-    let succeeded = report.outcome.succeeded() && check_satisfied;
+    let stdout = format_run_report(
+        &report,
+        &session,
+        &execution,
+        &workspace,
+        workspace_mode,
+        &data_dir,
+        check.is_some(),
+    );
     Ok(CommandOutput::observed(
-        format_run_report(
-            &report,
-            &session,
-            &execution,
-            &workspace,
-            workspace_mode,
-            &data_dir,
-            check.is_some(),
-        ),
-        succeeded,
+        stdout,
+        report.outcome.succeeded() && check_satisfied,
     ))
 }
 
@@ -763,6 +779,7 @@ fn run_one<J, B, R, W>(
     task: Task,
     request: AssignmentRequest,
     limits: InvocationLimits,
+    interrupted: &AtomicBool,
     mut wait: W,
 ) -> Result<RunReport, CliFailure>
 where
@@ -814,7 +831,13 @@ where
     let mut cancellation_requested = false;
     loop {
         let elapsed = scenario.clock_elapsed().saturating_sub(started_at);
-        if !cancellation_requested && elapsed >= cancellation_at {
+        let interrupted_now = interrupted.load(Ordering::SeqCst);
+        if !cancellation_requested && (interrupted_now || elapsed >= cancellation_at) {
+            if interrupted_now {
+                scenario
+                    .shorten_observation_deadline(&invocation, INTERRUPT_WAIT)
+                    .map_err(|error| CliFailure::operational(error.to_string()))?;
+            }
             let revision = scenario
                 .execution_view(&session_id)
                 .map_err(|error| CliFailure::operational(error.to_string()))?
@@ -1120,7 +1143,7 @@ fn help(metadata: ApplicationMetadata) -> String {
 }
 
 fn run_help(metadata: ApplicationMetadata) -> String {
-    format!(
+    let mut output = format!(
         "{} run\n\nUsage: {} run \"<task>\" [--check \"<shell command>\"] [--data-dir PATH]\n\nCreates a Task whose goal is the exact argument, whose sole criterion is\n\"{}\", and whose Constraints contain no\nuser-supplied conditions. Empty Constraints do not authorize unrestricted\nexecution. The current working directory is passed to one Codex invocation. When\nthe data directory is inside the workspace, including at the default location,\nthe workspace is admitted read-only so the invocation cannot alter its\nauthoritative journal. A data directory outside the workspace enables read and\nwrite access. Codex runs without approval prompts and without persisting its own\nsession rollout files.\n\nAfter an observed completed invocation, --check runs the exact command through\n/bin/sh in the actual workspace with the inherited environment and a {}-second\nlimit. An operating-system sandbox denies writes to the complete data-directory\npath, including absolute and symlink-resolved access. Exit code 0 satisfies the\ncriterion; any other exit code fails it. If the sandbox cannot start the inner\nshell, YMP records no evidence. YMP pins the shell and sandbox executable by\nSHA-256 before invocation and verifies them before and after the check. Executables\nand files referenced by arbitrary shell syntax are not inferred or pinned by the\nCLI. The check executor has no journal access; the kernel validates and records its\nobservation.\n\nDefault limits: {} observed turns, {} accepted output characters, and {} minutes\nof wall-clock time. YMP requests cancellation {} seconds before the deadline. A\ncancelled outcome requires observed termination; otherwise the persisted state is\nuncertain.\n\n{}\n\n{}\n",
         metadata.name(),
         metadata.name(),
@@ -1132,7 +1155,17 @@ fn run_help(metadata: ApplicationMetadata) -> String {
         CANCELLATION_LEAD.as_secs(),
         storage_help(),
         metadata.capability_limit(),
-    )
+    );
+    output.push_str(&format!(
+        "\nWhile the provider invocation is in flight, SIGINT requests cancellation through \
+         the kernel, shortens the remaining observation wait to {} seconds, and exits with status \
+         130 after recording either an observed termination and its resource settlement or \
+         uncertainty. That cancellation path does not execute --check. SIGINT after provider \
+         termination does not stop an already running check; the check reaches its own bound, its \
+         observation may be recorded, and the command then exits with status 130.\n",
+        INTERRUPT_WAIT.as_secs()
+    ));
+    output
 }
 
 fn show_help(metadata: ApplicationMetadata) -> String {
@@ -1234,6 +1267,7 @@ mod tests {
         );
         let application = Application::new(journal.clone());
         let session_id = SessionId::new(session_name).expect("valid session ID");
+        let interrupted = AtomicBool::new(false);
         let report = run_one(
             &application,
             &scenario,
@@ -1241,6 +1275,7 @@ mod tests {
             build_task("edit the requested file", "test")?,
             assignment_request(access, test_limits())?,
             test_limits(),
+            &interrupted,
             |_| {},
         )?;
         Ok((report, application, journal))
@@ -1484,6 +1519,64 @@ mod tests {
                 .invocation_count(),
             1
         );
+    }
+
+    #[test]
+    fn interrupt_without_termination_records_uncertain_at_the_shortened_deadline() {
+        let workspace = TestDir::new("interrupt-uncertain-workspace");
+        let workspace = workspace.path().canonicalize().expect("workspace resolves");
+        let access = workspace_access(&workspace, WorkspaceMode::ReadWrite)
+            .expect("workspace access is valid");
+        let provider = ScriptedProvider::new(
+            codex_agent().expect("valid agent"),
+            codex_offering().expect("valid offering"),
+        )
+        .with_effective_workspace_accesses([access.clone()]);
+        let backend = ScriptedBackend::for_provider(&provider)
+            .with_outcome(ScriptedOutcome::cancelled_without_confirmation());
+        let clock = ManualClock::new();
+        let journal = ymp_runtime::MemoryJournal::new();
+        let scenario = ExecutionScenario::over(
+            journal.clone(),
+            backend,
+            [access.clone()],
+            ScriptedRegistry::new([provider]),
+            DEFAULT_RESERVATION,
+            Arc::new(clock.clone()),
+        );
+        let application = Application::new(journal);
+        let interrupted = AtomicBool::new(true);
+        let limits = test_limits();
+        let report = run_one(
+            &application,
+            &scenario,
+            SessionId::new("session-interrupt-uncertain").expect("valid session ID"),
+            build_task("wait for cancellation", "interrupt-uncertain").expect("valid task"),
+            assignment_request(access, limits).expect("valid request"),
+            limits,
+            &interrupted,
+            |duration| clock.advance(duration),
+        )
+        .expect("interrupted run reaches a durable result");
+
+        assert_eq!(
+            report.outcome,
+            RunOutcome::Uncertain(UncertaintyCause::BoundedWaitExpired)
+        );
+        assert_eq!(scenario.clock_elapsed(), INTERRUPT_WAIT);
+        let execution = scenario
+            .execution_view(&report.session_id)
+            .expect("execution replays");
+        let invocation = execution
+            .invocation(&report.invocation)
+            .expect("invocation is present");
+        assert_eq!(
+            invocation.status(),
+            ymp_runtime::InvocationStatus::Uncertain
+        );
+        assert!(invocation.cancel_requested());
+        assert!(invocation.holds_workspace());
+        assert_eq!(scenario.treasury_held(), DEFAULT_RESERVATION);
     }
 
     #[test]
@@ -1771,6 +1864,17 @@ mod tests {
         assert!(output.stdout().contains("/bin/sh"));
         assert!(output.stdout().contains("120-second"));
         assert!(output.stdout().contains("not inferred or"));
+        assert!(
+            output
+                .stdout()
+                .contains("SIGINT requests cancellation through")
+        );
+        assert!(
+            output
+                .stdout()
+                .contains("does not stop an already running check")
+        );
+        assert!(output.stdout().contains("status 130"));
         assert!(output.stdout().contains("does not establish acceptance"));
     }
 

@@ -53,22 +53,28 @@
 //!   event kinds include none: `reported` settings stay unknown;
 //! - token usage does not fit the port's [`ObservedUsage`] fields (turns,
 //!   output characters, wall clock); the adapter preserves it adapter-side;
-//! - cancellation requests SIGTERM (through the POSIX `kill` utility, when
-//!   present) and escalates to SIGKILL after a grace period, but claims a
-//!   `cancelled` termination only when the child's exit was actually
-//!   observed; an unobserved exit stays the kernel's `uncertain` path;
+//! - the Codex child owns a separate process group; cancellation requests
+//!   SIGTERM for the whole group and escalates to SIGKILL after a grace
+//!   period, but claims a `cancelled` termination only when the immediate
+//!   child's exit was observed and the group has no live members; zombie
+//!   entries cannot execute effects and do not delay that observation; an
+//!   unobserved exit stays the kernel's `uncertain` path;
 //! - the reader threads poll without an overall deadline: a child that never
 //!   exits keeps its reader thread alive until the host cancels or the
 //!   process dies.
 
 use std::collections::{HashMap, VecDeque};
 use std::io::{BufRead, BufReader, Read};
-use std::path::PathBuf;
+use std::os::unix::process::CommandExt;
+use std::path::{Path, PathBuf};
 use std::process::{Child, Command, ExitStatus, Stdio};
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
 
+use nix::errno::Errno;
+use nix::sys::signal::{Signal, killpg};
+use nix::unistd::Pid;
 use serde_json::Value;
 use ymp_kernel::execution::{
     AgentId, BackendCancelRefused, BackendInvocation, BackendStartFailure, ErrorClass,
@@ -579,6 +585,11 @@ pub struct CodexBackend {
     /// Resolved start outcomes, retained so retries return the first result
     /// without spawning another process or reclassifying a live invocation.
     start_outcomes: HashMap<InvocationId, Result<(), BackendStartFailure>>,
+    /// Absolute native process-table executable used to verify that the
+    /// invocation's process group can no longer perform effects. Keeping the
+    /// path explicit prevents an invocation-controlled `PATH` from replacing
+    /// this observation source.
+    process_status_executable: PathBuf,
 }
 
 impl CodexBackend {
@@ -593,6 +604,7 @@ impl CodexBackend {
             extra_args: Vec::new(),
             runs: HashMap::new(),
             start_outcomes: HashMap::new(),
+            process_status_executable: PathBuf::from("/bin/ps"),
         }
     }
 
@@ -707,6 +719,7 @@ impl CodexBackend {
             .arg("exec")
             .arg("--json")
             .arg("--skip-git-repo-check")
+            .process_group(0)
             .current_dir(workspace)
             .stdin(Stdio::null())
             .stdout(Stdio::piped())
@@ -750,6 +763,7 @@ impl CodexBackend {
         if let Some(stdout) = stdout {
             let run = Arc::clone(run);
             let clock = Arc::clone(&self.clock);
+            let process_status_executable = self.process_status_executable.clone();
             thread::spawn(move || {
                 for line in BufReader::new(stdout).lines().map_while(Result::ok) {
                     if let Ok(mut guard) = run.lock() {
@@ -773,11 +787,21 @@ impl CodexBackend {
                             Err(_) => return,
                         }
                     };
-                    if let Some(status) = status
-                        && let Ok(mut guard) = run.lock()
-                    {
-                        guard.exit_observed = true;
-                        guard.finalize(&status, clock.as_ref());
+                    if let Some(status) = status {
+                        let process_group = run.lock().ok().map_or(0, |guard| guard.pid);
+                        if process_group != 0
+                            && Self::process_group_has_live_members(
+                                &process_status_executable,
+                                process_group,
+                            )
+                        {
+                            thread::sleep(Duration::from_millis(10));
+                            continue;
+                        }
+                        if let Ok(mut guard) = run.lock() {
+                            guard.exit_observed = true;
+                            guard.finalize(&status, clock.as_ref());
+                        }
                         return;
                     }
                     thread::sleep(Duration::from_millis(10));
@@ -796,33 +820,64 @@ impl CodexBackend {
         }
     }
 
-    /// Sends a signal to the run's child through the POSIX `kill` utility.
-    /// Returns whether the utility ran successfully; `false` never asserts
-    /// the child is dead.
-    fn signal_child(run: &Arc<Mutex<CodexRun>>, signal_name: &str) -> bool {
-        let pid = run.lock().ok().map_or(0, |guard| guard.pid);
-        if pid == 0 {
-            return false;
-        }
-        Command::new("kill")
-            .arg("-s")
-            .arg(signal_name)
-            .arg(pid.to_string())
+    /// Reports whether the invocation group still has a process capable of
+    /// executing effects. Zombie and dead entries cannot write and therefore
+    /// do not delay the termination observation while their parent collects
+    /// them. Failure to inspect the native process table stays conservative.
+    fn process_group_has_live_members(executable: &Path, process_group: u32) -> bool {
+        let output = Command::new(executable)
+            .args(["-axo", "pgid=,stat="])
             .stdin(Stdio::null())
-            .stdout(Stdio::null())
+            .stdout(Stdio::piped())
             .stderr(Stdio::null())
-            .output()
-            .is_ok_and(|output| output.status.success())
+            .output();
+        let Ok(output) = output else {
+            return true;
+        };
+        if !output.status.success() {
+            return true;
+        }
+        let Ok(stdout) = std::str::from_utf8(&output.stdout) else {
+            return true;
+        };
+        let mut inspected_process = false;
+        for line in stdout.lines().filter(|line| !line.trim().is_empty()) {
+            let mut fields = line.split_whitespace();
+            let (Some(group), Some(state)) = (fields.next(), fields.next()) else {
+                return true;
+            };
+            let Ok(group) = group.parse::<u32>() else {
+                return true;
+            };
+            inspected_process = true;
+            if group == process_group && !state.starts_with('Z') && !state.starts_with('X') {
+                return true;
+            }
+        }
+        // A successful but empty or wholly unusable response cannot prove
+        // that the process group stopped writing.
+        !inspected_process
     }
 
-    /// Escalates to SIGKILL: through the `kill` utility when present, else
-    /// through `Child::kill` under a short lock.
-    fn kill_child(run: &Arc<Mutex<CodexRun>>) {
-        if !Self::signal_child(run, "KILL")
-            && let Ok(mut guard) = run.lock()
-            && let Some(child) = guard.child.as_mut()
-        {
-            let _ = child.kill();
+    /// Sends a signal to the complete process group owned by the invocation.
+    fn signal_process_group(
+        run: &Arc<Mutex<CodexRun>>,
+        signal: Signal,
+    ) -> Result<(), BackendCancelRefused> {
+        let pid = run.lock().ok().map_or(0, |guard| guard.pid);
+        if pid == 0 {
+            return Err(BackendCancelRefused::new(
+                "the invocation process group is unavailable",
+            ));
+        }
+        let pid = i32::try_from(pid).map_err(|_| {
+            BackendCancelRefused::new("the invocation process group ID is out of range")
+        })?;
+        match killpg(Pid::from_raw(pid), signal) {
+            Ok(()) | Err(Errno::ESRCH) => Ok(()),
+            Err(error) => Err(BackendCancelRefused::new(format!(
+                "cannot signal the invocation process group: {error}"
+            ))),
         }
     }
 
@@ -840,12 +895,10 @@ impl CodexBackend {
             }
             guard.cancel_requested = true;
         }
-        // SIGTERM first; escalate straight to SIGKILL when the utility is
-        // unavailable. Neither claims termination: only the observed exit
-        // does, and the reader thread reports it.
-        if !Self::signal_child(&run, "TERM") {
-            Self::kill_child(&run);
-        }
+        // SIGTERM first, then SIGKILL for the complete invocation group.
+        // Neither claims termination: the reader reports it only after the
+        // immediate child exit and disappearance of the process group.
+        Self::signal_process_group(&run, Signal::SIGTERM)?;
         let deadline = Instant::now() + self.cancel_grace;
         while Instant::now() < deadline {
             let observed = run.lock().map(|guard| guard.exit_observed).unwrap_or(true);
@@ -854,7 +907,7 @@ impl CodexBackend {
             }
             thread::sleep(Duration::from_millis(10));
         }
-        Self::kill_child(&run);
+        Self::signal_process_group(&run, Signal::SIGKILL)?;
         Ok(())
     }
 }
@@ -914,5 +967,191 @@ impl ExecutionBackend for CodexBackend {
             .get(invocation)
             .and_then(|run| run.lock().ok())
             .and_then(|run| run.receipt.clone())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{
+        AcceptanceContract, Allowance, AssignmentRequest, Constraints, Criterion, CriterionId,
+        ExecutionScenario, Goal, InvocationLimits, InvocationStatus, ManualClock, MemoryJournal,
+        ModelOffering, ObservationOutcome, OfferingId, ReservationPurpose, ResourceAmount,
+        Revision, Role, ScriptedProvider, ScriptedRegistry, SessionId, Settings, Task, TaskId,
+        UncertaintyCause, WorkspaceAccess, WorkspaceOperation, WorkspaceScope,
+    };
+    use std::os::unix::fs::PermissionsExt;
+
+    struct TestDir(PathBuf);
+
+    impl TestDir {
+        fn new() -> Self {
+            let unique = format!(
+                "ymp-codex-process-probe-{}-{}",
+                std::process::id(),
+                std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .expect("system clock follows the Unix epoch")
+                    .as_nanos()
+            );
+            let path = std::env::temp_dir().join(unique);
+            std::fs::create_dir(&path).expect("fixture directory is created");
+            Self(path)
+        }
+
+        fn executable(&self, name: &str, body: &str) -> PathBuf {
+            let path = self.0.join(name);
+            std::fs::write(&path, body).expect("fixture executable is written");
+            std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755))
+                .expect("fixture executable permissions are set");
+            path
+        }
+    }
+
+    impl Drop for TestDir {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.0);
+        }
+    }
+
+    #[test]
+    fn failed_process_table_inspection_reaches_uncertain_without_releasing_workspace() {
+        let directory = TestDir::new();
+        let probe_attempted = directory.0.join("probe-attempted");
+        let allow_probe = directory.0.join("allow-probe");
+        let codex = directory.executable("codex", "#!/bin/sh\nexit 0\n");
+        let process_status = directory.executable(
+            "failing-ps",
+            &format!(
+                "#!/bin/sh\n\
+                 if [ -f '{}' ]; then printf '1 S\\n'; exit 0; fi\n\
+                 printf attempted > '{}'\n\
+                 printf 'invalid process table\\n'\n\
+                 exit 7\n",
+                allow_probe.display(),
+                probe_attempted.display()
+            ),
+        );
+        assert!(CodexBackend::process_group_has_live_members(
+            &directory.0.join("missing-ps"),
+            u32::MAX
+        ));
+
+        let clock = ManualClock::new();
+        let mut backend = CodexBackend::new(
+            codex.to_string_lossy().into_owned(),
+            Arc::new(clock.clone()),
+        )
+        .with_prompt("finish immediately");
+        backend.process_status_executable = process_status;
+        let scope = WorkspaceScope::new(directory.0.to_string_lossy().into_owned())
+            .expect("valid workspace scope");
+        let access = WorkspaceAccess::new(scope.clone(), [WorkspaceOperation::Write])
+            .expect("valid workspace access");
+        let agent = AgentId::new("codex").expect("valid agent ID");
+        let offering = ModelOffering::new(
+            OfferingId::new("codex-cli-local").expect("valid offering ID"),
+            Vec::new(),
+        )
+        .expect("valid offering");
+        let provider = ScriptedProvider::new(agent.clone(), offering)
+            .with_effective_workspace_accesses([access.clone()]);
+        let journal = MemoryJournal::new();
+        let scenario = ExecutionScenario::over(
+            journal,
+            backend,
+            [access.clone()],
+            ScriptedRegistry::new([provider]),
+            ResourceAmount::new(1),
+            Arc::new(clock.clone()),
+        );
+        let session_id = SessionId::new("failed-process-inspection").expect("valid session ID");
+        let task = Task::new(
+            TaskId::new("failed-process-inspection").expect("valid task ID"),
+            Goal::new("Keep the workspace held without process evidence").expect("valid goal"),
+            AcceptanceContract::new(vec![
+                Criterion::new(
+                    CriterionId::new("hold-workspace").expect("valid criterion ID"),
+                    "The workspace remains held until termination is observed.",
+                )
+                .expect("valid criterion"),
+            ])
+            .expect("valid acceptance contract"),
+            Constraints::new(Vec::new()).expect("valid constraints"),
+        );
+        let limits = InvocationLimits::new(1, 1, Duration::from_millis(50))
+            .expect("valid invocation limits");
+        scenario
+            .open_session(session_id.clone(), task)
+            .expect("session opens");
+        scenario.scan().expect("registry scan succeeds");
+        let assignment = scenario
+            .admit(
+                &session_id,
+                AssignmentRequest::new(
+                    agent,
+                    Role::new("implementer").expect("valid role"),
+                    Settings::new(),
+                    Allowance::new(
+                        ResourceAmount::new(1),
+                        ReservationPurpose::Production,
+                        limits,
+                    )
+                    .expect("valid allowance"),
+                    vec![access],
+                )
+                .expect("valid assignment request"),
+                Revision::new(1),
+            )
+            .expect("assignment is admitted");
+        scenario
+            .invoke(&session_id, assignment.invocation(), Revision::new(2))
+            .expect("invocation starts");
+
+        let probe_deadline = Instant::now() + Duration::from_secs(5);
+        while !probe_attempted.exists() && Instant::now() < probe_deadline {
+            thread::sleep(Duration::from_millis(20));
+        }
+        assert!(probe_attempted.exists(), "the failing process probe ran");
+        assert!(
+            scenario.with_backend_mut(|backend| backend.receipt(assignment.invocation()).is_none()),
+            "a failed process-table inspection must not fabricate a receipt"
+        );
+
+        clock.advance(limits.max_wall_clock());
+        assert!(matches!(
+            scenario
+                .observe(&session_id, assignment.invocation(), Revision::new(4))
+                .expect("the bounded observation resolves"),
+            ObservationOutcome::UncertainAfterDeadline { .. }
+        ));
+        let invocation = scenario
+            .execution_view(&session_id)
+            .expect("execution history replays")
+            .invocation(assignment.invocation())
+            .expect("invocation remains recorded")
+            .clone();
+        assert_eq!(invocation.status(), InvocationStatus::Uncertain);
+        assert_eq!(
+            invocation.uncertainty_cause(),
+            Some(UncertaintyCause::BoundedWaitExpired)
+        );
+        assert_eq!(
+            scenario.workspace_hold_of(assignment.invocation()),
+            Some(scope)
+        );
+
+        std::fs::write(&allow_probe, b"allow").expect("probe cleanup is enabled");
+        let receipt_deadline = Instant::now() + Duration::from_secs(5);
+        while scenario
+            .with_backend_mut(|backend| backend.receipt(assignment.invocation()).is_none())
+            && Instant::now() < receipt_deadline
+        {
+            thread::sleep(Duration::from_millis(20));
+        }
+        assert!(
+            scenario.with_backend_mut(|backend| backend.receipt(assignment.invocation()).is_some()),
+            "the reader finishes after the conservative probe is restored"
+        );
     }
 }

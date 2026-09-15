@@ -726,6 +726,10 @@ where
     pub started_at: Duration,
     /// Logical elapsed time now.
     pub now: Duration,
+    /// An optional earlier host deadline, for example the bounded wait after
+    /// an interrupt-triggered cancellation. It can shorten but never extend
+    /// the admitted wall-clock limit.
+    pub earlier_deadline: Option<Duration>,
     pub treasury: &'a mut T,
     pub workspace: &'a mut W,
 }
@@ -787,6 +791,7 @@ where
         prior,
         started_at,
         now,
+        earlier_deadline,
         treasury: _,
         workspace,
     } = context;
@@ -906,7 +911,10 @@ where
             })
         }
         None => {
-            if now.saturating_sub(started_at) >= limits.max_wall_clock() {
+            let admitted_deadline = started_at.saturating_add(limits.max_wall_clock());
+            let deadline = earlier_deadline
+                .map_or(admitted_deadline, |earlier| admitted_deadline.min(earlier));
+            if now >= deadline {
                 // The bounded deadline passed without a termination
                 // observation: record uncertain, never timed out.
                 let event = SessionEvent::InvocationUncertain {

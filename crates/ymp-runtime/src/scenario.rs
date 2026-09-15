@@ -53,6 +53,7 @@ where
     gatekeeper: PolicyGatekeeper,
     clock: Arc<dyn Clock + Send + Sync>,
     started_at: Mutex<BTreeMap<InvocationId, std::time::Duration>>,
+    earlier_deadlines: Mutex<BTreeMap<InvocationId, std::time::Duration>>,
     /// Host-enforced limit accumulation per in-flight invocation, carried
     /// across observe attempts so turn and output bounds hold over the
     /// invocation's whole observation history, not per attempt.
@@ -84,6 +85,7 @@ where
             gatekeeper: PolicyGatekeeper,
             clock,
             started_at: Mutex::new(BTreeMap::new()),
+            earlier_deadlines: Mutex::new(BTreeMap::new()),
             observations: Mutex::new(BTreeMap::new()),
         }
     }
@@ -217,6 +219,12 @@ where
             .expect("observation lock is available");
         let prior = observations.get(invocation).cloned().unwrap_or_default();
         let now = self.clock.elapsed();
+        let earlier_deadline = self
+            .earlier_deadlines
+            .lock()
+            .expect("deadline lock is available")
+            .get(invocation)
+            .copied();
 
         let mut backend = self.backend.lock().expect("backend lock is available");
         let mut treasury = self.treasury.lock().expect("treasury lock is available");
@@ -230,6 +238,7 @@ where
             prior,
             started_at,
             now,
+            earlier_deadline,
             treasury: &mut *treasury,
             workspace: &mut *workspace,
         };
@@ -243,6 +252,10 @@ where
                 self.started_at
                     .lock()
                     .expect("start-time lock is available")
+                    .remove(invocation);
+                self.earlier_deadlines
+                    .lock()
+                    .expect("deadline lock is available")
                     .remove(invocation);
                 observations.remove(invocation);
             }
@@ -269,6 +282,33 @@ where
             treasury: &mut *treasury,
         };
         settle_invocation(context)
+    }
+
+    /// Shortens the remaining observation window for an in-flight invocation.
+    /// Repeated calls can only move the deadline earlier.
+    pub fn shorten_observation_deadline(
+        &self,
+        invocation: &InvocationId,
+        remaining: std::time::Duration,
+    ) -> Result<(), ExecutionError> {
+        if !self
+            .started_at
+            .lock()
+            .expect("start-time lock is available")
+            .contains_key(invocation)
+        {
+            return Err(ExecutionError::InvocationNotStarted {
+                invocation: invocation.clone(),
+            });
+        }
+        let deadline = self.clock.elapsed().saturating_add(remaining);
+        self.earlier_deadlines
+            .lock()
+            .expect("deadline lock is available")
+            .entry(invocation.clone())
+            .and_modify(|current| *current = (*current).min(deadline))
+            .or_insert(deadline);
+        Ok(())
     }
 
     /// Records effect evidence for one invocation: a writes-ended
@@ -432,6 +472,10 @@ where
         self.observations
             .lock()
             .expect("observation lock is available")
+            .clear();
+        self.earlier_deadlines
+            .lock()
+            .expect("deadline lock is available")
             .clear();
         Ok(())
     }

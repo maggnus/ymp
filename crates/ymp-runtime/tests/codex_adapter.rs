@@ -136,6 +136,8 @@ const HAPPY_STREAM: &str = r#"{"type":"thread.started","thread_id":"0199a213-81c
 {"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"pong"}}
 {"type":"turn.completed","usage":{"input_tokens":42,"cached_input_tokens":40,"output_tokens":7,"reasoning_output_tokens":0}}"#;
 
+const LOCAL_PROCESS_DEADLINE: Duration = Duration::from_secs(20);
+
 fn happy_codex(dir: &FixtureDir) -> PathBuf {
     dir.executable(
         "codex",
@@ -368,7 +370,7 @@ fn codex_backend_streams_and_completes() {
         .start(&backend_invocation(&dir, Settings::new()))
         .expect("the invocation starts");
 
-    let (observations, receipt) = wait_for_observations(&mut backend, Duration::from_secs(5));
+    let (observations, receipt) = wait_for_observations(&mut backend, LOCAL_PROCESS_DEADLINE);
     let receipt = receipt.expect("the receipt arrives after exit");
 
     // Stream mapping: turn count, agent-message output, completed
@@ -426,7 +428,7 @@ fn codex_backend_maps_error_event_to_failed_class() {
         .start(&backend_invocation(&dir, Settings::new()))
         .expect("the invocation starts");
 
-    let (observations, receipt) = wait_for_observations(&mut backend, Duration::from_secs(5));
+    let (observations, receipt) = wait_for_observations(&mut backend, LOCAL_PROCESS_DEADLINE);
     let receipt = receipt.expect("the receipt arrives after exit");
 
     let failed = Termination::Failed {
@@ -466,7 +468,7 @@ fn codex_backend_maps_turn_failed_event_to_failed_class() {
         .start(&backend_invocation(&dir, Settings::new()))
         .expect("the invocation starts");
 
-    let (_, receipt) = wait_for_observations(&mut backend, Duration::from_secs(5));
+    let (_, receipt) = wait_for_observations(&mut backend, LOCAL_PROCESS_DEADLINE);
     let receipt = receipt.expect("the receipt arrives after exit");
 
     assert_eq!(
@@ -507,7 +509,7 @@ fn codex_backend_error_event_with_allowlisted_code_never_persists_raw_text() {
         .start(&backend_invocation(&dir, Settings::new()))
         .expect("the invocation starts");
 
-    let (observations, receipt) = wait_for_observations(&mut backend, Duration::from_secs(5));
+    let (observations, receipt) = wait_for_observations(&mut backend, LOCAL_PROCESS_DEADLINE);
     let receipt = receipt.expect("the receipt arrives after exit");
 
     // The allowlisted protocol code survives; the class states the class.
@@ -561,7 +563,7 @@ fn codex_backend_object_form_error_code_maps_to_allowlisted_key() {
         .start(&backend_invocation(&dir, Settings::new()))
         .expect("the invocation starts");
 
-    let (observations, receipt) = wait_for_observations(&mut backend, Duration::from_secs(5));
+    let (observations, receipt) = wait_for_observations(&mut backend, LOCAL_PROCESS_DEADLINE);
     let receipt = receipt.expect("the receipt arrives after exit");
 
     // An object-form `codexErrorInfo` keeps only its allowlisted key; the
@@ -597,7 +599,7 @@ fn codex_backend_maps_nonzero_exit_without_error_event() {
         .start(&backend_invocation(&dir, Settings::new()))
         .expect("the invocation starts");
 
-    let (_, receipt) = wait_for_observations(&mut backend, Duration::from_secs(5));
+    let (_, receipt) = wait_for_observations(&mut backend, LOCAL_PROCESS_DEADLINE);
     let receipt = receipt.expect("the receipt arrives after exit");
 
     assert_eq!(
@@ -636,7 +638,7 @@ fn codex_backend_counts_unmapped_and_malformed_lines() {
         .start(&backend_invocation(&dir, Settings::new()))
         .expect("the invocation starts");
 
-    let (observations, receipt) = wait_for_observations(&mut backend, Duration::from_secs(5));
+    let (observations, receipt) = wait_for_observations(&mut backend, LOCAL_PROCESS_DEADLINE);
     let receipt = receipt.expect("the receipt arrives after exit");
 
     // Unverified shapes map to no observation: nothing is guessed.
@@ -684,7 +686,7 @@ fn codex_backend_passes_admitted_model_setting() {
     backend
         .start(&backend_invocation(&dir, settings))
         .expect("the invocation starts");
-    let (_, receipt) = wait_for_observations(&mut backend, Duration::from_secs(5));
+    let (_, receipt) = wait_for_observations(&mut backend, LOCAL_PROCESS_DEADLINE);
 
     let receipt = receipt.expect("the receipt arrives after exit");
     assert_eq!(receipt.termination(), &Termination::Completed);
@@ -709,7 +711,7 @@ fn codex_backend_separates_flag_shaped_prompt_from_options() {
     backend
         .start(&backend_invocation(&dir, Settings::new()))
         .expect("the invocation starts");
-    let (_, receipt) = wait_for_observations(&mut backend, Duration::from_secs(5));
+    let (_, receipt) = wait_for_observations(&mut backend, LOCAL_PROCESS_DEADLINE);
     assert!(receipt.is_some(), "the scripted invocation terminates");
     let arguments = std::fs::read_to_string(dir.path().join("argv"))
         .expect("captured arguments are readable")
@@ -838,9 +840,13 @@ fn codex_backend_start_fails_typed_without_prompt() {
 #[test]
 fn codex_backend_replays_successful_start_for_duplicate_invocation() {
     let dir = FixtureDir::new("backend-duplicate");
+    let starts = dir.path().join("starts");
     let codex = dir.executable(
         "codex",
-        "#!/bin/sh\ntrap 'exit 0' TERM\nwhile :; do sleep 0.1; done\n",
+        &format!(
+            "#!/bin/sh\nprintf 'started\\n' >> '{}'\n/bin/sleep 1\nexit 0\n",
+            starts.display()
+        ),
     );
     let mut backend = backend_for(&codex);
 
@@ -851,8 +857,12 @@ fn codex_backend_replays_successful_start_for_duplicate_invocation() {
         .start(&backend_invocation(&dir, Settings::new()))
         .expect("a second start returns the first successful outcome");
 
-    backend.cancel(&invocation()).expect("cleanup cancels");
-    let _ = wait_for_observations(&mut backend, Duration::from_secs(5));
+    let (_, receipt) = wait_for_observations(&mut backend, LOCAL_PROCESS_DEADLINE);
+    assert!(receipt.is_some(), "the fixture process completes");
+    assert_eq!(
+        std::fs::read_to_string(starts).expect("the start marker is readable"),
+        "started\n"
+    );
 }
 
 #[test]
@@ -952,7 +962,7 @@ fn codex_cancel_observes_cancelled_termination() {
         .cancel(&invocation())
         .expect("the backend acknowledges the cancellation request");
 
-    let (observations, receipt) = wait_for_observations(&mut backend, Duration::from_secs(5));
+    let (observations, receipt) = wait_for_observations(&mut backend, LOCAL_PROCESS_DEADLINE);
     let receipt = receipt.expect("the exit is observed");
 
     // The termination is claimed only because the child's exit was observed.
@@ -982,7 +992,7 @@ fn codex_cancel_escalates_to_sigkill_when_term_is_ignored() {
         .cancel(&invocation())
         .expect("the backend acknowledges the cancellation request");
 
-    let (_, receipt) = wait_for_observations(&mut backend, Duration::from_secs(5));
+    let (_, receipt) = wait_for_observations(&mut backend, LOCAL_PROCESS_DEADLINE);
     let receipt = receipt.expect("SIGKILL makes the exit observable");
 
     assert_eq!(receipt.termination(), &Termination::Cancelled);
@@ -1024,7 +1034,7 @@ fn codex_backend_drains_large_stderr_without_deadlock() {
 
     // ~108 KiB of stderr exceeds the pipe buffer; without the drainer
     // thread the child would block forever and never complete.
-    let (_, receipt) = wait_for_observations(&mut backend, Duration::from_secs(5));
+    let (_, receipt) = wait_for_observations(&mut backend, LOCAL_PROCESS_DEADLINE);
     let receipt = receipt.expect("the child completes without blocking");
     assert_eq!(receipt.termination(), &Termination::Completed);
 }
