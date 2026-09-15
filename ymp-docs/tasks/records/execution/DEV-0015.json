@@ -5,7 +5,7 @@
   "title": "First user run and show commands",
   "type": "implementation",
   "priority": 58,
-  "status": "in_progress",
+  "status": "done",
   "depends_on": [
     "DEV-0013"
   ],
@@ -24,11 +24,13 @@
     "Unattended tests cover completed, failed, not-ready registry, and reopen persistence; real Codex execution remains ignored.",
     "Workspace build, formatting, Clippy, tests, task-record validation, and independent review succeed before the result is committed to main."
   ],
-  "evidence": [],
+  "evidence": [
+    "Commit 27aa307 in main"
+  ],
   "context": [
     "Requested directly against main after DEV-0013; no push is authorized."
   ],
-  "revision": 2,
+  "revision": 3,
   "history": [
     {
       "revision": 1,
@@ -43,6 +45,13 @@
       "actor": "codex",
       "status": "in_progress",
       "note": "Claimed by codex."
+    },
+    {
+      "revision": 3,
+      "at": "2026-09-15T08:06:01.248773Z",
+      "actor": "codex",
+      "status": "done",
+      "note": "The independently accepted implementation is committed to main; all required offline gates and the task-register check passed."
     }
   ]
 }
