@@ -12,7 +12,7 @@
 //! {"type":"invocation_start_attempted","session_id":S,"invocation":I}
 //! {"type":"invocation_started","session_id":S,"invocation":I}
 //! {"type":"invocation_cancellation_requested","session_id":S,"invocation":I}
-//! {"type":"invocation_observed","session_id":S,"invocation":I,"termination":{"outcome":"completed"|"failed"|"cancelled"|"timed_out"[,"error_class":C]},"reported_settings":[...]|null,"usage":{"turns":N|null,"output_chars":N|null,"wall_clock_ms":N|null}}
+//! {"type":"invocation_observed","session_id":S,"invocation":I,"termination":{"outcome":"completed"|"failed"|"cancelled"|"timed_out"[,"error_class":C]},"reported_settings":[...]|null,"usage":{"turns":N|null,"output_chars":N|null,"wall_clock_ms":N|null,"input_tokens":N|null,"output_tokens":N|null,"cache_read_tokens":N|null,"cache_write_tokens":N|null,"reasoning_tokens":N|null,"partial":B}}
 //! {"type":"invocation_uncertain","session_id":S,"invocation":I,"cause":"bounded_wait_expired"|"start_outcome_unknown"}
 //! {"type":"invocation_failed_at_start","session_id":S,"invocation":I,"error_class":C}
 //! {"type":"effect_evidence_recorded","session_id":S,"invocation":I}
@@ -233,8 +233,9 @@ struct TerminationDtoOwned<T> {
 
 type TerminationDto<'a> = TerminationDtoOwned<&'a str>;
 
-/// Usage components are presence-tracked: every key is required, and an
-/// explicit `null` is the meaningful unknown.
+/// Usage components are presence-tracked. The original three keys remain
+/// required; token keys and `partial` decode as unknown/false when absent so
+/// journals written before their additive introduction remain readable.
 #[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct UsageDto {
@@ -244,6 +245,18 @@ struct UsageDto {
     output_chars: Option<Option<u64>>,
     #[serde(default, deserialize_with = "present_field")]
     wall_clock_ms: Option<Option<u64>>,
+    #[serde(default, deserialize_with = "present_field")]
+    input_tokens: Option<Option<u64>>,
+    #[serde(default, deserialize_with = "present_field")]
+    output_tokens: Option<Option<u64>>,
+    #[serde(default, deserialize_with = "present_field")]
+    cache_read_tokens: Option<Option<u64>>,
+    #[serde(default, deserialize_with = "present_field")]
+    cache_write_tokens: Option<Option<u64>>,
+    #[serde(default, deserialize_with = "present_field")]
+    reasoning_tokens: Option<Option<u64>>,
+    #[serde(default, deserialize_with = "present_field")]
+    partial: Option<Option<bool>>,
 }
 
 // ---------------------------------------------------------------------------
@@ -524,6 +537,12 @@ fn usage_dto(usage: &ObservedUsage) -> UsageDto {
         turns: usage.turns().map(Some),
         output_chars: usage.output_chars().map(Some),
         wall_clock_ms: usage.wall_clock().map(millis).map(Some),
+        input_tokens: usage.input_tokens().map(Some),
+        output_tokens: usage.output_tokens().map(Some),
+        cache_read_tokens: usage.cache_read_tokens().map(Some),
+        cache_write_tokens: usage.cache_write_tokens().map(Some),
+        reasoning_tokens: usage.reasoning_tokens().map(Some),
+        partial: Some(Some(usage.is_partial())),
     }
 }
 
@@ -538,6 +557,27 @@ fn build_usage(dto: &UsageDto) -> Result<ObservedUsage, String> {
     if let Some(wall_clock_ms) = *required_nullable(&dto.wall_clock_ms, "usage.wall_clock_ms")? {
         usage = usage.with_wall_clock(Duration::from_millis(wall_clock_ms));
     }
+    if let Some(input_tokens) = dto.input_tokens.flatten() {
+        usage = usage.with_input_tokens(input_tokens);
+    }
+    if let Some(output_tokens) = dto.output_tokens.flatten() {
+        usage = usage.with_output_tokens(output_tokens);
+    }
+    if let Some(cache_read_tokens) = dto.cache_read_tokens.flatten() {
+        usage = usage.with_cache_read_tokens(cache_read_tokens);
+    }
+    if let Some(cache_write_tokens) = dto.cache_write_tokens.flatten() {
+        usage = usage.with_cache_write_tokens(cache_write_tokens);
+    }
+    if let Some(reasoning_tokens) = dto.reasoning_tokens.flatten() {
+        usage = usage.with_reasoning_tokens(reasoning_tokens);
+    }
+    let partial = match dto.partial {
+        None => false,
+        Some(Some(partial)) => partial,
+        Some(None) => return Err("field 'usage.partial' must not be null".to_owned()),
+    };
+    usage = usage.with_partial(partial);
     Ok(usage)
 }
 
@@ -1294,7 +1334,13 @@ mod tests {
                 reported_settings: Some(settings(&[("effort", "low")])),
                 usage: ObservedUsage::unknown()
                     .with_turns(3)
-                    .with_wall_clock(Duration::from_millis(1200)),
+                    .with_wall_clock(Duration::from_millis(1200))
+                    .with_input_tokens(120)
+                    .with_output_tokens(30)
+                    .with_cache_read_tokens(80)
+                    .with_cache_write_tokens(4)
+                    .with_reasoning_tokens(12)
+                    .with_partial(true),
             },
             SessionEvent::InvocationObserved {
                 session_id: SessionId::new("s1").expect("valid session ID"),
@@ -1353,10 +1399,27 @@ mod tests {
         .expect("payload encodes");
         assert_eq!(
             observed,
-            br#"{"type":"invocation_observed","session_id":"s1","invocation":"invocation-2","termination":{"outcome":"timed_out"},"reported_settings":null,"usage":{"turns":null,"output_chars":null,"wall_clock_ms":null}}"#
+            br#"{"type":"invocation_observed","session_id":"s1","invocation":"invocation-2","termination":{"outcome":"timed_out"},"reported_settings":null,"usage":{"turns":null,"output_chars":null,"wall_clock_ms":null,"input_tokens":null,"output_tokens":null,"cache_read_tokens":null,"cache_write_tokens":null,"reasoning_tokens":null,"partial":false}}"#
         );
         // The unknown report is an explicit null, not an omitted key.
         assert!(String::from_utf8_lossy(&observed).contains("\"reported_settings\":null"));
+
+        let legacy = br#"{"type":"invocation_observed","session_id":"s1","invocation":"invocation-2","termination":{"outcome":"timed_out"},"reported_settings":null,"usage":{"turns":null,"output_chars":null,"wall_clock_ms":null}}"#;
+        assert_eq!(
+            decode_payload(legacy).expect("legacy usage payload decodes"),
+            SessionEvent::InvocationObserved {
+                session_id: SessionId::new("s1").expect("valid session ID"),
+                invocation: InvocationId::new("invocation-2").expect("valid invocation ID"),
+                termination: Termination::TimedOut,
+                reported_settings: None,
+                usage: ObservedUsage::unknown(),
+            }
+        );
+        let null_partial = br#"{"type":"invocation_observed","session_id":"s1","invocation":"invocation-2","termination":{"outcome":"timed_out"},"reported_settings":null,"usage":{"turns":null,"output_chars":null,"wall_clock_ms":null,"input_tokens":null,"output_tokens":null,"cache_read_tokens":null,"cache_write_tokens":null,"reasoning_tokens":null,"partial":null}}"#;
+        assert_eq!(
+            decode_payload(null_partial).expect_err("null partial flag is rejected"),
+            "field 'usage.partial' must not be null"
+        );
 
         let uncertain = encode_event(&SessionEvent::InvocationUncertain {
             session_id: SessionId::new("s1").expect("valid session ID"),

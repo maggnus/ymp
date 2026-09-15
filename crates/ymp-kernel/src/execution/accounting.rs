@@ -31,6 +31,17 @@ pub struct UsageAggregate {
     output_chars_unknown_reports: u64,
     wall_clock_known: Duration,
     wall_clock_unknown_reports: u64,
+    input_tokens_known: u64,
+    input_tokens_unknown_reports: u64,
+    output_tokens_known: u64,
+    output_tokens_unknown_reports: u64,
+    cache_read_tokens_known: u64,
+    cache_read_tokens_unknown_reports: u64,
+    cache_write_tokens_known: u64,
+    cache_write_tokens_unknown_reports: u64,
+    reasoning_tokens_known: u64,
+    reasoning_tokens_unknown_reports: u64,
+    partial_reports: u64,
 }
 
 impl UsageAggregate {
@@ -58,6 +69,50 @@ impl UsageAggregate {
         self.wall_clock_unknown_reports
     }
 
+    pub const fn input_tokens_known(&self) -> u64 {
+        self.input_tokens_known
+    }
+
+    pub const fn input_tokens_unknown_reports(&self) -> u64 {
+        self.input_tokens_unknown_reports
+    }
+
+    pub const fn output_tokens_known(&self) -> u64 {
+        self.output_tokens_known
+    }
+
+    pub const fn output_tokens_unknown_reports(&self) -> u64 {
+        self.output_tokens_unknown_reports
+    }
+
+    pub const fn cache_read_tokens_known(&self) -> u64 {
+        self.cache_read_tokens_known
+    }
+
+    pub const fn cache_read_tokens_unknown_reports(&self) -> u64 {
+        self.cache_read_tokens_unknown_reports
+    }
+
+    pub const fn cache_write_tokens_known(&self) -> u64 {
+        self.cache_write_tokens_known
+    }
+
+    pub const fn cache_write_tokens_unknown_reports(&self) -> u64 {
+        self.cache_write_tokens_unknown_reports
+    }
+
+    pub const fn reasoning_tokens_known(&self) -> u64 {
+        self.reasoning_tokens_known
+    }
+
+    pub const fn reasoning_tokens_unknown_reports(&self) -> u64 {
+        self.reasoning_tokens_unknown_reports
+    }
+
+    pub const fn partial_reports(&self) -> u64 {
+        self.partial_reports
+    }
+
     /// Folds one invocation's settled usage into the aggregate.
     pub fn fold_usage(&mut self, usage: &ObservedUsage) {
         match usage.turns() {
@@ -73,6 +128,39 @@ impl UsageAggregate {
                 self.wall_clock_known = self.wall_clock_known.saturating_add(duration)
             }
             None => self.wall_clock_unknown_reports += 1,
+        }
+        match usage.input_tokens() {
+            Some(tokens) => {
+                self.input_tokens_known = self.input_tokens_known.saturating_add(tokens)
+            }
+            None => self.input_tokens_unknown_reports += 1,
+        }
+        match usage.output_tokens() {
+            Some(tokens) => {
+                self.output_tokens_known = self.output_tokens_known.saturating_add(tokens)
+            }
+            None => self.output_tokens_unknown_reports += 1,
+        }
+        match usage.cache_read_tokens() {
+            Some(tokens) => {
+                self.cache_read_tokens_known = self.cache_read_tokens_known.saturating_add(tokens)
+            }
+            None => self.cache_read_tokens_unknown_reports += 1,
+        }
+        match usage.cache_write_tokens() {
+            Some(tokens) => {
+                self.cache_write_tokens_known = self.cache_write_tokens_known.saturating_add(tokens)
+            }
+            None => self.cache_write_tokens_unknown_reports += 1,
+        }
+        match usage.reasoning_tokens() {
+            Some(tokens) => {
+                self.reasoning_tokens_known = self.reasoning_tokens_known.saturating_add(tokens)
+            }
+            None => self.reasoning_tokens_unknown_reports += 1,
+        }
+        if usage.is_partial() {
+            self.partial_reports += 1;
         }
     }
 }
@@ -262,5 +350,40 @@ impl Treasury for LedgerTreasury {
                 "invocation holds no reservation".to_owned(),
             )),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::UsageAggregate;
+    use crate::execution::ObservedUsage;
+
+    #[test]
+    fn aggregate_keeps_token_unknowns_and_partial_reports_explicit() {
+        let mut aggregate = UsageAggregate::default();
+        aggregate.fold_usage(
+            &ObservedUsage::unknown()
+                .with_input_tokens(11)
+                .with_output_tokens(4)
+                .with_partial(true),
+        );
+        aggregate.fold_usage(
+            &ObservedUsage::unknown()
+                .with_cache_read_tokens(7)
+                .with_cache_write_tokens(2)
+                .with_reasoning_tokens(3),
+        );
+
+        assert_eq!(aggregate.input_tokens_known(), 11);
+        assert_eq!(aggregate.input_tokens_unknown_reports(), 1);
+        assert_eq!(aggregate.output_tokens_known(), 4);
+        assert_eq!(aggregate.output_tokens_unknown_reports(), 1);
+        assert_eq!(aggregate.cache_read_tokens_known(), 7);
+        assert_eq!(aggregate.cache_read_tokens_unknown_reports(), 1);
+        assert_eq!(aggregate.cache_write_tokens_known(), 2);
+        assert_eq!(aggregate.cache_write_tokens_unknown_reports(), 1);
+        assert_eq!(aggregate.reasoning_tokens_known(), 3);
+        assert_eq!(aggregate.reasoning_tokens_unknown_reports(), 1);
+        assert_eq!(aggregate.partial_reports(), 1);
     }
 }
