@@ -93,10 +93,12 @@ append; no revision advances, and no grant or reservation exists.
 
 `Treasury` accounts for every invocation, including failed, cancelled and
 coordination work. A reservation is held while the invocation is in flight
-and settled at the termination observation; settlement is a journal append
-whose failure returns a typed error, keeps the reservation held and is
-retried, so accounting is never silently dropped. Usage the provider does
-not report is recorded as unknown, never as zero.
+and settled at the termination observation or at a confirmed never-started
+start failure, which ends the invocation without a termination
+observation; settlement is a journal append whose failure returns a typed
+error, keeps the reservation held and is retried, so accounting is never
+silently dropped. Usage the provider does not report is recorded as
+unknown, never as zero.
 
 The bounded allowance carries per-invocation limits: turns, output size and
 wall-clock duration. Where the provider cannot enforce a limit, the host
@@ -120,12 +122,23 @@ invocation at a time.
 
 Cancellation does not prove termination; neither does a start error, a lost
 observation stream or an expired wall-clock bound. The recorded invocation
-states are `admitted`, `started`, `cancelling`, `terminated` and
+states are `admitted`, `started`, `cancelling`, `terminated`, `failed` and
 `uncertain`. Termination requires a termination observation; once the
 bounded wait deadline passes without one, the kernel records `uncertain`.
-Revoking a grant asserts nothing about whether a process stopped writing.
-A conflicting successor waits: its admission is refused until the
-predecessor's termination or effect evidence exists.
+`failed` is terminal without a termination observation: it records only a
+typed start failure that confirms the invocation never started, releases
+the reservation and workspace hold, and permits accounting; a failure
+observed after a successful start is a typed termination under
+`terminated`. Revoking a grant asserts nothing about whether a process
+stopped writing. A conflicting successor waits: its admission is refused
+until the predecessor's termination or effect evidence exists. Effect
+evidence is an observation on the predecessor's own event stream or
+receipt reporting that its writes to the held scope have ended; the kernel
+checks only that it is attributed to that invocation, then records the
+evidence, releases the workspace hold and lifts the successor bar in one
+journal append, while the invocation itself remains `uncertain` with its
+reservation held. The ended-writes report is the backend's observation,
+not kernel proof that a process stopped writing.
 
 ## The admitted scenario
 
@@ -154,11 +167,14 @@ predecessor's termination or effect evidence exists.
    `start` is forbidden until the batch's presence is exactly established.
    Any other typed journal failure fails admission with no effects.
 5. Start. The host calls `start` with the settings recorded in the
-   admission batch; the invocation becomes `started`. A typed start failure
-   that confirms the invocation never started skips directly to accounting
-   as `failed` with its error class. A start error with an unknown outcome
-   is not a confirmed failure: the invocation is `uncertain`, retains the
-   reservation and workspace hold, and admits no conflicting successor.
+   admission batch; only a successful start moves the invocation to
+   `started`. A typed start failure that confirms the invocation never
+   started moves it directly to terminal `failed` with its error class:
+   accounting is permitted and the reservation and workspace hold are
+   released without a termination observation. A start error with an
+   unknown outcome is not a confirmed failure: the invocation is
+   `uncertain`, retains the reservation and workspace hold, and admits no
+   conflicting successor.
 6. Observation. The event stream and receipt deliver one termination state;
    reported settings are recorded beside requested and sent. A lost event
    stream is not a termination: the invocation waits for its receipt until
@@ -171,8 +187,8 @@ predecessor's termination or effect evidence exists.
    to `terminated`; when the deadline passes without one, the kernel must
    record `uncertain`, holding the reservation and workspace hold.
 8. Successor. A conflicting successor is refused while the predecessor is
-   `cancelling` or `uncertain` and is admitted only after termination or
-   effect evidence.
+   `cancelling` or `uncertain` and is admitted only after termination, or
+   after effect evidence releases the predecessor's workspace hold.
 9. Accounting. `Treasury` settles the reservation against observed usage,
    counting the invocation, its failures and the coordination around it;
    unknown usage stays unknown, and a failed settlement append is retried

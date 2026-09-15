@@ -28,7 +28,7 @@
   "context": [
     "This task is intentionally unscheduled until durable session state is implemented and accepted."
   ],
-  "revision": 5,
+  "revision": 6,
   "history": [
     {
       "revision": 1,
@@ -64,6 +64,13 @@
       "actor": "maintainer",
       "status": "in_progress",
       "note": "R1 review (sol xhigh) RETURN with 8 findings, applied"
+    },
+    {
+      "revision": 6,
+      "at": "2026-09-15T04:11:26.711487Z",
+      "actor": "maintainer",
+      "status": "in_progress",
+      "note": "R2 review (sol xhigh) RETURN with 2 findings, applied"
     }
   ]
 }
