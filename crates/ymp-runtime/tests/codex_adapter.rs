@@ -132,7 +132,10 @@ fn limits() -> InvocationLimits {
     InvocationLimits::new(8, 100_000, Duration::from_secs(60)).expect("valid limits")
 }
 
-fn drain_events(backend: &mut CodexBackend, invocation: &InvocationId) -> Vec<ExecutionObservation> {
+fn drain_events(
+    backend: &mut CodexBackend,
+    invocation: &InvocationId,
+) -> Vec<ExecutionObservation> {
     let mut drained = Vec::new();
     while let Some(observation) = backend.next_event(invocation) {
         drained.push(observation);
@@ -142,14 +145,19 @@ fn drain_events(backend: &mut CodexBackend, invocation: &InvocationId) -> Vec<Ex
 }
 
 fn workspace_accesses(scope: WorkspaceScope) -> Vec<WorkspaceAccess> {
-    vec![WorkspaceAccess::new(scope, [WorkspaceOperation::Write])
-        .expect("valid workspace access")]
+    vec![WorkspaceAccess::new(scope, [WorkspaceOperation::Write]).expect("valid workspace access")]
 }
 
 fn backend_invocation(dir: &FixtureDir, sent_settings: Settings) -> BackendInvocation {
     let workspace = WorkspaceScope::new(dir.path().to_string_lossy().into_owned())
         .expect("valid workspace scope");
-    BackendInvocation::new(invocation(), agent_id(), sent_settings, workspace_accesses(workspace), limits())
+    BackendInvocation::new(
+        invocation(),
+        agent_id(),
+        sent_settings,
+        workspace_accesses(workspace),
+        limits(),
+    )
 }
 
 fn backend_for(executable: &Path) -> CodexBackend {
@@ -681,8 +689,13 @@ fn codex_backend_start_fails_typed_when_workspace_missing() {
             .into_owned(),
     )
     .expect("valid workspace scope");
-    let invocation =
-        BackendInvocation::new(invocation(), agent_id(), Settings::new(), workspace_accesses(missing), limits());
+    let invocation = BackendInvocation::new(
+        invocation(),
+        agent_id(),
+        Settings::new(),
+        workspace_accesses(missing),
+        limits(),
+    );
 
     let failure = backend
         .start(&invocation)
