@@ -1,13 +1,16 @@
-# Proposed self-organizing team domain model amendments
+# Historical self-organizing team domain model amendments
 
-Status: proposed; pending owner approval.
+Status: superseded as architectural guidance, 2026-09-15.
 
-These amendments apply to the unapproved
-[self-organizing team domain model](self-organizing-team-domain-model.md). They do
-not modify that proposal, override the approved [intent](../intent.md), change the
-canonical [domain vocabulary](domain.md), or authorize implementation. If approved,
-they should be incorporated through a reviewed revision of the target specification
-and any affected contracts.
+The owner approved the [self-organizing team domain model](self-organizing-team-domain-model.md)
+as the single architectural authority. The earlier proposals below are retained
+for historical context only; they must not override or supplement that model.
+In particular, the advisory-only interpretation of A8 was not adopted: approved
+A8 uses belief together with applicable evidence coverage for `Satisfied`.
+Implementation must follow the model's current definitions and consistency rules,
+not the historical mappings below. This file grants no implementation authority.
+
+## Earlier proposals (not normative)
 
 ## Acceptance and belief
 
@@ -29,9 +32,8 @@ confirmation for a material criterion change, remains an open design item.
 
 ## Canonical terminology mapping
 
-Until an approved revision incorporates these amendments, names from
-[domain.md](domain.md) retain their canonical meanings. The transferred
-specification should be read and later adapted as follows:
+The following mapping was proposed before approval. It is retained as historical
+text and does not redefine names or structures in the approved model:
 
 | Transferred specification term | Canonical interpretation and required adaptation |
 | --- | --- |

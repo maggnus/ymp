@@ -1,6 +1,18 @@
 # YMP architecture: domain model of a self-organizing agent team
 
-Status: proposal, 2026-09-14. The design is neither implemented nor tested, and the owner has not approved it. It does not authorize implementation and does not override the approved intent, the domain terminology or accepted architecture contracts. Numerical values are initial assumptions to be calibrated.
+Status: approved architecture and product scope by owner decision, 2026-09-15.
+This is the single authoritative architectural model for YMP. Approval establishes
+the development target; it does not claim that every capability is implemented,
+tested, or empirically beneficial. Numerical values remain initial assumptions
+to be calibrated. A local build or test does not authorize native model calls,
+installation, publication, or mutation of real user data.
+
+[Intent](../intent.md) explains the product purpose and user experience in terms
+of this model. [Domain language](domain.md) and [implementation notes](architecture.md)
+are subordinate explanations; [foundation](foundation.md) describes the current
+executable subset. Historical proposals, earlier implementations, and external
+research cannot override this model or add to its scope. Changes to the model
+require an explicit owner decision, such as this approval and consistency revision.
 
 The document condenses the analysis of two accepted fifteen-puzzle observation runs and the cited research into a domain model suitable for implementation. It defines entities, trusted runtime services, replaceable strategies, interaction protocols and semi-algorithms. An implementing agent:
 
@@ -8,7 +20,11 @@ The document condenses the analysis of two accepted fifteen-puzzle observation r
 2. connects them according to sections 6–7;
 3. assembles the product in the order of section 10.
 
-The proposal reuses the product vocabulary and follows an injectable-implementation approach with replaceable subsystem implementations. Kernel service and strategy names are proposed domain names; their mapping to Rust types has not been established. Isolated workspace copies (`IsolatedCopy`, `CopyOnWrite`) depend on post-foundation isolation work and are not part of the initial executable scope.
+The model follows an injectable-implementation approach with replaceable strategy
+implementations. Its domain, kernel-service, and strategy names are normative;
+mapping them to Rust types and crates is an implementation responsibility.
+Isolated workspace copies (`IsolatedCopy`, `CopyOnWrite`) remain required target
+capabilities even where the current executable does not implement them.
 
 ## 0. Notation
 
@@ -204,7 +220,8 @@ value Assumption    { text: Text; criterion: Opt<Id<Criterion>>; reason: Text }
 value Clarification { question: Text; answer: Text; at: Instant }
 
 value Constraints {
-  budget: CostUnits; verification_reserve: CostUnits; deadline: Opt<Instant>
+  budget: CostUnits; verification_reserve: CostUnits; reporting_reserve: CostUnits
+  deadline: Opt<Instant>
   pins: Pins; allowed: Set<Capability>; parallel_limit: Int; attempt_limit: Int; max_members: Int }
 value Pins { team_size: Opt<Int>; roster: Opt<Set<Id<Agent>>>; models: Opt<Set<Text>>; efforts: Opt<Set<Effort>> }
 
@@ -238,6 +255,7 @@ entity Session {
   id; task: Id<Task>; status: SessionStatus; method: Id<Method>
   team: Id<Team>; budget: Id<Budget>; plan: Opt<Id<Plan>>; board: Id<Board> }
 enum  SessionStatus = Intake | Running | Finalizing | Delivered | Blocked(Text) | Cancelled
+enum  SessionCommand = Cancel | Resume           -- explicit user controls, not TeamOperations
 
 entity Team { id; session: Id<Session>; members: List<Membership>; revision: Int }
 value Membership { agent: Id<Agent>; joined: Instant; left: Opt<Instant>; reason: Text }
@@ -288,9 +306,12 @@ enum  TeamOperation = BoardRead | NoticePost | ContributionPropose | OfferSubmit
 entity Invocation {                     -- one agent run within an assignment
   id; assignment; provider: Id<Provider>
   requested: ProfileSettings; sent: ProfileSettings; reported: ProfileSettings
-  native_session: Opt<Text>; started: Instant; ended: Opt<Instant>
-  receipt: Opt<Id<Receipt>>; terminal: Opt<Completed | Failed(ErrorClass) | Cancelled | TimedOut> }
+  native_session: Opt<Text>; started: Opt<Instant>; ended: Opt<Instant>
+  receipt: Opt<Id<Receipt>>; terminal: Opt<Completed | Failed(ErrorClass) | Cancelled | TimedOut>
+  effects: EffectState }
 enum  ErrorClass = Infrastructure | Environment | Protocol | Content | Unknown
+enum  EffectState = Pending | Active | Ended(basis: List<Ref>) | Uncertain(reason: Text)
+     -- separates authority revocation from observed ended writes or confirmed never-started execution
 
 entity Attempt {
   id; item: Id<WorkItem>; assignment: Id<Assignment>; workspace: Id<Workspace>
@@ -400,7 +421,7 @@ entity Report { id; session; claims: List<Id<Claim>>; unmet: List<Id<Criterion>>
 
 ```text
 entity Budget {
-  id; session; limit: CostUnits; verification_reserve: CostUnits
+  id; session; limit: CostUnits; verification_reserve: CostUnits; reporting_reserve: CostUnits
   spent: CostUnits; held: CostUnits; unknown_usage: Stop | Estimate }
 
 entity PriceBook { version: Text; rates: Map<(Id<Provider>, Text), Rates>; fallback: Rates }
@@ -408,7 +429,7 @@ value Rates { input: Real; cache_read: Real; cache_write: Real; output: Real }
 
 entity Reservation {
   id; budget: Id<Budget>; assignment: Id<Assignment>; amount: CostUnits
-  purpose: Production | Verification | Coordination; state: Held | Settled | Released }
+  purpose: Production | Verification | Coordination | Reporting; state: Held | Settled | Released }
 
 entity Receipt { id; invocation: Id<Invocation>; usage: Usage; coverage: Complete | Partial | Unknown; cost: Opt<CostUnits> }
 value Usage { input: Int; cache_read: Int; cache_write: Int; output: Int; reasoning: Opt<Int> }
@@ -443,6 +464,47 @@ entity Retrieval { id; assignment: Id<Assignment>; query: Text
                    included: List<(Id<Knowledge>, Digest)>; excluded: List<(Id<Knowledge>, Text)> }
 ```
 
+### 3.9. User interaction and session recovery
+
+The primary human-facing interface is an interactive TUI over deterministic
+`*View` projections and trusted application commands. It supports task intake,
+clarification, progress, agent interaction, resource inspection, interruption,
+recovery, and results. Its layout and exact command vocabulary may evolve;
+Ratatui and the broad chat/commands/information-panel direction do not prescribe
+a fixed screen design. Product development prioritizes useful communication and
+self-organization over visual polish. Presentation never owns domain state or
+grants authority.
+
+`SessionCommand` names the minimum explicit user controls needed to interrupt and
+continue work. They arrive through a trusted application entry point with an
+expected journal revision; an agent notice or grant cannot impersonate the user.
+`Dispatcher.control` routes them through the same kernel checks as normal work:
+
+- `Cancel` from `Intake`, `Running`, `Finalizing`, or `Blocked` stops new production,
+  verification and coordination admissions, revokes grants, and requests
+  cancellation of active invocations. Only bounded reporting and non-model
+  observation/recovery remain available until a permitted Resume.
+  It reaches `Cancelled` when relevant effects have ended or execution is
+  confirmed never started; otherwise it records `Blocked("effects_uncertain")`.
+  A cancellation request never fabricates an invocation termination or rollback.
+- `Resume` from `Cancelled` or `Blocked` reconstructs the same task, criteria,
+  journal, budget, spent/held amounts, receipts, results, and holds. If a live
+  invocation can be reattached, observe it without starting a second invocation;
+  unsupported reattachment or unresolved conflicting effects keeps work blocked.
+  Resume into `Running` requires resolved recovery conditions and fresh eligibility,
+  budget and access checks. New assignments receive new grants and commitments;
+  an old revoked grant cannot be revived. `Delivered` is not reopened by Resume.
+- Restart reconstructs durable state without automatically admitting work or
+  assuming that a disconnected invocation ended. Duplicate controls at stale
+  revisions are denied; repeated observations and settlements do not repeat effects.
+
+`EffectState` records the knowledge needed for safe recovery. Native start failure,
+stream loss, elapsed time, a cancellation request, or an exited parent process
+alone cannot establish `Ended`. The kernel validates attributable evidence of
+ended writes or never-started execution. Only then may `WorkspaceGuard` release
+the corresponding locks. `Treasury` independently settles usage or releases a
+confirmed never-started reservation; unknown usage follows A13.
+
 ## 4. Trusted runtime services (kernel)
 
 Strategies cannot replace kernel services. Every kernel operation either records an event or returns `Denied`.
@@ -460,15 +522,17 @@ kernel Registry {                                  -- agent registry
 }
 
 kernel Treasury {                                  -- budget accounting
-  open(session, limit, verification_reserve) -> Id<Budget>
+  open(session, limit, verification_reserve, reporting_reserve) -> Id<Budget>
   reserve(assignment, amount, purpose) -> Result<Reservation> -- R-7, R-8
   settle(receipt) -> CostUnits                     -- through port CostModel; releases the unused reservation
+  release_unstarted(assignment, basis: List<Ref>) -> Result<()> -- only verified never-started work
   remaining(purpose) -> CostUnits
 }
 
 kernel WorkspaceGuard {                            -- workspace control
   open(kind, base: Opt<Id<Snapshot>>) -> Workspace -- through port WorkspaceProvider
   lock(assignment, paths, mode) -> Result<()>      -- only one assignment may write a given path
+  release(assignment, basis: List<Ref>) -> Result<()> -- only verified ended effects or never-started work
   snapshot(workspace) -> Snapshot
   merge(result: ResultVersion, target: Workspace) -> Result<Snapshot>
 }
@@ -479,7 +543,9 @@ kernel Gatekeeper {                                -- admission
     -- role independence (R-4, R-5, R-10); Treasury.reserve; WorkspaceGuard.lock;
     -- parallel_limit; attempt_limit.
     -- creates: Assignment, Grant, Commitment(Active, Lease)
-  revoke(assignment, reason) -> ()                 -- revokes the Grant; releases the reservation and locks
+  revoke(assignment, reason) -> ()                 -- revokes Grant immediately; retains unresolved holds
+    -- Dispatcher requests ExecutionBackend.cancel and observes effects.
+    -- WorkspaceGuard.release and Treasury.settle/release_unstarted have independent evidence conditions.
 }
 
 kernel Arbiter {                                   -- board arbitration
@@ -512,6 +578,8 @@ kernel ExperienceVault {                           -- experience store
 
 kernel Dispatcher {                                -- session loop
   run(session) -> Report                           -- algo A1; the only component that calls strategies
+  control(session, command: SessionCommand, expected_revision) -> Result<SessionView>
+    -- routes the user control and recovery sequence of section 3.9 through kernel services
 }
 ```
 
@@ -555,8 +623,9 @@ port Planner {                                     -- role Planner
 port ContributionPolicy { next(ledger, board_view, budget_view, method) -> List<Proposal<Contribution>> }
      -- Default: OrdinalValue; Alt: VocValue (calibrated forecasts), FixedWorkflow
 
-port BeliefModel { update(entry: LedgerEntry, evidence: List<Evidence>, criterion) -> LedgerEntry }
+port BeliefModel { update(entry: LedgerEntry, evidence: List<Evidence>, criterion, subject: Ref) -> LedgerEntry }
      -- Default: LikelihoodRatioTable (algo A8)
+     -- the kernel supplies the version-bound result/snapshot currently assessed for this criterion
 ```
 
 ### 5.3. Self-organization
@@ -650,7 +719,9 @@ port ContextComposer { prompt(assignment, retrieval, handoff: Opt<ContextDigest>
      -- Default: CriteriaProjection + JournalDigest: criterion texts and visible checks;
      --          hidden checks excluded (R-10); a condensed decision history instead of the full journal
 
-port NarrativeComposer { compose(session_view) -> Proposal<Report> }     -- role Narrator
+port NarrativeComposer { compose(session_view) -> Proposal<Report> }
+     -- Default: admitted Narrator assignment, charged to Reporting
+     -- Alt/fallback: DeterministicReport from recorded state, with no model invocation
 
 port ClaimAuditor { audit(claim, evidence_view) -> Valid | Unsupported(Text) }
      -- Default: EvidenceClassRules (algo A11)
@@ -660,7 +731,8 @@ port WorkspaceProvider { open(kind, base) -> Workspace; merge(result, target) ->
 
 port ExecutionBackend {
   start(assignment, prompt, grant, allowance) -> Handle
-  cancel(handle) -> ()
+  cancel(handle) -> ()                    -- requests cancellation; does not prove termination or ended writes
+  effects(handle) -> EffectState         -- an observation; only kernel validation permits hold release
   events(handle) -> Stream<ProgressSignal | ToolDenied(Capability) | Output>
   receipt(handle) -> Receipt }
      -- implementations: Codex, Claude, Glm, Scripted
@@ -766,9 +838,12 @@ Applies to IndependentAttempts and to CheckDesigner assignments:
 
 ```text
 algo run(session):
+  # Resume continues at the recorded boundary; do not repeat committed intake,
+  # native starts, settlements or finalization. Unknown external effects require recovery first.
   # 1. Readiness and budget, without a model call
   pool ← Registry.pool(constraints)                     -- unready agents excluded with a typed reason
-  Treasury.open(session, constraints.budget, constraints.verification_reserve)
+  Treasury.open(session, constraints.budget, constraints.verification_reserve, constraints.reporting_reserve)
+  -- open once for a new session; Resume reuses the existing budget and every spent/held amount
 
   # 2. Intake
   a_plan ← admit(Contribution{kind: Plan}, role Planner)
@@ -781,6 +856,7 @@ algo run(session):
 
   # 3. Work loop over work boundaries
   loop:
+    if an accepted Cancel has not been superseded by a successful Resume: break
     ledger ← AcceptanceAuthority.ledger(session)                    -- A8
     if ∀ required k: ledger[k].status = Satisfied: break
     rec ← ProgressMonitor.assess(ledger, progress_ledger, history)  -- A9
@@ -794,7 +870,7 @@ algo run(session):
     if no running assignments ∧ (candidates = ∅
        ∨ Treasury.remaining(Verification) < minimum verification cost of unmet criteria): break   -- stop rule, A13
     for c in candidates: solicit_and_award(c)                       -- P1
-    wait until: an invocation ends ∨ a board event ∨ a lease expires ∨ ConsequenceSource
+    wait until: an invocation ends ∨ a board event ∨ a lease expires ∨ ConsequenceSource ∨ a user control
     for finished assignment a:
         Treasury.settle(ExecutionBackend.receipt(a))
         match a.role:
@@ -805,10 +881,16 @@ algo run(session):
     for expired in Arbiter.tick(now): FailureDiagnoser(...); reopen the contribution
 
   # 4. Completion
-  finalize(session)                                                 -- A11
+  cancellation_requested ← an accepted Cancel not superseded by a successful Resume
+  if not cancellation_requested:
+    finalize(session) if effects permit a stable final snapshot      -- A11
+      otherwise session.status ← Blocked("effects_uncertain")
+    finalization denied(reason) → session.status ← Blocked(reason)
+  -- Under Cancel, keep the Cancelled/Blocked state from section 3.9; do not admit final reviewers.
   report ← compose_and_audit(session)                               -- A11
-  deliver(report); session.status ← Delivered | Blocked(reason)
-  spawn async learn(session)                                        -- A12, R-15
+  deliver(report); preserve Cancelled/Blocked, otherwise session.status ← Delivered
+  if not cancellation_requested ∧ session.status = Delivered:
+    spawn async learn(session) only within remaining unprotected budget -- A12, R-15
 ```
 
 ### A1.1. Cascading method choice: CascadeRouter
@@ -939,15 +1021,20 @@ algo regrade(consequence):
 ### A8. Criteria ledger: BeliefModel LikelihoodRatioTable
 
 ```text
-algo update(entry, evidence, criterion):
+algo update(entry, evidence, criterion, subject):
+  evidence ← only records applicable to the assessed criterion, current result/snapshot,
+              check version and execution environment; superseded or unrelated evidence is excluded
   if ∃ e: e.polarity = Contradicts ∧ e.class ∈ {Executed, Browser, ExternalData}:
       return { status: Contradicted, belief: 0 }
-  prior ← 0.5 or the planner's Forecast;  odds ← prior / (1 − prior)
-  for each group g of Supports evidence with the same (independence, class, discrimination):
+  supporting ← applicable evidence with polarity = Supports
+  prior ← 0.5 or the planner's Forecast; require finite 0 < prior < 1
+  odds ← prior / (1 − prior)
+  for each group g of supporting evidence with the same (independence, class, discrimination):
       odds ← odds · LR(g)             -- repeated evidence of one group is correlated and counts once
   belief ← odds / (1 + odds)
   τ ← (criterion.kind = Quality) ? τ_quality : τ_behavior
-  status ← Satisfied if belief ≥ τ ∧ the classes in criterion.needs_class are covered
+  status ← Satisfied if belief ≥ τ ∧ supporting is nonempty
+                       ∧ criterion.needs_class ⊆ {e.class : e ∈ supporting}
            Supported if belief ≥ τ_support
            Unmet     otherwise
 
@@ -963,6 +1050,13 @@ Initial LR values (calibrated from observations):
 ```
 
 With these values, producer-authored checks, static reads and reviewer approval together give belief 0.71 and do not move a behavioral criterion to `Satisfied`. A3 therefore requests an independent executable check.
+
+Belief participates in criterion satisfaction exactly as A8 specifies; it is not
+merely advisory. A forecast alone cannot satisfy a criterion, provide a
+`ConfirmationGrade`, or create competence credit. A7 separately requires
+independent approval and applies evidence-based grading; A12 separately applies
+`CreditPolicy`. A7 acceptance without stronger confirmation remains explicitly
+`Unconfirmed`, and unmet criteria remain visible in the report.
 
 ### A9. Progress, diagnosis and escalation
 
@@ -1022,6 +1116,8 @@ algo independent_attempts(item, k):
 
 ```text
 algo finalize(session):
+  if any invocation can still change the aggregate workspace, including revoked or disconnected work:
+      return Blocked("effects_uncertain") without snapshot, merge or final acceptance
   integrated ← WorkspaceGuard.snapshot(target) after all merges
   rerun all applicable checks on integrated (role Candidate)
   producers ← ∪ producer(accepted versions)
@@ -1030,7 +1126,7 @@ algo finalize(session):
   AcceptanceAuthority.accept(aggregate, [final_review], evidence(integrated))
 
 algo compose_and_audit(session) -> Report:
-  report ← NarrativeComposer.compose(session_view)
+  report ← NarrativeComposer.compose(session_view) using a bounded Reporting assignment
   for claim in report.claims: ClaimAuditor.audit(claim, evidence_view)     -- EvidenceClassRules
      Status "accepted"                  → reference to the Acceptance and its confirmation grade
      "renders", "works in the browser"  → Browser-class evidence
@@ -1038,10 +1134,22 @@ algo compose_and_audit(session) -> Report:
      Causal "X fixed Y"                 → two CheckRuns of the same check on before and after with the same env
      Scope "always", "for all"          → a Property check; otherwise the wording narrows to the verified scope
      Recommendation                     → reference to a diagnosis or an unmet criterion
-  Unsupported → one NarrativeComposer revision; Unsupported again → the claim is replaced by an uncertainty note
+  Unsupported → at most one NarrativeComposer revision within the remaining Reporting reserve
+  unavailable/failed narrator or insufficient reserve → DeterministicReport from recorded state
+  Unsupported after the allowed revision or in the fallback → replace the claim by an uncertainty note
   report.unmet ← required criteria without Satisfied status; report.assumptions ← Goal.assumptions
   return report                                                            -- A1 delivers it before learning starts (R-15)
 ```
+
+The reporting reserve covers initial narration and its one bounded correction.
+Reporting cannot start production, consume the verification reserve, or inspect
+an unstable workspace as a completed result. A blocked or cancelled session still
+gets a report of known results, expenses, unmet criteria, and unresolved effects.
+The deterministic fallback uses the same claim audit and records its policy; it
+does not infer acceptance, confirmation, or termination. Narration and correction
+receipts are settled or conservatively held before `ReportDelivered`, so the
+report can reference their accounted expenses and unknowns. This does not change
+the result being assessed or require another model call to describe the accounting.
 
 ### A12. Experience: reputation, calibration, knowledge and consequences
 
@@ -1082,15 +1190,30 @@ algo cost(receipt, pricebook):                                     -- PriceWeigh
   return r.input·uncached + r.cache_read·cache_read + r.cache_write·cache_write + r.output·output
   -- fallback in relative units: input 1, cache_read 0.1, cache_write 1.25, output 4
   coverage = Unknown:
-     unknown_usage = Stop     → new admissions are denied, except Verification within the reserve
+     unknown_usage = Stop     → new admissions are denied, except Verification and Reporting within their reserves
      unknown_usage = Estimate → cost = allowance.cost
+  -- Partial coverage without a defensible complete cost is treated conservatively as Unknown.
+  -- Stop keeps the unresolved amount held; an estimate must stay labeled as estimated.
 
 algo reserve(assignment, amount, purpose):                         -- Treasury
-  Production | Coordination: spent + held + amount ≤ limit − verification_reserve
-  Verification:              spent + held + amount ≤ limit
+  -- At session opening: limit and both reserves are finite and nonnegative;
+  -- verification_reserve + reporting_reserve ≤ limit. Reporting capacity covers
+  -- the selected bounded narration/correction plan or its deterministic fallback.
+  require spent + held + amount ≤ limit
+  Production | Coordination: spent + held + amount ≤ limit − verification_reserve − reporting_reserve
+  Verification:              spent + held + amount ≤ limit − reporting_reserve
+  Reporting:                 spent_reporting + held_reporting + amount ≤ reporting_reserve
+  -- Reporting is only narration/claim correction after work/finalization stops; it cannot extend production.
+  -- Per-purpose spent/held amounts are projections of reservations and settlement events.
   otherwise Denied("budget")
 
-algo settle(receipt): spent += cost(receipt); held −= reservation.amount; the remainder is released
+algo settle(receipt): once for its invocation/reservation, spent += cost(receipt);
+                     held −= reservation.amount; the unused remainder is released
+  -- A repeated matching receipt is idempotent; conflicting receipt data is denied.
+  -- Idempotence applies to committed settlements; an unsettled Unknown observation
+  -- may be resolved by a later attributable receipt before settlement is committed.
+  -- Unknown cost never becomes zero: retain the hold under Stop or settle the labeled allowance estimate.
+  -- Revocation alone does not settle usage. Only verified never-started work releases without a receipt.
 
 stop rule (in A1): no running assignments ∧ (max score (A3) < θ_min
                    ∨ Treasury.remaining(Verification) < minimum verification cost of unmet criteria)
@@ -1106,7 +1229,8 @@ R-3  An assignment does not violate Pins or Constraints
 R-4  A Reviewer is not the producer of the result version under review
 R-5  The FinalReviewer is not among the producers of the final result; without such an agent the session is Blocked
 R-6  An applicable executable check with outcome Fail overrides any approvals
-R-7  The verification reserve is unavailable to Production and Coordination contributions
+R-7  Production and Coordination cannot consume verification or reporting reserves;
+     Verification cannot consume the reporting reserve; Reporting is bounded by its own remaining reserve
 R-8  Every invocation is charged to the session budget, including coordination, verification, learning and reporting
 R-9  contribution.needs ⊆ the actual permissions of the assignment
 R-10 Hidden checks and their data never enter producer context;
@@ -1121,6 +1245,10 @@ R-15 Learning and knowledge preparation do not delay report delivery
 R-16 Accepted result versions are immutable; an agent failure or assignment revocation does not remove accepted work
 R-17 Every decision is reconstructable from Journal: input view digest, strategy, proposal and decision
 R-18 Knowledge retains provenance, scope and basis; only a stronger basis supersedes it
+R-19 Revocation is not termination: conflicting workspace holds persist until validated ended-effects
+     or never-started evidence; financial holds persist until conservative settlement or verified non-execution
+R-20 Explicit recovery preserves the session's task, accepted results, spent/held resources and history;
+     it cannot revive a revoked grant, duplicate an invocation, or reset a budget
 ```
 
 ## 9. Journal events
@@ -1144,7 +1272,7 @@ InvocationStarted · InvocationEnded · ReceiptSettled · ResultSubmitted · Evi
 ObjectionRaised · ObjectionResolved · AcceptanceRecorded · Regraded · LedgerUpdated
 ProgressAssessed · Diagnosed · Escalated · TeamChanged · NoticePosted · HandoffCreated · ReportDelivered
 ObservationRecorded · ReputationUpdated · CalibrationRecorded · KnowledgeChanged · TrialRecorded
-RetrievalRecorded · ConsequenceIngested
+RetrievalRecorded · ConsequenceIngested · InvocationEffectsObserved · SessionControlRecorded · SessionStateChanged
 ```
 
 ## 10. Build order
@@ -1212,6 +1340,14 @@ P6:  cost_interrupt                     ProfilePolicy: p_target
 
 ## 12. Open decisions
 
-- The owner decides which confirmation grades are creditable (`CreditPolicy`), including whether `Discriminated` counts.
+The architecture is approved. The remaining choices concern implementation,
+calibration and optional experimental policies, not whether the model is binding.
+
+- The approved default `CreditPolicy` credits `Confirmed(*)` only. `Discriminated`
+  remains an experimental alternative requiring a separate owner decision before
+  it can affect production reputation. This does not block implementation of the default.
 - Numerical values in A4, A8, A13 and section 10.1 are initial assumptions; their effect requires calibration before any claim.
-- Proposed next step: after the `CreditPolicy` decision, plan stages 1–5 as separate tasks.
+- Concrete Rust boundaries, storage/adapters, supported native protocols and
+  evolving TUI presentation are implementation choices within this approved model.
+  The protected reporting reserve, recovery evidence rules and A8 evidence guard
+  are architectural requirements, not options to be silently dropped.

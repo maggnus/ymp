@@ -7,24 +7,25 @@ and acceptance.
 ## Product definition
 
 - [Intent](intent.md) defines the purpose and product principles.
-- [Domain](ymp-docs/domain.md) defines the canonical names.
-- [Architecture](ymp-docs/architecture.md) defines responsibility and dependency boundaries.
+- [Self-organizing team domain model](ymp-docs/self-organizing-team-domain-model.md) is the owner-approved, single authoritative architecture and product scope.
+- [Domain](ymp-docs/domain.md) is a companion vocabulary and explains foundation API names.
+- [Implementation architecture notes](ymp-docs/architecture.md) describe existing responsibility and dependency boundaries under the approved model.
 - [Foundation contract](ymp-docs/foundation.md) defines the current executable scope.
 - [Roadmap](ymp-docs/roadmap.md) describes ordered product outcomes and links their task records.
-- [Self-organizing team domain model](ymp-docs/self-organizing-team-domain-model.md) is the unapproved target specification behind later roadmap stages; it does not override the current contracts.
-- [Proposed domain-model amendments](ymp-docs/domain-model-amendments.md) record three changes that remain pending owner approval.
+- [Historical domain-model amendments](ymp-docs/domain-model-amendments.md) retain earlier proposals without normative authority.
 - [Development task workflow](ymp-docs/development-tasks.md) defines the canonical file-based task register.
 - [Development task guide](ymp-docs/tasks/README.md) documents bounded task selection and updates.
 - [Contributing](CONTRIBUTING.md) describes development and verification.
 
 ## Foundation
 
-The current implementation validates task contracts, opens and cancels in-memory
-sessions through the kernel, and rejects malformed journal histories.
-
-The foundation does not execute agents or tasks, discover providers, persist state,
-provide a terminal UI, or expose MCP. An empty `Constraints` value means only that
-no conditions were supplied; it grants no execution authority.
+The current implementation validates task contracts, persists and replays session
+history, and supports one bounded native Codex invocation with optional preliminary
+command-check evidence through `run` and `show`. The
+[foundation contract](ymp-docs/foundation.md) states its limits. The complete
+self-organizing team, final result acceptance, experience and interactive TUI
+remain development targets. An empty foundation `Constraints` value means only
+that no conditions were supplied; it grants no execution authority.
 
 ## Command line
 
@@ -33,8 +34,8 @@ cargo run --offline -p ymp-cli --bin ymp -- --help
 cargo run --offline -p ymp-cli --bin ymp -- --version
 ```
 
-No arguments are equivalent to `--help`. Every unsupported or additional argument
-returns a nonzero exit status.
+No arguments are equivalent to `--help`. Unsupported or malformed arguments
+return a nonzero exit status; supported command forms are listed by `--help`.
 
 ## Library example
 

@@ -1,8 +1,11 @@
 # Domain language
 
-This document is the canonical vocabulary for product documents and code. Names
-identify responsibilities; a Rust crate is an implementation boundary and may
-contain several closely related responsibilities.
+This is a companion vocabulary and an explanation of some foundation API names.
+The approved [self-organizing team model](self-organizing-team-domain-model.md)
+owns normative names, structures and semantics. This summary cannot override it;
+in particular, foundation API shapes need not yet implement the full target model.
+Names identify responsibilities; a Rust crate is an implementation boundary and
+may contain several closely related responsibilities.
 
 ## Task and work
 
@@ -48,13 +51,15 @@ assignment. Requested, sent and reported native settings retain their own meanin
 | `CriterionEvaluation` | A per-criterion projection of observed check evidence as satisfied, failed or not evaluated; it is not an `Acceptance` decision. |
 | `Review` | An independent assessment of a result with its recorded basis. |
 | `Acceptance` | The kernel's decision about a result under its contract. |
-| `Confirmation` | Independent deterministic or external support for accepted work. |
+| `ConfirmationGrade` | The model's `Refuted`, `Unconfirmed`, `Discriminated` or `Confirmed(basis)` classification of an acceptance's evidence. |
+| `Confirmation` | Explanatory foundation terminology for confirmation; the approved target represents its strength and basis with `ConfirmationGrade`. |
 | `Knowledge` | A retained finding with scope, provenance and supporting evidence. |
 | `Reputation` | An estimate based on qualified outcomes attributable to an agent's execution profile. |
 
-Acceptance does not imply confirmation. Missing confirmation is not a failed check,
-and an unknown state is not false. A probability estimate may guide work selection;
-it does not satisfy a required criterion by itself.
+Acceptance does not imply a `Confirmed` grade. Missing confirmation is not a failed
+check, and an unknown state is not false. A8 uses belief and applicable evidence
+coverage together for criterion satisfaction; probability alone is insufficient.
+A7 governs acceptance and grades separately, and A12 governs competence credit.
 
 `CriterionEvaluation` is named separately because the executable foundation can
 report what a check observed before it implements immutable `ResultVersion`

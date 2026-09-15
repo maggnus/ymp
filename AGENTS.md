@@ -3,10 +3,14 @@
 The application and executable are named `ymp`. Product documents, code comments,
 examples and user-facing strings are written in English.
 
-Read `intent.md` before changing product behavior. `ymp-docs/domain.md` owns the
-canonical vocabulary, `ymp-docs/architecture.md` owns subsystem boundaries, and
-`ymp-docs/foundation.md` defines the current executable scope. Use their names in
-code. Add a new domain term only with a corresponding definition and rationale.
+Read `intent.md` and `ymp-docs/self-organizing-team-domain-model.md` before changing
+product behavior. The latter is the owner-approved, single authoritative source
+of architecture, domain names and product scope. `ymp-docs/domain.md` and
+`ymp-docs/architecture.md` are subordinate vocabulary and implementation notes;
+`ymp-docs/foundation.md` describes the current executable subset. These documents,
+historical amendments and previous iterations cannot override the approved model.
+Use the model's names in code. Add a domain term only with its definition and
+rationale in the model; architectural changes require an explicit owner decision.
 
 Keep this repository self-contained. Dependencies between workspace crates use
 relative paths inside the repository. Do not introduce machine-specific source

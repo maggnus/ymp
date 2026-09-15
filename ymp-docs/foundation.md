@@ -1,5 +1,10 @@
 # Executable foundation contract
 
+This document describes the delivered executable subset. The approved
+[self-organizing team model](self-organizing-team-domain-model.md) defines the
+full target architecture and scope; implementation details here do not narrow
+or override it. Target approval does not make unimplemented features delivered.
+
 This contract began as the first implementation outcome and now owns the current
 executable command scope. YMP validates tasks, records a trusted lifecycle, can
 persist one admitted native invocation, and can replay that history after a

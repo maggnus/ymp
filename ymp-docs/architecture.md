@@ -1,4 +1,10 @@
-# Architecture
+# Implementation architecture notes
+
+The approved [self-organizing team model](self-organizing-team-domain-model.md)
+is the single authoritative architecture and product scope. This document
+describes implementation boundaries and existing mechanics; it does not define
+an alternative target or override the model. Approval of the target is separate
+from delivery of its current executable subset.
 
 ## Responsibility
 
@@ -63,7 +69,7 @@ effect evidence.
 
 Unknown resource usage is not zero. All admitted work, including coordination,
 failed attempts, verification and learning, belongs to the session's accounting.
-Reservations protect concurrent admission and verification capacity; they do not
+Reservations protect concurrent admission, verification and reporting capacity; they do not
 promise native limits that the provider cannot enforce.
 
 ## Acceptance
@@ -90,8 +96,8 @@ failure causes, invocation attribution and incomplete observations.
 
 Durable session state, one bounded native Codex invocation and preliminary
 criterion evaluation by a caller-supplied command are implemented. Immutable
-result capture and final checked-result acceptance, public MCP over stdio and an
-interactive terminal UI remain separate planned capabilities. Their absence is
+result capture, final checked-result acceptance and an interactive terminal UI
+remain target capabilities. Their absence is
 explicit in the foundation and command-line output. The product exposes one native
 executable; development tools are not automatically application runtime
 dependencies.

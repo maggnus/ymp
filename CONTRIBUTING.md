@@ -1,12 +1,15 @@
 # Contributing
 
-Read `AGENTS.md`, `intent.md`, `ymp-docs/domain.md`,
-`ymp-docs/architecture.md`, and `ymp-docs/foundation.md` before changing product
-behavior. Keep product prose, code comments, examples, and user-facing strings in
-English.
+Read `AGENTS.md`, `intent.md`, and the approved
+`ymp-docs/self-organizing-team-domain-model.md` before changing product behavior.
+The model is the single architectural authority; `ymp-docs/domain.md`,
+`ymp-docs/architecture.md`, and `ymp-docs/foundation.md` explain terminology,
+implementation boundaries and the delivered subset. Keep product prose, code
+comments, examples, and user-facing strings in English.
 
-The workspace requires Rust 1.89.0 and uses only the standard library. Keep crate
-dependencies aligned with `ymp-docs/architecture.md`, use relative workspace paths,
+The workspace specifies its Rust toolchain and dependencies in the checked-in
+toolchain and Cargo manifests. Keep crate dependencies aligned with the approved
+model and its implementation notes, use relative workspace paths,
 and do not introduce machine-specific configuration or undisclosed services.
 
 Repository development tasks use Python 3.11 or newer and the standard library.
