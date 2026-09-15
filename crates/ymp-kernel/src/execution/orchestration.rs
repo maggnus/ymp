@@ -862,6 +862,10 @@ where
                     accumulation.turns_capped = true;
                 }
             }
+            ExecutionObservation::RetryObserved { .. } => {
+                // The provider owns this retry within the current invocation.
+                // It neither resets accumulated limits nor terminates work.
+            }
             ExecutionObservation::Terminated {
                 termination: observed,
             } => {

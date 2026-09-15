@@ -947,6 +947,12 @@ pub struct ObservedUsage {
     turns: Option<u64>,
     output_chars: Option<u64>,
     wall_clock: Option<Duration>,
+    input_tokens: Option<u64>,
+    output_tokens: Option<u64>,
+    cache_read_tokens: Option<u64>,
+    cache_write_tokens: Option<u64>,
+    reasoning_tokens: Option<u64>,
+    partial: bool,
 }
 
 impl ObservedUsage {
@@ -956,6 +962,12 @@ impl ObservedUsage {
             turns: None,
             output_chars: None,
             wall_clock: None,
+            input_tokens: None,
+            output_tokens: None,
+            cache_read_tokens: None,
+            cache_write_tokens: None,
+            reasoning_tokens: None,
+            partial: false,
         }
     }
 
@@ -974,6 +986,38 @@ impl ObservedUsage {
         self
     }
 
+    pub const fn with_input_tokens(mut self, input_tokens: u64) -> Self {
+        self.input_tokens = Some(input_tokens);
+        self
+    }
+
+    pub const fn with_output_tokens(mut self, output_tokens: u64) -> Self {
+        self.output_tokens = Some(output_tokens);
+        self
+    }
+
+    pub const fn with_cache_read_tokens(mut self, cache_read_tokens: u64) -> Self {
+        self.cache_read_tokens = Some(cache_read_tokens);
+        self
+    }
+
+    pub const fn with_cache_write_tokens(mut self, cache_write_tokens: u64) -> Self {
+        self.cache_write_tokens = Some(cache_write_tokens);
+        self
+    }
+
+    pub const fn with_reasoning_tokens(mut self, reasoning_tokens: u64) -> Self {
+        self.reasoning_tokens = Some(reasoning_tokens);
+        self
+    }
+
+    /// Marks known counts as incomplete. The flag is sticky when later
+    /// observations are merged.
+    pub const fn with_partial(mut self, partial: bool) -> Self {
+        self.partial = partial;
+        self
+    }
+
     pub const fn turns(&self) -> Option<u64> {
         self.turns
     }
@@ -984,6 +1028,30 @@ impl ObservedUsage {
 
     pub const fn wall_clock(&self) -> Option<Duration> {
         self.wall_clock
+    }
+
+    pub const fn input_tokens(&self) -> Option<u64> {
+        self.input_tokens
+    }
+
+    pub const fn output_tokens(&self) -> Option<u64> {
+        self.output_tokens
+    }
+
+    pub const fn cache_read_tokens(&self) -> Option<u64> {
+        self.cache_read_tokens
+    }
+
+    pub const fn cache_write_tokens(&self) -> Option<u64> {
+        self.cache_write_tokens
+    }
+
+    pub const fn reasoning_tokens(&self) -> Option<u64> {
+        self.reasoning_tokens
+    }
+
+    pub const fn is_partial(&self) -> bool {
+        self.partial
     }
 
     /// Merges a later observation into this one. Cumulative counters advance
@@ -1003,7 +1071,21 @@ impl ObservedUsage {
         if self.wall_clock.is_none() {
             self.wall_clock = later.wall_clock;
         }
+        self.input_tokens = greater_known(self.input_tokens, later.input_tokens);
+        self.output_tokens = greater_known(self.output_tokens, later.output_tokens);
+        self.cache_read_tokens = greater_known(self.cache_read_tokens, later.cache_read_tokens);
+        self.cache_write_tokens = greater_known(self.cache_write_tokens, later.cache_write_tokens);
+        self.reasoning_tokens = greater_known(self.reasoning_tokens, later.reasoning_tokens);
+        self.partial |= later.partial;
         self
+    }
+}
+
+const fn greater_known(earlier: Option<u64>, later: Option<u64>) -> Option<u64> {
+    match (earlier, later) {
+        (Some(earlier), Some(later)) => Some(if earlier > later { earlier } else { later }),
+        (known @ Some(_), None) | (None, known @ Some(_)) => known,
+        (None, None) => None,
     }
 }
 
@@ -1014,13 +1096,20 @@ impl fmt::Display for ObservedUsage {
         };
         write!(
             formatter,
-            "turns {}, output characters {}, wall clock {}",
+            "turns {}, output characters {}, wall clock {}, input tokens {}, output tokens {}, \
+             cache-read tokens {}, cache-write tokens {}, reasoning tokens {}, partial {}",
             render(self.turns),
             render(self.output_chars),
             self.wall_clock.map_or_else(
                 || "unknown".to_owned(),
                 |duration| format!("{} ms", duration.as_millis())
-            )
+            ),
+            render(self.input_tokens),
+            render(self.output_tokens),
+            render(self.cache_read_tokens),
+            render(self.cache_write_tokens),
+            render(self.reasoning_tokens),
+            self.partial,
         )
     }
 }
@@ -1090,5 +1179,33 @@ impl fmt::Display for InvocationStatus {
             Self::Terminated => "terminated",
         };
         formatter.write_str(name)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::ObservedUsage;
+
+    #[test]
+    fn usage_merge_keeps_greatest_counts_and_partial_state() {
+        let earlier = ObservedUsage::unknown()
+            .with_input_tokens(20)
+            .with_output_tokens(8)
+            .with_cache_read_tokens(10);
+        let later = ObservedUsage::unknown()
+            .with_input_tokens(18)
+            .with_output_tokens(12)
+            .with_cache_write_tokens(3)
+            .with_reasoning_tokens(4)
+            .with_partial(true);
+
+        let merged = earlier.merge_later(later);
+
+        assert_eq!(merged.input_tokens(), Some(20));
+        assert_eq!(merged.output_tokens(), Some(12));
+        assert_eq!(merged.cache_read_tokens(), Some(10));
+        assert_eq!(merged.cache_write_tokens(), Some(3));
+        assert_eq!(merged.reasoning_tokens(), Some(4));
+        assert!(merged.is_partial());
     }
 }

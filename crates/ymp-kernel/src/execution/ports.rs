@@ -572,6 +572,7 @@ impl Gatekeeper for PolicyGatekeeper {
 pub struct BackendInvocation {
     invocation: InvocationId,
     agent: AgentId,
+    session: Option<String>,
     sent_settings: Settings,
     workspace_accesses: Vec<WorkspaceAccess>,
     limits: InvocationLimits,
@@ -588,6 +589,7 @@ impl BackendInvocation {
         Self {
             invocation,
             agent,
+            session: None,
             sent_settings,
             workspace_accesses,
             limits,
@@ -600,6 +602,17 @@ impl BackendInvocation {
 
     pub fn agent(&self) -> &AgentId {
         &self.agent
+    }
+
+    /// Selects a native session to resume. Absence requests a new native
+    /// session; the value is provider metadata, not a YMP [`SessionId`].
+    pub fn with_session(mut self, session: impl Into<String>) -> Self {
+        self.session = Some(session.into());
+        self
+    }
+
+    pub fn session(&self) -> Option<&str> {
+        self.session.as_deref()
     }
 
     pub fn sent_settings(&self) -> &Settings {
@@ -702,6 +715,13 @@ pub enum ExecutionObservation {
     SettingsReported { settings: Settings },
     /// Usage the backend reports while in flight.
     UsageObserved { usage: ObservedUsage },
+    /// The provider is retrying the same native turn. This is progress
+    /// evidence only and is never a termination observation.
+    RetryObserved {
+        session: String,
+        turn: String,
+        error_code: Option<String>,
+    },
     /// A termination observation delivered by the stream.
     Terminated { termination: Termination },
     /// The backend reports that this invocation's writes to the held scope
@@ -717,6 +737,7 @@ pub enum ExecutionObservation {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Receipt {
     termination: Termination,
+    session: Option<String>,
     reported_settings: Option<Settings>,
     usage: ObservedUsage,
     writes_ended: bool,
@@ -731,6 +752,7 @@ impl Receipt {
     ) -> Self {
         Self {
             termination,
+            session: None,
             reported_settings,
             usage,
             writes_ended,
@@ -739,6 +761,16 @@ impl Receipt {
 
     pub fn termination(&self) -> &Termination {
         &self.termination
+    }
+
+    /// Adds the native session identifier reported by the provider.
+    pub fn with_session(mut self, session: impl Into<String>) -> Self {
+        self.session = Some(session.into());
+        self
+    }
+
+    pub fn session(&self) -> Option<&str> {
+        self.session.as_deref()
     }
 
     pub fn reported_settings(&self) -> Option<&Settings> {
@@ -798,4 +830,33 @@ pub trait ExecutionBackend: Send {
 
     /// The backend's final report for one invocation, if it has one.
     fn receipt(&mut self, invocation: &InvocationId) -> Option<Receipt>;
+}
+
+#[cfg(test)]
+mod tests {
+    use std::time::Duration;
+
+    use super::{BackendInvocation, Receipt};
+    use crate::execution::{
+        AgentId, InvocationId, InvocationLimits, ObservedUsage, Settings, Termination,
+    };
+
+    #[test]
+    fn native_session_is_optional_and_preserved_by_invocation_and_receipt() {
+        let invocation = BackendInvocation::new(
+            InvocationId::new("invocation-1").expect("valid invocation ID"),
+            AgentId::new("agent-1").expect("valid agent ID"),
+            Settings::new(),
+            Vec::new(),
+            InvocationLimits::new(1, 1, Duration::from_secs(1)).expect("valid limits"),
+        );
+        assert_eq!(invocation.session(), None);
+        let invocation = invocation.with_session("native-session-1");
+        assert_eq!(invocation.session(), Some("native-session-1"));
+
+        let receipt = Receipt::new(Termination::Completed, None, ObservedUsage::unknown(), true);
+        assert_eq!(receipt.session(), None);
+        let receipt = receipt.with_session("native-session-1");
+        assert_eq!(receipt.session(), Some("native-session-1"));
+    }
 }

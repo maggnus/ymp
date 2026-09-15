@@ -156,20 +156,20 @@ fn wait_for_pid_exit(pid: u32, timeout: Duration) -> bool {
 fn sigint_cancels_child_and_records_observed_termination_before_exit_130() {
     let directory = TestDir::new();
     let data_dir = directory.path().join("sessions");
-    let provider_pid = directory.path().join("provider-pid");
-    let descendant_pid = directory.path().join("descendant-pid");
+    let provider_pid = directory.path().join("process.pid");
+    let descendant_pid = directory.path().join("descendant.pid");
     let provider_exited = directory.path().join("provider-exited");
     let check_marker = directory.path().join("interrupted-check-ran");
+    std::fs::write(
+        directory.path().join("scenario.json"),
+        r#"{"hang":true,"spawn_descendant":true}"#,
+    )
+    .expect("App Server scenario is written");
+    let app_server_fixture = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../ymp-runtime/tests/fixtures/codex_app_server.py");
     let codex = directory.executable(
         "codex",
-        "#!/bin/sh\n\
-         if [ \"$1\" = \"--version\" ]; then printf 'codex-cli scripted\\n'; exit 0; fi\n\
-         printf '%s\\n' \"$$\" > \"$YMP_TEST_PROVIDER_PID\"\n\
-         /bin/sh -c 'trap \"\" TERM INT; exec >/dev/null 2>&1; exec /bin/sleep 30' &\n\
-         descendant=$!\n\
-         trap 'printf exited > \"$YMP_TEST_PROVIDER_EXITED\"; exit 0' TERM\n\
-         printf '%s\\n' \"$descendant\" > \"$YMP_TEST_DESCENDANT_PID\"\n\
-         wait \"$descendant\"\n",
+        "#!/bin/sh\nexec python3 \"$YMP_CODEX_APP_SERVER_FIXTURE\" \"$@\"\n",
     );
     let _path_spoof = directory.executable("ps", "#!/bin/sh\nexit 0\n");
     let search_path = format!(
@@ -180,8 +180,8 @@ fn sigint_cancels_child_and_records_observed_termination_before_exit_130() {
     let mut child = Command::new(env!("CARGO_BIN_EXE_ymp"))
         .current_dir(directory.path())
         .env("PATH", search_path)
-        .env("YMP_TEST_PROVIDER_PID", &provider_pid)
-        .env("YMP_TEST_DESCENDANT_PID", &descendant_pid)
+        .env("YMP_CODEX_FIXTURE", directory.path())
+        .env("YMP_CODEX_APP_SERVER_FIXTURE", app_server_fixture)
         .env("YMP_TEST_PROVIDER_EXITED", &provider_exited)
         .args([
             OsString::from("run"),
@@ -195,8 +195,10 @@ fn sigint_cancels_child_and_records_observed_termination_before_exit_130() {
         .stderr(Stdio::piped())
         .spawn()
         .expect("ymp child starts");
-    let provider = wait_for_pid_file(&provider_pid, Duration::from_secs(15));
     let descendant = wait_for_pid_file(&descendant_pid, Duration::from_secs(15));
+    // The registry scan and invocation both use App Server processes. Wait
+    // for the descendant first so process.pid necessarily names the latter.
+    let provider = wait_for_pid_file(&provider_pid, Duration::from_secs(15));
     if provider.is_none() || descendant.is_none() {
         let _ = child.kill();
         let _ = child.wait();
@@ -248,7 +250,11 @@ fn sigint_cancels_child_and_records_observed_termination_before_exit_130() {
     }
 
     assert_eq!(output.status.code(), Some(130));
-    assert!(output.stderr.is_empty());
+    assert!(
+        output.stderr.is_empty(),
+        "unexpected stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
     assert!(
         provider_exited.exists(),
         "SIGTERM reaches the provider child"
