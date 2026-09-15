@@ -30,6 +30,7 @@ pub struct SessionView {
     task: Option<Task>,
     contract: Option<AcceptanceContract>,
     criteria: Vec<Criterion>,
+    registry: Option<Box<crate::registry::PoolRecorded>>,
 }
 
 impl SessionView {
@@ -45,7 +46,11 @@ impl SessionView {
             task: None,
             contract: None,
             criteria: Vec::new(),
+            registry: None,
         }
+    }
+    pub fn registry(&self) -> Option<&crate::registry::PoolRecorded> {
+        self.registry.as_deref()
     }
     pub fn task(&self) -> Option<&Task> {
         self.task.as_ref()
@@ -150,6 +155,28 @@ impl SessionView {
             self.resolve(reference)?;
         }
         match &event.payload {
+            Event::PoolRecorded { data, .. } => {
+                self.validate_complete()?;
+                schemas.validate(&data.effective)?;
+                crate::registry::validate_record(self, data, event.at)?;
+                let refs = data
+                    .decisions
+                    .iter()
+                    .flat_map(|d| d.proposal.basis.iter().cloned())
+                    .collect::<BTreeSet<_>>()
+                    .into_iter()
+                    .collect::<Vec<_>>();
+                if event.policy.as_ref() != Some(&data.effective.policy)
+                    || event.input.as_ref() != Some(&Digest::of_value(&data.input)?)
+                    || event.refs != refs
+                {
+                    return Err(Denial::new(
+                        "registry_attribution",
+                        "Pool observation attribution disagrees with its decision",
+                    ));
+                }
+                self.registry = Some(data.clone());
+            }
             Event::SessionOpened { selections, .. } => {
                 if self.opened
                     || self.revision != 0

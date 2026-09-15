@@ -5,6 +5,8 @@ Journal and decision attribution. Canonical task status remains in
 `tasks/records/W1-0001.json`.
 The [intake extension](intake-implementation.md) adds task/contract projections,
 CriteriaCommitted, ClarificationRecorded and AssumptionRecorded through W1-0002.
+The [Registry extension](registry-implementation.md) adds PoolRecorded through
+W1-0003, preserving discovery facts and profile-bound readiness decisions.
 
 ## Boundaries
 

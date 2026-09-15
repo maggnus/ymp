@@ -20,12 +20,31 @@ pub struct ParameterSchemas {
 impl Default for ParameterSchemas {
     fn default() -> Self {
         Self {
-            validators: BTreeMap::from([(
-                ("MethodRouter".into(), "FixedMethod".into(), "1".into()),
-                validate_fixed as ParameterValidator,
-            )]),
+            validators: BTreeMap::from([
+                (
+                    ("MethodRouter".into(), "FixedMethod".into(), "1".into()),
+                    validate_fixed as ParameterValidator,
+                ),
+                (
+                    (
+                        "ReadinessProbe".into(),
+                        "StaticDependencyProbe".into(),
+                        "1".into(),
+                    ),
+                    validate_static as ParameterValidator,
+                ),
+            ]),
         }
     }
+}
+fn validate_static(selection: &PolicySelection) -> Result<()> {
+    if selection.parameters != serde_json::json!({}) {
+        return Err(Denial::new(
+            "policy_parameters",
+            "StaticDependencyProbe version 1 has no parameters",
+        ));
+    }
+    Ok(())
 }
 fn validate_fixed(selection: &PolicySelection) -> Result<()> {
     MethodParameters::from_selection(selection)?;

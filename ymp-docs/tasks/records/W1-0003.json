@@ -5,12 +5,12 @@
   "title": "Resolve native agents and execution profiles through a trusted Registry",
   "type": "implementation",
   "priority": 103,
-  "status": "planned",
+  "status": "in_progress",
   "depends_on": [
     "W1-0001",
     "W1-0002"
   ],
-  "owner": null,
+  "owner": "codex",
   "goal": "Select eligible persistent agents and supported native settings while keeping identity, provider, model, capabilities and invocation metadata distinct.",
   "scope": [
     "Implement Agent, Provider, ModelOffering, ProfileSettings, ExecutionProfile and Pool projections. Preserve stable agent IDs, instructions, enabled/default settings and per-model native effort sets; represent Codex, Claude, Glm, Scripted and Other(Text) provider kinds without pretending all adapters are already available.",
@@ -29,9 +29,10 @@
     "Create proposed crates/ymp-domain/src/identity.rs, crates/ymp-kernel/src/registry.rs and crates/ymp-runtime/src/readiness.rs. W1-0001 provides events/provenance and W1-0002 user constraints. Use StaticDependencyProbe plus a substantially different deterministic probe through Registry.",
     "Each ModelOffering preserves its own native effort values. Family/version metadata has a stated source; absent native data stays unknown and yields an explicit fallback/denial when a decision requires it. An agent has persistent instructions/defaults, not permanent role authority.",
     "This Registry implementation does not claim an executor exists. W1-0017 builds Scripted, W1-0018 builds Codex, W6-0001 builds Claude and W6-0002 builds Glm against this contract.",
-    "Legacy access granted (owner decision 2026-09-16, AGENTS.md rule): legacy-attempt-2:ymp-rust/crates/ymp-providers/src/discovery/*.rs and settings.rs may be opened for native catalog discovery facts only (Codex model/list rows, Claude supportedModels fields, GLM configOptions), snapshot fingerprint and staleness rules; legacy-attempt-1:ymp-rust/crates/ymp-runtime-registry/src/*.rs and ymp-domain/src/pool.rs for the frozen launch snapshot and the readiness-measurement rules. Import no types or control flow; ymp-docs/legacy-lessons.md sections 10.3 and 11.6."
+    "Legacy access granted (owner decision 2026-09-16, AGENTS.md rule): legacy-attempt-2:ymp-rust/crates/ymp-providers/src/discovery/*.rs and settings.rs may be opened for native catalog discovery facts only (Codex model/list rows, Claude supportedModels fields, GLM configOptions), snapshot fingerprint and staleness rules; legacy-attempt-1:ymp-rust/crates/ymp-runtime-registry/src/*.rs and ymp-domain/src/pool.rs for the frozen launch snapshot and the readiness-measurement rules. Import no types or control flow; ymp-docs/legacy-lessons.md sections 10.3 and 11.6.",
+    "Concrete implementation: ymp-docs/registry-implementation.md. PoolRecorded (defined with rationale in model section 9) records Registry inputs, profile-bound ReadinessResponse values, effective policy parameters and kernel-derived Pool. InvocationSettings preserves independent requested/sent/reported facts; real invocation transitions remain W1-0017."
   ],
-  "revision": 4,
+  "revision": 6,
   "history": [
     {
       "revision": 1,
@@ -60,6 +61,20 @@
       "actor": "manage.py",
       "status": "planned",
       "note": "Owner decision 2026-09-16: bounded legacy access to attempts 1 and 2 for facts only, per the AGENTS.md legacy rule."
+    },
+    {
+      "revision": 5,
+      "at": "2026-09-15T20:09:22.235657Z",
+      "actor": "codex",
+      "status": "in_progress",
+      "note": "Claimed by codex."
+    },
+    {
+      "revision": 6,
+      "at": "2026-09-15T20:24:18.871937Z",
+      "actor": "codex",
+      "status": "in_progress",
+      "note": "Implemented Registry, native metadata contracts and profile-specific readiness over recorded facts. Independent review findings on fixture sources and response attribution are corrected; final workspace verification is in progress."
     }
   ]
 }

@@ -13,6 +13,8 @@ validated values, atomic in-memory events and replayable method decisions; see
 [the implementation boundary and evidence](ymp-docs/journal-implementation.md).
 The [Application intake](ymp-docs/intake-implementation.md) records explicit goals,
 constraints and versioned criteria, including attributable user refinements.
+The [Registry](ymp-docs/registry-implementation.md) records profile readiness,
+native metadata and typed exclusions without model calls.
 The remaining modules are placeholders under
 [the proposed layout](ymp-docs/project-worktree.md). The executable still has no
 interactive or task-execution behavior.

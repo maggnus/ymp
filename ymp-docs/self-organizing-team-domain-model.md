@@ -1331,7 +1331,7 @@ event Envelope { seq: Int; session: Id<Session>; at: Instant; actor: Runtime | I
 Minimum set; every kernel state change in section 4 maps to one of these events (D-2):
 
 ```text
-SessionOpened · BudgetOpened · CriteriaCommitted · ClarificationRecorded · AssumptionRecorded
+SessionOpened · PoolRecorded · BudgetOpened · CriteriaCommitted · ClarificationRecorded · AssumptionRecorded
 CheckRegistered · CheckRunRecorded · MutantRecorded · MethodChosen · PlanCommitted · PlanRevised
 ContributionProposed · SolicitationOpened · SolicitationChanged · OfferSubmitted · Awarded
 AssignmentAdmitted · AssignmentRevoked · GrantIssued · CommitmentChanged · ReservationChanged
@@ -1342,6 +1342,13 @@ ProgressAssessed · Diagnosed · Escalated · TeamChanged · NoticePosted · Han
 ObservationRecorded · ReputationUpdated · CalibrationRecorded · KnowledgeChanged · TrialRecorded
 RetrievalRecorded · ConsequenceIngested
 ```
+
+`PoolRecorded` records a Registry observation: discovery and dependency inputs,
+the selected ReadinessProbe implementation and effective parameters, its
+profile-specific proposals and input digests, and the kernel-derived Pool.
+W1-0003 uses this event to satisfy D-2, D-5 and R-17 without repeating discovery
+or filesystem inspection during replay. Recording readiness does not start an
+invocation or confer assignment authority.
 
 ## 10. Build order
 

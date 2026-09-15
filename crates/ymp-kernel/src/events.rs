@@ -20,6 +20,10 @@ pub struct CriteriaCommitted {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub enum Event {
+    PoolRecorded {
+        version: u32,
+        data: Box<crate::registry::PoolRecorded>,
+    },
     SessionOpened {
         version: u32,
         selections: Vec<PolicySelection>,
@@ -45,7 +49,8 @@ pub enum Event {
 impl Event {
     pub fn version(&self) -> u32 {
         match self {
-            Self::SessionOpened { version, .. }
+            Self::PoolRecorded { version, .. }
+            | Self::SessionOpened { version, .. }
             | Self::MethodChosen { version, .. }
             | Self::CriteriaCommitted { version, .. }
             | Self::ClarificationRecorded { version, .. }
