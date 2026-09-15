@@ -88,8 +88,10 @@ Native model discovery supplies actual identifiers and supported controls.
 Authentication stays in the native environment. Adapters must preserve typed
 failure causes, invocation attribution and incomplete observations.
 
-Durable session state and one bounded native Codex invocation are implemented.
-Checked result acceptance, public MCP over stdio and an interactive terminal UI
-remain separate planned capabilities. Their absence is explicit in the foundation
-and command-line output. The product exposes one native executable; development
-tools are not automatically application runtime dependencies.
+Durable session state, one bounded native Codex invocation and preliminary
+criterion evaluation by a caller-supplied command are implemented. Immutable
+result capture and final checked-result acceptance, public MCP over stdio and an
+interactive terminal UI remain separate planned capabilities. Their absence is
+explicit in the foundation and command-line output. The product exposes one native
+executable; development tools are not automatically application runtime
+dependencies.

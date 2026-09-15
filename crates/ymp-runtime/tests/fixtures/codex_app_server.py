@@ -78,8 +78,17 @@ def start_descendant():
     (root / "descendant.pid").write_text(str(child.pid))
 
 
+def record_term(_signum, _frame):
+    marker = os.environ.get("YMP_TEST_PROVIDER_EXITED")
+    if marker:
+        Path(marker).write_text("exited")
+    raise SystemExit(0)
+
+
 if scenario.get("ignore_term"):
     signal.signal(signal.SIGTERM, signal.SIG_IGN)
+elif os.environ.get("YMP_TEST_PROVIDER_EXITED"):
+    signal.signal(signal.SIGTERM, record_term)
 if scenario.get("stderr_bytes"):
     sys.stderr.write("x" * int(scenario["stderr_bytes"]))
     sys.stderr.flush()

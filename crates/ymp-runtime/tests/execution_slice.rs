@@ -815,6 +815,53 @@ struct FlakySettlementJournal {
     fired: Arc<AtomicBool>,
 }
 
+/// A journal that commits the first settlement batch and then reports its
+/// outcome as indeterminate. The kernel must recognize the exact visible
+/// batch instead of asking the caller to repeat an already committed write.
+#[derive(Clone)]
+struct IndeterminateCommittedSettlementJournal {
+    inner: MemoryJournal,
+    fired: Arc<AtomicBool>,
+}
+
+impl IndeterminateCommittedSettlementJournal {
+    fn new() -> Self {
+        Self {
+            inner: MemoryJournal::new(),
+            fired: Arc::new(AtomicBool::new(false)),
+        }
+    }
+}
+
+impl Journal for IndeterminateCommittedSettlementJournal {
+    fn read(&self, session_id: &SessionId) -> Result<Vec<ymp_runtime::JournalEntry>, JournalError> {
+        self.inner.read(session_id)
+    }
+
+    fn append(
+        &self,
+        session_id: &SessionId,
+        expected_revision: Revision,
+        events: Vec<SessionEvent>,
+    ) -> Result<Revision, JournalError> {
+        let settlement = events
+            .iter()
+            .any(|event| matches!(event, SessionEvent::InvocationAccounted { .. }));
+        if settlement && !self.fired.swap(true, Ordering::SeqCst) {
+            let attempted = self
+                .inner
+                .append(session_id, expected_revision, events)
+                .expect("the settlement batch commits before the injected error");
+            return Err(JournalError::IndeterminateCommit {
+                expected: expected_revision,
+                attempted,
+                message: "injected committed settlement outcome".to_owned(),
+            });
+        }
+        self.inner.append(session_id, expected_revision, events)
+    }
+}
+
 impl FlakySettlementJournal {
     fn new() -> Self {
         Self {
@@ -2298,6 +2345,54 @@ fn accounting_totals_settlement_retry_and_unknown_usage() {
             .usage()
             .turns_known(),
         2
+    );
+}
+
+#[test]
+fn committed_indeterminate_settlement_is_recognized_without_duplicate_accounting() {
+    let journal = IndeterminateCommittedSettlementJournal::new();
+    let scenario = scenario_over(journal.clone(), ManualClock::new());
+    let id = session("indeterminate-settlement");
+    scenario
+        .open_session(id.clone(), task())
+        .expect("session opens");
+    scenario.scan().expect("scan succeeds");
+    scenario.script_outcome(ScriptedOutcome::completes(
+        None,
+        ObservedUsage::unknown().with_turns(3),
+    ));
+    let assignment = scenario
+        .admit(&id, default_request(), Revision::new(1))
+        .expect("admission commits");
+    scenario
+        .invoke(&id, assignment.invocation(), Revision::new(2))
+        .expect("invocation starts");
+    scenario
+        .observe(&id, assignment.invocation(), Revision::new(4))
+        .expect("termination is observed");
+
+    assert_eq!(
+        scenario
+            .settle(&id, assignment.invocation(), Revision::new(5))
+            .expect("the exact committed settlement is recognized"),
+        ResourceAmount::new(4)
+    );
+    assert_eq!(scenario.treasury_held(), ResourceAmount::new(0));
+    let history = journal.read(&id).expect("history reads");
+    assert_eq!(
+        history
+            .iter()
+            .filter(|entry| matches!(entry.event(), SessionEvent::InvocationAccounted { .. }))
+            .count(),
+        1
+    );
+    assert_eq!(
+        scenario
+            .accounting(&id)
+            .expect("accounting replays")
+            .usage()
+            .turns_known(),
+        3
     );
 }
 

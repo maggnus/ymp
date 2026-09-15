@@ -1,5 +1,6 @@
 #![forbid(unsafe_code)]
 
+mod check;
 pub mod clock;
 pub mod codex;
 mod scenario;
@@ -9,15 +10,19 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 pub use ymp_domain::{
-    AcceptanceContract, Constraints, Criterion, CriterionId, DomainError, Goal, SessionId, Task,
-    TaskId,
+    AcceptanceContract, Check, CheckMethod, Constraints, Criterion, CriterionEvaluation,
+    CriterionId, CriterionStatus, DomainError, Evidence, EvidenceFile, Goal, SessionId, Task,
+    TaskId, VerifierDigest, sha256,
 };
 use ymp_kernel::Dispatcher;
 pub use ymp_kernel::{
-    DispatchError, HistoryError, Journal, JournalEntry, JournalError, LifecycleEventKind, Revision,
-    SessionEvent, SessionStatus, SessionView,
+    AcceptanceAuthority, DispatchError, HistoryError, Journal, JournalEntry, JournalError,
+    LifecycleEventKind, Revision, SessionEvent, SessionStatus, SessionView,
 };
 
+pub use check::{BuiltinCheckExecutor, CheckExecutionError, DEFAULT_CHECK_TIMEOUT};
+#[cfg(target_os = "linux")]
+pub use check::{run_linux_check_sandbox, run_linux_check_sandbox_stage2};
 pub use clock::{Clock, ManualClock, SystemClock};
 pub use codex::{CodexBackend, CodexProbe, CodexRegistry, CodexStreamStats, CodexTokenUsage};
 pub use scenario::ExecutionScenario;

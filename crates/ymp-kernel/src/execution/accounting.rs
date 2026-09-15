@@ -250,6 +250,7 @@ impl AccountingFold {
             | SessionEvent::InvocationStarted { .. }
             | SessionEvent::InvocationCancellationRequested { .. }
             | SessionEvent::EffectEvidenceRecorded { .. }
+            | SessionEvent::CriterionEvaluated { .. }
             | SessionEvent::SessionOpened { .. }
             | SessionEvent::SessionCancelled { .. } => {}
         }

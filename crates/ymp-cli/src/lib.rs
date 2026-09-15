@@ -1,20 +1,23 @@
 #![forbid(unsafe_code)]
 
 use std::ffi::{OsStr, OsString};
+use std::fs::{File, OpenOptions, TryLockError};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use ymp_runtime::{
-    AcceptanceContract, AdmissionDenial, AdmissionFailure, AgentId, AgentIneligibility, Allowance,
-    Application, ApplicationMetadata, AssignmentRequest, CodexBackend, CodexRegistry, Constraints,
-    Criterion, CriterionId, ErrorClass, ExclusionReason, ExecutionBackend, ExecutionScenario, Goal,
-    InvocationId, InvocationLimits, Journal, ModelOffering, ObservationOutcome, ObservedUsage,
-    OfferingId, Registry, ReservationPurpose, ResourceAmount, Role, SessionExecutionView,
-    SessionId, SessionStatus, Settings, StartOutcome, SystemClock, Task, TaskId, Termination,
+    AcceptanceAuthority, AcceptanceContract, AdmissionDenial, AdmissionFailure, AgentId,
+    AgentIneligibility, Allowance, Application, ApplicationMetadata, AssignmentRequest,
+    BuiltinCheckExecutor, Check, CheckMethod, CodexBackend, CodexRegistry, Constraints, Criterion,
+    CriterionEvaluation, CriterionId, CriterionStatus, ErrorClass, Evidence, ExclusionReason,
+    ExecutionBackend, ExecutionError, ExecutionScenario, Goal, InvocationId, InvocationLimits,
+    Journal, JournalError, ModelOffering, ObservationOutcome, ObservedUsage, OfferingId, Registry,
+    ReservationPurpose, ResourceAmount, Revision, Role, SessionExecutionView, SessionId,
+    SessionStatus, Settings, StartOutcome, SystemClock, Task, TaskId, Termination,
     UncertaintyCause, WorkspaceAccess, WorkspaceOperation, WorkspaceScope, application_metadata,
-    read_execution,
+    read_execution, sha256,
 };
 use ymp_storage::SqliteJournal;
 
@@ -26,17 +29,22 @@ pub const DEFAULT_MAX_WALL_CLOCK: Duration = Duration::from_secs(30 * 60);
 const DEFAULT_RESERVATION: ResourceAmount = ResourceAmount::new(1);
 const OBSERVATION_INTERVAL: Duration = Duration::from_millis(100);
 const CANCELLATION_LEAD: Duration = Duration::from_secs(5);
+const INTERRUPT_WAIT: Duration = Duration::from_secs(5);
+const EXECUTION_WRITE_ATTEMPTS: usize = 3;
+const EXECUTION_WRITE_RETRY_INTERVAL: Duration = Duration::from_millis(25);
 const CODEX_AGENT_ID: &str = "codex";
 const CODEX_OFFERING_ID: &str = "codex-cli-local";
 const IMPLEMENTER_ROLE: &str = "implementer";
 const COMPLETION_CRITERION_ID: &str = "requested-work-completed";
 const COMPLETION_CRITERION: &str = "the agent completed the requested work";
 const DATABASE_FILE_NAME: &str = "journal.db";
+const WORKSPACE_LOCK_PREFIX: &str = "workspace-";
 
 static ID_SEQUENCE: AtomicU64 = AtomicU64::new(0);
 
 /// Fully rendered process result. Operational failures use exit code 1,
-/// command-line usage errors use 2, and only successful commands use 0.
+/// command-line usage errors use 2, SIGINT uses 130, and only successful
+/// commands use 0.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CommandOutput {
     stdout: String,
@@ -124,6 +132,7 @@ enum ParsedCommand {
     Run {
         goal: String,
         data_dir: PathBuf,
+        check: Option<String>,
     },
     Show {
         session_id: String,
@@ -133,13 +142,24 @@ enum ParsedCommand {
 
 /// Executes one CLI command without exiting the process.
 pub fn command(arguments: &[OsString]) -> CommandOutput {
-    match parse_command(arguments).and_then(execute) {
-        Ok(output) => output,
-        Err(failure) => CommandOutput::failure(failure),
-    }
+    let interrupted = AtomicBool::new(false);
+    command_with_interrupt(arguments, &interrupted)
 }
 
-fn execute(command: ParsedCommand) -> Result<CommandOutput, CliFailure> {
+/// Executes one CLI command while observing the process SIGINT flag.
+pub fn command_with_interrupt(arguments: &[OsString], interrupted: &AtomicBool) -> CommandOutput {
+    let mut output =
+        match parse_command(arguments).and_then(|command| execute(command, interrupted)) {
+            Ok(output) => output,
+            Err(failure) => CommandOutput::failure(failure),
+        };
+    if interrupted.load(Ordering::SeqCst) {
+        output.exit_code = 130;
+    }
+    output
+}
+
+fn execute(command: ParsedCommand, interrupted: &AtomicBool) -> Result<CommandOutput, CliFailure> {
     let metadata = application_metadata();
     match command {
         ParsedCommand::Help => Ok(CommandOutput::success(help(metadata))),
@@ -150,7 +170,11 @@ fn execute(command: ParsedCommand) -> Result<CommandOutput, CliFailure> {
             metadata.name(),
             metadata.version()
         ))),
-        ParsedCommand::Run { goal, data_dir } => run_command(goal, data_dir),
+        ParsedCommand::Run {
+            goal,
+            data_dir,
+            check,
+        } => run_command(goal, data_dir, check, interrupted),
         ParsedCommand::Show {
             session_id,
             data_dir,
@@ -209,19 +233,21 @@ fn parse_command(arguments: &[OsString]) -> Result<ParsedCommand, CliFailure> {
             }
         }
         "run" => {
-            let (subject, data_dir) = parse_subject_and_data_dir("run", &arguments[1..])?;
-            let goal = subject.into_string().map_err(|_| {
-                CliFailure::usage("run task text must be valid UTF-8\n\nUsage: ymp run \"<task>\" [--data-dir PATH]")
-            })?;
+            let (subject, data_dir, check) = parse_subject_and_options("run", &arguments[1..])?;
+            let goal = subject
+                .into_string()
+                .map_err(|_| command_usage("run", "run task text must be valid UTF-8"))?;
             if goal.trim().is_empty() {
-                return Err(CliFailure::usage(
-                    "run task text must not be blank\n\nUsage: ymp run \"<task>\" [--data-dir PATH]",
-                ));
+                return Err(command_usage("run", "run task text must not be blank"));
             }
-            Ok(ParsedCommand::Run { goal, data_dir })
+            Ok(ParsedCommand::Run {
+                goal,
+                data_dir,
+                check,
+            })
         }
         "show" => {
-            let (subject, data_dir) = parse_subject_and_data_dir("show", &arguments[1..])?;
+            let (subject, data_dir, _) = parse_subject_and_options("show", &arguments[1..])?;
             let session_id = subject.into_string().map_err(|_| {
                 CliFailure::usage("session ID must be valid UTF-8\n\nUsage: ymp show <session-id> [--data-dir PATH]")
             })?;
@@ -243,12 +269,13 @@ fn parse_command(arguments: &[OsString]) -> Result<ParsedCommand, CliFailure> {
     }
 }
 
-fn parse_subject_and_data_dir(
+fn parse_subject_and_options(
     command: &str,
     arguments: &[OsString],
-) -> Result<(OsString, PathBuf), CliFailure> {
+) -> Result<(OsString, PathBuf, Option<String>), CliFailure> {
     let mut subject = None;
     let mut data_dir = None;
+    let mut check = None;
     let mut options_ended = false;
     let mut index = 0;
     while index < arguments.len() {
@@ -293,6 +320,39 @@ fn parse_subject_and_data_dir(
             index += 1;
             continue;
         }
+        if !options_ended && command == "run" && argument == OsStr::new("--check") {
+            if check.is_some() {
+                return Err(command_usage(command, "--check may be specified only once"));
+            }
+            let value = arguments
+                .get(index + 1)
+                .ok_or_else(|| command_usage(command, "--check requires a shell command"))?;
+            let value = value
+                .to_str()
+                .ok_or_else(|| command_usage(command, "--check command must be valid UTF-8"))?;
+            if value.trim().is_empty() {
+                return Err(command_usage(command, "--check command must not be blank"));
+            }
+            check = Some(value.to_owned());
+            index += 2;
+            continue;
+        }
+        if !options_ended
+            && command == "run"
+            && let Some(value) = argument
+                .to_str()
+                .and_then(|value| value.strip_prefix("--check="))
+        {
+            if check.is_some() {
+                return Err(command_usage(command, "--check may be specified only once"));
+            }
+            if value.trim().is_empty() {
+                return Err(command_usage(command, "--check command must not be blank"));
+            }
+            check = Some(value.to_owned());
+            index += 1;
+            continue;
+        }
         if !options_ended && argument.to_string_lossy().starts_with('-') {
             return Err(command_usage(
                 command,
@@ -321,19 +381,25 @@ fn parse_subject_and_data_dir(
     Ok((
         subject,
         data_dir.unwrap_or_else(|| PathBuf::from(DEFAULT_DATA_DIR)),
+        check,
     ))
 }
 
 fn command_usage(command: &str, message: &str) -> CliFailure {
     let syntax = if command == "run" {
-        "Usage: ymp run \"<task>\" [--data-dir PATH]"
+        "Usage: ymp run \"<task>\" [--check \"<shell command>\"] [--data-dir PATH]"
     } else {
         "Usage: ymp show <session-id> [--data-dir PATH]"
     };
     CliFailure::usage(format!("{message}\n\n{syntax}"))
 }
 
-fn run_command(goal: String, data_dir: PathBuf) -> Result<CommandOutput, CliFailure> {
+fn run_command(
+    goal: String,
+    data_dir: PathBuf,
+    check_command: Option<String>,
+    interrupted: &AtomicBool,
+) -> Result<CommandOutput, CliFailure> {
     let current_dir = std::env::current_dir().map_err(|error| {
         CliFailure::operational(format!("cannot read working directory: {error}"))
     })?;
@@ -345,6 +411,22 @@ fn run_command(goal: String, data_dir: PathBuf) -> Result<CommandOutput, CliFail
     let session_id = SessionId::new(format!("session-{seed}"))
         .map_err(|error| CliFailure::operational(error.to_string()))?;
     let task = build_task(&goal, &seed)?;
+    let check = check_command
+        .map(|command| {
+            Ok((
+                BuiltinCheckExecutor::new()
+                    .map_err(|error| CliFailure::operational(error.to_string()))?,
+                Check::command(
+                    vec![
+                        CriterionId::new(COMPLETION_CRITERION_ID)
+                            .map_err(|error| CliFailure::operational(error.to_string()))?,
+                    ],
+                    command,
+                )
+                .map_err(|error| CliFailure::operational(error.to_string()))?,
+            ))
+        })
+        .transpose()?;
     let limits = default_limits()?;
 
     let journal = SqliteJournal::open(&data_dir).map_err(|error| {
@@ -353,6 +435,7 @@ fn run_command(goal: String, data_dir: PathBuf) -> Result<CommandOutput, CliFail
     let data_dir = data_dir.canonicalize().map_err(|error| {
         CliFailure::operational(format!("cannot resolve session data directory: {error}"))
     })?;
+    let _process_lock = WorkspaceProcessLock::acquire(&data_dir, &workspace)?;
     let workspace_mode = WorkspaceMode::for_paths(&workspace, &data_dir);
     let access = workspace_access(&workspace, workspace_mode)?;
     let request = assignment_request(access.clone(), limits)?;
@@ -363,29 +446,117 @@ fn run_command(goal: String, data_dir: PathBuf) -> Result<CommandOutput, CliFail
         .with_prompt(goal)
         .with_extra_args(codex_extra_args(workspace_mode));
     let scenario = ExecutionScenario::over(
-        journal,
+        journal.clone(),
         backend,
         [access],
         registry,
         DEFAULT_RESERVATION,
         clock,
     );
+    let session_ids = journal.session_ids().map_err(|error| {
+        CliFailure::operational(format!("cannot list session journal streams: {error}"))
+    })?;
+    scenario
+        .restore_workspace_holds(session_ids.iter())
+        .map_err(|error| CliFailure::operational(error.to_string()))?;
 
-    let report = run_one(
+    let mut report = run_one(
         &application,
         &scenario,
         session_id.clone(),
         task,
         request,
         limits,
+        interrupted,
         std::thread::sleep,
     )
     .map_err(|failure| failure.with_session_context(&session_id, &data_dir))?;
-    let succeeded = report.outcome.succeeded();
+    if report.outcome.succeeded()
+        && !interrupted.load(Ordering::SeqCst)
+        && let Some((executor, check)) = check.as_ref()
+    {
+        let evidence = executor
+            .execute_protected(check, &workspace, &data_dir)
+            .map_err(|error| {
+                CliFailure::operational(error.to_string())
+                    .with_session_context(&session_id, &data_dir)
+            })?;
+        let session = AcceptanceAuthority::new(&journal)
+            .record_evidence(
+                &session_id,
+                report.invocation.clone(),
+                evidence,
+                report.revision,
+            )
+            .map_err(|error| {
+                CliFailure::operational(error.to_string())
+                    .with_session_context(&session_id, &data_dir)
+            })?;
+        report.revision = session.revision();
+    }
+    let session = application
+        .read_session(&session_id)
+        .map_err(|error| CliFailure::operational(error.to_string()))?;
+    let execution = read_execution(&journal, &session_id)
+        .map_err(|error| CliFailure::operational(error.to_string()))?;
+    let stored_evidence = session
+        .evidence()
+        .map(|(_, evidence)| evidence.clone())
+        .collect::<Vec<_>>();
+    let check_satisfied = check.is_none()
+        || CriterionEvaluation::evaluate(session.task().acceptance_contract(), &stored_evidence)
+            .map_err(|error| CliFailure::operational(error.to_string()))?
+            .satisfied();
+    let stdout = format_run_report(
+        &report,
+        &session,
+        &execution,
+        &workspace,
+        workspace_mode,
+        &data_dir,
+        check.is_some(),
+    );
     Ok(CommandOutput::observed(
-        format_run_report(&report, &workspace, workspace_mode, &data_dir),
-        succeeded,
+        stdout,
+        report.outcome.succeeded() && check_satisfied,
     ))
+}
+
+struct WorkspaceProcessLock {
+    _file: File,
+}
+
+impl WorkspaceProcessLock {
+    fn acquire(data_dir: &Path, workspace: &Path) -> Result<Self, CliFailure> {
+        let workspace = workspace
+            .to_str()
+            .ok_or_else(|| CliFailure::operational("working directory path must be valid UTF-8"))?;
+        let lock_path = data_dir.join(format!(
+            "{WORKSPACE_LOCK_PREFIX}{}.lock",
+            sha256(workspace.as_bytes())
+        ));
+        let file = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .truncate(false)
+            .open(&lock_path)
+            .map_err(|error| {
+                CliFailure::operational(format!(
+                    "cannot open workspace lock {}: {error}",
+                    lock_path.display()
+                ))
+            })?;
+        match file.try_lock() {
+            Ok(()) => Ok(Self { _file: file }),
+            Err(TryLockError::WouldBlock) => Err(CliFailure::operational(format!(
+                "workspace is already in use by another ymp process: {workspace}"
+            ))),
+            Err(TryLockError::Error(error)) => Err(CliFailure::operational(format!(
+                "cannot lock workspace {workspace}: {error}"
+            ))),
+        }
+    }
 }
 
 fn show_command(session_id: String, data_dir: PathBuf) -> Result<CommandOutput, CliFailure> {
@@ -611,6 +782,7 @@ fn run_one<J, B, R, W>(
     task: Task,
     request: AssignmentRequest,
     limits: InvocationLimits,
+    interrupted: &AtomicBool,
     mut wait: W,
 ) -> Result<RunReport, CliFailure>
 where
@@ -629,15 +801,9 @@ where
         .admit(&session_id, request, opened.revision())
         .map_err(map_admission_failure)?;
     let invocation = assignment.invocation().clone();
-    let revision = scenario
-        .execution_view(&session_id)
-        .map_err(|error| CliFailure::operational(error.to_string()))?
-        .revision();
-
-    match scenario
-        .invoke(&session_id, &invocation, revision)
-        .map_err(|error| CliFailure::operational(error.to_string()))?
-    {
+    match retry_execution_write(scenario, &session_id, &mut wait, |revision| {
+        scenario.invoke(&session_id, &invocation, revision)
+    })? {
         StartOutcome::FailedAtStart { class } => {
             return report_from_history(
                 scenario,
@@ -662,33 +828,26 @@ where
     let mut cancellation_requested = false;
     loop {
         let elapsed = scenario.clock_elapsed().saturating_sub(started_at);
-        if !cancellation_requested && elapsed >= cancellation_at {
-            let revision = scenario
-                .execution_view(&session_id)
-                .map_err(|error| CliFailure::operational(error.to_string()))?
-                .revision();
-            scenario
-                .cancel(&session_id, &invocation, revision)
-                .map_err(|error| CliFailure::operational(error.to_string()))?;
+        let interrupted_now = interrupted.load(Ordering::SeqCst);
+        if !cancellation_requested && (interrupted_now || elapsed >= cancellation_at) {
+            if interrupted_now {
+                scenario
+                    .shorten_observation_deadline(&invocation, INTERRUPT_WAIT)
+                    .map_err(|error| CliFailure::operational(error.to_string()))?;
+            }
+            retry_execution_write(scenario, &session_id, &mut wait, |revision| {
+                scenario.cancel(&session_id, &invocation, revision)
+            })?;
             cancellation_requested = true;
         }
 
-        let revision = scenario
-            .execution_view(&session_id)
-            .map_err(|error| CliFailure::operational(error.to_string()))?
-            .revision();
-        match scenario
-            .observe(&session_id, &invocation, revision)
-            .map_err(|error| CliFailure::operational(error.to_string()))?
-        {
+        match retry_execution_write(scenario, &session_id, &mut wait, |revision| {
+            scenario.observe(&session_id, &invocation, revision)
+        })? {
             ObservationOutcome::Terminated { termination, .. } => {
-                let revision = scenario
-                    .execution_view(&session_id)
-                    .map_err(|error| CliFailure::operational(error.to_string()))?
-                    .revision();
-                scenario
-                    .settle(&session_id, &invocation, revision)
-                    .map_err(|error| CliFailure::operational(error.to_string()))?;
+                retry_execution_write(scenario, &session_id, &mut wait, |revision| {
+                    scenario.settle(&session_id, &invocation, revision)
+                })?;
                 return report_from_history(
                     scenario,
                     &session_id,
@@ -716,6 +875,46 @@ where
             }
         }
     }
+}
+
+fn retry_execution_write<J, B, R, W, T>(
+    scenario: &ExecutionScenario<J, B, R>,
+    session_id: &SessionId,
+    wait: &mut W,
+    mut operation: impl FnMut(Revision) -> Result<T, ExecutionError>,
+) -> Result<T, CliFailure>
+where
+    J: Journal + Clone,
+    B: ExecutionBackend,
+    R: Registry,
+    W: FnMut(Duration),
+{
+    for attempt in 0..EXECUTION_WRITE_ATTEMPTS {
+        let revision = scenario
+            .execution_view(session_id)
+            .map_err(|error| CliFailure::operational(error.to_string()))?
+            .revision();
+        match operation(revision) {
+            Ok(outcome) => return Ok(outcome),
+            Err(error)
+                if attempt + 1 < EXECUTION_WRITE_ATTEMPTS && retryable_execution_write(&error) =>
+            {
+                wait(EXECUTION_WRITE_RETRY_INTERVAL);
+            }
+            Err(error) => return Err(CliFailure::operational(error.to_string())),
+        }
+    }
+    unreachable!("the execution write loop returns from every final attempt")
+}
+
+fn retryable_execution_write(error: &ExecutionError) -> bool {
+    matches!(
+        error,
+        ExecutionError::StaleRevision { .. }
+            | ExecutionError::Journal(
+                JournalError::AdapterFailure { .. } | JournalError::IndeterminateCommit { .. }
+            )
+    )
 }
 
 fn map_admission_failure(error: AdmissionFailure) -> CliFailure {
@@ -769,12 +968,15 @@ where
 
 fn format_run_report(
     report: &RunReport,
+    session: &ymp_runtime::SessionView,
+    execution: &SessionExecutionView,
     workspace: &Path,
     workspace_mode: WorkspaceMode,
     data_dir: &Path,
+    check_requested: bool,
 ) -> String {
-    format!(
-        "Session: {}\nSession status: {}\nRevision: {}\nInvocation: {}\nOutcome: {}\nUsage: {}\nWorkspace: {}\nWorkspace access: {}\nData directory: {}\nAcceptance: not evaluated\n",
+    let mut output = format!(
+        "Session: {}\nSession status: {}\nRevision: {}\nInvocation: {}\nOutcome: {}\nUsage: {}\nWorkspace: {}\nWorkspace access: {}\nData directory: {}\n",
         report.session_id,
         session_status(report.session_status),
         report.revision,
@@ -784,7 +986,13 @@ fn format_run_report(
         workspace.display(),
         workspace_mode.report(),
         data_dir.display(),
-    )
+    );
+    output.push_str(&format_criterion_evaluation(
+        session,
+        execution,
+        Some(check_requested),
+    ));
+    output
 }
 
 fn format_session_history(
@@ -824,8 +1032,94 @@ fn format_session_history(
             },
         ));
     }
-    output.push_str("\nAcceptance: not evaluated\n");
+    output.push('\n');
+    output.push_str(&format_criterion_evaluation(session, execution, None));
     output
+}
+
+fn format_criterion_evaluation(
+    session: &ymp_runtime::SessionView,
+    execution: &SessionExecutionView,
+    check_requested: Option<bool>,
+) -> String {
+    let evidence = session
+        .evidence()
+        .map(|(_, evidence)| evidence.clone())
+        .collect::<Vec<_>>();
+    let evaluation = CriterionEvaluation::evaluate(session.task().acceptance_contract(), &evidence)
+        .expect("replayed session evidence covers only declared criteria");
+    let mut output = String::from("Acceptance:\n");
+    for criterion in session.task().acceptance_contract().criteria() {
+        let status = evaluation
+            .status(criterion.id())
+            .expect("every declared criterion is projected");
+        match status {
+            CriterionStatus::Satisfied | CriterionStatus::Failed => {
+                let observed = evidence
+                    .iter()
+                    .find(|item| item.check().criteria().contains(criterion.id()))
+                    .expect("evaluated criterion has evidence");
+                let label = if status == CriterionStatus::Satisfied {
+                    "satisfied with evidence"
+                } else {
+                    "failed with evidence"
+                };
+                output.push_str(&format!(
+                    "  Criterion {}: {label}\n    Description: {}\n",
+                    criterion.id(),
+                    criterion.description()
+                ));
+                format_evidence(&mut output, observed);
+            }
+            CriterionStatus::NotEvaluated => {
+                output.push_str(&format!(
+                    "  Criterion {}: not evaluated ({})\n    Description: {}\n",
+                    criterion.id(),
+                    unevaluated_reason(execution, check_requested),
+                    criterion.description()
+                ));
+            }
+        }
+    }
+    output
+}
+
+fn format_evidence(output: &mut String, evidence: &Evidence) {
+    match evidence.check().method() {
+        CheckMethod::Command { command } => output.push_str(&format!(
+            "    Check command: {command:?}\n    Exit code: {}\n    Workspace: {}\n    Check time: {} ms\n",
+            evidence
+                .exit_code()
+                .expect("command evidence always has an exit code"),
+            evidence.workspace(),
+            evidence.elapsed_ms(),
+        )),
+        CheckMethod::ExactBytes { path, .. } => {
+            let digest = evidence.files()[0].sha256().unwrap_or("missing");
+            output.push_str(&format!(
+                "    Exact-byte file: {}\n    Observed SHA-256: {digest}\n    Workspace: {}\n    Check time: {} ms\n",
+                path.display(),
+                evidence.workspace(),
+                evidence.elapsed_ms(),
+            ));
+        }
+    }
+}
+
+fn unevaluated_reason(execution: &SessionExecutionView, check_requested: Option<bool>) -> String {
+    if let Some((_, invocation)) = execution.invocations().next()
+        && invocation.termination() != Some(&Termination::Completed)
+    {
+        return format!(
+            "invocation did not complete with outcome completed; observed {}",
+            invocation_outcome(invocation)
+        );
+    }
+    match check_requested {
+        Some(false) => "no --check was supplied".to_owned(),
+        Some(true) => "no check evidence was recorded".to_owned(),
+        None => "no check evidence is recorded in the session".to_owned(),
+    }
 }
 
 fn invocation_outcome(invocation: &ymp_runtime::InvocationView) -> String {
@@ -873,23 +1167,34 @@ fn help(metadata: ApplicationMetadata) -> String {
 }
 
 fn run_help(metadata: ApplicationMetadata) -> String {
-    format!(
-        "{} run\n\nUsage: {} run \"<task>\" [--data-dir PATH]\n\nCreates a Task whose goal is the exact argument, whose sole criterion is\n\"{}\", and whose Constraints contain no\nuser-supplied conditions. Empty Constraints do not authorize unrestricted\nexecution. The current working directory is passed to one Codex invocation. When\nthe data directory is inside the workspace, including at the default location,\nthe workspace is admitted read-only so the invocation cannot alter its\nauthoritative journal. A data directory outside the workspace enables read and\nwrite access. Codex runs without approval prompts and without persisting its own\nsession rollout files.\n\nDefault limits: {} observed turns, {} accepted output characters, and {} minutes\nof wall-clock time. YMP requests cancellation {} seconds before the deadline. A\ncancelled outcome requires observed termination; otherwise the persisted state is\nuncertain.\n\n{}\n\n{}\n",
+    let mut output = format!(
+        "{} run\n\nUsage: {} run \"<task>\" [--check \"<shell command>\"] [--data-dir PATH]\n\nCreates a Task whose goal is the exact argument, whose sole criterion is\n\"{}\", and whose Constraints contain no\nuser-supplied conditions. Empty Constraints do not authorize unrestricted\nexecution. The current working directory is passed to one Codex invocation. When\nthe data directory is inside the workspace, including at the default location,\nthe workspace is admitted read-only so the invocation cannot alter its\nauthoritative journal. A data directory outside the workspace enables read and\nwrite access. Codex runs without approval prompts and without persisting its own\nsession rollout files.\n\nAfter an observed completed invocation, --check runs the exact command through\n/bin/sh in the actual workspace with the inherited environment and a {}-second\nlimit. An operating-system sandbox denies writes to the complete data-directory\npath, including absolute and symlink-resolved access. Exit code 0 satisfies the\ncriterion; any other exit code fails it. If the sandbox cannot start the inner\nshell, YMP records no evidence. YMP pins the shell and sandbox executable by\nSHA-256 before invocation and verifies them before and after the check. Executables\nand files referenced by arbitrary shell syntax are not inferred or pinned by the\nCLI. The check executor has no journal access; the kernel validates and records its\nobservation.\n\nDefault limits: {} observed turns, {} accepted output characters, and {} minutes\nof wall-clock time. YMP requests cancellation {} seconds before the deadline. A\ncancelled outcome requires observed termination; otherwise the persisted state is\nuncertain.\n\n{}\n\n{}\n",
         metadata.name(),
         metadata.name(),
         COMPLETION_CRITERION,
+        ymp_runtime::DEFAULT_CHECK_TIMEOUT.as_secs(),
         DEFAULT_MAX_TURNS,
         DEFAULT_MAX_OUTPUT_CHARS,
         DEFAULT_MAX_WALL_CLOCK.as_secs() / 60,
         CANCELLATION_LEAD.as_secs(),
         storage_help(),
         metadata.capability_limit(),
-    )
+    );
+    output.push_str(&format!(
+        "\nWhile the provider invocation is in flight, SIGINT requests cancellation through \
+         the kernel, shortens the remaining observation wait to {} seconds, and exits with status \
+         130 after recording either an observed termination and its resource settlement or \
+         uncertainty. That cancellation path does not execute --check. SIGINT after provider \
+         termination does not stop an already running check; the check reaches its own bound, its \
+         observation may be recorded, and the command then exits with status 130.\n",
+        INTERRUPT_WAIT.as_secs()
+    ));
+    output
 }
 
 fn show_help(metadata: ApplicationMetadata) -> String {
     format!(
-        "{} show\n\nUsage: {} show <session-id> [--data-dir PATH]\n\nReopens an existing journal and prints the session status plus every persisted\ninvocation's status, observed outcome, and observed usage. The command does not\ncreate a missing data directory or journal.\n\n{}\n",
+        "{} show\n\nUsage: {} show <session-id> [--data-dir PATH]\n\nReopens an existing journal and prints the session status, every persisted\ninvocation, and recorded criterion evidence. The command does not create a missing\ndata directory or journal.\n\n{}\n",
         metadata.name(),
         metadata.name(),
         storage_help(),
@@ -898,7 +1203,7 @@ fn show_help(metadata: ApplicationMetadata) -> String {
 
 fn usage(metadata: ApplicationMetadata) -> String {
     format!(
-        "Usage:\n  {} run \"<task>\" [--data-dir PATH]\n  {} show <session-id> [--data-dir PATH]\n  {} [--help | --version]",
+        "Usage:\n  {} run \"<task>\" [--check \"<shell command>\"] [--data-dir PATH]\n  {} show <session-id> [--data-dir PATH]\n  {} [--help | --version]",
         metadata.name(),
         metadata.name(),
         metadata.name(),
@@ -907,16 +1212,27 @@ fn usage(metadata: ApplicationMetadata) -> String {
 
 fn storage_help() -> String {
     format!(
-        "Session storage:\n  The default data directory is ./{DEFAULT_DATA_DIR}, relative to the current\n  working directory. It contains journal.db; SQLite may create journal.db-wal\n  and journal.db-shm while the journal is open or leave them after interruption.\n  Session history persists across ymp processes until the user deletes the whole\n  data directory. Do not delete or copy individual database files while ymp runs."
+        "Session storage:\n  The default data directory is ./{DEFAULT_DATA_DIR}, relative to the current\n  working directory. It contains journal.db; SQLite may create journal.db-wal\n  and journal.db-shm while the journal is open or leave them after interruption.\n  Session history persists across ymp processes until the user deletes the whole\n  data directory. Workspace lock files named workspace-<sha256>.lock coordinate\n  run processes that use this same data directory; different data directories do\n  not coordinate. Do not delete lock files or delete or copy individual database\n  files while ymp runs."
     )
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::process::{Command, Stdio};
+    use std::thread;
+    use std::time::Instant;
     use ymp_runtime::{
         ManualClock, ScriptedBackend, ScriptedOutcome, ScriptedProvider, ScriptedRegistry,
     };
+
+    const WORKSPACE_LOCK_TEST_ROLE: &str = "YMP_WORKSPACE_LOCK_TEST_ROLE";
+    const WORKSPACE_LOCK_TEST_WORKSPACE: &str = "YMP_WORKSPACE_LOCK_TEST_WORKSPACE";
+    const WORKSPACE_LOCK_TEST_DATA_DIR: &str = "YMP_WORKSPACE_LOCK_TEST_DATA_DIR";
+    const WORKSPACE_LOCK_TEST_HELD: &str = "YMP_WORKSPACE_LOCK_TEST_HELD";
+    const WORKSPACE_LOCK_TEST_CONFLICT: &str = "YMP_WORKSPACE_LOCK_TEST_CONFLICT";
+    const WORKSPACE_LOCK_TEST_RELEASE: &str = "YMP_WORKSPACE_LOCK_TEST_RELEASE";
+    const WORKSPACE_LOCK_TEST_RETRY: &str = "YMP_WORKSPACE_LOCK_TEST_RETRY";
 
     struct TestDir(PathBuf);
 
@@ -942,6 +1258,63 @@ mod tests {
         }
     }
 
+    #[derive(Clone)]
+    struct FlakyExecutionJournal {
+        inner: ymp_runtime::MemoryJournal,
+        fail_started: Arc<AtomicBool>,
+        fail_observed: Arc<AtomicBool>,
+        fail_accounted: Arc<AtomicBool>,
+    }
+
+    impl FlakyExecutionJournal {
+        fn new() -> Self {
+            Self {
+                inner: ymp_runtime::MemoryJournal::new(),
+                fail_started: Arc::new(AtomicBool::new(true)),
+                fail_observed: Arc::new(AtomicBool::new(true)),
+                fail_accounted: Arc::new(AtomicBool::new(true)),
+            }
+        }
+
+        fn fail_selected_append(&self, events: &[ymp_runtime::SessionEvent]) -> bool {
+            events.iter().any(|event| match event {
+                ymp_runtime::SessionEvent::InvocationStarted { .. } => {
+                    self.fail_started.swap(false, Ordering::SeqCst)
+                }
+                ymp_runtime::SessionEvent::InvocationObserved { .. } => {
+                    self.fail_observed.swap(false, Ordering::SeqCst)
+                }
+                ymp_runtime::SessionEvent::InvocationAccounted { .. } => {
+                    self.fail_accounted.swap(false, Ordering::SeqCst)
+                }
+                _ => false,
+            })
+        }
+    }
+
+    impl Journal for FlakyExecutionJournal {
+        fn read(
+            &self,
+            session_id: &SessionId,
+        ) -> Result<Vec<ymp_runtime::JournalEntry>, JournalError> {
+            self.inner.read(session_id)
+        }
+
+        fn append(
+            &self,
+            session_id: &SessionId,
+            expected_revision: Revision,
+            events: Vec<ymp_runtime::SessionEvent>,
+        ) -> Result<Revision, JournalError> {
+            if self.fail_selected_append(&events) {
+                return Err(JournalError::AdapterFailure {
+                    message: "injected post-start append failure".to_owned(),
+                });
+            }
+            self.inner.append(session_id, expected_revision, events)
+        }
+    }
+
     fn test_limits() -> InvocationLimits {
         InvocationLimits::new(4, 4_000, Duration::from_secs(60)).expect("valid limits")
     }
@@ -956,7 +1329,10 @@ mod tests {
     where
         J: Journal + Clone,
     {
-        let access = workspace_access(workspace, WorkspaceMode::ReadWrite)?;
+        let workspace = workspace.canonicalize().map_err(|error| {
+            CliFailure::operational(format!("cannot resolve test workspace: {error}"))
+        })?;
+        let access = workspace_access(&workspace, WorkspaceMode::ReadWrite)?;
         let provider = ScriptedProvider::new(codex_agent()?, codex_offering()?)
             .with_readiness(ready, "the scripted Codex registry is not ready")
             .with_effective_workspace_accesses([access.clone()]);
@@ -972,6 +1348,7 @@ mod tests {
         );
         let application = Application::new(journal.clone());
         let session_id = SessionId::new(session_name).expect("valid session ID");
+        let interrupted = AtomicBool::new(false);
         let report = run_one(
             &application,
             &scenario,
@@ -979,9 +1356,210 @@ mod tests {
             build_task("edit the requested file", "test")?,
             assignment_request(access, test_limits())?,
             test_limits(),
+            &interrupted,
             |_| {},
         )?;
         Ok((report, application, journal))
+    }
+
+    fn command_check(command: &str) -> Check {
+        Check::command(
+            vec![CriterionId::new(COMPLETION_CRITERION_ID).expect("valid criterion ID")],
+            command,
+        )
+        .expect("valid command check")
+    }
+
+    fn execute_and_record_check<J: Journal>(
+        journal: &J,
+        report: &RunReport,
+        workspace: &Path,
+        executor: &BuiltinCheckExecutor,
+        check: &Check,
+    ) -> ymp_runtime::SessionView {
+        let before = journal.read(&report.session_id).expect("history reads");
+        let evidence = executor
+            .execute(check, workspace)
+            .expect("check execution is observed");
+        assert_eq!(
+            journal.read(&report.session_id).expect("history reads"),
+            before,
+            "the check executor must not mutate the journal"
+        );
+        AcceptanceAuthority::new(journal)
+            .record_evidence(
+                &report.session_id,
+                report.invocation.clone(),
+                evidence,
+                report.revision,
+            )
+            .expect("kernel records evidence")
+    }
+
+    fn wait_for_file(path: &Path, description: &str) {
+        let deadline = Instant::now() + Duration::from_secs(5);
+        while !path.exists() && Instant::now() < deadline {
+            thread::sleep(Duration::from_millis(10));
+        }
+        assert!(path.exists(), "{description}");
+    }
+
+    fn workspace_lock_test_path(name: &str) -> PathBuf {
+        PathBuf::from(std::env::var_os(name).expect("workspace lock test path is supplied"))
+    }
+
+    #[test]
+    fn workspace_lock_child() {
+        let Some(role) = std::env::var_os(WORKSPACE_LOCK_TEST_ROLE) else {
+            return;
+        };
+        let workspace = workspace_lock_test_path(WORKSPACE_LOCK_TEST_WORKSPACE)
+            .canonicalize()
+            .expect("workspace resolves");
+        let data_dir = workspace_lock_test_path(WORKSPACE_LOCK_TEST_DATA_DIR);
+        let journal = SqliteJournal::open(&data_dir).expect("durable journal opens");
+        let data_dir = data_dir.canonicalize().expect("data directory resolves");
+
+        match role.to_str().expect("test role is UTF-8") {
+            "holder" => {
+                let _lock = WorkspaceProcessLock::acquire(&data_dir, &workspace)
+                    .expect("first process takes the operating-system lock");
+                let (report, _, _) = scripted_run(
+                    journal,
+                    &workspace,
+                    ScriptedOutcome::start_outcome_unknown("provider-start-unknown"),
+                    true,
+                    "session-uncertain-holder",
+                )
+                .expect("the uncertain invocation is journaled");
+                assert!(matches!(report.outcome, RunOutcome::UncertainAtStart(_)));
+                std::fs::write(workspace_lock_test_path(WORKSPACE_LOCK_TEST_HELD), b"held")
+                    .expect("held marker is written");
+                wait_for_file(
+                    &workspace_lock_test_path(WORKSPACE_LOCK_TEST_RELEASE),
+                    "the holder receives its release marker",
+                );
+            }
+            "contender" => {
+                match WorkspaceProcessLock::acquire(&data_dir, &workspace) {
+                    Err(error) => assert!(error.message.contains("workspace is already in use")),
+                    Ok(_) => panic!("the concurrent process must not acquire the workspace lock"),
+                }
+                std::fs::write(
+                    workspace_lock_test_path(WORKSPACE_LOCK_TEST_CONFLICT),
+                    b"conflict",
+                )
+                .expect("conflict marker is written");
+                wait_for_file(
+                    &workspace_lock_test_path(WORKSPACE_LOCK_TEST_RETRY),
+                    "the contender receives its retry marker",
+                );
+
+                let _lock = WorkspaceProcessLock::acquire(&data_dir, &workspace)
+                    .expect("the operating-system lock is released after holder exit");
+                let access = workspace_access(&workspace, WorkspaceMode::ReadWrite)
+                    .expect("workspace access is valid");
+                let provider = ScriptedProvider::new(
+                    codex_agent().expect("valid agent"),
+                    codex_offering().expect("valid offering"),
+                )
+                .with_effective_workspace_accesses([access.clone()]);
+                let scenario = ExecutionScenario::over(
+                    journal.clone(),
+                    ScriptedBackend::for_provider(&provider)
+                        .with_outcome(ScriptedOutcome::completes(None, ObservedUsage::unknown())),
+                    [access.clone()],
+                    ScriptedRegistry::new([provider]),
+                    DEFAULT_RESERVATION,
+                    Arc::new(ManualClock::new()),
+                );
+                scenario
+                    .restore_workspace_holds(
+                        journal.session_ids().expect("session catalog reads").iter(),
+                    )
+                    .expect("durable workspace holds restore");
+                let session_id = SessionId::new("session-conflicting-successor")
+                    .expect("valid successor session ID");
+                scenario
+                    .open_session(
+                        session_id.clone(),
+                        build_task("conflicting work", "durable-hold-successor")
+                            .expect("valid task"),
+                    )
+                    .expect("successor session opens");
+                scenario.scan().expect("registry scan succeeds");
+                assert!(matches!(
+                    scenario
+                        .admit(
+                            &session_id,
+                            assignment_request(access, test_limits()).expect("valid request"),
+                            ymp_runtime::Revision::new(1),
+                        )
+                        .expect_err("the durable uncertain hold refuses a successor"),
+                    AdmissionFailure::Denied(AdmissionDenial::WorkspaceNotEnforceable {
+                        refusal: ymp_runtime::WorkspaceAccessRefusal::HeldByPredecessor { .. },
+                        ..
+                    })
+                ));
+            }
+            other => panic!("unknown workspace lock test role {other:?}"),
+        }
+    }
+
+    #[test]
+    fn concurrent_runs_restore_uncertain_workspace_hold_across_processes() {
+        let workspace = TestDir::new("process-lock-workspace");
+        let data_dir = TestDir::new("process-lock-data");
+        let held = data_dir.path().join("held");
+        let conflict = data_dir.path().join("conflict");
+        let release = data_dir.path().join("release");
+        let retry = data_dir.path().join("retry");
+        let spawn_child = |role: &str| {
+            Command::new(std::env::current_exe().expect("test executable path is available"))
+                .args(["--exact", "tests::workspace_lock_child", "--nocapture"])
+                .env(WORKSPACE_LOCK_TEST_ROLE, role)
+                .env(WORKSPACE_LOCK_TEST_WORKSPACE, workspace.path())
+                .env(WORKSPACE_LOCK_TEST_DATA_DIR, data_dir.path())
+                .env(WORKSPACE_LOCK_TEST_HELD, &held)
+                .env(WORKSPACE_LOCK_TEST_CONFLICT, &conflict)
+                .env(WORKSPACE_LOCK_TEST_RELEASE, &release)
+                .env(WORKSPACE_LOCK_TEST_RETRY, &retry)
+                .stdout(Stdio::piped())
+                .stderr(Stdio::piped())
+                .spawn()
+                .expect("workspace lock child starts")
+        };
+
+        let holder = spawn_child("holder");
+        wait_for_file(
+            &held,
+            "the first child journals uncertainty and holds the lock",
+        );
+        let contender = spawn_child("contender");
+        wait_for_file(
+            &conflict,
+            "the second child observes the operating-system lock conflict",
+        );
+        std::fs::write(&release, b"release").expect("holder release is requested");
+        let holder = holder
+            .wait_with_output()
+            .expect("holder child is collected");
+        assert!(
+            holder.status.success(),
+            "holder child failed: {}{}",
+            String::from_utf8_lossy(&holder.stdout),
+            String::from_utf8_lossy(&holder.stderr)
+        );
+        std::fs::write(&retry, b"retry").expect("contender retry is requested");
+        let contender = contender
+            .wait_with_output()
+            .expect("contender child is collected");
+        assert!(
+            contender.status.success(),
+            "contender child failed: {}{}",
+            String::from_utf8_lossy(&contender.stdout),
+            String::from_utf8_lossy(&contender.stderr)
+        );
     }
 
     #[test]
@@ -1022,6 +1600,285 @@ mod tests {
                 .invocation_count(),
             1
         );
+    }
+
+    #[test]
+    fn run_retries_post_start_writes_and_settlement_without_losing_holds() {
+        let workspace = TestDir::new("post-start-retries-workspace");
+        let workspace = workspace.path().canonicalize().expect("workspace resolves");
+        let access = workspace_access(&workspace, WorkspaceMode::ReadWrite)
+            .expect("workspace access is valid");
+        let provider = ScriptedProvider::new(
+            codex_agent().expect("valid agent"),
+            codex_offering().expect("valid offering"),
+        )
+        .with_effective_workspace_accesses([access.clone()]);
+        let backend = ScriptedBackend::for_provider(&provider)
+            .with_outcome(ScriptedOutcome::completes(
+                None,
+                ObservedUsage::unknown().with_turns(2),
+            ))
+            .with_outcome(ScriptedOutcome::never_reports());
+        let journal = FlakyExecutionJournal::new();
+        let scenario = ExecutionScenario::over(
+            journal.clone(),
+            backend,
+            [access.clone()],
+            ScriptedRegistry::new([provider]),
+            DEFAULT_RESERVATION,
+            Arc::new(ManualClock::new()),
+        );
+        let application = Application::new(journal.clone());
+        let interrupted = AtomicBool::new(false);
+        let mut waits = Vec::new();
+        let report = run_one(
+            &application,
+            &scenario,
+            SessionId::new("session-post-start-retries").expect("valid session ID"),
+            build_task("finish despite transient writes", "post-start-retries")
+                .expect("valid task"),
+            assignment_request(access, test_limits()).expect("valid request"),
+            test_limits(),
+            &interrupted,
+            |duration| waits.push(duration),
+        )
+        .expect("transient execution writes are retried");
+
+        assert_eq!(
+            report.outcome,
+            RunOutcome::Terminated(Termination::Completed)
+        );
+        assert_eq!(report.revision, Revision::new(6));
+        assert_eq!(waits, vec![EXECUTION_WRITE_RETRY_INTERVAL; 3]);
+        assert_eq!(
+            scenario.with_backend(ScriptedBackend::pending_outcomes),
+            1,
+            "an idempotent duplicate start must retain the second outcome"
+        );
+        assert!(scenario.workspace_hold_of(&report.invocation).is_none());
+        assert_eq!(scenario.treasury_held(), ResourceAmount::new(0));
+        let invocation = scenario
+            .execution_view(&report.session_id)
+            .expect("execution history replays")
+            .invocation(&report.invocation)
+            .expect("invocation is recorded")
+            .clone();
+        assert_eq!(
+            invocation.status(),
+            ymp_runtime::InvocationStatus::Terminated
+        );
+        assert_eq!(invocation.settled_usage(), Some(&report.usage));
+        let history = journal.read(&report.session_id).expect("history reads");
+        assert_eq!(
+            history
+                .iter()
+                .filter(|entry| matches!(
+                    entry.event(),
+                    ymp_runtime::SessionEvent::InvocationStarted { .. }
+                ))
+                .count(),
+            1
+        );
+        assert_eq!(
+            history
+                .iter()
+                .filter(|entry| matches!(
+                    entry.event(),
+                    ymp_runtime::SessionEvent::InvocationAccounted { .. }
+                ))
+                .count(),
+            1
+        );
+    }
+
+    #[test]
+    fn interrupt_without_termination_records_uncertain_at_the_shortened_deadline() {
+        let workspace = TestDir::new("interrupt-uncertain-workspace");
+        let workspace = workspace.path().canonicalize().expect("workspace resolves");
+        let access = workspace_access(&workspace, WorkspaceMode::ReadWrite)
+            .expect("workspace access is valid");
+        let provider = ScriptedProvider::new(
+            codex_agent().expect("valid agent"),
+            codex_offering().expect("valid offering"),
+        )
+        .with_effective_workspace_accesses([access.clone()]);
+        let backend = ScriptedBackend::for_provider(&provider)
+            .with_outcome(ScriptedOutcome::cancelled_without_confirmation());
+        let clock = ManualClock::new();
+        let journal = ymp_runtime::MemoryJournal::new();
+        let scenario = ExecutionScenario::over(
+            journal.clone(),
+            backend,
+            [access.clone()],
+            ScriptedRegistry::new([provider]),
+            DEFAULT_RESERVATION,
+            Arc::new(clock.clone()),
+        );
+        let application = Application::new(journal);
+        let interrupted = AtomicBool::new(true);
+        let limits = test_limits();
+        let report = run_one(
+            &application,
+            &scenario,
+            SessionId::new("session-interrupt-uncertain").expect("valid session ID"),
+            build_task("wait for cancellation", "interrupt-uncertain").expect("valid task"),
+            assignment_request(access, limits).expect("valid request"),
+            limits,
+            &interrupted,
+            |duration| clock.advance(duration),
+        )
+        .expect("interrupted run reaches a durable result");
+
+        assert_eq!(
+            report.outcome,
+            RunOutcome::Uncertain(UncertaintyCause::BoundedWaitExpired)
+        );
+        assert_eq!(scenario.clock_elapsed(), INTERRUPT_WAIT);
+        let execution = scenario
+            .execution_view(&report.session_id)
+            .expect("execution replays");
+        let invocation = execution
+            .invocation(&report.invocation)
+            .expect("invocation is present");
+        assert_eq!(
+            invocation.status(),
+            ymp_runtime::InvocationStatus::Uncertain
+        );
+        assert!(invocation.cancel_requested());
+        assert!(invocation.holds_workspace());
+        assert_eq!(scenario.treasury_held(), DEFAULT_RESERVATION);
+    }
+
+    #[test]
+    fn completed_run_reports_satisfied_command_evidence() {
+        let workspace = TestDir::new("satisfied-check-workspace");
+        let journal = ymp_runtime::MemoryJournal::new();
+        let executor = BuiltinCheckExecutor::new().expect("executor captures its verifier");
+        let check = command_check("echo ok");
+        let (mut report, application, journal) = scripted_run(
+            journal,
+            workspace.path(),
+            ScriptedOutcome::completes(None, ObservedUsage::unknown()),
+            true,
+            "session-satisfied-check",
+        )
+        .expect("scripted run completes");
+        let session =
+            execute_and_record_check(&journal, &report, workspace.path(), &executor, &check);
+        report.revision = session.revision();
+        let execution = read_execution(&journal, &report.session_id).expect("execution reads");
+
+        let output = format_run_report(
+            &report,
+            &application
+                .read_session(&report.session_id)
+                .expect("session reads"),
+            &execution,
+            workspace.path(),
+            WorkspaceMode::ReadWrite,
+            workspace.path(),
+            true,
+        );
+
+        assert!(output.contains("Criterion requested-work-completed: satisfied with evidence"));
+        assert!(output.contains("Check command: \"echo ok\""));
+        assert!(output.contains("Exit code: 0"));
+        assert!(output.contains("Workspace:"));
+        assert!(output.contains("Check time:"));
+    }
+
+    #[test]
+    fn completed_run_reports_failed_command_evidence() {
+        let workspace = TestDir::new("failed-check-workspace");
+        let journal = ymp_runtime::MemoryJournal::new();
+        let executor = BuiltinCheckExecutor::new().expect("executor captures its verifier");
+        let check = command_check("exit 1");
+        let (mut report, application, journal) = scripted_run(
+            journal,
+            workspace.path(),
+            ScriptedOutcome::completes(None, ObservedUsage::unknown()),
+            true,
+            "session-failed-check",
+        )
+        .expect("scripted run completes");
+        let session =
+            execute_and_record_check(&journal, &report, workspace.path(), &executor, &check);
+        report.revision = session.revision();
+        let execution = read_execution(&journal, &report.session_id).expect("execution reads");
+
+        let output = format_run_report(
+            &report,
+            &application
+                .read_session(&report.session_id)
+                .expect("session reads"),
+            &execution,
+            workspace.path(),
+            WorkspaceMode::ReadWrite,
+            workspace.path(),
+            true,
+        );
+
+        assert!(output.contains("Criterion requested-work-completed: failed with evidence"));
+        assert!(output.contains("Check command: \"exit 1\""));
+        assert!(output.contains("Exit code: 1"));
+        assert!(output.contains("Check time:"));
+    }
+
+    #[test]
+    fn report_distinguishes_missing_check_from_failed_invocation() {
+        let workspace = TestDir::new("unevaluated-workspace");
+        let completed_journal = ymp_runtime::MemoryJournal::new();
+        let (completed, completed_application, completed_journal) = scripted_run(
+            completed_journal,
+            workspace.path(),
+            ScriptedOutcome::completes(None, ObservedUsage::unknown()),
+            true,
+            "session-no-check",
+        )
+        .expect("scripted run completes");
+        let completed_session = completed_application
+            .read_session(&completed.session_id)
+            .expect("session reads");
+        let completed_execution =
+            read_execution(&completed_journal, &completed.session_id).expect("execution reads");
+        let completed_output = format_run_report(
+            &completed,
+            &completed_session,
+            &completed_execution,
+            workspace.path(),
+            WorkspaceMode::ReadWrite,
+            workspace.path(),
+            false,
+        );
+        assert!(completed_output.contains("not evaluated (no --check was supplied)"));
+
+        let failed_journal = ymp_runtime::MemoryJournal::new();
+        let (failed, failed_application, failed_journal) = scripted_run(
+            failed_journal,
+            workspace.path(),
+            ScriptedOutcome::fails("provider-overloaded", ObservedUsage::unknown()),
+            true,
+            "session-failed-before-check",
+        )
+        .expect("scripted failure is observed");
+        let failed_session = failed_application
+            .read_session(&failed.session_id)
+            .expect("session reads");
+        let failed_execution =
+            read_execution(&failed_journal, &failed.session_id).expect("execution reads");
+        let failed_output = format_run_report(
+            &failed,
+            &failed_session,
+            &failed_execution,
+            workspace.path(),
+            WorkspaceMode::ReadWrite,
+            workspace.path(),
+            true,
+        );
+        assert!(failed_output.contains(
+            "not evaluated (invocation did not complete with outcome completed; observed failed \
+             (class provider-overloaded))"
+        ));
     }
 
     #[test]
@@ -1086,13 +1943,15 @@ mod tests {
         let workspace = TestDir::new("restart-workspace");
         let data = TestDir::new("restart-data");
         let session_id = SessionId::new("session-restart").expect("valid session ID");
+        let executor = BuiltinCheckExecutor::new().expect("executor captures its verifier");
+        let check = command_check("echo ok");
         {
             let journal = SqliteJournal::open(data.path()).expect("journal opens");
             let usage = ObservedUsage::unknown()
                 .with_turns(3)
                 .with_output_chars(99)
                 .with_wall_clock(Duration::from_millis(700));
-            let (report, _, _) = scripted_run(
+            let (report, _, journal) = scripted_run(
                 journal,
                 workspace.path(),
                 ScriptedOutcome::completes(None, usage),
@@ -1101,13 +1960,16 @@ mod tests {
             )
             .expect("scripted run completes");
             assert_eq!(report.revision, ymp_runtime::Revision::new(6));
+            let session =
+                execute_and_record_check(&journal, &report, workspace.path(), &executor, &check);
+            assert_eq!(session.revision(), ymp_runtime::Revision::new(7));
         }
 
         let output = show_command(session_id.as_str().to_owned(), data.path().to_path_buf())
             .expect("show reopens the journal");
         assert_eq!(output.exit_code(), 0);
         assert!(output.stdout().contains("Session: session-restart"));
-        assert!(output.stdout().contains("Revision: 6"));
+        assert!(output.stdout().contains("Revision: 7"));
         assert!(output.stdout().contains("Invocations: 1"));
         assert!(output.stdout().contains("Status: terminated"));
         assert!(output.stdout().contains("Outcome: completed"));
@@ -1117,6 +1979,15 @@ mod tests {
                 .contains("Usage: turns 3, output characters 99, wall clock 700 ms")
         );
         assert!(output.stdout().contains("Accounted: yes"));
+        assert!(
+            output
+                .stdout()
+                .contains("Criterion requested-work-completed: satisfied with evidence")
+        );
+        assert!(output.stdout().contains("Check command: \"echo ok\""));
+        assert!(output.stdout().contains("Exit code: 0"));
+        assert!(output.stdout().contains("Workspace:"));
+        assert!(output.stdout().contains("Check time:"));
     }
 
     #[test]
@@ -1159,7 +2030,60 @@ mod tests {
         assert!(output.stdout().contains("write access"));
         assert!(output.stdout().contains("without persisting"));
         assert!(output.stdout().contains("session rollout"));
+        assert!(output.stdout().contains("--check"));
+        assert!(output.stdout().contains("/bin/sh"));
+        assert!(output.stdout().contains("120-second"));
+        assert!(output.stdout().contains("not inferred or"));
+        assert!(
+            output
+                .stdout()
+                .contains("SIGINT requests cancellation through")
+        );
+        assert!(
+            output
+                .stdout()
+                .contains("does not stop an already running check")
+        );
+        assert!(output.stdout().contains("status 130"));
         assert!(output.stdout().contains("does not establish acceptance"));
+    }
+
+    #[test]
+    fn run_parser_preserves_one_explicit_check_command() {
+        let parsed = parse_command(&[
+            OsString::from("run"),
+            OsString::from("task"),
+            OsString::from("--check"),
+            OsString::from("  printf 'ok'  "),
+            OsString::from("--data-dir=data"),
+        ])
+        .expect("run options parse");
+        match parsed {
+            ParsedCommand::Run {
+                goal,
+                data_dir,
+                check,
+            } => {
+                assert_eq!(goal, "task");
+                assert_eq!(data_dir, PathBuf::from("data"));
+                assert_eq!(check.as_deref(), Some("  printf 'ok'  "));
+            }
+            _ => panic!("expected a run command"),
+        }
+
+        let duplicate = command(&[
+            OsString::from("run"),
+            OsString::from("task"),
+            OsString::from("--check=true"),
+            OsString::from("--check"),
+            OsString::from("true"),
+        ]);
+        assert_eq!(duplicate.exit_code(), 2);
+        assert!(
+            duplicate
+                .stderr()
+                .contains("--check may be specified only once")
+        );
     }
 
     #[test]

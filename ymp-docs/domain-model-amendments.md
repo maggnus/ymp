@@ -35,7 +35,7 @@ specification should be read and later adapted as follows:
 
 | Transferred specification term | Canonical interpretation and required adaptation |
 | --- | --- |
-| `Task`, `Plan`, `WorkItem` | `Task` is the user's complete goal, acceptance contract, and constraints. `Plan` arranges work, and each actionable plan unit is a `WorkItem`, never another product `Task`. Repository `DEV-*` records remain separate development tooling. |
+| `Task`, `Plan`, `WorkItem` | `Task` is the user's complete goal, acceptance contract, and constraints. `Plan` arranges work, and each actionable plan unit is a `WorkItem`, never another product `Task`. Repository development task records such as `W1-0001` remain separate development tooling. |
 | `Goal`, `Assumption`, `Clarification` | `Goal.request` corresponds to the canonical `Goal` and must preserve the user's request as stated. Assumptions and clarifications may accompany it as accountable records but must not silently rewrite it. |
 | `Constraints`, `Pins` | Canonical `Constraints` are user-stated conditions. Typed budgets, permissions, roster choices, and limits may be faithful projections with provenance; defaults or inferred values must not be represented as user constraints or authority. |
 | `Runtime` | At admission, state transition, evidence validation, and acceptance sites, the generic name means the named kernel service that owns the decision. It does not transfer that authority to the `ymp-runtime` assembly crate or an adapter. |

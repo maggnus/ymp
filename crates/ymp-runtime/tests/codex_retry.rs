@@ -5,14 +5,19 @@
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 
 use serde_json::{Value, json};
 use ymp_runtime::{
-    AgentId, BackendInvocation, CodexBackend, CodexProbe, CodexRegistry, CodexStreamStats,
-    ErrorClass, ExecutionBackend, ExecutionObservation, InvocationId, InvocationLimits,
-    ManualClock, ModelOffering, OfferingId, PoolEligibility, Receipt, Registry, SettingKey,
-    SettingValue, Settings, Termination, WorkspaceAccess, WorkspaceOperation, WorkspaceScope,
+    AcceptanceContract, AgentId, Allowance, AssignmentRequest, BackendInvocation, CodexBackend,
+    CodexProbe, CodexRegistry, CodexStreamStats, Constraints, Criterion, CriterionId, ErrorClass,
+    ExecutionBackend, ExecutionError, ExecutionObservation, ExecutionScenario, Goal, InvocationId,
+    InvocationLimits, Journal, JournalEntry, JournalError, ManualClock, MemoryJournal,
+    ModelOffering, OfferingId, PoolEligibility, Receipt, Registry, ReservationPurpose,
+    ResourceAmount, Revision, Role, ScriptedProvider, ScriptedRegistry, SessionEvent, SessionId,
+    SettingKey, SettingValue, Settings, StartOutcome, Task, TaskId, Termination, WorkspaceAccess,
+    WorkspaceOperation, WorkspaceScope,
 };
 
 struct Fixture {
@@ -77,6 +82,44 @@ impl Fixture {
 impl Drop for Fixture {
     fn drop(&mut self) {
         let _ = std::fs::remove_dir_all(&self.root);
+    }
+}
+
+#[derive(Clone)]
+struct FailStartedOnceJournal {
+    inner: MemoryJournal,
+    fired: Arc<AtomicBool>,
+}
+
+impl FailStartedOnceJournal {
+    fn new() -> Self {
+        Self {
+            inner: MemoryJournal::new(),
+            fired: Arc::new(AtomicBool::new(false)),
+        }
+    }
+}
+
+impl Journal for FailStartedOnceJournal {
+    fn read(&self, session_id: &SessionId) -> Result<Vec<JournalEntry>, JournalError> {
+        self.inner.read(session_id)
+    }
+
+    fn append(
+        &self,
+        session_id: &SessionId,
+        expected_revision: Revision,
+        events: Vec<SessionEvent>,
+    ) -> Result<Revision, JournalError> {
+        let contains_started = events
+            .iter()
+            .any(|event| matches!(event, SessionEvent::InvocationStarted { .. }));
+        if contains_started && !self.fired.swap(true, Ordering::SeqCst) {
+            return Err(JournalError::AdapterFailure {
+                message: "injected InvocationStarted append failure".to_owned(),
+            });
+        }
+        self.inner.append(session_id, expected_revision, events)
     }
 }
 
@@ -178,6 +221,22 @@ fn offering() -> ModelOffering {
         Vec::new(),
     )
     .expect("valid offering")
+}
+
+fn task() -> Task {
+    Task::new(
+        TaskId::new("codex-start-retry-task").expect("valid task ID"),
+        Goal::new("Run one App Server turn").expect("valid goal"),
+        AcceptanceContract::new(vec![
+            Criterion::new(
+                CriterionId::new("one-turn").expect("valid criterion ID"),
+                "The admitted App Server turn starts exactly once.",
+            )
+            .expect("valid criterion"),
+        ])
+        .expect("valid acceptance contract"),
+        Constraints::new(Vec::new()).expect("valid constraints"),
+    )
 }
 
 fn settings(pairs: &[(&str, &str)]) -> Settings {
@@ -790,6 +849,79 @@ fn duplicate_failed_start_returns_the_first_unknown_outcome() {
 }
 
 #[test]
+fn scenario_retries_a_successful_app_server_start_without_a_second_turn() {
+    let fixture = Fixture::new("scenario-start-retry", base_scenario());
+    let clock = ManualClock::new();
+    let backend = CodexBackend::new(
+        fixture.executable.to_string_lossy().into_owned(),
+        Arc::new(clock.clone()),
+    )
+    .with_prompt("Reply with pong");
+    let scope = WorkspaceScope::new(fixture.root.to_string_lossy().into_owned())
+        .expect("valid workspace scope");
+    let access =
+        WorkspaceAccess::new(scope, [WorkspaceOperation::Write]).expect("valid workspace access");
+    let provider = ScriptedProvider::new(agent(), offering())
+        .with_effective_workspace_accesses([access.clone()]);
+    let journal = FailStartedOnceJournal::new();
+    let scenario = ExecutionScenario::over(
+        journal.clone(),
+        backend,
+        [access.clone()],
+        ScriptedRegistry::new([provider]),
+        ResourceAmount::new(1),
+        Arc::new(clock),
+    );
+    let session_id = SessionId::new("codex-start-retry").expect("valid session ID");
+    scenario
+        .open_session(session_id.clone(), task())
+        .expect("session opens");
+    scenario.scan().expect("registry scan succeeds");
+    let request = AssignmentRequest::new(
+        agent(),
+        Role::new("implementer").expect("valid role"),
+        Settings::new(),
+        Allowance::new(
+            ResourceAmount::new(1),
+            ReservationPurpose::Production,
+            InvocationLimits::new(8, 100_000, Duration::from_secs(30)).expect("valid limits"),
+        )
+        .expect("valid allowance"),
+        vec![access],
+    )
+    .expect("valid assignment request");
+    let assignment = scenario
+        .admit(&session_id, request, Revision::new(1))
+        .expect("admission commits");
+
+    assert!(matches!(
+        scenario
+            .invoke(&session_id, assignment.invocation(), Revision::new(2))
+            .expect_err("the first InvocationStarted append fails"),
+        ExecutionError::Journal(JournalError::AdapterFailure { .. })
+    ));
+    assert!(matches!(
+        journal
+            .read(&session_id)
+            .expect("history reads")
+            .last()
+            .expect("the start attempt exists")
+            .event(),
+        SessionEvent::InvocationStartAttempted { .. }
+    ));
+    assert_eq!(
+        scenario
+            .invoke(&session_id, assignment.invocation(), Revision::new(3))
+            .expect("the retry returns the original successful start"),
+        StartOutcome::Started
+    );
+    assert_eq!(
+        std::fs::read_to_string(fixture.root.join("effects.log")).unwrap(),
+        "turn-started\n"
+    );
+}
+
+#[test]
 fn arbitrary_cli_arguments_are_rejected_before_spawn() {
     let fixture = Fixture::new("bad-args", base_scenario());
     let mut backend = backend(&fixture).with_extra_args(["--dangerous-unknown".to_owned()]);
@@ -801,6 +933,62 @@ fn arbitrary_cli_arguments_are_rejected_before_spawn() {
         failure.class(),
         &ErrorClass::new("unsupported-codex-argument").unwrap()
     );
+    assert!(!fixture.root.join("process.pid").exists());
+}
+
+#[test]
+fn flag_shaped_prompt_is_transported_only_in_the_turn_request() {
+    let fixture = Fixture::new("flag-shaped-prompt", base_scenario());
+    let mut backend = CodexBackend::new(
+        fixture.executable.to_string_lossy().into_owned(),
+        Arc::new(ManualClock::new()),
+    )
+    .with_prompt("--help");
+    backend
+        .start(&invocation(&fixture, Settings::new()))
+        .expect("the App Server invocation starts");
+    let _ = wait_for_receipt(&mut backend, Duration::from_secs(5));
+
+    let arguments: Value =
+        serde_json::from_str(&std::fs::read_to_string(fixture.root.join("argv.json")).unwrap())
+            .unwrap();
+    assert_eq!(arguments, json!(["app-server", "--stdio"]));
+    let turn = fixture
+        .requests()
+        .into_iter()
+        .find(|request| request["method"] == "turn/start")
+        .expect("turn/start is sent");
+    assert_eq!(
+        turn["params"]["input"],
+        json!([{"type": "text", "text": "--help"}])
+    );
+}
+
+#[test]
+fn backend_requires_exactly_one_workspace_access() {
+    let fixture = Fixture::new("workspace-count", base_scenario());
+    let scope = WorkspaceScope::new(fixture.root.to_string_lossy().into_owned())
+        .expect("valid workspace scope");
+    let access =
+        WorkspaceAccess::new(scope, [WorkspaceOperation::Write]).expect("valid workspace access");
+    for accesses in [Vec::new(), vec![access.clone(), access]] {
+        let request = BackendInvocation::new(
+            invocation_id(),
+            agent(),
+            Settings::new(),
+            accesses,
+            InvocationLimits::new(8, 100_000, Duration::from_secs(30)).expect("valid limits"),
+        );
+        let mut backend = backend(&fixture);
+        let failure = backend
+            .start(&request)
+            .expect_err("an ambiguous workspace is rejected");
+        assert!(failure.confirmed_never_started());
+        assert_eq!(
+            failure.class(),
+            &ErrorClass::new("workspace-dir-missing").unwrap()
+        );
+    }
     assert!(!fixture.root.join("process.pid").exists());
 }
 
@@ -885,9 +1073,12 @@ fn observations_are_delivered_one_at_a_time_and_can_be_unread() {
         std::thread::sleep(Duration::from_millis(10));
     };
     backend.unread_last(&invocation_id());
-    assert_eq!(backend.next_event(&invocation_id()), Some(first));
+    assert_eq!(backend.next_event(&invocation_id()), Some(first.clone()));
     backend.reset_scan(&invocation_id());
     assert!(backend.next_event(&invocation_id()).is_some());
+    backend.commit_scan(&invocation_id());
+    backend.reset_scan(&invocation_id());
+    assert_ne!(backend.next_event(&invocation_id()), Some(first));
 }
 
 #[test]

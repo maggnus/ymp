@@ -269,7 +269,9 @@ pub fn replay_execution(
                     view.settled_usage = Some(*usage);
                 }
             }
-            SessionEvent::SessionOpened { .. } | SessionEvent::SessionCancelled { .. } => {}
+            SessionEvent::SessionOpened { .. }
+            | SessionEvent::SessionCancelled { .. }
+            | SessionEvent::CriterionEvaluated { .. } => {}
         }
     }
 

@@ -726,6 +726,10 @@ where
     pub started_at: Duration,
     /// Logical elapsed time now.
     pub now: Duration,
+    /// An optional earlier host deadline, for example the bounded wait after
+    /// an interrupt-triggered cancellation. It can shorten but never extend
+    /// the admitted wall-clock limit.
+    pub earlier_deadline: Option<Duration>,
     pub treasury: &'a mut T,
     pub workspace: &'a mut W,
 }
@@ -787,6 +791,7 @@ where
         prior,
         started_at,
         now,
+        earlier_deadline,
         treasury: _,
         workspace,
     } = context;
@@ -910,7 +915,10 @@ where
             })
         }
         None => {
-            if now.saturating_sub(started_at) >= limits.max_wall_clock() {
+            let admitted_deadline = started_at.saturating_add(limits.max_wall_clock());
+            let deadline = earlier_deadline
+                .map_or(admitted_deadline, |earlier| admitted_deadline.min(earlier));
+            if now >= deadline {
                 // The bounded deadline passed without a termination
                 // observation: record uncertain, never timed out.
                 let event = SessionEvent::InvocationUncertain {
@@ -1194,11 +1202,63 @@ fn append_events<J: Journal>(
     expected_revision: Revision,
     events: Vec<SessionEvent>,
 ) -> Result<Revision, ExecutionError> {
-    match journal.append(session_id, expected_revision, events) {
-        Ok(revision) => Ok(revision),
-        Err(JournalError::StaleRevision { expected, actual }) => {
-            Err(ExecutionError::StaleRevision { expected, actual })
+    let mut retry_available = true;
+    loop {
+        match journal.append(session_id, expected_revision, events.clone()) {
+            Ok(revision) => return Ok(revision),
+            Err(JournalError::StaleRevision { expected, actual }) => {
+                return Err(ExecutionError::StaleRevision { expected, actual });
+            }
+            Err(error @ JournalError::IndeterminateCommit { attempted, .. }) => {
+                let history = journal.read(session_id).map_err(ExecutionError::Journal)?;
+                let head = history
+                    .last()
+                    .map_or(Revision::INITIAL, JournalEntry::revision);
+                if head == attempted
+                    && exact_batch_is_visible(
+                        &history,
+                        expected_revision,
+                        attempted,
+                        events.as_slice(),
+                    )
+                {
+                    return Ok(attempted);
+                }
+                if head == expected_revision && retry_available {
+                    retry_available = false;
+                    continue;
+                }
+                if head == expected_revision {
+                    return Err(ExecutionError::Journal(error));
+                }
+                return Err(ExecutionError::StaleRevision {
+                    expected: expected_revision,
+                    actual: head,
+                });
+            }
+            Err(error) => return Err(ExecutionError::Journal(error)),
         }
-        Err(error) => Err(ExecutionError::Journal(error)),
     }
+}
+
+fn exact_batch_is_visible(
+    history: &[JournalEntry],
+    expected_revision: Revision,
+    attempted_revision: Revision,
+    events: &[SessionEvent],
+) -> bool {
+    if events.is_empty() || history.len() < events.len() {
+        return false;
+    }
+    let mut revision = expected_revision;
+    for (entry, event) in history[history.len() - events.len()..].iter().zip(events) {
+        let Some(next) = revision.checked_next() else {
+            return false;
+        };
+        if entry.revision() != next || entry.event() != event {
+            return false;
+        }
+        revision = next;
+    }
+    revision == attempted_revision
 }

@@ -45,6 +45,7 @@ assignment. Requested, sent and reported native settings retain their own meanin
 | `ResultVersion` | An immutable candidate identified with its actual artifact contents. |
 | `Check` | A defined method for assessing a criterion. |
 | `Evidence` | Attributed, version-bound support or contradiction for a criterion. |
+| `CriterionEvaluation` | A per-criterion projection of observed check evidence as satisfied, failed or not evaluated; it is not an `Acceptance` decision. |
 | `Review` | An independent assessment of a result with its recorded basis. |
 | `Acceptance` | The kernel's decision about a result under its contract. |
 | `Confirmation` | Independent deterministic or external support for accepted work. |
@@ -54,6 +55,12 @@ assignment. Requested, sent and reported native settings retain their own meanin
 Acceptance does not imply confirmation. Missing confirmation is not a failed check,
 and an unknown state is not false. A probability estimate may guide work selection;
 it does not satisfy a required criterion by itself.
+
+`CriterionEvaluation` is named separately because the executable foundation can
+report what a check observed before it implements immutable `ResultVersion`
+capture and final `Acceptance`. Each recorded evaluation must retain its invocation
+and environment attribution, must not be reused for a changed result, and cannot
+by itself establish final acceptance or confirmation.
 
 ## Trusted services
 

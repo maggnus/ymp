@@ -8,22 +8,35 @@ authority.
 Use Python 3.11 or newer. `manage.py` uses only the standard library and does not
 access application data, providers, models, credentials, or the network.
 
+## Waves and record paths
+
+Each task has an ID such as `W1-0001`, `W1-0002`, or `W2-0001` and lives directly
+at `records/<ID>.json`. `W1` identifies the development wave; the sequence starts
+at `0001` independently in each wave. A wave groups tasks toward a checkable
+iteration outcome. Its number is derived from the ID, not stored in another field.
+Area remains metadata rather than a subdirectory.
+
+Use explicit dependencies to order work within or between waves. A wave number
+alone does not prevent work in a later wave. IDs are immutable, so tasks are not
+renamed or moved between waves. An empty register is valid, and the examples below
+do not imply that these tasks exist. The `.gitkeep` file retains `records/` in Git.
+
 ## Start and finish work
 
 Read only the bounded queue and the selected record before claiming it:
 
 ```sh
 python3 ymp-docs/tasks/manage.py next
-python3 ymp-docs/tasks/manage.py show DEV-0004
-python3 ymp-docs/tasks/manage.py claim DEV-0004 --owner maintainer --expect-revision 1
-python3 ymp-docs/tasks/manage.py show DEV-0004
+python3 ymp-docs/tasks/manage.py show W1-0004
+python3 ymp-docs/tasks/manage.py claim W1-0004 --owner maintainer --expect-revision 1
+python3 ymp-docs/tasks/manage.py show W1-0004
 ```
 
 Use `update` for definition changes. Use `status` with the revision returned by the
 previous write to record progress:
 
 ```sh
-python3 ymp-docs/tasks/manage.py update DEV-0004 --file dev-0004-patch.json \
+python3 ymp-docs/tasks/manage.py update W1-0004 --file w1-0004-patch.json \
   --expect-revision 2 --note "Clarified the recovery acceptance cases."
 ```
 
@@ -38,7 +51,7 @@ result. From the canonical checkout, first verify that the result commit is in
 
 ```sh
 git merge-base --is-ancestor <result-sha> main
-python3 ymp-docs/tasks/manage.py status DEV-0004 done --expect-revision 3 \
+python3 ymp-docs/tasks/manage.py status W1-0004 done --expect-revision 3 \
   --actor maintainer --note "The accepted result is committed to main." \
   --evidence "Commit <result-sha> in main"
 ```
@@ -66,12 +79,12 @@ this directory.
 
 | Command | Purpose and principal flags |
 | --- | --- |
-| `next` | Ready planned tasks ordered by numeric priority then ID. Supports repeatable `--area`, `--limit`, `--offset`, and `--json`. |
-| `list` | Summaries filtered by repeatable `--area`, `--status`, or `--readiness`. Terminal tasks are excluded unless `--all` or an explicit status is supplied. |
+| `next` | Ready planned tasks ordered by numeric priority, wave, then task sequence. Supports repeatable `--wave W1` and `--area`, plus `--limit`, `--offset`, and `--json`. |
+| `list` | Summaries filtered by repeatable `--wave W1`, `--area`, `--status`, or `--readiness`. Terminal tasks are excluded unless `--all` or an explicit status is supplied. |
 | `show ID` | Current task, acceptance, and immediate dependency states, but no history. `--limit` and `--offset` paginate characters. |
 | `deps ID` | Transitive dependency summaries ordered by distance and ID. |
 | `history ID` | History entries, newest first. |
-| `summary` | Status counts grouped separately by area and task type. |
+| `summary` | Status counts grouped separately by wave, area, and task type. |
 | `render` | A bounded Markdown overview on standard output. It does not write an index or cache. |
 | `check` | Validate schemas, stable paths, revision/history consistency, and the complete dependency graph. |
 
@@ -91,10 +104,12 @@ Read commands scan the JSON files but do not create the writer lock or modify
 records. Examples:
 
 ```sh
+python3 ymp-docs/tasks/manage.py next --wave W1
+python3 ymp-docs/tasks/manage.py list --wave W1 --wave W2 --json
 python3 ymp-docs/tasks/manage.py list --area persistence --status planned --json
 python3 ymp-docs/tasks/manage.py list --readiness unscheduled --limit 20
-python3 ymp-docs/tasks/manage.py deps DEV-0008 --limit 20 --offset 0
-python3 ymp-docs/tasks/manage.py history DEV-0003 --limit 20 --offset 0
+python3 ymp-docs/tasks/manage.py deps W1-0008 --limit 20 --offset 0
+python3 ymp-docs/tasks/manage.py history W1-0003 --limit 20 --offset 0
 python3 ymp-docs/tasks/manage.py summary
 python3 ymp-docs/tasks/manage.py render --limit 20
 python3 ymp-docs/tasks/manage.py check
@@ -102,21 +117,23 @@ python3 ymp-docs/tasks/manage.py check
 
 ## Write commands and files
 
-`create --file DRAFT.json` accepts current definition fields and allocates the next
-global ID when `id` is absent. A draft must not provide `revision` or `history`;
-the writer creates revision 1 and its first history entry. These definition fields
-are accepted:
+`create --wave W1 --file DRAFT.json` accepts current definition fields and allocates
+the next ID within W1 when `id` is absent. In that case `--wave` is required. An
+explicit draft ID supplies the wave when the option is omitted; if both are given,
+they must agree. Allocation runs under the writer lock. A draft must not provide
+`revision` or `history`; the writer creates revision 1 and its first history entry.
+These definition fields are accepted:
 
 ```json
 {
   "schema_version": 1,
-  "id": "DEV-0010",
+  "id": "W1-0010",
   "area": "persistence",
   "title": "Define a recovery scenario",
   "type": "design",
   "priority": 100,
   "status": "new",
-  "depends_on": ["DEV-0004"],
+  "depends_on": ["W1-0004"],
   "owner": null,
   "goal": "State the recovery outcome.",
   "scope": ["Bound the scenario."],
@@ -139,11 +156,16 @@ and the latest history status equals the current status. A `done` task requires 
 least one evidence reference. Evidence references aid review; their presence alone
 does not prove correctness.
 
-Task IDs have the canonical form `DEV-0001` and continue as `DEV-10000` and above.
+Task IDs have the canonical form `W<wave>-<number>`, for example `W1-0001`,
+`W2-0001`, or `W10-10000`. Both numbers are positive. The wave has no leading
+zeros; the task number has exactly four digits until it grows beyond `9999`.
+Legacy `DEV-` IDs and area subdirectories are not accepted. This iteration starts
+with an empty register; no legacy-record migration is performed.
+
 Areas and types are safe lowercase slugs of at most 64 characters. Records stay at
-`records/<area>/<ID>.json`; status changes never move them. Traversal, symlinked
-record paths, path/record disagreement, duplicate IDs, unknown dependencies,
-self-dependencies, and dependency cycles are rejected.
+`records/<ID>.json`; status changes never move them. Traversal, symlinked record
+paths, nested directories, path/record disagreement, duplicate creation, unknown
+dependencies, self-dependencies, and dependency cycles are rejected.
 
 ## Concurrency and limits
 

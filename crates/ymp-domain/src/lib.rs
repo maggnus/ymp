@@ -1,8 +1,16 @@
 #![forbid(unsafe_code)]
 
+mod acceptance;
+
 use std::collections::HashSet;
 use std::error::Error;
 use std::fmt;
+use std::path::PathBuf;
+
+pub use acceptance::{
+    Check, CheckMethod, CriterionEvaluation, CriterionStatus, Evidence, EvidenceFile,
+    VerifierDigest, sha256,
+};
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct TaskId(String);
@@ -199,6 +207,13 @@ pub enum DomainError {
     BlankText { field: &'static str },
     EmptyAcceptanceContract,
     DuplicateCriterionId(CriterionId),
+    EmptyCheckCoverage,
+    DuplicateCheckCriterion(CriterionId),
+    UnsafeEvidencePath(PathBuf),
+    InvalidVerifierPath(PathBuf),
+    InvalidSha256,
+    EvidenceMethodMismatch,
+    UnknownEvidenceCriterion(CriterionId),
 }
 
 impl fmt::Display for DomainError {
@@ -211,6 +226,32 @@ impl fmt::Display for DomainError {
             Self::DuplicateCriterionId(id) => {
                 write!(formatter, "criterion ID '{id}' must be unique")
             }
+            Self::EmptyCheckCoverage => {
+                formatter.write_str("check must cover at least one criterion")
+            }
+            Self::DuplicateCheckCriterion(id) => {
+                write!(formatter, "check criterion ID '{id}' must be unique")
+            }
+            Self::UnsafeEvidencePath(path) => write!(
+                formatter,
+                "evidence path '{}' must be relative and stay inside the workspace",
+                path.display()
+            ),
+            Self::InvalidVerifierPath(path) => write!(
+                formatter,
+                "check verifier path '{}' must be absolute",
+                path.display()
+            ),
+            Self::InvalidSha256 => formatter.write_str(
+                "SHA-256 digest must contain exactly 64 lowercase hexadecimal characters",
+            ),
+            Self::EvidenceMethodMismatch => {
+                formatter.write_str("evidence does not match its check method")
+            }
+            Self::UnknownEvidenceCriterion(id) => write!(
+                formatter,
+                "evidence covers criterion ID '{id}' outside the acceptance contract"
+            ),
         }
     }
 }
