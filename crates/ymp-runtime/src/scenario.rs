@@ -336,24 +336,35 @@ where
         self.clock.elapsed()
     }
 
-    /// Rebuilds the in-memory reservations and workspace holds for one
-    /// session from its journaled history. Start times are not durable, so
-    /// wall-clock adjudication of invocations that were in flight across a
-    /// restart begins from the reattachment, not from their original start.
+    /// Rebuilds the in-memory reservations, workspace holds and start times
+    /// for one session from its journaled history. Start times are not
+    /// durable, so wall-clock adjudication of invocations that were in flight
+    /// across a restart begins from the reattachment, not from their original
+    /// start.
     pub fn reattach(&self, session_id: &SessionId) -> Result<(), ExecutionError> {
         let view = read_execution(&self.journal, session_id)?;
         let mut treasury_holds = Vec::new();
         let mut workspace_holds = Vec::new();
+        let mut start_times = BTreeMap::new();
+        let now = self.clock.elapsed();
         for (invocation, invocation_view) in view.invocations() {
             if invocation_view.holds_reservation() {
                 treasury_holds.push((
                     invocation.clone(),
                     invocation_view.assignment().grant().reservation(),
                 ));
+            }
+            if invocation_view.holds_workspace() {
                 workspace_holds.push((
                     invocation.clone(),
                     invocation_view.assignment().workspace().clone(),
                 ));
+            }
+            if matches!(
+                invocation_view.status(),
+                execution::InvocationStatus::Started | execution::InvocationStatus::Cancelling
+            ) {
+                start_times.insert(invocation.clone(), now);
             }
         }
         self.treasury
@@ -364,6 +375,14 @@ where
             .lock()
             .expect("workspace lock is available")
             .rebuild_holds(workspace_holds);
+        *self
+            .started_at
+            .lock()
+            .expect("start-time lock is available") = start_times;
+        self.observations
+            .lock()
+            .expect("observation lock is available")
+            .clear();
         Ok(())
     }
 }

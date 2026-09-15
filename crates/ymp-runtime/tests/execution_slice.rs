@@ -1196,6 +1196,136 @@ fn effect_evidence_preserves_other_observation_kinds() {
     );
 }
 
+#[test]
+fn reattach_keeps_only_the_reservation_after_termination() {
+    let clock = ManualClock::new();
+    let (journal, scenario, id) = prepared(clock);
+    scenario.script_outcome(ScriptedOutcome::completes(None, ObservedUsage::unknown()));
+    let assignment = scenario
+        .admit(&id, default_request(), Revision::new(1))
+        .expect("admission commits");
+    scenario
+        .invoke(&id, assignment.invocation(), Revision::new(2))
+        .expect("invocation starts");
+    assert!(matches!(
+        scenario
+            .observe(&id, assignment.invocation(), Revision::new(4))
+            .expect("termination records"),
+        ObservationOutcome::Terminated { .. }
+    ));
+    assert_eq!(scenario.treasury_held(), ResourceAmount::new(4));
+    assert!(
+        scenario
+            .workspace_hold_of(assignment.invocation())
+            .is_none()
+    );
+    drop(scenario);
+
+    let reattached = scenario_multi(journal, ManualClock::new());
+    reattached.reattach(&id).expect("scenario reattaches");
+    assert_eq!(reattached.treasury_held(), ResourceAmount::new(4));
+    assert!(
+        reattached
+            .workspace_hold_of(assignment.invocation())
+            .is_none()
+    );
+}
+
+#[test]
+fn reattach_keeps_only_the_reservation_after_effect_evidence() {
+    let clock = ManualClock::new();
+    let (journal, scenario, id) = prepared(clock);
+    scenario.script_outcome(ScriptedOutcome::never_reports_with(vec![
+        ExecutionObservation::WritesEnded,
+    ]));
+    let assignment = scenario
+        .admit(&id, default_request(), Revision::new(1))
+        .expect("admission commits");
+    scenario
+        .invoke(&id, assignment.invocation(), Revision::new(2))
+        .expect("invocation starts");
+    assert_eq!(
+        scenario
+            .evidence(&id, assignment.invocation(), Revision::new(4))
+            .expect("effect evidence records"),
+        ymp_runtime::EvidenceOutcome::Recorded
+    );
+    assert_eq!(scenario.treasury_held(), ResourceAmount::new(4));
+    assert!(
+        scenario
+            .workspace_hold_of(assignment.invocation())
+            .is_none()
+    );
+    drop(scenario);
+
+    let reattached = scenario_multi(journal, ManualClock::new());
+    reattached.reattach(&id).expect("scenario reattaches");
+    assert_eq!(reattached.treasury_held(), ResourceAmount::new(4));
+    assert!(
+        reattached
+            .workspace_hold_of(assignment.invocation())
+            .is_none()
+    );
+}
+
+#[test]
+fn reattach_restores_the_observation_clock_for_in_flight_invocations() {
+    for cancel_before_restart in [false, true] {
+        let id = session(if cancel_before_restart {
+            "reattach-cancelling"
+        } else {
+            "reattach-started"
+        });
+        let journal = MemoryJournal::new();
+        let scenario = scenario_multi(journal.clone(), ManualClock::new());
+        scenario
+            .open_session(id.clone(), task())
+            .expect("session opens");
+        scenario.scan().expect("scripted scan succeeds");
+        scenario.script_outcome(ScriptedOutcome::never_reports());
+        let assignment = scenario
+            .admit(&id, default_request(), Revision::new(1))
+            .expect("admission commits");
+        scenario
+            .invoke(&id, assignment.invocation(), Revision::new(2))
+            .expect("invocation starts");
+        let revision = if cancel_before_restart {
+            scenario
+                .cancel(&id, assignment.invocation(), Revision::new(4))
+                .expect("cancellation records");
+            Revision::new(5)
+        } else {
+            Revision::new(4)
+        };
+        drop(scenario);
+
+        let clock = ManualClock::new();
+        clock.advance(Duration::from_secs(10));
+        let reattached = scenario_multi(journal, clock.clone());
+        reattached.reattach(&id).expect("scenario reattaches");
+        assert!(matches!(
+            reattached
+                .observe(&id, assignment.invocation(), revision)
+                .expect("reattached invocation remains observable"),
+            ObservationOutcome::WaitingForTermination { .. }
+        ));
+        clock.advance(Duration::from_millis(59_999));
+        assert!(matches!(
+            reattached
+                .observe(&id, assignment.invocation(), revision)
+                .expect("reattachment starts a fresh bounded wait"),
+            ObservationOutcome::WaitingForTermination { .. }
+        ));
+        clock.advance(Duration::from_millis(1));
+        assert!(matches!(
+            reattached
+                .observe(&id, assignment.invocation(), revision)
+                .expect("bounded wait expires from reattachment"),
+            ObservationOutcome::UncertainAfterDeadline { .. }
+        ));
+    }
+}
+
 /// "Host-enforced limits: no turns are issued past the turn bound, output
 /// past the size bound is refused, and expired wall-clock, a lost
 /// observation stream or a lost receipt without a termination observation

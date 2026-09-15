@@ -118,10 +118,17 @@ impl InvocationView {
         self.settled_usage.as_ref()
     }
 
-    /// Whether the invocation still holds its reservation and workspace
-    /// hold: everything admitted but not yet accounted.
+    /// Whether the invocation still holds its reservation: everything
+    /// admitted but not yet accounted.
     pub fn holds_reservation(&self) -> bool {
         self.settled_usage.is_none()
+    }
+
+    /// Whether the invocation still holds its workspace scope. Termination,
+    /// a confirmed never-started failure and effect evidence each release
+    /// this hold independently of reservation settlement.
+    pub fn holds_workspace(&self) -> bool {
+        self.termination.is_none() && self.failed_at_start.is_none() && !self.effect_evidence
     }
 }
 
