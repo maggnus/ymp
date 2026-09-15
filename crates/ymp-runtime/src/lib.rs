@@ -108,17 +108,25 @@ impl Journal for MemoryJournal {
     }
 }
 
+/// Application assembly over any [`Journal`] adapter, defaulting to the
+/// in-memory assembly so existing type-position uses of `Application` keep
+/// meaning `Application<MemoryJournal>`.
 #[derive(Clone, Debug)]
-pub struct Application {
-    dispatcher: Dispatcher<MemoryJournal>,
+pub struct Application<J = MemoryJournal> {
+    dispatcher: Dispatcher<J>,
 }
 
-impl Application {
+impl Application<MemoryJournal> {
     pub fn in_memory() -> Self {
         Self::new(MemoryJournal::new())
     }
+}
 
-    pub fn new(journal: MemoryJournal) -> Self {
+impl<J> Application<J>
+where
+    J: Journal,
+{
+    pub fn new(journal: J) -> Self {
         Self {
             dispatcher: Dispatcher::new(journal),
         }
@@ -149,7 +157,7 @@ impl Application {
     }
 }
 
-impl Default for Application {
+impl Default for Application<MemoryJournal> {
     fn default() -> Self {
         Self::in_memory()
     }
