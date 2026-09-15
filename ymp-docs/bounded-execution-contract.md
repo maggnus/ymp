@@ -131,7 +131,9 @@ the reservation and workspace hold, and permits accounting; a failure
 observed after a successful start is a typed termination under
 `terminated`. Revoking a grant asserts nothing about whether a process
 stopped writing. A conflicting successor waits: its admission is refused
-until the predecessor's termination or effect evidence exists. Effect
+while the predecessor's workspace hold stands — until the predecessor's
+termination, its effect evidence, or its confirmed never-started `failed`
+releases the hold. Effect
 evidence is an observation on the predecessor's own event stream or
 receipt reporting that its writes to the held scope have ended; the kernel
 checks only that it is attributed to that invocation, then records the

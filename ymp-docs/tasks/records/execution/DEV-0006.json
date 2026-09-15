@@ -5,7 +5,7 @@
   "title": "Define the bounded native execution contract",
   "type": "design",
   "priority": 60,
-  "status": "in_progress",
+  "status": "done",
   "depends_on": [
     "DEV-0005"
   ],
@@ -23,12 +23,13 @@
     "The contract requires implementations to state which resource and workspace guarantees are enforced and which remain unknown."
   ],
   "evidence": [
-    "ymp-docs/bounded-execution-contract.md"
+    "ymp-docs/bounded-execution-contract.md",
+    "ymp-docs/bounded-execution-contract.md in main"
   ],
   "context": [
     "This task is intentionally unscheduled until durable session state is implemented and accepted."
   ],
-  "revision": 6,
+  "revision": 8,
   "history": [
     {
       "revision": 1,
@@ -71,6 +72,20 @@
       "actor": "maintainer",
       "status": "in_progress",
       "note": "R2 review (sol xhigh) RETURN with 2 findings, applied"
+    },
+    {
+      "revision": 7,
+      "at": "2026-09-15T04:15:00.098354Z",
+      "actor": "maintainer",
+      "status": "in_progress",
+      "note": "R3 review (sol xhigh) RETURN with 1 finding (successor-bar rule did not cover never-started failed); remedy applied by the project lead exactly as prescribed (bar tied to the workspace hold, lifted by termination, effect evidence, or confirmed never-started failed). Accepted on lead authority: mechanical fix, reviewer-prescribed."
+    },
+    {
+      "revision": 8,
+      "at": "2026-09-15T04:15:00.144296Z",
+      "actor": "maintainer",
+      "status": "done",
+      "note": "Bounded execution contract complete after three independent review rounds (sol xhigh: 8 -> 2 -> 1 findings, all applied) and the lead-applied R3 remedy. 224 lines, commit history 3a50e64..HEAD on main."
     }
   ]
 }
