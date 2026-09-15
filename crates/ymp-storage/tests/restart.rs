@@ -38,7 +38,11 @@ fn restart_replay_uses_real_child_processes() {
     let dispatcher = open_dispatcher(root.path());
     let view = dispatcher.read(&sid).expect("session reads after restart");
     assert_eq!(view.session_id(), &sid);
-    assert_eq!(view.task(), &task, "the exact task content survives restart");
+    assert_eq!(
+        view.task(),
+        &task,
+        "the exact task content survives restart"
+    );
     assert_eq!(view.status(), SessionStatus::Open);
     assert_eq!(view.revision(), Revision::new(1));
     let entries = open_journal(root.path())

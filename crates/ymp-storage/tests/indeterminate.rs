@@ -31,11 +31,7 @@ fn visible_indeterminate_commit_is_not_resubmitted() {
     let faulting = open_journal(root.path());
     faulting.inject_fault(ymp_storage::FaultPoint::IndeterminateCommitted);
     let error = faulting
-        .append(
-            &sid,
-            Revision::new(1),
-            vec![support::cancelled_event(&sid)],
-        )
+        .append(&sid, Revision::new(1), vec![support::cancelled_event(&sid)])
         .unwrap_err();
     let (expected, attempted) = match &error {
         JournalError::IndeterminateCommit {
@@ -72,11 +68,7 @@ fn visible_indeterminate_commit_is_not_resubmitted() {
     // requires instead of a duplicate write.
     assert_eq!(
         faulting
-            .append(
-                &sid,
-                Revision::new(1),
-                vec![support::cancelled_event(&sid)]
-            )
+            .append(&sid, Revision::new(1), vec![support::cancelled_event(&sid)])
             .unwrap_err(),
         JournalError::StaleRevision {
             expected: Revision::new(1),
@@ -148,10 +140,7 @@ fn absent_indeterminate_commit_with_advanced_history_is_stale() {
     let error = faulting
         .append(&sid, Revision::new(1), vec![support::cancelled_event(&sid)])
         .unwrap_err();
-    assert!(matches!(
-        &error,
-        JournalError::IndeterminateCommit { .. }
-    ));
+    assert!(matches!(&error, JournalError::IndeterminateCommit { .. }));
 
     // A different writer advances the history past the original expected
     // revision before the retry.

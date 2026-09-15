@@ -78,7 +78,10 @@ fn injected_pre_commit_failure_leaves_no_partial_result() {
         .cancel(&sid, Revision::new(1))
         .unwrap_err();
     assert!(
-        matches!(error, ymp_kernel::DispatchError::Journal(JournalError::AdapterFailure { .. })),
+        matches!(
+            error,
+            ymp_kernel::DispatchError::Journal(JournalError::AdapterFailure { .. })
+        ),
         "expected AdapterFailure, got {error:?}"
     );
 

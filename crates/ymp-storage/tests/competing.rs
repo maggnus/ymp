@@ -65,9 +65,7 @@ fn two_os_processes_compete_on_one_database() {
     );
 
     // The winner's batch appears exactly once.
-    let entries = open_journal(root.path())
-        .read(&sid)
-        .expect("history reads");
+    let entries = open_journal(root.path()).read(&sid).expect("history reads");
     assert_eq!(entries.len(), 2, "the winner's batch appears exactly once");
     assert_eq!(entries[1].revision(), Revision::new(2));
     assert_eq!(entries[1].event(), &support::cancelled_event(&sid));
@@ -119,8 +117,7 @@ fn in_process_threads_on_separate_handles_also_serialize() {
             thread::spawn(move || {
                 barrier.wait();
                 let journal = open_journal(&root);
-                match journal.append(&sid, Revision::new(1), vec![support::cancelled_event(&sid)])
-                {
+                match journal.append(&sid, Revision::new(1), vec![support::cancelled_event(&sid)]) {
                     Ok(revision) => format!("OK {}", revision.value()),
                     Err(JournalError::StaleRevision { expected, actual }) => {
                         format!("STALE {} {}", expected.value(), actual.value())
@@ -141,8 +138,6 @@ fn in_process_threads_on_separate_handles_also_serialize() {
         "every loser receives the winner's revision: {outcomes:?}"
     );
 
-    let entries = open_journal(root.path())
-        .read(&sid)
-        .expect("history reads");
+    let entries = open_journal(root.path()).read(&sid).expect("history reads");
     assert_eq!(entries.len(), 2, "the winner's batch appears exactly once");
 }

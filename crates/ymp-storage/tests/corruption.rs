@@ -158,9 +158,12 @@ fn flipped_payload_byte_fails_the_checksum() {
     let (root, sid) = opened_root("flipped");
     {
         let connection = support::direct_connection(root.path());
+        // CAST keeps the value a BLOB: SQLite's `||` alone would store TEXT,
+        // which exercises the storage-class check instead of the checksum.
         connection
             .execute(
-                "UPDATE journal_entries SET payload = payload || X'00' WHERE session_id = ?1",
+                "UPDATE journal_entries SET payload = CAST(payload || X'00' AS BLOB) \
+                 WHERE session_id = ?1",
                 [sid.as_str()],
             )
             .expect("payload byte is appended");
@@ -169,6 +172,26 @@ fn flipped_payload_byte_fails_the_checksum() {
         open_journal(root.path()).read(&sid).unwrap_err(),
         JournalError::Corruption { .. }
     ));
+}
+
+#[test]
+fn payload_column_of_the_wrong_storage_class_is_corruption() {
+    let (root, sid) = opened_root("storage-class");
+    {
+        let connection = support::direct_connection(root.path());
+        connection
+            .execute(
+                "UPDATE journal_entries SET payload = CAST(payload AS TEXT) WHERE session_id = ?1",
+                [sid.as_str()],
+            )
+            .expect("payload is stored as TEXT");
+    }
+    match open_journal(root.path()).read(&sid).unwrap_err() {
+        JournalError::Corruption { message } => {
+            assert!(message.contains("column type"), "message: {message}")
+        }
+        other => panic!("expected Corruption, got {other:?}"),
+    }
 }
 
 #[test]
@@ -232,7 +255,8 @@ fn head_disagreement_is_corruption() {
 #[test]
 fn a_non_database_file_fails_on_open_without_mutation() {
     let root = TempRoot::new("not-a-db");
-    let content = b"this is definitely not an SQLite database, padded past the header size\n".repeat(4);
+    let content =
+        b"this is definitely not an SQLite database, padded past the header size\n".repeat(4);
     fs::write(root.path().join("journal.db"), &content).expect("file writes");
 
     match SqliteJournal::open(root.path()).unwrap_err() {
