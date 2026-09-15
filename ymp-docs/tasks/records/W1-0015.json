@@ -29,9 +29,10 @@
     "Greenfield: create this behavior in the new implementation. Paths below are PROPOSED target modules under the layout owned by W1-0001; only completed prerequisite tasks supply implementation. Prior source, APIs, fixtures and delivery claims are not a baseline.",
     "The placeholder crates crates/ymp-tui (src/{lib,app,events,screens/mod}.rs, the Ratatui presentation and control adapter over Application operations and projections) and crates/ymp-cli (thin binary with an empty main, command parsing and non-interactive subcommands) exist; deliver the actual ymp executable in them. ymp-tui depends only on ymp-runtime; headless subcommands must not link the terminal UI. W1-0014 supplies working Application operations and projections. Ratatui is a justified concrete dependency for a usable interactive terminal, not a placeholder frontend crate.",
     "Owner decision 2026-09-16: OpenCode is the primary TUI inspiration; k9s guides lists, tables and descriptions/detail views; ymp2 supplies the practical visual and interaction basis. ymp-docs/tui-reference.md records the self-contained reference, source commit aa6d7225687bdffc71549687f925dabb6a519bc7 and inspected guide/image paths. Adapt its presentation and interaction to the current model; do not inherit its domain state, provider contracts or application data. The interface remains an evolving consumer of current Application operations and projections.",
-    "User intake/clarification, interrupt/recover and inspection use kernel-backed application operations. Agent text cannot impersonate continuation authority. A report after stop uses recorded facts with no further inference; terminal restoration/responsiveness are part of this task."
+    "User intake/clarification, interrupt/recover and inspection use kernel-backed application operations. Agent text cannot impersonate continuation authority. A report after stop uses recorded facts with no further inference; terminal restoration/responsiveness are part of this task.",
+    "Legacy access granted (owner decision 2026-09-16, AGENTS.md rule; follows the ymp2 TUI-basis decision): legacy-attempt-2:ymp-rust/crates/ymp-tui/src/{lib,state,frame,sidebar,commands,label,table,theme,terminal,views}.rs may be opened for interaction and layout facts only: event-loop shape and draw cadence, state/render separation, sidebar breakpoints and shrink order, command registry and palette behaviour, Esc order, label and column vocabulary, table conventions, terminal quirks. Import no types, module names or control flow; ymp-docs/tui-reference.md is the owner-selected reference and ymp-docs/legacy-lessons.md section 10.7 lists the facts with their tests."
   ],
-  "revision": 7,
+  "revision": 8,
   "history": [
     {
       "revision": 1,
@@ -81,6 +82,13 @@
       "actor": "manage.py",
       "status": "planned",
       "note": "Owner clarification 2026-09-16: OpenCode is the primary TUI inspiration, k9s guides lists/tables/descriptions, and ymp2 remains the practical adaptation basis."
+    },
+    {
+      "revision": 8,
+      "at": "2026-09-15T19:19:45.917573Z",
+      "actor": "manage.py",
+      "status": "planned",
+      "note": "Owner decision 2026-09-16: bounded legacy access to the ymp2 TUI sources for interaction and layout facts, per the AGENTS.md legacy rule and the TUI-basis decision."
     }
   ]
 }

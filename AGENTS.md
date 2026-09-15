@@ -10,7 +10,7 @@ of architecture, domain names and product scope. `ymp-docs/domain.md` and
 `ymp-docs/foundation.md` retains historical implementation material. This iteration
 starts from scratch; do not count previous code, APIs or tests as delivered
 functionality or assume they are a baseline to extend. That code is reachable only
-at git tags named `legacy-*` (currently `legacy-foundation`) and never returns to the
+at git tags named `legacy-*` (`legacy-attempt-1`, `legacy-attempt-2`, `legacy-foundation`) and never returns to the
 working tree. Read `ymp-docs/legacy-lessons.md` instead of the code: it carries the
 protocol facts, mechanics, pitfalls and test cases worth keeping, each with its
 source. Open a tag directly only when the task record's context names the tag path

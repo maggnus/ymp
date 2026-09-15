@@ -26,8 +26,8 @@ import subprocess
 import sys
 from collections.abc import Iterable
 
-# Identifiers of the previous iteration that have no counterpart in the
-# approved model. Keep the list short and specific: the model's own names
+# Identifiers of the previous iterations (tags legacy-attempt-1, legacy-attempt-2,
+# legacy-foundation) that have no counterpart in the approved model. Keep the list short and specific: the model's own names
 # (Journal, Registry, Treasury, Gatekeeper, Assignment ...) are legitimate.
 DENYLIST = (
     "CriterionEvaluation",
@@ -63,6 +63,44 @@ DENYLIST = (
     "start_invocation",
     "admit_assignment",
     "run_linux_check_sandbox",
+    # attempt 2 (legacy-attempt-2)
+    "RecordLinks",
+    "TeamServer",
+    "NativeContinuation",
+    "PlanVersion",
+    "RecoveryStage",
+    "StoreLock",
+    "AccessCoordinator",
+    "GrantRecord",
+    "BoundedRecoveryPolicy",
+    "McpEndpoint",
+    "BoardProposal",
+    # attempt 1 (legacy-attempt-1)
+    "CommitmentCommand",
+    "LeaseRecord",
+    "EventDigestInput",
+    "SubmissionManifest",
+    "CandidateIdentity",
+    "VerifiedEvidence",
+    "StoredVerificationEvidence",
+    "RunKeepingAuthority",
+    "McpBinding",
+    "ToolHostProbeFailureEvidence",
+    "ProviderRequestState",
+    "ManagedShutdown",
+    "FrozenPool",
+    "CatalogRoute",
+    "RecruitmentPolicy",
+    "ParticipantStartPath",
+    "ProbeTransportIdentity",
+    "AgentToolCapabilities",
+    "ExcludedPathChanged",
+    "ApplyInterrupted",
+    "unestablished_terminations",
+    "absorb_committed",
+    "recover_projection",
+    "append_terminal",
+    "blocking_ancestors",
 )
 
 SOURCE_SUFFIXES = (".rs", ".py")
