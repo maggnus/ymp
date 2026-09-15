@@ -133,7 +133,6 @@ const CLASS_TURN_FAILED: &str = "codex-turn-failed";
 const CLASS_UNSUPPORTED_SETTING: &str = "unsupported-sent-setting";
 const CLASS_WORKSPACE_MISSING: &str = "workspace-dir-missing";
 const CLASS_MISSING_PROMPT: &str = "missing-prompt";
-const CLASS_DUPLICATE_INVOCATION: &str = "duplicate-invocation";
 
 /// The typed outcome of one discovery probe of the `codex` executable.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -577,6 +576,9 @@ pub struct CodexBackend {
     cancel_grace: Duration,
     extra_args: Vec<String>,
     runs: HashMap<InvocationId, Arc<Mutex<CodexRun>>>,
+    /// Resolved start outcomes, retained so retries return the first result
+    /// without spawning another process or reclassifying a live invocation.
+    start_outcomes: HashMap<InvocationId, Result<(), BackendStartFailure>>,
 }
 
 impl CodexBackend {
@@ -590,6 +592,7 @@ impl CodexBackend {
             cancel_grace: DEFAULT_CANCEL_GRACE,
             extra_args: Vec::new(),
             runs: HashMap::new(),
+            start_outcomes: HashMap::new(),
         }
     }
 
@@ -699,16 +702,6 @@ impl CodexBackend {
                 ),
             ));
         }
-        if self.runs.contains_key(invocation.invocation()) {
-            return Err(Self::confirmed_failure(
-                CLASS_DUPLICATE_INVOCATION,
-                format!(
-                    "invocation '{}' was already started on this backend",
-                    invocation.invocation()
-                ),
-            ));
-        }
-
         let mut command = Command::new(&self.executable);
         command
             .arg("exec")
@@ -868,7 +861,13 @@ impl CodexBackend {
 
 impl ExecutionBackend for CodexBackend {
     fn start(&mut self, invocation: &BackendInvocation) -> Result<(), BackendStartFailure> {
-        self.start_run(invocation)
+        if let Some(resolved) = self.start_outcomes.get(invocation.invocation()) {
+            return resolved.clone();
+        }
+        let outcome = self.start_run(invocation);
+        self.start_outcomes
+            .insert(invocation.invocation().clone(), outcome.clone());
+        outcome
     }
 
     fn cancel(&mut self, invocation: &InvocationId) -> Result<(), BackendCancelRefused> {
