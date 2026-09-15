@@ -20,13 +20,13 @@ defer a requirement from that model. Proposed amendments outside the model are
 not applied. Other evidence may explain the implementation baseline or help
 choose an order only when that order remains consistent with the model.
 
-The TUI remains in scope, with Ratatui and the broad chat, commands and
-information-panel direction. The owner has explicitly left its detailed look and
-command vocabulary open. The main product focus is useful agent communication
-and self-organization, including experimental replacement of key mechanisms
-through their strategy interfaces. OpenCode is general interaction and visual inspiration, not an
-architectural source or dependency. The TUI is a presentation and control
-adapter over the model. It displays deterministic journal projections and
+The TUI remains in scope, with Ratatui and the `ymp2` TUI as its visual and
+interaction basis by owner decision (2026-09-16; see [the reference](tui-reference.md)).
+Detailed adaptations and command vocabulary may evolve. The main product focus
+is useful agent communication and self-organization, including experimental replacement of key mechanisms
+through their strategy interfaces. The approved model governs the domain and
+runtime behavior behind the reference interface. The TUI is a presentation and
+control adapter over the model. It displays deterministic journal projections and
 invokes trusted kernel operations; it does not become a new authority, state
 store, strategy, or source of domain decisions. A primitive TUI is delivered in
 W1 and grows with every later wave.
@@ -72,9 +72,10 @@ Intermediate simplifications are named and removed by a later wave.
 
 The TUI is an evolving presentation/control adapter over the approved model. A
 primitive working interface belongs to W1 and can grow as capabilities arrive.
-Chat, commands and an information panel are broad directions, not fixed screen
-layouts or exhaustive per-wave command lists. Existing projections and application
-operations should serve both experimentation and the interface.
+The `ymp2` conversation, sidebar, composer, command palette and inspection patterns
+provide its starting design, as recorded in [tui-reference.md](tui-reference.md).
+They do not prescribe an exhaustive per-wave command list. Existing projections
+and application operations should serve both experimentation and the interface.
 
 The unique product work is agent initiative, proposals, offers, commitments,
 handoffs, objections, team/plan adaptation and experience. UI polish or repeated

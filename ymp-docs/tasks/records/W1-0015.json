@@ -12,7 +12,7 @@
   "owner": null,
   "goal": "Let a user state a goal, follow agent work, control recoverable execution and inspect the checked result from a usable terminal interface.",
   "scope": [
-    "Add a real Ratatui interface over runtime operations and deterministic journal projections. Preserve the broad chat/conversation surface, commands and information-panel direction; concrete layout, command spelling and visual polish remain implementation choices.",
+    "Build the Ratatui interface using the ymp2 TUI as its visual and interaction basis, recorded in ymp-docs/tui-reference.md. Adapt the conversation, right sidebar, bottom composer, command palette, keyboard focus, tables and detail overlays to runtime operations and deterministic journal projections. Detailed adaptations remain implementation choices.",
     "Support initial goal/constraints, eligible agents, start/interrupt/open/recover, ongoing attributed activity and inspection of criteria, plan, assignment/commitment, known/unknown usage, reserve, results, checks, acceptance and report. Display pending decisions and denials from the same kernel operations used elsewhere.",
     "Keep terminal event handling responsive during provider work and restore the terminal on normal exit, error and interruption. Navigation must make the essential recorded information accessible without requiring full-journal reconstruction by the user."
   ],
@@ -20,17 +20,18 @@
     "A real terminal session completes the W1 scripted user journey and reopens its durable report; the user can interrupt work and recover when the runtime permits, and inspect an unmet criterion plus unknown usage.",
     "A stale/denied action leaves recorded state unchanged and is shown clearly. Provider activity does not freeze input, and exiting/erroring restores terminal operation.",
     "A short reproducible terminal transcript or recording demonstrates the actual executable and kernel-derived state. Detailed layout snapshots or a mockup cannot substitute for working interaction.",
-    "Interruption uses the same trusted runtime operation, produces a truthful deterministic report without new model calls, and exposes scoped recovery limitations. Agent text cannot trigger user-only continuation. No fixed screen/command catalog or separate form for every policy parameter is required."
+    "Interruption uses the same trusted runtime operation, produces a truthful deterministic report without new model calls, and exposes scoped recovery limitations. Agent text cannot trigger user-only continuation. No fixed screen/command catalog or separate form for every policy parameter is required.",
+    "The real W1 terminal journey demonstrates the ymp2-based conversation/sidebar/composer layout, command palette and detail inspection, including a narrow-terminal case and stable reading of older activity during streaming. Record intentional adaptations against ymp-docs/tui-reference.md; historical screenshots do not count as new implementation evidence."
   ],
   "evidence": [],
   "context": [
-    "Authority: ymp-docs/self-organizing-team-domain-model.md, intent.md (complete interactive terminal experience), model sections 2/4/9 and the user’s flexible TUI direction. Use the approved model with 811a872 semantics and the greenfield baseline in 0c61ff1 and §5.8 for experimental strategy boundaries. Other documents and existing names explain implementation facts only.",
+    "Authority: ymp-docs/self-organizing-team-domain-model.md, intent.md (complete interactive terminal experience), model sections 2/4/9 and the owner-selected ymp2 TUI basis (§3.9 and §12.1 item 7). Use the approved model with 811a872 semantics and the greenfield baseline in 0c61ff1 and §5.8 for experimental strategy boundaries. Other documents and existing names explain implementation facts only.",
     "Greenfield: create this behavior in the new implementation. Paths below are PROPOSED target modules under the layout owned by W1-0001; only completed prerequisite tasks supply implementation. Prior source, APIs, fixtures and delivery claims are not a baseline.",
-    "The placeholder crate crates/ymp-cli with src/{main,lib,tui/mod}.rs, an empty main and its Cargo manifest exists; deliver the actual ymp executable in it. W1-0014 supplies working Application operations and projections. Ratatui is a justified concrete dependency for a usable interactive terminal, not a placeholder frontend crate.",
-    "Preserve broad chat/commands/information-panel direction while leaving layout and command spelling open. The TUI is one evolving consumer of actual state/authority, not a domain store, strategy or fixed inventory of per-wave screens.",
+    "The placeholder crates crates/ymp-tui (src/{lib,app,events,screens/mod}.rs, the Ratatui presentation and control adapter over Application operations and projections) and crates/ymp-cli (thin binary with an empty main, command parsing and non-interactive subcommands) exist; deliver the actual ymp executable in them. ymp-tui depends only on ymp-runtime; headless subcommands must not link the terminal UI. W1-0014 supplies working Application operations and projections. Ratatui is a justified concrete dependency for a usable interactive terminal, not a placeholder frontend crate.",
+    "Owner decision 2026-09-16: use the ymp2 TUI as the visual and interaction basis. ymp-docs/tui-reference.md records the self-contained reference, source commit aa6d7225687bdffc71549687f925dabb6a519bc7 and inspected guide/image paths. Adapt its presentation and interaction to the current model; do not inherit its domain state, provider contracts or application data. The interface remains an evolving consumer of current Application operations and projections.",
     "User intake/clarification, interrupt/recover and inspection use kernel-backed application operations. Agent text cannot impersonate continuation authority. A report after stop uses recorded facts with no further inference; terminal restoration/responsiveness are part of this task."
   ],
-  "revision": 4,
+  "revision": 6,
   "history": [
     {
       "revision": 1,
@@ -59,6 +60,20 @@
       "actor": "manage.py",
       "status": "planned",
       "note": "Owner decision 2026-09-16: the placeholder module skeleton of ymp-docs/project-worktree.md is checked in; 'create' now means 'give the placeholder its behavior'."
+    },
+    {
+      "revision": 5,
+      "at": "2026-09-15T18:14:21.133434Z",
+      "actor": "manage.py",
+      "status": "planned",
+      "note": "Owner decision 2026-09-16: the interface is its own placeholder crate ymp-tui; ymp-cli stays a thin binary with headless subcommands."
+    },
+    {
+      "revision": 6,
+      "at": "2026-09-15T19:04:42.926344Z",
+      "actor": "manage.py",
+      "status": "planned",
+      "note": "Owner decision 2026-09-16: use the ymp2 TUI as the visual and interaction basis; record source provenance and require adaptation through the new Application operations and projections."
     }
   ]
 }
