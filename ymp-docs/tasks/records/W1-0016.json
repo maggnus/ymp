@@ -5,7 +5,7 @@
   "title": "Persist the new Journal and content-addressed payloads across restart",
   "type": "implementation",
   "priority": 103,
-  "status": "in_progress",
+  "status": "done",
   "depends_on": [
     "W1-0001"
   ],
@@ -30,8 +30,10 @@
     "Competing/stale appends, interrupted/indeterminate commits and missing/corrupt/unsupported content preserve atomic history or give a precise refusal. Retrying a known committed append cannot duplicate events.",
     "Restart preserves original effective parameter values after later configuration changes. The implementation documents what its actual durability test establishes, without claiming prior-iteration compatibility or inaccessible native effects."
   ],
-  "evidence": [],
-  "revision": 8,
+  "evidence": [
+    "Commit 07db5fa45ad10a94e5560c711b7be0274eb5d1c9 in main; required offline build/fmt/clippy/test and legacy-scan passed. See ymp-docs/storage-implementation.md and storage restart/atomicity/corruption/indeterminate plus process-exit tests for acceptance evidence."
+  ],
+  "revision": 9,
   "history": [
     {
       "revision": 1,
@@ -88,6 +90,13 @@
       "actor": "codex",
       "status": "in_progress",
       "note": "Implemented SQLite Journal/content and read-only append resolution. Independent review corrections cover full schema verification and orphan links; process interruption, concurrency, corruption and bounded-read checks are implemented. Final verification is in progress."
+    },
+    {
+      "revision": 9,
+      "at": "2026-09-15T20:56:05.178094Z",
+      "actor": "codex",
+      "status": "done",
+      "note": "Independent review accepted the SQLite journal/content implementation, schema and orphan-link corrections, and durability documentation. Result is in main. Real child-process interruption tests cover before/after commit; hardware power loss and native execution cessation are not claimed."
     }
   ]
 }
