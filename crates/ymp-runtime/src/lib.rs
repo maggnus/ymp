@@ -41,7 +41,7 @@ pub use ymp_kernel::execution::{
 
 pub const APPLICATION_NAME: &str = "ymp";
 pub const APPLICATION_VERSION: &str = env!("CARGO_PKG_VERSION");
-pub const CAPABILITY_LIMIT: &str = "YMP records an in-memory session lifecycle; it does not execute agents or tasks, and state is not persisted.";
+pub const CAPABILITY_LIMIT: &str = "A completed invocation is only an observed provider outcome.\nIt does not establish acceptance or confirmation of the requested work.";
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct ApplicationMetadata {
@@ -181,6 +181,16 @@ where
     ) -> Result<SessionView, DispatchError> {
         self.dispatcher.cancel(session_id, expected_revision)
     }
+}
+
+/// Reads the execution projection through the kernel without assembling
+/// provider adapters. This is the read-only runtime facade used after
+/// reopening a durable journal.
+pub fn read_execution<J: Journal>(
+    journal: &J,
+    session_id: &SessionId,
+) -> Result<SessionExecutionView, ExecutionError> {
+    ymp_kernel::execution::read_execution(journal, session_id)
 }
 
 impl Default for Application<MemoryJournal> {

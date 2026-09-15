@@ -11,6 +11,7 @@ path = "src/main.rs"
 
 [dependencies]
 ymp-runtime = { path = "../ymp-runtime" }
+ymp-storage = { path = "../ymp-storage" }
 
 [lints]
 workspace = true

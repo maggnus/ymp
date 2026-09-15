@@ -248,6 +248,7 @@ name = "ymp-cli"
 version = "0.1.0"
 dependencies = [
  "ymp-runtime",
+ "ymp-storage",
 ]
 
 [[package]]

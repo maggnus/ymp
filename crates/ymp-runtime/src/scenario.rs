@@ -8,9 +8,10 @@
 //! duration, which serializes concurrent callers; the journal's revision
 //! check still decides which competing commit wins.
 //!
-//! The default backend is the [`ScriptedBackend`]: deterministic,
-//! configuration-driven, with no real provider execution. Real provider
-//! adapters are later tasks and must satisfy the same port.
+//! The default backend and registry are scripted: deterministic,
+//! configuration-driven, with no real provider execution. Production callers
+//! can inject a different [`ExecutionBackend`] and [`Registry`] through
+//! [`ExecutionScenario::over`].
 
 use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex};
@@ -37,14 +38,15 @@ use crate::scripted::{ScriptedBackend, ScriptedProvider, ScriptedRegistry};
 /// projection of committed journal events; [`ExecutionScenario::reattach`]
 /// rebuilds the reservations and holds for one session after reopening a
 /// durable journal.
-pub struct ExecutionScenario<J, B = ScriptedBackend>
+pub struct ExecutionScenario<J, B = ScriptedBackend, R = ScriptedRegistry>
 where
     J: Journal + Clone,
     B: ExecutionBackend,
+    R: Registry,
 {
     journal: J,
     dispatcher: Dispatcher<J>,
-    registry: Mutex<ScriptedRegistry>,
+    registry: Mutex<R>,
     treasury: Mutex<LedgerTreasury>,
     workspace: Mutex<TrackedWorkspaceGuard>,
     backend: Mutex<B>,
@@ -57,17 +59,18 @@ where
     observations: Mutex<BTreeMap<InvocationId, ObservationAccumulation>>,
 }
 
-impl<J, B> ExecutionScenario<J, B>
+impl<J, B, R> ExecutionScenario<J, B, R>
 where
     J: Journal + Clone,
     B: ExecutionBackend,
+    R: Registry,
 {
     /// Full wiring over caller-chosen adapters.
     pub fn over(
         journal: J,
         backend: B,
         enforceable_accesses: impl IntoIterator<Item = WorkspaceAccess>,
-        registry: ScriptedRegistry,
+        registry: R,
         capacity: ResourceAmount,
         clock: Arc<dyn Clock + Send + Sync>,
     ) -> Self {
@@ -307,14 +310,14 @@ where
     }
 
     /// Runs one read-only inspection over the backend adapter.
-    pub fn with_backend<R>(&self, inspect: impl FnOnce(&B) -> R) -> R {
+    pub fn with_backend<T>(&self, inspect: impl FnOnce(&B) -> T) -> T {
         let backend = self.backend.lock().expect("backend lock is available");
         inspect(&backend)
     }
 
     /// Runs one mutation over the backend adapter: scripted-provider
     /// control for delivering deferred observations in tests.
-    pub fn with_backend_mut<R>(&self, mutate: impl FnOnce(&mut B) -> R) -> R {
+    pub fn with_backend_mut<T>(&self, mutate: impl FnOnce(&mut B) -> T) -> T {
         let mut backend = self.backend.lock().expect("backend lock is available");
         mutate(&mut backend)
     }
@@ -399,7 +402,7 @@ where
     }
 }
 
-impl<J> ExecutionScenario<J, ScriptedBackend>
+impl<J> ExecutionScenario<J, ScriptedBackend, ScriptedRegistry>
 where
     J: Journal + Clone,
 {

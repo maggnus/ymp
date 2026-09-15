@@ -6,13 +6,16 @@ YMP separates task meaning, trusted decisions, external effects and presentation
 The kernel owns admission and state transitions. Replaceable strategies can choose
 how to work without choosing which rules to bypass.
 
-The initial dependency graph is:
+The executable dependency graph is:
 
 ```mermaid
 flowchart TD
     CLI[ymp-cli] --> Runtime[ymp-runtime]
+    CLI --> Storage[ymp-storage]
     Runtime --> Kernel[ymp-kernel]
     Runtime --> Domain[ymp-domain]
+    Storage --> Kernel
+    Storage --> Domain
     Kernel --> Domain
 ```
 
@@ -21,11 +24,14 @@ flowchart TD
 | `ymp-domain` | Identifiers, values, task contracts and pure validation. | I/O, runtime, storage implementations or presentation. |
 | `ymp-kernel` | Trusted lifecycle, event projection, typed service ports and denials. | Concrete journal/provider implementations, CLI or runtime assembly. |
 | `ymp-runtime` | Application assembly and adapters implementing kernel ports. | Presentation packages. |
-| `ymp-cli` | Command parsing, process exit status and terminal output. | Concrete domain mutation or journal writes. |
+| `ymp-storage` | The durable SQLite `Journal` adapter and strict event payload codec. | Runtime assembly or presentation. |
+| `ymp-cli` | Command parsing, adapter selection, process exit status and terminal output. | Direct journal writes or authority decisions outside runtime/kernel APIs. |
 
-The first journal adapter is an in-memory implementation in `ymp-runtime`.
-Dedicated storage, provider and terminal-interface crates should be introduced
-when they have executable responsibilities; the foundation has no empty packages.
+`MemoryJournal` remains the in-process reference adapter in `ymp-runtime`.
+`SqliteJournal` is the durable adapter in `ymp-storage`; the CLI selects it and
+injects clones into `Application` and `ExecutionScenario`. Provider adapters live
+in `ymp-runtime`. The repository introduces a dedicated crate only when it has an
+executable responsibility.
 
 ## State and decisions
 
@@ -82,7 +88,8 @@ Native model discovery supplies actual identifiers and supported controls.
 Authentication stays in the native environment. Adapters must preserve typed
 failure causes, invocation attribution and incomplete observations.
 
-Persistence, native execution, public MCP over stdio and a terminal UI are planned
-capabilities. Their absence is explicit in the foundation and its command-line
-output. The product will expose one native executable; development tools are not
-automatically application runtime dependencies.
+Durable session state and one bounded native Codex invocation are implemented.
+Checked result acceptance, public MCP over stdio and an interactive terminal UI
+remain separate planned capabilities. Their absence is explicit in the foundation
+and command-line output. The product exposes one native executable; development
+tools are not automatically application runtime dependencies.
