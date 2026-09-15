@@ -1,16 +1,13 @@
 //! Atomic reference Journal adapter. Contents live only for this process.
 
-use std::{
-    collections::BTreeMap,
-    sync::{Arc, Mutex},
-};
+use std::{collections::BTreeMap, sync::Mutex};
 use ymp_domain::{Denial, Id, Result, journal::Envelope};
 use ymp_kernel::{
     events::Event,
     journal::{Journal, JournalRead, ParameterSchemas, validate_append},
 };
 
-type Events = Arc<Mutex<Vec<Envelope<Event>>>>;
+type Events = Vec<Envelope<Event>>;
 
 #[derive(Default)]
 pub struct MemoryJournal {
@@ -35,64 +32,82 @@ impl Journal for MemoryJournal {
         &self.schemas
     }
     fn read(&self, session: &Id) -> Result<JournalRead> {
-        let sessions = self.sessions.lock().map_err(|_| {
-            Denial::new(
-                "journal_unavailable",
-                "The in-memory journal lock is poisoned",
-            )
-        })?;
-        let events = sessions.get(session).cloned();
-        drop(sessions);
-        let events = match events {
-            None => Vec::new(),
-            Some(events) => events
-                .lock()
-                .map_err(|_| {
-                    Denial::new(
-                        "journal_unavailable",
-                        "The session journal lock is poisoned",
-                    )
-                })?
-                .clone(),
-        };
+        let sessions = self
+            .sessions
+            .lock()
+            .map_err(|_| Denial::new("journal_unavailable", "Journal lock is poisoned"))?;
+        let events = sessions.get(session).cloned().unwrap_or_default();
         Ok(JournalRead {
             revision: events.len() as u64,
             events,
         })
     }
-
+    fn workspace_inventory(&self, session: &Id) -> Result<ymp_kernel::journal::WorkspaceInventory> {
+        let sessions = self
+            .sessions
+            .lock()
+            .map_err(|_| Denial::new("journal_unavailable", "Journal lock is poisoned"))?;
+        inventory(&sessions, session, &self.schemas)
+    }
     fn append(&self, session: &Id, expected: u64, batch: &[Envelope<Event>]) -> Result<u64> {
-        let mut sessions = self.sessions.lock().map_err(|_| {
-            Denial::new(
-                "journal_unavailable",
-                "The in-memory journal lock is poisoned",
-            )
-        })?;
-        let shared = match sessions.get(session).cloned() {
-            Some(shared) => shared,
-            None => {
-                let current = JournalRead {
-                    revision: 0,
-                    events: Vec::new(),
-                };
-                let view = validate_append(&current, session, expected, batch, &self.schemas)?;
-                sessions.insert(session.clone(), Arc::new(Mutex::new(batch.to_vec())));
-                return Ok(view.revision());
-            }
-        };
-        drop(sessions);
-        let mut events = shared.lock().map_err(|_| {
-            Denial::new(
-                "journal_unavailable",
-                "The session journal lock is poisoned",
-            )
-        })?;
+        let mut sessions = self
+            .sessions
+            .lock()
+            .map_err(|_| Denial::new("journal_unavailable", "Journal lock is poisoned"))?;
+        let events = sessions.get(session).cloned().unwrap_or_default();
         let current = JournalRead {
+            revision: events.len() as u64,
+            events,
+        };
+        let view = validate_append(&current, session, expected, batch, &self.schemas)?;
+        if ymp_kernel::workspace_locks::touches_ownership(batch) {
+            let inventory = inventory(&sessions, session, &self.schemas)?;
+            ymp_kernel::journal::validate_workspace_append(
+                &inventory,
+                session,
+                expected,
+                batch,
+                &self.schemas,
+            )?;
+        }
+        sessions
+            .entry(session.clone())
+            .or_default()
+            .extend_from_slice(batch);
+        Ok(view.revision())
+    }
+}
+
+fn inventory(
+    sessions: &BTreeMap<Id, Events>,
+    session: &Id,
+    schemas: &ParameterSchemas,
+) -> Result<ymp_kernel::journal::WorkspaceInventory> {
+    let mut current = JournalRead {
+        revision: 0,
+        events: vec![],
+    };
+    let mut other = vec![];
+    let mut weight = (0usize, 0usize);
+    for (id, events) in sessions {
+        let read = JournalRead {
             revision: events.len() as u64,
             events: events.clone(),
         };
-        let view = validate_append(&current, session, expected, batch, &self.schemas)?;
-        events.extend_from_slice(batch);
-        Ok(view.revision())
+        if id == session {
+            current = read;
+        } else {
+            let owner = ymp_kernel::workspace_locks::WorkspaceOwnership::from_view(
+                &read.view_with_schemas(id, None, schemas)?,
+            );
+            if !owner.is_empty() {
+                let (bytes, count) = owner.retained_weight()?;
+                weight.0 += bytes;
+                weight.1 += count;
+                ymp_kernel::workspace_locks::validate_inventory_size(weight.0, weight.1)?;
+                other.push(owner);
+            }
+        }
     }
+    Ok(ymp_kernel::journal::WorkspaceInventory { current, other })
 }

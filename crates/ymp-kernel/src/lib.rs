@@ -22,3 +22,5 @@ pub mod results;
 pub mod treasury;
 pub mod view;
 pub mod workspace_guard;
+
+pub mod workspace_locks;

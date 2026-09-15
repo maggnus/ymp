@@ -341,6 +341,15 @@ entity Workspace { id; kind: Direct | IsolatedCopy(base: Id<Snapshot>); root: Pa
 value PathLock { path: Path; mode: Read | Write; holder: Id<Assignment> }
 ```
 
+`PathObservation` is the implementation's recorded physical ancestry (`FileIdentity`
+for each existing component) and missing suffix for a WorkspacePath. An
+`ObservedPathLock` pairs this observation with the model's PathLock so names alone
+cannot establish independence across aliases or ancestor roots. Observations describe
+filesystem facts; they do not certify an executor's permissions or confinement.
+LockChanged records acquisition, authorization, revocation and separately justified
+release. Cross-session checks use active ownership derived from each session's Journal;
+control space for release is protected while those holds remain active.
+
 ### 3.5. Coordination
 
 ```text

@@ -19,6 +19,8 @@ pub struct SqliteJournal {
     schemas: ParameterSchemas,
     #[cfg(test)]
     fault: std::sync::atomic::AtomicU8,
+    #[cfg(test)]
+    pub(crate) event_limit: usize,
 }
 impl SqliteJournal {
     pub fn open(path: impl AsRef<Path>, schemas: ParameterSchemas) -> Result<Self> {
@@ -27,6 +29,8 @@ impl SqliteJournal {
             schemas,
             #[cfg(test)]
             fault: std::sync::atomic::AtomicU8::new(0),
+            #[cfg(test)]
+            event_limit: MAX_JOURNAL_EVENTS,
         })
     }
     pub fn content_store(&self) -> SqliteContent {
@@ -48,7 +52,23 @@ impl SqliteJournal {
             .map_err(sql_error)?;
         let current = read_journal(&tx, session, &self.schemas)?;
         let validated = validate_append(&current, session, expected, events, &self.schemas)?;
-        if validated.revision() > MAX_JOURNAL_EVENTS as u64 {
+        if ymp_kernel::workspace_locks::touches_ownership(events) {
+            let inventory = read_workspace_inventory(&tx, session, &self.schemas)?;
+            ymp_kernel::journal::validate_workspace_append(
+                &inventory,
+                session,
+                expected,
+                events,
+                &self.schemas,
+            )?;
+        }
+        let (reserved_events, reserved_bytes) =
+            ymp_kernel::workspace_locks::control_reserve(&validated);
+        #[cfg(test)]
+        let event_limit = self.event_limit;
+        #[cfg(not(test))]
+        let event_limit = MAX_JOURNAL_EVENTS;
+        if validated.revision() + reserved_events as u64 > event_limit as u64 {
             return Err(Denial::new(
                 "journal_limit",
                 "Journal exceeds its event limit",
@@ -90,7 +110,7 @@ impl SqliteJournal {
         }
         tx.execute("INSERT INTO journal_heads(session,last_seq,chain) VALUES(?1,?2,?3) ON CONFLICT(session) DO UPDATE SET last_seq=excluded.last_seq,chain=excluded.chain",params![session.as_str(),validated.revision().to_be_bytes().as_slice(),prior.as_str()]).map_err(sql_error)?;
         // Apply read limits to the resulting state before making it durable.
-        check_limits(&tx, session)?;
+        check_limits(&tx, session, reserved_bytes)?;
         #[cfg(test)]
         match self.fault.load(std::sync::atomic::Ordering::SeqCst) {
             1 => {
@@ -129,6 +149,13 @@ impl Journal for SqliteJournal {
         tx.commit().map_err(sql_error)?;
         Ok(read)
     }
+    fn workspace_inventory(&self, session: &Id) -> Result<ymp_kernel::journal::WorkspaceInventory> {
+        let mut connection = self.database.connect(false)?;
+        let tx = connection.transaction().map_err(sql_error)?;
+        let inventory = read_workspace_inventory(&tx, session, &self.schemas)?;
+        tx.commit().map_err(sql_error)?;
+        Ok(inventory)
+    }
     fn append(&self, session: &Id, expected: u64, events: &[Envelope<Event>]) -> Result<u64> {
         let mut attempted = false;
         let result = self.write(session, expected, events, &mut attempted);
@@ -153,6 +180,60 @@ impl Journal for SqliteJournal {
             )),
         }
     }
+}
+
+fn read_workspace_inventory(
+    connection: &Connection,
+    session: &Id,
+    schemas: &ParameterSchemas,
+) -> Result<ymp_kernel::journal::WorkspaceInventory> {
+    // Refuse malformed keys before loading any key into a Rust String. Never
+    // filter them out: their events might retain unresolved ownership.
+    for table in ["journal_heads", "journal_events", "event_content"] {
+        let query = format!(
+            "SELECT EXISTS(SELECT 1 FROM {table} WHERE typeof(session)!='text' OR length(CAST(session AS BLOB)) NOT BETWEEN 1 AND 128)"
+        );
+        let invalid: bool = connection
+            .query_row(&query, [], |row| row.get(0))
+            .map_err(sql_error)?;
+        if invalid {
+            return Err(Denial::new(
+                "storage_corrupt",
+                "Invalid session key in ownership inventory",
+            ));
+        }
+    }
+    // The union deliberately includes orphan events and links. A missing head
+    // must not make that session's active ownership disappear from coordination.
+    let mut statement = connection.prepare("SELECT session FROM journal_heads UNION SELECT session FROM journal_events UNION SELECT session FROM event_content ORDER BY session").map_err(sql_error)?;
+    let ids = statement
+        .query_map([], |row| row.get::<_, String>(0))
+        .map_err(sql_error)?;
+    let mut current = JournalRead {
+        revision: 0,
+        events: vec![],
+    };
+    let mut other = vec![];
+    let mut weight = (0usize, 0usize);
+    for id in ids {
+        let id = Id::new(id.map_err(sql_error)?)?;
+        let read = read_journal(connection, &id, schemas)?;
+        if id == *session {
+            current = read;
+        } else {
+            let owner = ymp_kernel::workspace_locks::WorkspaceOwnership::from_view(
+                &read.view_with_schemas(&id, None, schemas)?,
+            );
+            if !owner.is_empty() {
+                let (bytes, count) = owner.retained_weight()?;
+                weight.0 += bytes;
+                weight.1 += count;
+                ymp_kernel::workspace_locks::validate_inventory_size(weight.0, weight.1)?;
+                other.push(owner);
+            }
+        }
+    }
+    Ok(ymp_kernel::journal::WorkspaceInventory { current, other })
 }
 
 fn chain_start(session: &Id) -> Result<Digest> {
@@ -182,7 +263,7 @@ fn head(connection: &Connection, session: &Id) -> Result<Option<(u64, Digest)>> 
     row.map(|(seq, chain)| Ok((sequence(seq)?, digest(chain)?)))
         .transpose()
 }
-fn check_limits(connection: &Connection, session: &Id) -> Result<usize> {
+fn check_limits(connection: &Connection, session: &Id, reserved_bytes: usize) -> Result<usize> {
     let (count,bytes):(i64,i64)=connection.query_row("SELECT count(*),coalesce(sum(length(v.bytes)),0) FROM journal_events e LEFT JOIN content_values v ON v.digest=e.payload WHERE e.session=?1",[session.as_str()],|r|Ok((r.get(0)?,r.get(1)?))).map_err(sql_error)?;
     let (links,linked_bytes):(i64,i64)=connection.query_row("SELECT count(*),coalesce(sum(length(v.bytes)),0) FROM event_content c LEFT JOIN content_values v ON v.digest=c.digest WHERE c.session=?1",[session.as_str()],|r|Ok((r.get(0)?,r.get(1)?))).map_err(sql_error)?;
     let count = usize::try_from(count)
@@ -198,7 +279,10 @@ fn check_limits(connection: &Connection, session: &Id) -> Result<usize> {
                 "Journal byte count exceeds addressable memory",
             )
         })?;
-    if count > MAX_JOURNAL_EVENTS || links > MAX_JOURNAL_EVENTS * 16 || total > MAX_JOURNAL_BYTES {
+    if count > MAX_JOURNAL_EVENTS
+        || links > MAX_JOURNAL_EVENTS * 16
+        || total > MAX_JOURNAL_BYTES.saturating_sub(reserved_bytes)
+    {
         return Err(Denial::new(
             "journal_limit",
             "Journal or its referenced content exceeds the bounded read limit",
@@ -216,7 +300,7 @@ fn read_journal(
     session: &Id,
     schemas: &ParameterSchemas,
 ) -> Result<JournalRead> {
-    let count = check_limits(connection, session)?;
+    let count = check_limits(connection, session, 0)?;
     let orphan_links: i64 = connection.query_row("SELECT count(*) FROM event_content c LEFT JOIN journal_events e ON e.session=c.session AND e.seq=c.seq WHERE c.session=?1 AND e.session IS NULL", [session.as_str()], |r| r.get(0)).map_err(sql_error)?;
     if orphan_links != 0 {
         return Err(Denial::new(

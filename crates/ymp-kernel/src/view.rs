@@ -34,6 +34,7 @@ pub struct SessionView {
     treasury: Option<Box<crate::treasury::TreasuryView>>,
     workspaces: BTreeMap<Id<ymp_domain::workspace::Workspace>, ymp_domain::workspace::Workspace>,
     snapshots: BTreeMap<Id<ymp_domain::workspace::Snapshot>, ymp_domain::workspace::Snapshot>,
+    path_locks: BTreeMap<Id, crate::workspace_locks::AssignmentLocks>,
 }
 
 impl SessionView {
@@ -53,7 +54,11 @@ impl SessionView {
             treasury: None,
             workspaces: BTreeMap::new(),
             snapshots: BTreeMap::new(),
+            path_locks: BTreeMap::new(),
         }
+    }
+    pub fn path_locks(&self) -> &BTreeMap<Id, crate::workspace_locks::AssignmentLocks> {
+        &self.path_locks
     }
     pub fn workspaces(
         &self,
@@ -174,6 +179,21 @@ impl SessionView {
             self.resolve(reference)?;
         }
         match &event.payload {
+            Event::LockChanged { change, .. } => {
+                self.validate_complete()?;
+                if event.policy.is_some()
+                    || event.input.is_some()
+                    || event.refs != crate::workspace_locks::attribution(self, change)?
+                {
+                    return Err(Denial::new(
+                        "lock_attribution",
+                        "Path ownership event metadata differs from its basis",
+                    ));
+                }
+                self.path_locks = crate::workspace_locks::apply(self, change, event.reference()?)?;
+                crate::workspace_locks::validate_conflicts([&*self])?;
+            }
+
             Event::WorkspaceOpened { workspace, .. } => {
                 self.validate_complete()?;
                 workspace.location.validate()?;

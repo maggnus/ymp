@@ -155,6 +155,14 @@ pub trait Journal: Send + Sync {
     fn schemas(&self) -> &ParameterSchemas;
     fn read(&self, session: &Id) -> Result<JournalRead>;
     fn append(&self, session: &Id, expected: u64, events: &[Envelope<Event>]) -> Result<u64>;
+    /// Inventory for workspace ownership preflight. Adapters must revalidate it
+    /// under the same aggregate write lock as any LockChanged append.
+    fn workspace_inventory(&self, _session: &Id) -> Result<WorkspaceInventory> {
+        Err(Denial::new(
+            "workspace_inventory",
+            "Journal does not support aggregate workspace ownership",
+        ))
+    }
 
     fn view(&self, session: &Id, through: Option<u64>) -> Result<SessionView> {
         self.read(session)?
@@ -253,4 +261,42 @@ pub fn validate_append(
     }
     view.validate_complete()?;
     Ok(view)
+}
+
+/// Only current-session history and active ownership from other sessions are
+/// retained. Old unrelated events cannot exhaust an aggregate history allowance.
+pub struct WorkspaceInventory {
+    pub current: JournalRead,
+    pub other: Vec<crate::workspace_locks::WorkspaceOwnership>,
+}
+/// Invoked while the adapter holds the same transaction used to append.
+pub fn validate_workspace_append(
+    inventory: &WorkspaceInventory,
+    session: &Id,
+    expected: u64,
+    events: &[Envelope<Event>],
+    schemas: &ParameterSchemas,
+) -> Result<()> {
+    validate_append(&inventory.current, session, expected, events, schemas)?;
+    let mut view = inventory
+        .current
+        .view_with_schemas(session, None, schemas)?;
+    if inventory.other.iter().any(|o| o.session() == session) {
+        return Err(Denial::new(
+            "workspace_inventory",
+            "Current session is duplicated in inventory",
+        ));
+    }
+    let mut owner = crate::workspace_locks::WorkspaceOwnership::from_view(&view);
+    crate::workspace_locks::validate_ownership(
+        inventory.other.iter().chain(std::iter::once(&owner)),
+    )?;
+    for event in events {
+        view.apply(event, schemas)?;
+        owner = crate::workspace_locks::WorkspaceOwnership::from_view(&view);
+        crate::workspace_locks::validate_ownership(
+            inventory.other.iter().chain(std::iter::once(&owner)),
+        )?;
+    }
+    Ok(())
 }

@@ -258,3 +258,121 @@ impl CaptureLimits {
         Ok(())
     }
 }
+
+/// Physical identities observed by trusted workspace I/O, not execution authority.
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct FileIdentity {
+    pub device: u64,
+    pub inode: u64,
+}
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct PathComponent {
+    pub name: String,
+    pub identity: FileIdentity,
+}
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct PathObservation {
+    pub path: WorkspacePath,
+    /// From filesystem root through the last existing component, inclusive.
+    pub existing: Vec<PathComponent>,
+    pub missing: Vec<String>,
+}
+impl PathObservation {
+    pub fn validate(&self, location: &WorkspaceLocation) -> Result<()> {
+        if self.existing.is_empty()
+            || self.existing.len() + self.missing.len() > 512
+            || self.existing[0].name != "/"
+        {
+            return Err(Denial::new(
+                "path_observation",
+                "A bounded physical ancestry is required",
+            ));
+        }
+        let names: Vec<_> = self
+            .existing
+            .iter()
+            .skip(1)
+            .map(|c| c.name.as_str())
+            .chain(self.missing.iter().map(String::as_str))
+            .collect();
+        for name in &names {
+            if *name == "." || name.contains('/') {
+                return Err(Denial::new(
+                    "path_observation",
+                    "Invalid physical path component",
+                ));
+            }
+            WorkspacePath::new(*name)?;
+        }
+        let root_names: Vec<_> = location
+            .root
+            .split('/')
+            .filter(|part| !part.is_empty())
+            .collect();
+        let root_index = root_names.len();
+        if self.existing.len() <= root_index
+            || names.len() < root_index
+            || names[..root_index] != root_names
+            || self.existing[root_index].identity
+                != (FileIdentity {
+                    device: location.device,
+                    inode: location.inode,
+                })
+        {
+            return Err(Denial::new(
+                "path_observation",
+                "Observed ancestry does not bind the workspace root",
+            ));
+        }
+        let relative = if names.len() == root_index {
+            ".".to_owned()
+        } else {
+            names[root_index..].join("/")
+        };
+        if relative != self.path.as_str() {
+            return Err(Denial::new(
+                "path_observation",
+                "Observation differs from the requested relative path",
+            ));
+        }
+        Ok(())
+    }
+    pub fn overlaps(&self, other: &Self) -> bool {
+        // Start at the deepest shared physical object. This also catches aliases
+        // of roots opened through different names and ancestor workspace roots.
+        for (left, component) in self.existing.iter().enumerate().rev() {
+            if let Some(right) = other
+                .existing
+                .iter()
+                .position(|c| c.identity == component.identity)
+            {
+                let a: Vec<_> = self.existing[left + 1..]
+                    .iter()
+                    .map(|c| c.name.as_str())
+                    .chain(self.missing.iter().map(String::as_str))
+                    .collect();
+                let b: Vec<_> = other.existing[right + 1..]
+                    .iter()
+                    .map(|c| c.name.as_str())
+                    .chain(other.missing.iter().map(String::as_str))
+                    .collect();
+                // Conservatively conflate ASCII case and ambiguous Unicode names.
+                // Distinct names are not evidence of disjoint resources on every FS.
+                return a
+                    .iter()
+                    .zip(&b)
+                    .all(|(x, y)| !x.is_ascii() || !y.is_ascii() || x.eq_ignore_ascii_case(y));
+            }
+        }
+        false
+    }
+}
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ObservedPathLock {
+    pub lock: PathLock,
+    pub observation: PathObservation,
+}

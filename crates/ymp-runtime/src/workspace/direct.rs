@@ -294,6 +294,108 @@ impl WorkspaceProvider for Direct {
         self.location()?;
         Ok(())
     }
+    fn observe_paths(&self, paths: &[WorkspacePath]) -> Result<Vec<PathObservation>> {
+        self.location()?;
+        let mut observations = vec![];
+        for relative in paths {
+            let mut directory = File::from(
+                rfs::open(
+                    "/",
+                    OFlags::RDONLY | OFlags::DIRECTORY | OFlags::CLOEXEC,
+                    Mode::empty(),
+                )
+                .map_err(io_error)?,
+            );
+            let metadata = directory.metadata().map_err(io_error)?;
+            let mut existing = vec![PathComponent {
+                name: "/".into(),
+                identity: FileIdentity {
+                    device: metadata.dev(),
+                    inode: metadata.ino(),
+                },
+            }];
+            let full = if relative.as_str() == "." {
+                self.location.root.clone()
+            } else {
+                format!(
+                    "{}/{}",
+                    self.location.root.trim_end_matches('/'),
+                    relative.as_str()
+                )
+            };
+            let names: Vec<_> = full.split('/').filter(|name| !name.is_empty()).collect();
+            let root_depth = self
+                .location
+                .root
+                .split('/')
+                .filter(|name| !name.is_empty())
+                .count();
+            let mut missing = vec![];
+            for (index, name) in names.iter().enumerate() {
+                let stat = match rfs::statat(&directory, *name, AtFlags::SYMLINK_NOFOLLOW) {
+                    Ok(stat) => stat,
+                    Err(rustix::io::Errno::NOENT) if index >= root_depth => {
+                        missing = names[index..].iter().map(|s| (*s).to_owned()).collect();
+                        break;
+                    }
+                    Err(error) => return Err(io_error(error)),
+                };
+                let kind = FileType::from_raw_mode(stat.st_mode);
+                if kind != FileType::Directory
+                    && (kind != FileType::RegularFile || index + 1 < names.len())
+                {
+                    return Err(Denial::new(
+                        "workspace_type",
+                        "A scoped path cannot traverse links, special files or regular-file ancestors",
+                    ));
+                }
+                let flags = if kind == FileType::Directory {
+                    OFlags::DIRECTORY
+                } else {
+                    OFlags::empty()
+                };
+                let file = File::from(
+                    rfs::openat(
+                        &directory,
+                        *name,
+                        OFlags::RDONLY
+                            | OFlags::NOFOLLOW
+                            | OFlags::CLOEXEC
+                            | OFlags::NONBLOCK
+                            | flags,
+                        Mode::empty(),
+                    )
+                    .map_err(io_error)?,
+                );
+                let metadata = file.metadata().map_err(io_error)?;
+                if metadata.dev() != stat.st_dev as u64
+                    || metadata.ino() != stat.st_ino as u64
+                    || (index >= root_depth && metadata.dev() != self.location.device)
+                    || (metadata.is_file() && metadata.nlink() != 1)
+                    || (!metadata.is_file() && !metadata.is_dir())
+                {
+                    return Err(changed());
+                }
+                existing.push(PathComponent {
+                    name: (*name).into(),
+                    identity: FileIdentity {
+                        device: metadata.dev(),
+                        inode: metadata.ino(),
+                    },
+                });
+                directory = file;
+            }
+            let observation = PathObservation {
+                path: relative.clone(),
+                existing,
+                missing,
+            };
+            observation.validate(&self.location)?;
+            observations.push(observation);
+        }
+        self.location()?;
+        Ok(observations)
+    }
     fn capture(&self, store: &dyn ContentStore) -> Result<SnapshotTree> {
         let first = self.capture_once(store)?;
         let second = self.capture_once(store)?;

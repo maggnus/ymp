@@ -30,10 +30,11 @@
     "Create proposed crates/ymp-domain/src/workspace.rs, crates/ymp-kernel/src/workspace_guard.rs and crates/ymp-runtime/src/workspace/direct.rs. W1-0016 supplies durable content storage; W1-0003 supplies explicit actual-capability facts. Implement Direct snapshot/path ownership as new behavior.",
     "W1-0006 binds locks to admitted assignments; W1-0017 supplies native cessation observations, and W1-0008 submits ResultVersion from retained snapshots. This task tests WorkspaceGuard operations over attributable ownership/basis fixtures, not a fabricated completed agent result. IsolatedCopy/CopyOnWrite/merge are W4-0001.",
     "Under §3.9/R-19, revocation, parent exit or stream loss alone cannot release conflicting access. Validate scoped cessation or never-started evidence; effective withdrawal of access may establish cessation. Financial settlement is independent and unrelated scopes can continue. Observation types remain implementation choices.",
-    "Implementation checkpoint: ymp-docs/workspace-implementation.md. Pure workspace paths/identity/snapshot manifests, Direct descriptor-relative capture with rustix, WorkspaceGuard.open/snapshot/retained/read_artifact, WorkspaceOpened/SnapshotTaken replay and explicit content links are implemented. SQLite tests retain exact bytes, modes and empty directories after workspace mutation/restart; negative tests cover aliases, root replacement, corruption, size limits and changes between scans. Path-lock admission/release and alternate provider are not implemented; this checkpoint does not complete W1-0005. Independent snapshot review ACCEPT after replacing overridable Journal.view with validated replay from read; an adversarial adapter-view regression confirms source attribution. All four offline Cargo checks and legacy/task validation passed. This acceptance covers only the snapshot checkpoint.",
-    "Independent design review: native cwd is not confinement; an unconfined writer must be denied rather than given an artificial root scope. Path ownership needs physical/case/Unicode/ancestor alias treatment and one atomic coordinator across sessions/processes/stores. Holds persist after coordinator exit. A constrained alternative must mediate real operations and drain admitted operations before issuing withdrawal evidence. Direct double capture detects changes but is not an atomic filesystem snapshot; final check/result capture must be quiescent under the completed guard."
+    "Implementation checkpoints: ymp-docs/workspace-implementation.md. Direct retained snapshots are committed in e1707a9. The current ownership checkpoint adds physical PathObservation, opaque scope/cessation inputs, WorkspaceGuard lock/authorize/revoke/release, LockChanged replay and aggregate conflict validation inside MemoryJournal/SQLite commit locks. Compatible reads and disjoint writes are tested with private synthetic evidence through the real consumer; cross-session/thread/process tests use Direct observations and trusted fixture events. These do not claim native confinement or cessation. Production access-evidence factories and the mediated alternative are not implemented.",
+    "Independent design review: native cwd is not confinement; an unconfined writer must be denied rather than given an artificial root scope. Path ownership needs physical/case/Unicode/ancestor alias treatment and one atomic coordinator across sessions/processes/stores. Holds persist after coordinator exit. A constrained alternative must mediate real operations and drain admitted operations before issuing withdrawal evidence. Direct double capture detects changes but is not an atomic filesystem snapshot; final check/result capture must be quiescent under the completed guard.",
+    "Ownership review ACCEPT after fixing orphan-head omission, requested-read capability enforcement and aggregate-history/control-capacity issues. SQLite inventories the union of heads/events/content links, rejects malformed session keys before loading strings, and retains only bounded active ownership from other sessions. All SQLite appends protect remaining authorization/revocation/release slots and bytes. Tests cover orphan owners, oversized keys, two-process conflict serialization, retained revocation and a small event limit that still permits authorize/revoke/release. Required remaining work: protected physical-root binding across independent stores; actual mediated operations and drain-before-withdrawal evidence; temporary root Read hold spanning snapshot capture. Keep W1-0005 in progress until these are implemented and independently accepted."
   ],
-  "revision": 6,
+  "revision": 7,
   "history": [
     {
       "revision": 1,
@@ -76,6 +77,13 @@
       "actor": "codex",
       "status": "in_progress",
       "note": "Snapshot checkpoint accepted independently and verified with all required offline checks. Ownership, alternate provider and cessation remain required; do not mark the task complete."
+    },
+    {
+      "revision": 7,
+      "at": "2026-09-15T22:37:57.974581Z",
+      "actor": "codex",
+      "status": "in_progress",
+      "note": "Independent review ACCEPT for the ownership bookkeeping checkpoint after correctness and bounded-read fixes. Full W1-0005 remains in progress; protected root binding, actual mediation and snapshot read holds still required."
     }
   ]
 }

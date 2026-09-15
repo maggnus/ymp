@@ -388,3 +388,6 @@ pub(crate) fn put_content(connection: &Connection, digest: &Digest, bytes: &[u8]
     }
     Ok(())
 }
+
+#[cfg(test)]
+mod workspace_capacity_tests;
