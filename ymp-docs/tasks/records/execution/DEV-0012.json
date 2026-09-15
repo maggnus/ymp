@@ -4,7 +4,7 @@
   "title": "Implement the bounded native execution slice (scripted)",
   "type": "implementation",
   "priority": 55,
-  "status": "planned",
+  "status": "done",
   "depends_on": [
     "DEV-0006"
   ],
@@ -20,13 +20,15 @@
     "The scenario persists and reattaches over SqliteJournal.",
     "Workspace gates green offline; existing tests unchanged and passing."
   ],
-  "evidence": [],
+  "evidence": [
+    "Merge 47eb87d on main; gates 68/0 offline; criteria verbatim"
+  ],
   "context": [
     "Started in parallel with the contract review rounds by the project lead's conveyor; record created at integration per lead policy."
   ],
   "id": "DEV-0012",
-  "owner": null,
-  "revision": 1,
+  "owner": "maintainer",
+  "revision": 3,
   "history": [
     {
       "revision": 1,
@@ -34,6 +36,20 @@
       "actor": "manage.py",
       "status": "planned",
       "note": "Task created."
+    },
+    {
+      "revision": 2,
+      "at": "2026-09-15T04:31:42.729229Z",
+      "actor": "maintainer",
+      "status": "in_progress",
+      "note": "Claimed by maintainer."
+    },
+    {
+      "revision": 3,
+      "at": "2026-09-15T04:31:42.775909Z",
+      "actor": "maintainer",
+      "status": "done",
+      "note": "Implemented and integrated as merge 47eb87d (branch commits 4923306, e6b92d5): kernel execution module, ScriptedBackend, ExecutionScenario, additive events with replay validation, storage payload v1 extended. 68 tests green offline incl. 8 criteria verbatim + SqliteJournal restart/reattach equality. Independent code review (sol xhigh) scheduled post-merge per trunk policy; findings become fix commits."
     }
   ]
 }
