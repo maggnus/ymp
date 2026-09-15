@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "area": "execution",
+  "title": "Implement the bounded native execution slice (scripted)",
+  "type": "implementation",
+  "priority": 55,
+  "status": "planned",
+  "depends_on": [
+    "DEV-0006"
+  ],
+  "goal": "Deliver the first executable execution slice per the accepted bounded execution contract.",
+  "scope": [
+    "Kernel execution module: types, ports, orchestration, views, accounting.",
+    "Scripted backend and admitted-scenario wiring in the runtime.",
+    "Execution events persisted additively through the durable journal.",
+    "All contract acceptance criteria as named tests."
+  ],
+  "acceptance": [
+    "All eight contract criteria pass as named tests without real providers.",
+    "The scenario persists and reattaches over SqliteJournal.",
+    "Workspace gates green offline; existing tests unchanged and passing."
+  ],
+  "evidence": [],
+  "context": [
+    "Started in parallel with the contract review rounds by the project lead's conveyor; record created at integration per lead policy."
+  ],
+  "id": "DEV-0012",
+  "owner": null,
+  "revision": 1,
+  "history": [
+    {
+      "revision": 1,
+      "at": "2026-09-15T04:31:28.811856Z",
+      "actor": "manage.py",
+      "status": "planned",
+      "note": "Task created."
+    }
+  ]
+}
