@@ -5,7 +5,7 @@
   "title": "Commit explicit goals, constraints and versioned acceptance criteria",
   "type": "implementation",
   "priority": 102,
-  "status": "in_progress",
+  "status": "done",
   "depends_on": [
     "W1-0001"
   ],
@@ -21,7 +21,9 @@
     "User-origin refinement retains its prior contract/basis and records ClarificationRecorded or AssumptionRecorded. The Derived(Assignment) representation retains the precise assignment reference; actual charged Planner production and provenance validation are demonstrated in W1-0011, not fabricated here.",
     "Invalid limits, duplicate/missing criteria and contradictory explicit pins cannot create partially committed intake. A revised criterion/contract receives a new attributable version and cannot silently inherit evidence for another interpretation."
   ],
-  "evidence": [],
+  "evidence": [
+    "Commit 43cfb3f5fcee7473f2b2b541895ba8b02b8adc85 in main; required offline build/fmt/clippy/test passed (23 integration tests plus one compile-fail); legacy-scan passed; see ymp-docs/intake-implementation.md for acceptance evidence and the two regression controls that failed before fixes."
+  ],
   "context": [
     "Authority: ymp-docs/self-organizing-team-domain-model.md, sections 3.2, 3.3 (SessionStatus), 4 (AcceptanceAuthority), P6, A1 intake, A11 and R-3. Use the approved model with 811a872 semantics and the greenfield baseline in 0c61ff1 and §5.8 for experimental strategy boundaries. Other documents and existing names explain implementation facts only.",
     "Greenfield: create this behavior in the new implementation. Paths below are PROPOSED target modules under the layout owned by W1-0001; only completed prerequisite tasks supply implementation. Prior source, APIs, fixtures and delivery claims are not a baseline.",
@@ -29,7 +31,7 @@
     "Implement explicit user goal/criterion/constraint input first. Reporting capacity is derived later by ResourcePolicy into Budget, not an obligatory Constraints field. W1-0011 owns admitted Planner extraction, Derived(Assignment) authorship and the invalid/foreign producer checks at that real integration boundary.",
     "Development task records remain unrelated to product Task authority. Intake commits user scope; a future Planner proposal cannot silently override pins or replace the user goal."
   ],
-  "revision": 4,
+  "revision": 5,
   "history": [
     {
       "revision": 1,
@@ -58,6 +60,13 @@
       "actor": "codex",
       "status": "in_progress",
       "note": "Claimed by codex."
+    },
+    {
+      "revision": 5,
+      "at": "2026-09-15T20:03:12.483205Z",
+      "actor": "codex",
+      "status": "done",
+      "note": "Independent review accepted explicit Application intake and atomic refinements after float round-trip and incomplete-view corrections. The accepted result is committed to main; execution lifecycle and Planner-derived provenance remain their owning tasks."
     }
   ]
 }
