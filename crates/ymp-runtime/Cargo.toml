@@ -6,6 +6,7 @@ rust-version.workspace = true
 publish.workspace = true
 
 [dependencies]
+serde_json = "1.0.151"
 ymp-domain = { path = "../ymp-domain" }
 ymp-kernel = { path = "../ymp-kernel" }
 

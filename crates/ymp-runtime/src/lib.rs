@@ -1,6 +1,7 @@
 #![forbid(unsafe_code)]
 
 pub mod clock;
+pub mod codex;
 mod scenario;
 pub mod scripted;
 
@@ -18,6 +19,7 @@ pub use ymp_kernel::{
 };
 
 pub use clock::{Clock, ManualClock, SystemClock};
+pub use codex::{CodexBackend, CodexProbe, CodexRegistry, CodexStreamStats, CodexTokenUsage};
 pub use scenario::ExecutionScenario;
 pub use scripted::{
     ScriptedBackend, ScriptedOutcome, ScriptedProvider, ScriptedReceiptSpec, ScriptedRegistry,
