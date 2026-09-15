@@ -8,7 +8,7 @@
 mod support;
 
 use support::{TempRoot, open_dispatcher, open_journal, sample_task, session_id};
-use ymp_kernel::{Dispatcher, Journal, JournalError, Revision};
+use ymp_kernel::{Journal, JournalError, Revision};
 
 #[test]
 fn multi_event_batch_lands_as_contiguous_revisions() {
@@ -71,26 +71,38 @@ fn injected_pre_commit_failure_leaves_no_partial_result() {
 
     // Inject a failure after the batch rows are written but before the
     // transaction commits: the rollback is confirmed and the failure is an
-    // AdapterFailure, never a partial committed result.
+    // AdapterFailure, never a partial committed result. The failing batch
+    // holds TWO events, so a partially persisted batch would be visible; the
+    // journal port admits any batch (domain admission stays with the kernel).
     let faulting = open_journal(root.path());
     faulting.inject_fault(ymp_storage::FaultPoint::BeforeCommit);
-    let error = Dispatcher::new(faulting)
-        .cancel(&sid, Revision::new(1))
+    let batch = vec![
+        support::cancelled_event(&sid),
+        support::opened_event(&sid, &task),
+    ];
+    let error = faulting
+        .append(&sid, Revision::new(1), batch.clone())
         .unwrap_err();
     assert!(
-        matches!(
-            error,
-            ymp_kernel::DispatchError::Journal(JournalError::AdapterFailure { .. })
-        ),
+        matches!(error, JournalError::AdapterFailure { .. }),
         "expected AdapterFailure, got {error:?}"
     );
 
-    // A subsequent read returns the identical prior history and the rows are
-    // physically absent. (The WAL side file may retain the aborted frames;
-    // what matters is that no partial batch is committed or observable.)
+    // A subsequent read returns the identical prior history, the stored head
+    // revision is unchanged, and no row of the two-event batch exists. (The
+    // WAL side file may retain the aborted frames; what matters is that no
+    // partial batch is committed or observable.)
     let after = dispatcher.read(&sid).expect("history still reads");
     assert_eq!(after, before, "the durable stream is unchanged");
     let connection = support::direct_connection(root.path());
+    let head: (i64, i64) = connection
+        .query_row(
+            "SELECT head_hi, head_lo FROM journal_streams WHERE session_id = ?1",
+            [sid.as_str()],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )
+        .expect("stored head reads");
+    assert_eq!(head, (0, 1), "the head revision stays at 1");
     let rows: i64 = connection
         .query_row(
             "SELECT COUNT(*) FROM journal_entries WHERE session_id = ?1",
@@ -98,11 +110,18 @@ fn injected_pre_commit_failure_leaves_no_partial_result() {
             |row| row.get(0),
         )
         .expect("rows count");
-    assert_eq!(rows, 1, "no partial batch row was committed");
+    assert_eq!(rows, 1, "no row of the multi-event batch was committed");
 
-    // The seam fires once: a retry without re-arming succeeds normally.
-    let retried = open_dispatcher(root.path())
-        .cancel(&sid, Revision::new(1))
+    // The seam fires once: retrying the same two-event batch without
+    // re-arming commits it whole.
+    let retried = faulting
+        .append(&sid, Revision::new(1), batch)
         .expect("retry after the injected failure commits");
-    assert_eq!(retried.revision(), Revision::new(2));
+    assert_eq!(retried, Revision::new(3));
+    let entries = faulting.read(&sid).expect("history reads after the retry");
+    assert_eq!(entries.len(), 3, "the retried batch lands whole");
+    assert_eq!(
+        entries.last().map(|entry| entry.revision()),
+        Some(Revision::new(3))
+    );
 }

@@ -28,6 +28,13 @@
 //! DEV-0005 work order (`ymp-docs/tasks/records/persistence/DEV-0005.json`);
 //! the standalone durable Journal contract document is DEV-0004 work and is
 //! deliberately not part of this crate.
+//!
+//! # Test seam
+//!
+//! A one-shot fault-injection seam for the acceptance tests exists only when
+//! the crate is built with the non-default `fault-injection` Cargo feature
+//! (enabled through this crate's dev-dependencies). Default and downstream
+//! builds expose no way to fake an append outcome.
 
 #![forbid(unsafe_code)]
 
@@ -68,7 +75,9 @@ const BUSY_TIMEOUT: Duration = Duration::from_secs(5);
 ///
 /// Arming a fault affects exactly the next `append` on the journal (any clone)
 /// and is consumed by it; reads are never affected. The seam exists only to
-/// make failure states reproducible in tests — no other code path uses it.
+/// make failure states reproducible in tests — no other code path uses it —
+/// and is compiled only with the non-default `fault-injection` feature.
+#[cfg(feature = "fault-injection")]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum FaultPoint {
     /// Fails the next append after the batch rows are written but before the
@@ -87,7 +96,8 @@ pub enum FaultPoint {
 
 /// A durable `Journal` over one SQLite database file.
 ///
-/// All clones share one connection and one fault-injection state. Opening
+/// All clones share one connection (and, with the non-default
+/// `fault-injection` feature, one fault-injection state). Opening
 /// validates an existing database's application identifier and schema version
 /// before changing the journal mode or executing DDL, then runs with WAL,
 /// `synchronous=FULL`, a bounded busy timeout and enforced foreign keys.
@@ -99,6 +109,7 @@ pub struct SqliteJournal {
 struct Inner {
     database_path: PathBuf,
     connection: Mutex<Connection>,
+    #[cfg(feature = "fault-injection")]
     fault: Mutex<Option<FaultPoint>>,
 }
 
@@ -134,6 +145,7 @@ impl SqliteJournal {
             inner: Arc::new(Inner {
                 database_path,
                 connection: Mutex::new(connection),
+                #[cfg(feature = "fault-injection")]
                 fault: Mutex::new(None),
             }),
         })
@@ -145,7 +157,9 @@ impl SqliteJournal {
     }
 
     /// Arms a one-shot fault consumed by the next `append` (see
-    /// [`FaultPoint`]). Test seam only.
+    /// [`FaultPoint`]). Test seam only, compiled with the non-default
+    /// `fault-injection` feature.
+    #[cfg(feature = "fault-injection")]
     pub fn inject_fault(&self, point: FaultPoint) {
         if let Ok(mut fault) = self.inner.fault.lock() {
             *fault = Some(point);
@@ -161,6 +175,7 @@ impl SqliteJournal {
             })
     }
 
+    #[cfg(feature = "fault-injection")]
     fn take_fault(&self) -> Option<FaultPoint> {
         self.inner
             .fault
@@ -215,6 +230,7 @@ impl Journal for SqliteJournal {
         }
         let attempted = next_revision;
 
+        #[cfg(feature = "fault-injection")]
         let fault = self.take_fault();
         let mut connection = self.lock()?;
         let transaction = connection
@@ -253,50 +269,19 @@ impl Journal for SqliteJournal {
             ));
         }
 
-        match fault {
-            Some(FaultPoint::BeforeCommit) => finish_with_confirmed_rollback(
-                transaction,
-                expected_revision,
-                attempted,
-                JournalError::AdapterFailure {
-                    message: "injected failure before the commit point".to_owned(),
-                },
-            ),
-            Some(FaultPoint::IndeterminateRolledBack) => finish_with_confirmed_rollback(
-                transaction,
-                expected_revision,
-                attempted,
-                JournalError::IndeterminateCommit {
-                    expected: expected_revision,
-                    attempted,
-                    message: "injected unproven commit: the batch is absent".to_owned(),
-                },
-            ),
-            Some(FaultPoint::IndeterminateCommitted) => {
-                transaction
-                    .commit()
-                    .map_err(|error| JournalError::IndeterminateCommit {
-                        expected: expected_revision,
-                        attempted,
-                        message: format!("commit outcome is not proven: {error}"),
-                    })?;
-                Err(JournalError::IndeterminateCommit {
-                    expected: expected_revision,
-                    attempted,
-                    message: "injected unproven commit: the batch is committed".to_owned(),
-                })
-            }
-            None => {
-                transaction
-                    .commit()
-                    .map_err(|error| JournalError::IndeterminateCommit {
-                        expected: expected_revision,
-                        attempted,
-                        message: format!("commit outcome is not proven: {error}"),
-                    })?;
-                Ok(attempted)
-            }
+        #[cfg(feature = "fault-injection")]
+        if let Some(point) = fault {
+            return injected_fault_outcome(transaction, expected_revision, attempted, point);
         }
+
+        transaction
+            .commit()
+            .map_err(|error| JournalError::IndeterminateCommit {
+                expected: expected_revision,
+                attempted,
+                message: format!("commit outcome is not proven: {error}"),
+            })?;
+        Ok(attempted)
     }
 }
 
@@ -627,6 +612,52 @@ fn write_batch(
         )?;
     }
     Ok(())
+}
+
+/// Resolves an armed test fault after the batch rows are written, preserving
+/// each fault point's documented outcome. Compiled only with the non-default
+/// `fault-injection` feature; no production path reaches this.
+#[cfg(feature = "fault-injection")]
+fn injected_fault_outcome(
+    transaction: Transaction<'_>,
+    expected: Revision,
+    attempted: Revision,
+    point: FaultPoint,
+) -> Result<Revision, JournalError> {
+    match point {
+        FaultPoint::BeforeCommit => finish_with_confirmed_rollback(
+            transaction,
+            expected,
+            attempted,
+            JournalError::AdapterFailure {
+                message: "injected failure before the commit point".to_owned(),
+            },
+        ),
+        FaultPoint::IndeterminateRolledBack => finish_with_confirmed_rollback(
+            transaction,
+            expected,
+            attempted,
+            JournalError::IndeterminateCommit {
+                expected,
+                attempted,
+                message: "injected unproven commit: the batch is absent".to_owned(),
+            },
+        ),
+        FaultPoint::IndeterminateCommitted => {
+            transaction
+                .commit()
+                .map_err(|error| JournalError::IndeterminateCommit {
+                    expected,
+                    attempted,
+                    message: format!("commit outcome is not proven: {error}"),
+                })?;
+            Err(JournalError::IndeterminateCommit {
+                expected,
+                attempted,
+                message: "injected unproven commit: the batch is committed".to_owned(),
+            })
+        }
+    }
 }
 
 /// Commits nothing: rolls the transaction back, confirming the rollback. A

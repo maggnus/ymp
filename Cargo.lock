@@ -279,6 +279,7 @@ dependencies = [
  "serde_json",
  "ymp-domain",
  "ymp-kernel",
+ "ymp-storage",
 ]
 
 [[package]]
