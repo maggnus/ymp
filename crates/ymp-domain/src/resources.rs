@@ -447,3 +447,20 @@ impl Default for PurposeBoundedParameters {
         }
     }
 }
+
+/// A nonnegative difference rounded upward for retained uncertainty exposure.
+pub fn exposure(limit: CostUnits, accounted: CostUnits) -> Result<CostUnits> {
+    nonnegative(limit)?;
+    nonnegative(accounted)?;
+    if limit <= accounted {
+        return Ok(units(0.0));
+    }
+    let difference = limit.get() - accounted.get();
+    let virtual_used = limit.get() - difference;
+    let error = (limit.get() - (difference + virtual_used)) + (virtual_used - accounted.get());
+    CostUnits::new(if error > 0.0 {
+        difference.next_up()
+    } else {
+        difference
+    })
+}

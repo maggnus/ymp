@@ -1345,7 +1345,7 @@ AssignmentAdmitted · AssignmentRevoked · GrantIssued · CommitmentChanged · R
 WorkspaceOpened · LockChanged · SnapshotTaken · ResultMerged
 InvocationStarted · InvocationEnded · ReceiptSettled · ResultSubmitted · EvidenceRecorded · ReviewRecorded
 ObjectionRaised · ObjectionResolved · AcceptanceRecorded · Regraded · LedgerUpdated
-ProgressAssessed · Diagnosed · Escalated · TeamChanged · NoticePosted · HandoffCreated · ReportDelivered
+ProgressAssessed · Diagnosed · Escalated · TeamChanged · NoticePosted · HandoffCreated · ReportingStarted · ReportDelivered
 ObservationRecorded · ReputationUpdated · CalibrationRecorded · KnowledgeChanged · TrialRecorded
 RetrievalRecorded · ConsequenceIngested
 ```
@@ -1356,6 +1356,20 @@ profile-specific proposals and input digests, and the kernel-derived Pool.
 W1-0003 uses this event to satisfy D-2, D-5 and R-17 without repeating discovery
 or filesystem inspection during replay. Recording readiness does not start an
 invocation or confer assignment authority.
+
+`BudgetOpened` records the immutable PriceBook and policy-derived ReportingPlan.
+`ReservationChanged` records funding, single-use invocation authorization, receipt
+observations, revocation and evidence-backed release. `ReceiptSettled` records the
+selected CostModel decision. Observations precede pricing so pricing failure cannot
+hide usage. These are financial facts; authorization does not establish that an
+Invocation started or that its external effects ended.
+
+`ReportingStarted` records Treasury's transition to bounded narrated reporting or
+deterministic reporting. It makes A11's prohibition on extending production
+replayable before ReportDelivered. It may downgrade from narrated to deterministic,
+but cannot reopen production, override a user stop or grant execution authority.
+After delivery, Curate remains subject to unprotected capacity under R-15.
+The session lifecycle and report delivery remain owned by their kernel services.
 
 ## 10. Build order
 

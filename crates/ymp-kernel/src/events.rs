@@ -29,6 +29,22 @@ pub struct CriteriaCommitted {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub enum Event {
+    BudgetOpened {
+        version: u32,
+        data: Box<crate::treasury::BudgetOpening>,
+    },
+    ReservationChanged {
+        version: u32,
+        change: crate::treasury::ReservationChange,
+    },
+    ReceiptSettled {
+        version: u32,
+        data: Box<crate::treasury::Settlement>,
+    },
+    ReportingStarted {
+        version: u32,
+        mode: ymp_domain::resources::ReportingMode,
+    },
     PoolRecorded {
         version: u32,
         data: Box<crate::registry::PoolRecorded>,
@@ -58,6 +74,13 @@ pub enum Event {
 impl Event {
     pub fn contents(&self) -> Result<EventContent> {
         let selections: Vec<&PolicySelection> = match self {
+            Self::BudgetOpened { data, .. } => vec![&data.reporting.effective],
+            Self::ReservationChanged {
+                change: crate::treasury::ReservationChange::Reserved(data),
+                ..
+            } => vec![&data.estimate.effective, &data.allocation.effective],
+            Self::ReceiptSettled { data, .. } => vec![&data.decision.effective],
+            Self::ReportingStarted { .. } | Self::ReservationChanged { .. } => vec![],
             Self::SessionOpened { selections, .. } => selections.iter().collect(),
             Self::MethodChosen { decision, .. } => vec![&decision.effective],
             Self::PoolRecorded { data, .. } => vec![&data.effective],
@@ -78,7 +101,11 @@ impl Event {
     }
     pub fn version(&self) -> u32 {
         match self {
-            Self::PoolRecorded { version, .. }
+            Self::BudgetOpened { version, .. }
+            | Self::ReservationChanged { version, .. }
+            | Self::ReceiptSettled { version, .. }
+            | Self::ReportingStarted { version, .. }
+            | Self::PoolRecorded { version, .. }
             | Self::SessionOpened { version, .. }
             | Self::MethodChosen { version, .. }
             | Self::CriteriaCommitted { version, .. }

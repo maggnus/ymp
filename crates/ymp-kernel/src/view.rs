@@ -31,6 +31,7 @@ pub struct SessionView {
     contract: Option<AcceptanceContract>,
     criteria: Vec<Criterion>,
     registry: Option<Box<crate::registry::PoolRecorded>>,
+    treasury: Option<Box<crate::treasury::TreasuryView>>,
 }
 
 impl SessionView {
@@ -47,7 +48,11 @@ impl SessionView {
             contract: None,
             criteria: Vec::new(),
             registry: None,
+            treasury: None,
         }
+    }
+    pub fn treasury(&self) -> Option<&crate::treasury::TreasuryView> {
+        self.treasury.as_deref()
     }
     pub fn registry(&self) -> Option<&crate::registry::PoolRecorded> {
         self.registry.as_deref()
@@ -155,6 +160,31 @@ impl SessionView {
             self.resolve(reference)?;
         }
         match &event.payload {
+            Event::BudgetOpened { .. }
+            | Event::ReservationChanged { .. }
+            | Event::ReceiptSettled { .. }
+            | Event::ReportingStarted { .. } => {
+                self.validate_complete()?;
+                let (policy, input, refs) = crate::treasury::attribution(&event.payload)?;
+                if event.policy != policy || event.input != input || event.refs != refs {
+                    return Err(Denial::new(
+                        "accounting_attribution",
+                        "Financial event metadata disagrees with its decision",
+                    ));
+                }
+                let book = crate::treasury::apply(self, event)?;
+                if let Event::ReservationChanged {
+                    change: crate::treasury::ReservationChange::Observed { receipt, .. },
+                    ..
+                } = &event.payload
+                {
+                    self.references.insert(Ref {
+                        id: receipt.id.erased(),
+                        version: Digest::of_value(receipt)?,
+                    });
+                }
+                self.treasury = Some(Box::new(book));
+            }
             Event::PoolRecorded { data, .. } => {
                 self.validate_complete()?;
                 schemas.validate(&data.effective)?;
@@ -348,6 +378,20 @@ impl SessionView {
     }
 
     pub(crate) fn validate_complete(&self) -> Result<()> {
+        if let Some(book) = &self.treasury {
+            let task = self
+                .task
+                .as_ref()
+                .ok_or_else(|| Denial::new("task_missing", "Budget lost its task"))?;
+            if task.constraints.budget != book.budget.limit
+                || task.constraints.verification_reserve != book.budget.verification_reserve
+            {
+                return Err(Denial::new(
+                    "budget_frozen",
+                    "An opened budget cannot be silently replaced through intake",
+                ));
+            }
+        }
         match (&self.task, &self.contract) {
             (Some(task), Some(contract)) => contract.validate(task, &self.criteria),
             (None, None) => Ok(()),

@@ -31,11 +31,11 @@
     "Create proposed crates/ymp-domain/src/resources.rs, crates/ymp-kernel/src/treasury.rs and crates/ymp-runtime/src/policies/resources.rs. Dependencies supply model values, explicit constraints and execution-profile/offerings facts. Implement Budget/Treasury and cost/allowance policies from scratch.",
     "Treasury’s own reserve/settle consumer establishes budget behavior here; W1-0006 binds reservations to actual admission, W1-0017 supplies invocation receipts, and W1-0013 demonstrates paid reporting/fallback. Test references at these seams must not be described as a completed agent invocation.",
     "§5.8 requires whole CostModel/ResourcePolicy replacement with named/validated/defaulted, recoverable values. Derive reporting_reserve(task_view,pool_view) into Budget and validate both reserves. R-19 separates financial settlement/release_unstarted from workspace cessation; incomplete coverage follows the exact A13 Stop/Estimate rules.",
-    "Implementation mapping/checkpoint: ymp-docs/resources-implementation.md. Pure values, read-only policy views and PriceWeighted/PurposeBounded are implemented; Treasury remains to be built and the task is not complete. Preserve original PolicySelection after typed decoding; integer JSON must not silently change the params digest.",
+    "Implementation mapping: ymp-docs/resources-implementation.md. Treasury now validates and journals Budget/PriceBook opening, policy-bound reservations, single-use invocation funding, receipt observations, settlement, revocation, never-started release and financial reporting mode. Exact policy selections and immutable parameter bytes remain replayable. Actual Grant/executor/report-delivery integration remains with W1-0006/W1-0017/W1-0013/W1-0014 as specified above.",
     "Treasury design: observe receipts before pricing; immutable PriceBook, per-purpose totals reconstructed conservatively; account for the full verified upper-bound exposure, including residual uncertainty after an allowance estimate; Unknown Stop blocks unprotected purposes and unbounded prior exposure blocks all paid work. ReportingPlan records narration plus one correction or deterministic fallback; reporting mode restricts but cannot authorize native calls after a user stop.",
-    "Evidence seam: use a private non-deserializable AccountingEvidence bound to reservation/assignment/invocation and recorded bases. Treasury can prove never-authorized work did not start; verified executor bounds/complete-cost proof production belongs to W1-0017. Test-only private evidence constructors can exercise the real financial consumer but must not be described as completed native invocations. Raw Receipt.cost or adapter/proposal booleans cannot grant certainty. Consumer/replay/SQLite and alternate-policy tests remain required."
+    "Evidence seam: private non-deserializable AccountingEvidence binds issuer/session/reservation/assignment/invocation/current state and recorded bases, plus exact receipt digest for complete cost. Kernel tests use private synthetic constructors through the real Treasury; they do not claim native execution. Public consumer tests cover actual default and materially different policy implementations, purpose caps and authorization after overruns, late/duplicate/conflicting receipts, release/revocation, normalized cumulative/cache usage and SQLite reopening. Confirmed expense survives later Partial observations; disproved bounds cannot restore paid capacity. Executor-derived evidence construction remains W1-0017."
   ],
-  "revision": 5,
+  "revision": 6,
   "history": [
     {
       "revision": 1,
@@ -71,6 +71,13 @@
       "actor": "codex",
       "status": "in_progress",
       "note": "Checkpoint: added resource values, conservative arithmetic, explicit policy parameters and PriceWeighted/PurposeBounded with focused tests. Treasury and real-consumer accounting/replay checks remain outstanding; this is not task completion."
+    },
+    {
+      "revision": 6,
+      "at": "2026-09-15T22:01:12.616630Z",
+      "actor": "codex",
+      "status": "in_progress",
+      "note": "Implemented the journal-backed Treasury consumer and financial evidence seam; independent review ACCEPT after purpose-cap and retained-exposure fixes. All four offline Cargo checks, legacy scan and task validation passed."
     }
   ]
 }

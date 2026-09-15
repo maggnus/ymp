@@ -22,6 +22,14 @@ impl Default for ParameterSchemas {
         Self {
             validators: BTreeMap::from([
                 (
+                    ("CostModel".into(), "PriceWeighted".into(), "1".into()),
+                    validate_price_weighted as ParameterValidator,
+                ),
+                (
+                    ("ResourcePolicy".into(), "PurposeBounded".into(), "1".into()),
+                    validate_purpose_bounded as ParameterValidator,
+                ),
+                (
                     ("MethodRouter".into(), "FixedMethod".into(), "1".into()),
                     validate_fixed as ParameterValidator,
                 ),
@@ -36,6 +44,16 @@ impl Default for ParameterSchemas {
             ]),
         }
     }
+}
+fn validate_price_weighted(selection: &PolicySelection) -> Result<()> {
+    let parameters: ymp_domain::resources::PriceWeightedParameters =
+        ymp_domain::journal::decode(&encode(&selection.parameters)?)?;
+    parameters.validate()
+}
+fn validate_purpose_bounded(selection: &PolicySelection) -> Result<()> {
+    let parameters: ymp_domain::resources::PurposeBoundedParameters =
+        ymp_domain::journal::decode(&encode(&selection.parameters)?)?;
+    parameters.validate()
 }
 fn validate_static(selection: &PolicySelection) -> Result<()> {
     if selection.parameters != serde_json::json!({}) {

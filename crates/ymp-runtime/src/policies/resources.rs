@@ -250,11 +250,16 @@ impl ResourcePolicy for PurposeBounded {
     fn allowance(&self, view: &AllowanceView) -> Result<Proposal<Allowance>> {
         view.estimate.validate()?;
         nonnegative(view.remaining)?;
+        let ceiling = if view.demand.kind == ContributionKind::Narrate {
+            self.parameters.report_call_cost
+        } else {
+            self.parameters.max_cost
+        };
         let cost = amount(
             view.estimate
                 .p90
                 .get()
-                .min(self.parameters.max_cost.get())
+                .min(ceiling.get())
                 .min(view.remaining.get()),
         )?;
         if cost < view.estimate.expected {
