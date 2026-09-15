@@ -1,5 +1,6 @@
 #![forbid(unsafe_code)]
 
+mod acceptance;
 pub mod execution;
 
 use std::collections::BTreeMap;
@@ -9,7 +10,9 @@ use std::fmt;
 use execution::{
     InvocationId, ObservedUsage, ReservationPurpose, ResourceAmount, UncertaintyCause,
 };
-use ymp_domain::{SessionId, Task};
+use ymp_domain::{CriterionId, Evidence, SessionId, Task};
+
+pub use acceptance::AcceptanceAuthority;
 
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct Revision(u64);
@@ -123,6 +126,14 @@ pub enum SessionEvent {
         usage: execution::ObservedUsage,
         reservation: execution::ResourceAmount,
     },
+    /// Preliminary evidence for declared criteria, attributed to the
+    /// completed invocation whose admitted workspace the check observed. It
+    /// does not create a result version or a final Acceptance decision.
+    CriterionEvaluated {
+        session_id: SessionId,
+        invocation: InvocationId,
+        evidence: Evidence,
+    },
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -226,6 +237,7 @@ pub struct SessionView {
     task: Task,
     status: SessionStatus,
     revision: Revision,
+    evidence: Vec<(InvocationId, Evidence)>,
 }
 
 impl SessionView {
@@ -243,6 +255,12 @@ impl SessionView {
 
     pub fn revision(&self) -> Revision {
         self.revision
+    }
+
+    pub fn evidence(&self) -> impl Iterator<Item = (&InvocationId, &Evidence)> {
+        self.evidence
+            .iter()
+            .map(|(invocation, evidence)| (invocation, evidence))
     }
 }
 
@@ -320,6 +338,23 @@ pub enum HistoryError {
     UncertaintyCauseMismatch {
         revision: Revision,
         invocation: InvocationId,
+    },
+    CriterionEvaluationBeforeCompletion {
+        revision: Revision,
+        invocation: InvocationId,
+    },
+    UnknownEvidenceCriterion {
+        revision: Revision,
+        criterion: CriterionId,
+    },
+    DuplicateCriterionEvaluation {
+        revision: Revision,
+        criterion: CriterionId,
+    },
+    EvidenceWorkspaceMismatch {
+        revision: Revision,
+        invocation: InvocationId,
+        workspace: String,
     },
 }
 
@@ -462,6 +497,38 @@ impl fmt::Display for HistoryError {
                 "uncertainty at revision {revision} of invocation '{invocation}' names a cause \
                  that does not match its phase"
             ),
+            Self::CriterionEvaluationBeforeCompletion {
+                revision,
+                invocation,
+            } => write!(
+                formatter,
+                "criterion evaluation at revision {revision} requires invocation '{invocation}' \
+                 to have an observed completed outcome"
+            ),
+            Self::UnknownEvidenceCriterion {
+                revision,
+                criterion,
+            } => write!(
+                formatter,
+                "criterion evaluation at revision {revision} covers undeclared criterion \
+                 '{criterion}'"
+            ),
+            Self::DuplicateCriterionEvaluation {
+                revision,
+                criterion,
+            } => write!(
+                formatter,
+                "criterion evaluation at revision {revision} repeats criterion '{criterion}'"
+            ),
+            Self::EvidenceWorkspaceMismatch {
+                revision,
+                invocation,
+                workspace,
+            } => write!(
+                formatter,
+                "criterion evaluation at revision {revision} for invocation '{invocation}' \
+                 observed workspace '{workspace}' outside its admitted scopes"
+            ),
         }
     }
 }
@@ -481,6 +548,8 @@ pub fn replay_session(
     let mut status = SessionStatus::Open;
     let mut current_revision = Revision::INITIAL;
     let mut invocations = BTreeMap::new();
+    let mut evaluated_criteria = std::collections::HashSet::new();
+    let mut evidence = Vec::new();
 
     for (index, entry) in entries.iter().enumerate() {
         let expected_revision =
@@ -576,6 +645,11 @@ pub fn replay_session(
                     invocation.clone(),
                     InvocationTrack {
                         reservation: Some(admitted_reservation),
+                        workspaces: assignment
+                            .workspace_accesses()
+                            .iter()
+                            .map(|access| access.scope().as_str().to_owned())
+                            .collect(),
                         ..InvocationTrack::default()
                     },
                 );
@@ -736,6 +810,7 @@ pub fn replay_session(
             SessionEvent::InvocationObserved {
                 session_id,
                 invocation,
+                termination,
                 usage,
                 ..
             } => {
@@ -758,6 +833,7 @@ pub fn replay_session(
                     });
                 }
                 track.observed = true;
+                track.termination = Some(termination.clone());
                 track.observed_usage = Some(*usage);
             }
             SessionEvent::InvocationAccounted {
@@ -812,6 +888,56 @@ pub fn replay_session(
                 }
                 track.accounted = true;
             }
+            SessionEvent::CriterionEvaluated {
+                session_id,
+                invocation,
+                evidence: observed,
+            } => {
+                ensure_session_id(stream_id, session_id)?;
+                let track = invocation_track(&mut invocations, invocation, entry.revision)?;
+                if !matches!(
+                    track.phase(),
+                    InvocationReplayPhase::Terminated | InvocationReplayPhase::Accounted
+                ) || track.termination.as_ref() != Some(&execution::Termination::Completed)
+                {
+                    return Err(HistoryError::CriterionEvaluationBeforeCompletion {
+                        revision: entry.revision,
+                        invocation: invocation.clone(),
+                    });
+                }
+                if !track
+                    .workspaces
+                    .iter()
+                    .any(|workspace| workspace == observed.workspace())
+                {
+                    return Err(HistoryError::EvidenceWorkspaceMismatch {
+                        revision: entry.revision,
+                        invocation: invocation.clone(),
+                        workspace: observed.workspace().to_owned(),
+                    });
+                }
+                let opened_task = task.as_ref().ok_or(HistoryError::FirstEventMustOpen)?;
+                for criterion in observed.check().criteria() {
+                    if !opened_task
+                        .acceptance_contract()
+                        .criteria()
+                        .iter()
+                        .any(|declared| declared.id() == criterion)
+                    {
+                        return Err(HistoryError::UnknownEvidenceCriterion {
+                            revision: entry.revision,
+                            criterion: criterion.clone(),
+                        });
+                    }
+                    if !evaluated_criteria.insert(criterion.clone()) {
+                        return Err(HistoryError::DuplicateCriterionEvaluation {
+                            revision: entry.revision,
+                            criterion: criterion.clone(),
+                        });
+                    }
+                }
+                evidence.push((invocation.clone(), observed.clone()));
+            }
         }
 
         previous_revision = entry.revision;
@@ -824,6 +950,7 @@ pub fn replay_session(
         task,
         status,
         revision: current_revision,
+        evidence,
     }))
 }
 
@@ -834,7 +961,7 @@ pub fn replay_session(
 /// unknown outcome; every start is first journaled as an attempt. The
 /// admitted reservation and observed usage are kept for the settlement's
 /// cross-field validation.
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
 struct InvocationTrack {
     start_attempted: bool,
     started: bool,
@@ -843,9 +970,11 @@ struct InvocationTrack {
     failed_at_start: bool,
     evidence: bool,
     observed: bool,
+    termination: Option<execution::Termination>,
     observed_usage: Option<ObservedUsage>,
     accounted: bool,
     reservation: Option<ResourceAmount>,
+    workspaces: Vec<String>,
 }
 
 /// The mutually exclusive lifecycle phase derived from the recorded facts.
@@ -867,7 +996,7 @@ enum InvocationReplayPhase {
 }
 
 impl InvocationTrack {
-    fn phase(self) -> InvocationReplayPhase {
+    fn phase(&self) -> InvocationReplayPhase {
         if self.accounted {
             InvocationReplayPhase::Accounted
         } else if self.observed {
@@ -966,6 +1095,7 @@ where
             task,
             status: SessionStatus::Open,
             revision: committed_revision,
+            evidence: Vec::new(),
         })
     }
 
@@ -1015,6 +1145,7 @@ where
             task: current.task,
             status: SessionStatus::Cancelled,
             revision: committed_revision,
+            evidence: current.evidence,
         })
     }
 }

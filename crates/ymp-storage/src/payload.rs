@@ -1,9 +1,9 @@
 //! Strict payload codec for the durable journal's version-1 entry payloads.
 //!
 //! The payload forms are fixed by the durable Journal contract. Version 1
-//! originally defined the two session-lifecycle forms; the bounded
-//! execution slice added the seven execution forms additively within the
-//! same version, preserving the original two byte-for-byte:
+//! originally defined the two session-lifecycle forms; later executable
+//! slices added execution and criterion-evaluation forms within the same
+//! version, preserving the original two byte-for-byte:
 //!
 //! ```json
 //! {"type":"session_opened","session_id":S,"task":{"id":T,"goal":{"request":G},"acceptance_contract":{"criteria":[{"id":C,"description":D}]},"constraints":{"conditions":[K]}}}
@@ -17,6 +17,7 @@
 //! {"type":"invocation_failed_at_start","session_id":S,"invocation":I,"error_class":C}
 //! {"type":"effect_evidence_recorded","session_id":S,"invocation":I}
 //! {"type":"invocation_accounted","session_id":S,"invocation":I,"usage":{...},"reservation":N}
+//! {"type":"criterion_evaluated","session_id":S,"invocation":I,"evidence":{"criteria":[C],"workspace":W,"method":{"kind":"command","command":C},"exit_code":N,"elapsed_ms":N,"files":[],"verifiers":[{"path":P,"sha256":D}]}}
 //! ```
 //!
 //! The codec is a private DTO layer: every field is required for its type,
@@ -37,7 +38,8 @@ use std::time::Duration;
 use serde::{Deserialize, Serialize};
 
 use ymp_domain::{
-    AcceptanceContract, Constraints, Criterion, CriterionId, Goal, SessionId, Task, TaskId,
+    AcceptanceContract, Check, CheckMethod, Constraints, Criterion, CriterionId, Evidence,
+    EvidenceFile, Goal, SessionId, Task, TaskId, VerifierDigest,
 };
 use ymp_kernel::execution::{
     AgentId, Allowance, Assignment, ErrorClass, Grant, GrantId, InvocationId, InvocationLimits,
@@ -87,6 +89,8 @@ struct PayloadDto<'a> {
     error_class: Option<&'a str>,
     #[serde(skip_serializing_if = "Option::is_none")]
     reservation: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    evidence: Option<EvidenceDto>,
 }
 
 /// Decode DTO: every non-envelope field is presence-tracked so that
@@ -117,6 +121,8 @@ struct PayloadDtoOwned {
     error_class: Option<Option<String>>,
     #[serde(default, deserialize_with = "present_field")]
     reservation: Option<Option<u64>>,
+    #[serde(default, deserialize_with = "present_field")]
+    evidence: Option<Option<EvidenceDto>>,
 }
 
 /// Distinguishes an absent key (`None`) from an explicit `null`
@@ -164,6 +170,43 @@ struct AcceptanceContractDto<T> {
 struct CriterionDto<T> {
     id: T,
     description: T,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct EvidenceDto {
+    criteria: Vec<String>,
+    workspace: String,
+    method: CheckMethodDto,
+    #[serde(default, deserialize_with = "present_field")]
+    exit_code: Option<Option<i32>>,
+    elapsed_ms: u64,
+    files: Vec<EvidenceFileDto>,
+    verifiers: Vec<VerifierDigestDto>,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
+enum CheckMethodDto {
+    Command { command: String },
+    ExactBytes { path: String, expected: Vec<u8> },
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct EvidenceFileDto {
+    path: String,
+    #[serde(default, deserialize_with = "present_field")]
+    bytes: Option<Option<Vec<u8>>>,
+    #[serde(default, deserialize_with = "present_field")]
+    sha256: Option<Option<String>>,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct VerifierDigestDto {
+    path: String,
+    sha256: String,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -541,6 +584,123 @@ fn build_usage(dto: &UsageDto) -> Result<ObservedUsage, String> {
     Ok(usage)
 }
 
+fn evidence_path_text(path: &std::path::Path) -> Result<&str, JournalError> {
+    path.to_str().ok_or_else(|| JournalError::AdapterFailure {
+        message: format!("evidence path '{}' is not valid UTF-8", path.display()),
+    })
+}
+
+fn evidence_dto(evidence: &Evidence) -> Result<EvidenceDto, JournalError> {
+    let method = match evidence.check().method() {
+        CheckMethod::Command { command } => CheckMethodDto::Command {
+            command: command.clone(),
+        },
+        CheckMethod::ExactBytes { path, expected } => CheckMethodDto::ExactBytes {
+            path: evidence_path_text(path)?.to_owned(),
+            expected: expected.clone(),
+        },
+    };
+    let files = evidence
+        .files()
+        .iter()
+        .map(|file| {
+            Ok(EvidenceFileDto {
+                path: evidence_path_text(file.path())?.to_owned(),
+                bytes: Some(file.bytes().map(<[u8]>::to_vec)),
+                sha256: Some(file.sha256().map(str::to_owned)),
+            })
+        })
+        .collect::<Result<Vec<_>, JournalError>>()?;
+    let verifiers = evidence
+        .verifiers()
+        .iter()
+        .map(|verifier| {
+            Ok(VerifierDigestDto {
+                path: evidence_path_text(verifier.path())?.to_owned(),
+                sha256: verifier.sha256().to_owned(),
+            })
+        })
+        .collect::<Result<Vec<_>, JournalError>>()?;
+    Ok(EvidenceDto {
+        criteria: evidence
+            .check()
+            .criteria()
+            .iter()
+            .map(|criterion| criterion.as_str().to_owned())
+            .collect(),
+        workspace: evidence.workspace().to_owned(),
+        method,
+        exit_code: Some(evidence.exit_code()),
+        elapsed_ms: evidence.elapsed_ms(),
+        files,
+        verifiers,
+    })
+}
+
+fn build_evidence(dto: EvidenceDto) -> Result<Evidence, String> {
+    for criterion in &dto.criteria {
+        require_stored_limit(criterion)?;
+    }
+    let criteria = dto
+        .criteria
+        .into_iter()
+        .map(|criterion| {
+            CriterionId::new(criterion).map_err(|error| domain_error("evidence.criteria", &error))
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    require_stored_limit(&dto.workspace)?;
+
+    match dto.method {
+        CheckMethodDto::Command { command } => {
+            require_stored_limit(&command)?;
+            if !dto.files.is_empty() {
+                return Err("command evidence must not contain file captures".to_owned());
+            }
+            let exit_code = *required(&dto.exit_code, "evidence.exit_code")?;
+            let mut verifiers = Vec::with_capacity(dto.verifiers.len());
+            for verifier in dto.verifiers {
+                require_stored_limit(&verifier.path)?;
+                require_stored_limit(&verifier.sha256)?;
+                verifiers.push(
+                    VerifierDigest::new(verifier.path, verifier.sha256)
+                        .map_err(|error| domain_error("evidence.verifiers", &error))?,
+                );
+            }
+            let check = Check::command(criteria, command)
+                .map_err(|error| domain_error("evidence.method", &error))?;
+            Evidence::command(check, dto.workspace, exit_code, dto.elapsed_ms, verifiers)
+                .map_err(|error| domain_error("evidence", &error))
+        }
+        CheckMethodDto::ExactBytes { path, expected } => {
+            require_stored_limit(&path)?;
+            if required_nullable(&dto.exit_code, "evidence.exit_code")?.is_some() {
+                return Err("exact-byte evidence must not contain an exit code".to_owned());
+            }
+            if !dto.verifiers.is_empty() || dto.files.len() != 1 {
+                return Err(
+                    "exact-byte evidence requires one file capture and no verifiers".to_owned(),
+                );
+            }
+            let file = dto.files.into_iter().next().expect("length checked");
+            require_stored_limit(&file.path)?;
+            let bytes = required_nullable(&file.bytes, "evidence.files.bytes")?.clone();
+            let digest = required_nullable(&file.sha256, "evidence.files.sha256")?.clone();
+            if let Some(digest) = &digest {
+                require_stored_limit(digest)?;
+            }
+            let snapshot = EvidenceFile::new(file.path, bytes)
+                .map_err(|error| domain_error("evidence.files", &error))?;
+            if snapshot.sha256() != digest.as_deref() {
+                return Err("evidence file SHA-256 does not match its exact bytes".to_owned());
+            }
+            let check = Check::exact_bytes(criteria, path, expected)
+                .map_err(|error| domain_error("evidence.method", &error))?;
+            Evidence::exact_bytes(check, dto.workspace, dto.elapsed_ms, snapshot)
+                .map_err(|error| domain_error("evidence", &error))
+        }
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Encode / decode
 // ---------------------------------------------------------------------------
@@ -581,6 +741,7 @@ pub(super) fn encode_event(event: &SessionEvent) -> Result<Vec<u8>, JournalError
             cause: None,
             error_class: None,
             reservation: None,
+            evidence: None,
         }
     }
 
@@ -749,6 +910,38 @@ pub(super) fn encode_event(event: &SessionEvent) -> Result<Vec<u8>, JournalError
             dto.invocation = Some(invocation.as_str());
             dto.usage = Some(usage_dto(usage));
             dto.reservation = Some(reservation.value());
+            serialize(dto)
+        }
+        SessionEvent::CriterionEvaluated {
+            session_id,
+            invocation,
+            evidence,
+        } => {
+            require_limit(session_id.as_str())?;
+            require_limit(invocation.as_str())?;
+            for criterion in evidence.check().criteria() {
+                require_limit(criterion.as_str())?;
+            }
+            require_limit(evidence.workspace())?;
+            if let CheckMethod::Command { command } = evidence.check().method() {
+                require_limit(command)?;
+            }
+            if let CheckMethod::ExactBytes { path, .. } = evidence.check().method() {
+                require_limit(evidence_path_text(path)?)?;
+            }
+            for file in evidence.files() {
+                require_limit(evidence_path_text(file.path())?)?;
+                if let Some(digest) = file.sha256() {
+                    require_limit(digest)?;
+                }
+            }
+            for verifier in evidence.verifiers() {
+                require_limit(evidence_path_text(verifier.path())?)?;
+                require_limit(verifier.sha256())?;
+            }
+            let mut dto = base("criterion_evaluated", session_id.as_str());
+            dto.invocation = Some(invocation.as_str());
+            dto.evidence = Some(evidence_dto(evidence)?);
             serialize(dto)
         }
     }
@@ -1019,12 +1212,36 @@ pub(super) fn decode_payload(bytes: &[u8]) -> Result<SessionEvent, String> {
                 reservation: ResourceAmount::new(*required(&dto.reservation, "reservation")?),
             })
         }
+        "criterion_evaluated" => {
+            forbid_all(
+                &dto,
+                &[
+                    "task",
+                    "assignment",
+                    "sent_settings",
+                    "termination",
+                    "reported_settings",
+                    "usage",
+                    "cause",
+                    "error_class",
+                    "reservation",
+                ],
+            )?;
+            Ok(SessionEvent::CriterionEvaluated {
+                session_id,
+                invocation: build_invocation(&dto.invocation)?,
+                evidence: build_evidence(required(&dto.evidence, "evidence")?.clone())?,
+            })
+        }
         other => Err(format!("unknown payload type '{other}'")),
     }
 }
 
 /// Rejects every named field that is present for this payload type.
 fn forbid_all(dto: &PayloadDtoOwned, names: &[&str]) -> Result<(), String> {
+    if dto.evidence.is_some() && dto.r#type != "criterion_evaluated" {
+        return Err("unknown field 'evidence' for this payload type".to_owned());
+    }
     for name in names {
         let present = match *name {
             "task" => dto.task.is_some(),
@@ -1037,6 +1254,7 @@ fn forbid_all(dto: &PayloadDtoOwned, names: &[&str]) -> Result<(), String> {
             "reported_settings" => dto.reported_settings.is_some(),
             "usage" => dto.usage.is_some(),
             "reservation" => dto.reservation.is_some(),
+            "evidence" => dto.evidence.is_some(),
             _ => false,
         };
         if present {
@@ -1308,6 +1526,58 @@ mod tests {
                 invocation: InvocationId::new("invocation-1").expect("valid invocation ID"),
                 usage: ObservedUsage::unknown().with_turns(3),
                 reservation: ResourceAmount::new(5),
+            },
+            SessionEvent::CriterionEvaluated {
+                session_id: SessionId::new("s1").expect("valid session ID"),
+                invocation: InvocationId::new("invocation-1").expect("valid invocation ID"),
+                evidence: Evidence::command(
+                    Check::command(
+                        vec![CriterionId::new("c1").expect("valid criterion ID")],
+                        "echo ok",
+                    )
+                    .expect("valid check"),
+                    "/workspace",
+                    0,
+                    14,
+                    vec![
+                        VerifierDigest::new("/bin/sh", "a".repeat(64))
+                            .expect("valid verifier digest"),
+                    ],
+                )
+                .expect("valid evidence"),
+            },
+            SessionEvent::CriterionEvaluated {
+                session_id: SessionId::new("s1").expect("valid session ID"),
+                invocation: InvocationId::new("invocation-1").expect("valid invocation ID"),
+                evidence: Evidence::exact_bytes(
+                    Check::exact_bytes(
+                        vec![CriterionId::new("c2").expect("valid criterion ID")],
+                        "missing.txt",
+                        Vec::new(),
+                    )
+                    .expect("valid check"),
+                    "/workspace",
+                    2,
+                    EvidenceFile::new("missing.txt", None).expect("valid missing evidence file"),
+                )
+                .expect("valid evidence"),
+            },
+            SessionEvent::CriterionEvaluated {
+                session_id: SessionId::new("s1").expect("valid session ID"),
+                invocation: InvocationId::new("invocation-1").expect("valid invocation ID"),
+                evidence: Evidence::exact_bytes(
+                    Check::exact_bytes(
+                        vec![CriterionId::new("c2").expect("valid criterion ID")],
+                        "result.txt",
+                        b"exact".to_vec(),
+                    )
+                    .expect("valid check"),
+                    "/workspace",
+                    2,
+                    EvidenceFile::new("result.txt", Some(b"exact".to_vec()))
+                        .expect("valid evidence file"),
+                )
+                .expect("valid evidence"),
             },
         ];
         for event in events {
@@ -1584,6 +1854,30 @@ mod tests {
             (
                 "missing uncertainty cause",
                 br#"{"type":"invocation_uncertain","session_id":"s1","invocation":"invocation-1"}"#.to_vec(),
+            ),
+            (
+                "missing criterion evidence",
+                br#"{"type":"criterion_evaluated","session_id":"s1","invocation":"invocation-1"}"#.to_vec(),
+            ),
+            (
+                "command evidence without exit code",
+                br#"{"type":"criterion_evaluated","session_id":"s1","invocation":"invocation-1","evidence":{"criteria":["c1"],"workspace":"/workspace","method":{"kind":"command","command":"true"},"exit_code":null,"elapsed_ms":1,"files":[],"verifiers":[{"path":"/bin/sh","sha256":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}]}}"#.to_vec(),
+            ),
+            (
+                "command evidence with absent exit-code field",
+                br#"{"type":"criterion_evaluated","session_id":"s1","invocation":"invocation-1","evidence":{"criteria":["c1"],"workspace":"/workspace","method":{"kind":"command","command":"true"},"elapsed_ms":1,"files":[],"verifiers":[{"path":"/bin/sh","sha256":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}]}}"#.to_vec(),
+            ),
+            (
+                "exact-byte evidence with absent bytes field",
+                br#"{"type":"criterion_evaluated","session_id":"s1","invocation":"invocation-1","evidence":{"criteria":["c1"],"workspace":"/workspace","method":{"kind":"exact_bytes","path":"missing.txt","expected":[]},"exit_code":null,"elapsed_ms":1,"files":[{"path":"missing.txt","sha256":null}],"verifiers":[]}}"#.to_vec(),
+            ),
+            (
+                "exact-byte evidence with absent digest field",
+                br#"{"type":"criterion_evaluated","session_id":"s1","invocation":"invocation-1","evidence":{"criteria":["c1"],"workspace":"/workspace","method":{"kind":"exact_bytes","path":"missing.txt","expected":[]},"exit_code":null,"elapsed_ms":1,"files":[{"path":"missing.txt","bytes":null}],"verifiers":[]}}"#.to_vec(),
+            ),
+            (
+                "evidence on another event type",
+                br#"{"type":"session_cancelled","session_id":"s1","evidence":null}"#.to_vec(),
             ),
         ];
         for (name, payload) in cases {

@@ -3,7 +3,8 @@
 use std::time::Duration;
 
 use ymp_domain::{
-    AcceptanceContract, Constraints, Criterion, CriterionId, Goal, SessionId, Task, TaskId,
+    AcceptanceContract, Check, Constraints, Criterion, CriterionId, Evidence, Goal, SessionId,
+    Task, TaskId, VerifierDigest,
 };
 use ymp_kernel::execution::{
     AgentId, Allowance, Assignment, ErrorClass, Grant, GrantId, InvocationId, InvocationLimits,
@@ -311,10 +312,114 @@ fn accounted(
     )
 }
 
+fn criterion_evaluated(
+    id: &SessionId,
+    invocation_id: &InvocationId,
+    revision: u64,
+    criterion: &str,
+    workspace: &str,
+) -> JournalEntry {
+    JournalEntry::new(
+        Revision::new(revision),
+        SessionEvent::CriterionEvaluated {
+            session_id: id.clone(),
+            invocation: invocation_id.clone(),
+            evidence: Evidence::command(
+                Check::command(
+                    vec![CriterionId::new(criterion).expect("valid criterion ID")],
+                    "echo ok",
+                )
+                .expect("valid check"),
+                workspace,
+                0,
+                1,
+                vec![
+                    VerifierDigest::new("/bin/sh", "a".repeat(64)).expect("valid verifier digest"),
+                ],
+            )
+            .expect("valid evidence"),
+        },
+    )
+}
+
 fn reject(id: &SessionId, entries: Vec<JournalEntry>, expected: HistoryError) {
     assert_eq!(
         Dispatcher::new(InjectedJournal { entries }).read(id),
         Err(DispatchError::MalformedHistory(expected))
+    );
+}
+
+#[test]
+fn replay_requires_completed_invocation_and_declared_unevaluated_criterion() {
+    let id = session_id("criterion-evaluation");
+    let first = invocation("invocation-1");
+    let assignment = assignment_for(&first);
+    let usage = ObservedUsage::unknown();
+
+    reject(
+        &id,
+        vec![
+            opened(&id, 1),
+            admitted(&id, 2, &assignment),
+            start_attempted(&id, &first, 3),
+            started(&id, &first, 4),
+            criterion_evaluated(&id, &first, 5, "checked", "session-primary"),
+        ],
+        HistoryError::CriterionEvaluationBeforeCompletion {
+            revision: Revision::new(5),
+            invocation: first.clone(),
+        },
+    );
+
+    reject(
+        &id,
+        vec![
+            opened(&id, 1),
+            admitted(&id, 2, &assignment),
+            start_attempted(&id, &first, 3),
+            started(&id, &first, 4),
+            observed(&id, &first, 5, usage),
+            criterion_evaluated(&id, &first, 6, "undeclared", "session-primary"),
+        ],
+        HistoryError::UnknownEvidenceCriterion {
+            revision: Revision::new(6),
+            criterion: CriterionId::new("undeclared").expect("valid criterion ID"),
+        },
+    );
+
+    reject(
+        &id,
+        vec![
+            opened(&id, 1),
+            admitted(&id, 2, &assignment),
+            start_attempted(&id, &first, 3),
+            started(&id, &first, 4),
+            observed(&id, &first, 5, usage),
+            criterion_evaluated(&id, &first, 6, "checked", "session-primary"),
+            criterion_evaluated(&id, &first, 7, "checked", "session-primary"),
+        ],
+        HistoryError::DuplicateCriterionEvaluation {
+            revision: Revision::new(7),
+            criterion: CriterionId::new("checked").expect("valid criterion ID"),
+        },
+    );
+
+    let outside = criterion_evaluated(&id, &first, 6, "checked", "another-workspace");
+    reject(
+        &id,
+        vec![
+            opened(&id, 1),
+            admitted(&id, 2, &assignment),
+            start_attempted(&id, &first, 3),
+            started(&id, &first, 4),
+            observed(&id, &first, 5, usage),
+            outside,
+        ],
+        HistoryError::EvidenceWorkspaceMismatch {
+            revision: Revision::new(6),
+            invocation: first,
+            workspace: "another-workspace".to_owned(),
+        },
     );
 }
 

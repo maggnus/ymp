@@ -19,7 +19,9 @@ fn no_arguments_and_help_report_commands_storage_and_current_limit() {
         assert!(output.status.success());
         assert!(output.stderr.is_empty());
         let stdout = String::from_utf8(output.stdout).expect("help is UTF-8");
-        assert!(stdout.contains("ymp run \"<task>\" [--data-dir PATH]"));
+        assert!(
+            stdout.contains("ymp run \"<task>\" [--check \"<shell command>\"] [--data-dir PATH]")
+        );
         assert!(stdout.contains("ymp show <session-id> [--data-dir PATH]"));
         assert!(stdout.contains("./.ymp/sessions"));
         assert!(stdout.contains("does not establish acceptance or confirmation"));
@@ -96,17 +98,68 @@ impl Drop for TestDir {
     }
 }
 
+#[cfg(target_os = "linux")]
+#[test]
+fn linux_internal_sandbox_allows_workspace_writes_and_protects_journal_and_host_proc() {
+    let directory = TestDir::new();
+    let protected = directory.path().join("sessions");
+    std::fs::create_dir(&protected).expect("protected directory is created");
+    let journal = protected.join("journal.db");
+    std::fs::write(&journal, b"authoritative").expect("journal fixture is written");
+    let marker = directory.path().join("started");
+    let allowed = directory.path().join("allowed");
+    let script = format!(
+        "printf allowed > {allowed:?} && test ! -e /proc/{}/root && \
+         if printf changed > {journal:?}; then exit 9; else exit 0; fi",
+        std::process::id()
+    );
+
+    let output = Command::new(env!("CARGO_BIN_EXE_ymp"))
+        .current_dir(directory.path())
+        .args([
+            OsString::from("__ymp_internal_check_sandbox"),
+            protected.as_os_str().to_owned(),
+            marker.as_os_str().to_owned(),
+            OsString::from("/bin/sh"),
+            OsString::from(script),
+        ])
+        .output()
+        .expect("internal sandbox helper runs");
+    if output.status.code() == Some(125) && !marker.exists() {
+        assert_eq!(
+            std::fs::read(&journal).expect("journal fixture reads"),
+            b"authoritative"
+        );
+        return;
+    }
+
+    assert!(
+        output.status.success(),
+        "sandbox helper failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(marker.is_file());
+    assert_eq!(
+        std::fs::read(allowed).expect("ordinary workspace write reads"),
+        b"allowed"
+    );
+    assert_eq!(
+        std::fs::read(journal).expect("journal fixture reads"),
+        b"authoritative"
+    );
+}
+
 /// REAL PROVIDER INVOCATION — SPENDS REAL QUOTA.
 ///
 /// The unattended suite never runs this test. It requires an installed,
 /// natively authenticated `codex` executable and explicit selection:
 ///
 /// ```text
-/// cargo test -p ymp-cli --test cli real_run -- --ignored --nocapture
+/// cargo test -p ymp-cli --test cli real_run_invokes_codex_checks_echo -- --ignored --nocapture
 /// ```
 #[test]
 #[ignore = "spends real provider quota; requires the owner's explicit go"]
-fn real_run_invokes_codex_and_persists_a_session() {
+fn real_run_invokes_codex_checks_echo_and_persists_a_session() {
     let directory = TestDir::new();
     let data_dir = directory.path().join("sessions");
     let output = Command::new(env!("CARGO_BIN_EXE_ymp"))
@@ -114,6 +167,8 @@ fn real_run_invokes_codex_and_persists_a_session() {
         .args([
             OsString::from("run"),
             OsString::from("Reply with the single word: pong"),
+            OsString::from("--check"),
+            OsString::from("echo ok"),
             OsString::from("--data-dir"),
             data_dir.as_os_str().to_owned(),
         ])
@@ -127,6 +182,8 @@ fn real_run_invokes_codex_and_persists_a_session() {
     );
     let stdout = String::from_utf8(output.stdout).expect("output is UTF-8");
     assert!(stdout.contains("Outcome: completed"));
-    assert!(stdout.contains("Acceptance: not evaluated"));
+    assert!(stdout.contains("Criterion requested-work-completed: satisfied with evidence"));
+    assert!(stdout.contains("Check command: \"echo ok\""));
+    assert!(stdout.contains("Exit code: 0"));
     assert!(data_dir.join("journal.db").is_file());
 }
