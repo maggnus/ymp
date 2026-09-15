@@ -5,7 +5,7 @@
   "title": "Implement persistent Journal storage and restart recovery",
   "type": "implementation",
   "priority": 50,
-  "status": "new",
+  "status": "planned",
   "depends_on": [
     "DEV-0004"
   ],
@@ -26,7 +26,7 @@
   "context": [
     "This task is intentionally unscheduled until DEV-0004 selects and reviews the contract and storage approach."
   ],
-  "revision": 1,
+  "revision": 2,
   "history": [
     {
       "revision": 1,
@@ -34,6 +34,13 @@
       "actor": "maintainer",
       "status": "new",
       "note": "Recorded as unscheduled future work."
+    },
+    {
+      "revision": 2,
+      "at": "2026-09-15T02:50:58.915839Z",
+      "actor": "maintainer",
+      "status": "planned",
+      "note": "Storage implemented as SQLite journal (SqliteJournal); review cycle complete."
     }
   ]
 }
