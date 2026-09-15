@@ -4,7 +4,7 @@
   "title": "Codex App Server adapter upgrade and review-findings fix",
   "type": "implementation",
   "priority": 57,
-  "status": "planned",
+  "status": "in_progress",
   "depends_on": [
     "DEV-0013"
   ],
@@ -24,8 +24,8 @@
     "Sequenced after the execution-slice fix agent lands (same kernel execution files)."
   ],
   "id": "DEV-0014",
-  "owner": null,
-  "revision": 1,
+  "owner": "maintainer",
+  "revision": 2,
   "history": [
     {
       "revision": 1,
@@ -33,6 +33,13 @@
       "actor": "manage.py",
       "status": "planned",
       "note": "Task created."
+    },
+    {
+      "revision": 2,
+      "at": "2026-09-15T08:54:49.292551Z",
+      "actor": "maintainer",
+      "status": "in_progress",
+      "note": "Claimed by maintainer."
     }
   ]
 }
