@@ -82,5 +82,5 @@ Development work starts with a bounded task query rather than reading every reco
 
 ```sh
 python3 ymp-docs/tasks/manage.py next
-python3 ymp-docs/tasks/manage.py show DEV-0004
+python3 ymp-docs/tasks/manage.py show W1-0004
 ```

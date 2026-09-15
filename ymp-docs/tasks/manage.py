@@ -29,7 +29,8 @@ STATUSES = (
     "rejected",
 )
 TERMINAL_STATUSES = {"done", "rejected"}
-ID_PATTERN = re.compile(r"DEV-([0-9]{4,})\Z")
+ID_PATTERN = re.compile(r"W([1-9][0-9]*)-([0-9]{4,})\Z")
+WAVE_PATTERN = re.compile(r"W([1-9][0-9]*)\Z")
 SLUG_PATTERN = re.compile(r"[a-z][a-z0-9-]*\Z")
 RECORD_FIELDS = {
     "schema_version",
@@ -96,19 +97,30 @@ def parse_timestamp(value: str, label: str) -> None:
         raise TaskError(f"{label} must include a timezone")
 
 
-def task_number(task_id: str) -> int:
+def task_id_parts(task_id: str) -> tuple[int, int]:
     match = ID_PATTERN.fullmatch(task_id)
     if match is None:
         raise TaskError(
-            f"invalid task ID {task_id!r}; expected DEV- followed by at least four digits"
+            f"invalid task ID {task_id!r}; expected W<wave>-<number>, for example W1-0001"
         )
     try:
-        number = int(match.group(1))
+        wave = int(match.group(1))
+        number = int(match.group(2))
     except ValueError as error:
         raise TaskError(f"task ID {task_id!r} has an unsupported numeric component") from error
-    if number < 1 or task_id != f"DEV-{number:04d}":
+    if number < 1 or task_id != f"W{wave}-{number:04d}":
         raise TaskError(f"task ID {task_id!r} is not in canonical form")
-    return number
+    return wave, number
+
+
+def wave_argument(value: str) -> int:
+    match = WAVE_PATTERN.fullmatch(value)
+    if match is None:
+        raise argparse.ArgumentTypeError("expected a wave such as W1 or W2")
+    try:
+        return int(match.group(1))
+    except ValueError as error:
+        raise argparse.ArgumentTypeError("wave number is too large") from error
 
 
 def require_string(value: Any, label: str) -> str:
@@ -163,7 +175,7 @@ def validate_record(record: Any, source: str) -> None:
     ):
         raise TaskError(f"{source} has unsupported schema_version")
     task_id = require_string(record["id"], f"{source}.id")
-    task_number(task_id)
+    task_id_parts(task_id)
     require_slug(record["area"], f"{task_id}.area")
     require_string(record["title"], f"{task_id}.title")
     require_slug(record["type"], f"{task_id}.type")
@@ -176,7 +188,7 @@ def validate_record(record: Any, source: str) -> None:
     if len(dependencies) != len(set(dependencies)):
         raise TaskError(f"{task_id} has duplicate dependencies")
     for dependency in dependencies:
-        task_number(dependency)
+        task_id_parts(dependency)
     owner = record["owner"]
     if owner is not None:
         require_string(owner, f"{task_id}.owner")
@@ -232,7 +244,7 @@ def validate_records(records: dict[str, dict[str, Any]]) -> None:
         indegree[task_id] = len(dependencies)
 
     ready = collections.deque(
-        sorted((task_id for task_id, degree in indegree.items() if degree == 0), key=task_number)
+        sorted((task_id for task_id, degree in indegree.items() if degree == 0), key=task_id_parts)
     )
     visited = 0
     while ready:
@@ -245,7 +257,7 @@ def validate_records(records: dict[str, dict[str, Any]]) -> None:
     if visited != len(records):
         members = sorted(
             (task_id for task_id, degree in indegree.items() if degree > 0),
-            key=task_number,
+            key=task_id_parts,
         )
         cycle_preview = ", ".join(members[:5])
         suffix = "" if len(members) <= 5 else f" and {len(members) - 5} more"
@@ -303,32 +315,26 @@ class TaskStore:
         if not self.records_root.exists():
             validate_records(records)
             return records
-        for area_entry in sorted(os.scandir(self.records_root), key=lambda entry: entry.name):
-            if area_entry.is_symlink():
-                raise TaskError(f"symlinked record path is not allowed: {area_entry.path}")
-            if not area_entry.is_dir(follow_symlinks=False):
-                raise TaskError(f"records may contain only area directories: {area_entry.path}")
-            area = require_slug(area_entry.name, "record directory area")
-            for file_entry in sorted(os.scandir(area_entry.path), key=lambda entry: entry.name):
-                if file_entry.is_symlink():
-                    raise TaskError(f"symlinked record path is not allowed: {file_entry.path}")
-                if not file_entry.is_file(follow_symlinks=False):
-                    raise TaskError(f"nested record paths are not allowed: {file_entry.path}")
-                if file_entry.name.startswith(".") and ".tmp-" in file_entry.name:
-                    continue
-                if not file_entry.name.endswith(".json"):
-                    raise TaskError(f"unexpected file in records: {file_entry.path}")
-                task_id = file_entry.name.removesuffix(".json")
-                task_number(task_id)
-                record = self._read_json(Path(file_entry.path))
-                validate_record(record, file_entry.path)
-                if record["id"] != task_id or record["area"] != area:
-                    raise TaskError(
-                        f"record ID/area does not match its stable path: {file_entry.path}"
-                    )
-                if task_id in records:
-                    raise TaskError(f"duplicate task ID {task_id}")
-                records[task_id] = record
+        for file_entry in sorted(os.scandir(self.records_root), key=lambda entry: entry.name):
+            if file_entry.is_symlink():
+                raise TaskError(f"symlinked record path is not allowed: {file_entry.path}")
+            if not file_entry.is_file(follow_symlinks=False):
+                raise TaskError(f"nested record paths are not allowed: {file_entry.path}")
+            if file_entry.name == ".gitkeep":
+                continue
+            if file_entry.name.startswith(".") and ".tmp-" in file_entry.name:
+                continue
+            if not file_entry.name.endswith(".json"):
+                raise TaskError(f"unexpected file in records: {file_entry.path}")
+            task_id = file_entry.name.removesuffix(".json")
+            task_id_parts(task_id)
+            record = self._read_json(Path(file_entry.path))
+            validate_record(record, file_entry.path)
+            if record["id"] != task_id:
+                raise TaskError(
+                    f"record ID does not match its stable path: {file_entry.path}"
+                )
+            records[task_id] = record
         validate_records(records)
         return records
 
@@ -346,29 +352,23 @@ class TaskStore:
                 fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
 
     def path_for(self, record: dict[str, Any]) -> Path:
-        area = require_slug(record["area"], "area")
         task_id = require_string(record["id"], "id")
-        task_number(task_id)
-        destination = self.records_root / area / f"{task_id}.json"
+        task_id_parts(task_id)
+        destination = self.records_root / f"{task_id}.json"
         if os.path.commonpath((str(self.root), str(destination.absolute()))) != str(self.root):
             raise TaskError("record path escapes the configured task root")
         return destination
 
     def write_record(self, record: dict[str, Any], *, create: bool = False) -> Path:
         destination = self.path_for(record)
-        area_directory = destination.parent
-        if area_directory.exists() and (
-            area_directory.is_symlink() or not area_directory.is_dir()
-        ):
-            raise TaskError(f"record area is not a real directory: {area_directory}")
-        area_directory.mkdir(mode=0o755, exist_ok=True)
+        self._check_root(create_records=True)
         if create and destination.exists():
             raise ConflictError(f"task path already exists: {destination}")
         if destination.is_symlink():
             raise TaskError(f"record path must not be a symlink: {destination}")
         payload = json.dumps(record, indent=2, ensure_ascii=False) + "\n"
         descriptor, temporary_name = tempfile.mkstemp(
-            prefix=f".{record['id']}.tmp-", dir=area_directory, text=True
+            prefix=f".{record['id']}.tmp-", dir=self.records_root, text=True
         )
         temporary = Path(temporary_name)
         try:
@@ -428,8 +428,9 @@ def truncate(text: str, limit: int) -> str:
     return normalized[: max(0, limit - 1)] + f"… [truncated; {len(normalized)} characters]"
 
 
-def sort_key(record: dict[str, Any]) -> tuple[int, int]:
-    return record["priority"], task_number(record["id"])
+def sort_key(record: dict[str, Any]) -> tuple[int, int, int]:
+    wave, number = task_id_parts(record["id"])
+    return record["priority"], wave, number
 
 
 def page(items: list[Any], offset: int, limit: int, *, max_limit: int = MAX_PAGE) -> tuple[list[Any], dict[str, Any]]:
@@ -451,6 +452,7 @@ def page(items: list[Any], offset: int, limit: int, *, max_limit: int = MAX_PAGE
 def summary_for(record: dict[str, Any], records: dict[str, dict[str, Any]]) -> dict[str, Any]:
     return {
         "id": record["id"],
+        "wave": f"W{task_id_parts(record['id'])[0]}",
         "area": record["area"],
         "type": record["type"],
         "priority": record["priority"],
@@ -503,7 +505,7 @@ def load_json_file(path_text: str) -> Any:
 
 
 def get_record(records: dict[str, dict[str, Any]], task_id: str) -> dict[str, Any]:
-    task_number(task_id)
+    task_id_parts(task_id)
     try:
         return records[task_id]
     except KeyError as error:
@@ -531,8 +533,19 @@ def create_task(store: TaskStore, args: argparse.Namespace) -> None:
         candidate = copy.deepcopy(draft)
         candidate.setdefault("schema_version", SCHEMA_VERSION)
         if "id" not in candidate:
-            number = max((task_number(task_id) for task_id in records), default=0) + 1
-            candidate["id"] = f"DEV-{number:04d}"
+            if args.wave is None:
+                raise TaskError("create requires --wave W1 when the draft has no id")
+            numbers = (
+                number
+                for wave, number in map(task_id_parts, records)
+                if wave == args.wave
+            )
+            number = max(numbers, default=0) + 1
+            candidate["id"] = f"W{args.wave}-{number:04d}"
+        elif args.wave is not None:
+            wave, _ = task_id_parts(require_string(candidate["id"], "task draft.id"))
+            if wave != args.wave:
+                raise TaskError(f"task ID {candidate['id']} does not match --wave W{args.wave}")
         candidate.setdefault("status", "new")
         candidate.setdefault("owner", None)
         candidate.setdefault("evidence", [])
@@ -648,6 +661,9 @@ def status_task(store: TaskStore, args: argparse.Namespace) -> None:
 
 def command_list(records: dict[str, dict[str, Any]], args: argparse.Namespace) -> None:
     tasks = list(records.values())
+    if args.wave:
+        waves = set(args.wave)
+        tasks = [record for record in tasks if task_id_parts(record["id"])[0] in waves]
     if args.area:
         areas = set(args.area)
         tasks = [record for record in tasks if record["area"] in areas]
@@ -666,6 +682,9 @@ def command_list(records: dict[str, dict[str, Any]], args: argparse.Namespace) -
 
 def command_next(records: dict[str, dict[str, Any]], args: argparse.Namespace) -> None:
     tasks = [record for record in records.values() if readiness(record, records) == "ready"]
+    if args.wave:
+        waves = set(args.wave)
+        tasks = [record for record in tasks if task_id_parts(record["id"])[0] in waves]
     if args.area:
         areas = set(args.area)
         tasks = [record for record in tasks if record["area"] in areas]
@@ -678,6 +697,7 @@ def show_document(record: dict[str, Any], records: dict[str, dict[str, Any]]) ->
     lines = [
         f"# {record['id']} — {record['title']}",
         "",
+        f"Wave: W{task_id_parts(record['id'])[0]}",
         f"Area: {record['area']}",
         f"Type: {record['type']}",
         f"Priority: {record['priority']}",
@@ -765,7 +785,7 @@ def dependency_summaries(
             queue.append((dependency, distance + 1))
     result = []
     direct = set(record["depends_on"])
-    for task_id, distance in sorted(distances.items(), key=lambda item: (item[1], task_number(item[0]))):
+    for task_id, distance in sorted(distances.items(), key=lambda item: (item[1], task_id_parts(item[0]))):
         item = summary_for(records[task_id], records)
         item["distance"] = distance
         item["direct"] = task_id in direct
@@ -820,16 +840,18 @@ def command_history(records: dict[str, dict[str, Any]], args: argparse.Namespace
 
 def command_summary(records: dict[str, dict[str, Any]], args: argparse.Namespace) -> None:
     groups = []
-    for group_name, field in (("area", "area"), ("type", "type")):
+    for field in ("wave", "area", "type"):
         values: dict[str, list[dict[str, Any]]] = collections.defaultdict(list)
         for record in records.values():
-            values[record[field]].append(record)
-        for name in sorted(values):
+            name = f"W{task_id_parts(record['id'])[0]}" if field == "wave" else record[field]
+            values[name].append(record)
+        names = sorted(values, key=wave_argument) if field == "wave" else sorted(values)
+        for name in names:
             group_records = values[name]
             counts = collections.Counter(record["status"] for record in group_records)
             groups.append(
                 {
-                    "group": group_name,
+                    "group": field,
                     "name": name,
                     "total": len(group_records),
                     "statuses": {status: counts[status] for status in STATUSES if counts[status]},
@@ -866,7 +888,7 @@ def command_render(records: dict[str, dict[str, Any]], args: argparse.Namespace)
     for record in selected:
         item = summary_for(record, records)
         print(
-            f"- [{item['id']}](records/{item['area']}/{item['id']}.json) — "
+            f"- [{item['id']}](records/{item['id']}.json) — "
             f"`{item['status']}` / `{item['readiness']}`; P{item['priority']}; {item['title']}"
         )
     if metadata["next_offset"] is not None:
@@ -891,10 +913,12 @@ def build_parser() -> argparse.ArgumentParser:
     commands = parser.add_subparsers(dest="command", required=True)
 
     next_parser = commands.add_parser("next", help="recommend ready planned tasks")
+    next_parser.add_argument("--wave", action="append", type=wave_argument, metavar="W1")
     next_parser.add_argument("--area", action="append")
     add_page_arguments(next_parser, default=1)
 
     list_parser = commands.add_parser("list", help="list bounded task summaries")
+    list_parser.add_argument("--wave", action="append", type=wave_argument, metavar="W1")
     list_parser.add_argument("--area", action="append")
     list_parser.add_argument("--status", action="append", choices=STATUSES)
     list_parser.add_argument(
@@ -919,7 +943,7 @@ def build_parser() -> argparse.ArgumentParser:
     history_parser.add_argument("id")
     add_page_arguments(history_parser)
 
-    summary_parser = commands.add_parser("summary", help="group status counts by area and type")
+    summary_parser = commands.add_parser("summary", help="group status counts by wave, area and type")
     add_page_arguments(summary_parser)
 
     render_parser = commands.add_parser("render", help="emit a bounded Markdown overview")
@@ -928,6 +952,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     create_parser = commands.add_parser("create", help="create one task from a JSON draft")
     create_parser.add_argument("--file", required=True)
+    create_parser.add_argument("--wave", type=wave_argument, metavar="W1", help="required when the draft omits id")
 
     update_parser = commands.add_parser("update", help="update task definition fields")
     update_parser.add_argument("id")

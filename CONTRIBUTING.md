@@ -17,7 +17,7 @@ only the selected task:
 
 ```sh
 python3 ymp-docs/tasks/manage.py next
-python3 ymp-docs/tasks/manage.py show DEV-0004
+python3 ymp-docs/tasks/manage.py show W1-0004
 ```
 
 Use `claim`, `update`, and `status` with `--expect-revision` for coordinated writes.

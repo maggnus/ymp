@@ -53,7 +53,7 @@ Use these exact development-task commands from the repository root:
 
 ```sh
 python3 ymp-docs/tasks/manage.py next
-python3 ymp-docs/tasks/manage.py show DEV-0004
+python3 ymp-docs/tasks/manage.py show W1-0004
 python3 ymp-docs/tasks/manage.py check
 ```
 
