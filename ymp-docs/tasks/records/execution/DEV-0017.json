@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "area": "execution",
+  "title": "Close execution-slice R2 review findings",
+  "type": "implementation",
+  "priority": 59,
+  "status": "in_progress",
+  "depends_on": [
+    "DEV-0012"
+  ],
+  "goal": "Resolve the five findings of the independent R2 review of the merged execution slice.",
+  "scope": [
+    "Idempotent duplicate start in CodexBackend: replay the first outcome; never mark a running process never-started on a retry after a failed InvocationStarted append.",
+    "Cumulative turns/output accounting in merge_later so host limits see 1->2->3 progress and final usage is not understated.",
+    "Serialize the observe accumulation cycle per invocation against concurrent observers.",
+    "Forbid top-level error_class in invocation_started and invocation_cancellation_requested payload forms with negative tests.",
+    "Record effect evidence only from Uncertain per the contract, with a late-receipt test (or an explicit contract amendment if the broader rule is intended)."
+  ],
+  "acceptance": [
+    "All five findings closed with named tests; flaky registry scan test stabilized.",
+    "Gates green offline; no new contract violations."
+  ],
+  "evidence": [],
+  "context": [
+    "One review round, one package; fixes land in worktree ymp-wt-execfix2 and merge after gates."
+  ],
+  "id": "DEV-0017",
+  "owner": "maintainer",
+  "revision": 2,
+  "history": [
+    {
+      "revision": 1,
+      "at": "2026-09-15T07:39:49.583614Z",
+      "actor": "manage.py",
+      "status": "planned",
+      "note": "Task created."
+    },
+    {
+      "revision": 2,
+      "at": "2026-09-15T07:39:49.626740Z",
+      "actor": "maintainer",
+      "status": "in_progress",
+      "note": "Claimed by maintainer."
+    }
+  ]
+}
