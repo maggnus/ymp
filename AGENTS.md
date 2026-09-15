@@ -7,7 +7,9 @@ Read `intent.md` and `ymp-docs/self-organizing-team-domain-model.md` before chan
 product behavior. The latter is the owner-approved, single authoritative source
 of architecture, domain names and product scope. `ymp-docs/domain.md` and
 `ymp-docs/architecture.md` are subordinate vocabulary and implementation notes;
-`ymp-docs/foundation.md` describes the current executable subset. These documents,
+`ymp-docs/foundation.md` retains historical implementation material. This iteration
+starts from scratch; do not count previous code, APIs or tests as delivered
+functionality or assume they are a baseline to extend. These documents,
 historical amendments and previous iterations cannot override the approved model.
 Use the model's names in code. Add a domain term only with its definition and
 rationale in the model; architectural changes require an explicit owner decision.

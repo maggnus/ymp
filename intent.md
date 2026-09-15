@@ -142,5 +142,6 @@ A declared path list or a file copy is not, by itself, an isolation guarantee.
 User files and external effects require explicit ownership and a truthful recovery
 contract.
 
-The initial codebase establishes the contracts needed to build these capabilities.
-Features become delivered only when their behavior and limitations are verified.
+This iteration starts with a new implementation. Previous source material does
+not count as delivered functionality. Features become delivered only when their
+behavior and limitations are verified in this iteration.

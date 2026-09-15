@@ -31,27 +31,20 @@ invokes trusted kernel operations; it does not become a new authority, state
 store, strategy, or source of domain decisions. A primitive TUI is delivered in
 W1 and grows with every later wave.
 
-## Research implementation baseline
+## Starting point: a new implementation
 
-This is the historical research baseline, not a current-code audit or scope
-source. Task decomposition checks the newer App Server implementation separately.
+The owner clarified that this iteration starts from scratch: no application code
+is credited as implemented. The approved model and the development-task tooling
+are available. Any source files or implementation notes retained from previous
+iterations are historical material, not a foundation to extend or a reason to
+omit work. All runtime components, persistence, checks and native backends need
+explicit implementation owners in this iteration.
 
-At repository revision
-`e6949fd70d278e835d6211e0a8a6f9db4fe4e5f5`, the existing executable identifies
-itself as `ymp 0.1.0`. A safe `--help` run shows two commands:
-
-- `ymp run "<task>" [--check "<shell command>"] [--data-dir PATH]`;
-- `ymp show <session-id> [--data-dir PATH]`.
-
-The implementation can persist a session, admit one Codex invocation, record
-execution observations and usage, and optionally record a preliminary command
-check. It does not yet demonstrate the complete session loop, independent
-review, immutable accepted result, self-organizing team, independent attempts,
-experience, calibrated routing, or TUI required here.
-
-No provider invocation, credential access, user-workspace mutation, or fresh
-Rust test run was performed for this planning revision. Existing code may be
-reused where it conforms to the sole model, but it cannot redefine that model.
+The earlier research baseline was an incorrect basis for this decomposition.
+The task plan must not depend on a ready Codex App Server adapter, existing SQLite
+journal, prior APIs or prior test fixtures. New implementation paths are proposals
+owned by foundational tasks. Compatibility applies as the new implementation
+evolves, not as an implicit migration obligation from an earlier product.
 
 ## Wave-design decision
 

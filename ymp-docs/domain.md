@@ -1,6 +1,7 @@
 # Domain language
 
-This is a companion vocabulary and an explanation of some foundation API names.
+This is a companion vocabulary and an explanation of some historical foundation
+API names. Those APIs are not a delivered baseline for the new implementation.
 The approved [self-organizing team model](self-organizing-team-domain-model.md)
 owns normative names, structures and semantics. This summary cannot override it;
 in particular, foundation API shapes need not yet implement the full target model.

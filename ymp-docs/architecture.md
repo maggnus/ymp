@@ -1,10 +1,10 @@
-# Implementation architecture notes
+# Historical implementation architecture notes
 
 The approved [self-organizing team model](self-organizing-team-domain-model.md)
 is the single authoritative architecture and product scope. This document
-describes implementation boundaries and existing mechanics; it does not define
-an alternative target or override the model. Approval of the target is separate
-from delivery of its current executable subset.
+retains boundaries and mechanics from an earlier implementation. They are not a
+ready baseline, required new crate layout or delivered functionality of the new
+iteration. The implementation starts from scratch under the approved model.
 
 ## Responsibility
 

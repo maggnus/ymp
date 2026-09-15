@@ -1,16 +1,11 @@
 # Executable foundation contract
 
-This document describes the delivered executable subset. The approved
-[self-organizing team model](self-organizing-team-domain-model.md) defines the
-full target architecture and scope; implementation details here do not narrow
-or override it. Target approval does not make unimplemented features delivered.
-
-This contract began as the first implementation outcome and now owns the current
-executable command scope. YMP validates tasks, records a trusted lifecycle, can
-persist one admitted native invocation, and can replay that history after a
-restart. After an observed completed invocation it can execute one caller-supplied
-check and persist preliminary criterion evidence. This evaluation does not create
-an immutable `ResultVersion` or establish final task acceptance or confirmation.
+Status: historical implementation contract, not delivered scope for the new
+iteration. The owner explicitly starts the product implementation from scratch.
+The descriptions of implementation below refer to the earlier foundation only;
+they do not establish current capabilities, mandatory storage choices or required
+migration compatibility. The approved [self-organizing team model](self-organizing-team-domain-model.md)
+is the sole architectural scope for new work.
 
 ## Domain values
 

@@ -10,8 +10,9 @@ installation, publication, or mutation of real user data.
 [Intent](../intent.md) explains the independent product purpose and user
 expectations. A mismatch may motivate a proposed model change; it does not
 automatically erase that expectation or create a competing architecture. [Domain language](domain.md) and [implementation notes](architecture.md)
-are subordinate explanations; [foundation](foundation.md) describes the current
-executable subset. Historical proposals, earlier implementations, and external
+are subordinate explanations; [foundation](foundation.md) is historical
+implementation material. This iteration starts from scratch: prior source code
+and prior delivery claims are not its implementation baseline. Historical proposals, earlier implementations, and external
 research cannot override this model or add to its scope. Changes to the model
 require an explicit owner decision. Architectural approval alone does not approve
 every later amendment or declare a policy empirically superior.
