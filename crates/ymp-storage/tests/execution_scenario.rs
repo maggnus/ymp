@@ -111,7 +111,7 @@ fn admitted_scenario_persists_and_replays_after_reopen() {
         .expect("admission commits through the durable journal");
     assert_eq!(
         scenario
-            .invoke(&sid, &assignment, Revision::new(2))
+            .invoke(&sid, assignment.invocation(), Revision::new(2))
             .expect("invocation starts"),
         StartOutcome::Started
     );
@@ -194,7 +194,7 @@ fn admitted_scenario_persists_and_replays_after_reopen() {
         .expect("second admission commits after reopen");
     assert_eq!(second.invocation().as_str(), "invocation-2");
     scenario
-        .invoke(&sid, &second, Revision::new(6))
+        .invoke(&sid, second.invocation(), Revision::new(6))
         .expect("second invocation starts");
     match scenario
         .observe(&sid, second.invocation(), Revision::new(7))

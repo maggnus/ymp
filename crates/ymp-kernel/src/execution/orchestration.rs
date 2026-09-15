@@ -388,7 +388,10 @@ fn commit_resolving_indeterminate<J: Journal>(
     }
 }
 
-/// Everything one invocation start needs.
+/// Everything one invocation start needs. The start input is only the
+/// [`InvocationId`]: every executed parameter comes from the journaled
+/// assignment, so an unrecorded caller-stated setting, agent, workspace or
+/// limit can never reach the backend.
 pub struct StartContext<'a, J, B, T, W>
 where
     J: Journal,
@@ -400,7 +403,7 @@ where
     pub backend: &'a mut B,
     pub session_id: &'a SessionId,
     pub expected_revision: Revision,
-    pub assignment: &'a Assignment,
+    pub invocation: &'a InvocationId,
     pub treasury: &'a mut T,
     pub workspace: &'a mut W,
 }
@@ -425,6 +428,11 @@ pub enum StartOutcome {
 
 /// Starts one admitted invocation with the settings recorded in the
 /// admission batch.
+///
+/// The [`BackendInvocation`] handed to the backend is built exclusively from
+/// the invocation's journaled assignment: agent, sent settings, workspace and
+/// limits all come from the committed admission batch, never from caller
+/// state beside the invocation ID.
 pub fn start_invocation<J, B, T, W>(
     context: StartContext<'_, J, B, T, W>,
 ) -> Result<StartOutcome, ExecutionError>
@@ -439,26 +447,27 @@ where
         backend,
         session_id,
         expected_revision,
-        assignment,
+        invocation,
         treasury,
         workspace,
     } = context;
 
     let (_, view) = read_validated(journal, session_id)?;
     ensure_revision(view.revision(), expected_revision)?;
-    let invocation_view = view.invocation(assignment.invocation()).ok_or_else(|| {
-        ExecutionError::UnknownInvocation {
-            session_id: session_id.clone(),
-            invocation: assignment.invocation().clone(),
-        }
-    })?;
+    let invocation_view =
+        view.invocation(invocation)
+            .ok_or_else(|| ExecutionError::UnknownInvocation {
+                session_id: session_id.clone(),
+                invocation: invocation.clone(),
+            })?;
     if invocation_view.status() != InvocationStatus::Admitted {
         return Err(ExecutionError::WrongPhase {
-            invocation: assignment.invocation().clone(),
+            invocation: invocation.clone(),
             actual: invocation_view.status(),
         });
     }
 
+    let assignment = invocation_view.assignment();
     let backend_invocation = BackendInvocation::new(
         assignment.invocation().clone(),
         assignment.agent().clone(),
@@ -478,7 +487,7 @@ where
                 expected_revision,
                 vec![SessionEvent::InvocationFailedAtStart {
                     session_id: session_id.clone(),
-                    invocation: assignment.invocation().clone(),
+                    invocation: invocation.clone(),
                     class: failure.class().clone(),
                 }],
             )?;
@@ -488,13 +497,13 @@ where
                 failed_revision,
                 vec![SessionEvent::InvocationAccounted {
                     session_id: session_id.clone(),
-                    invocation: assignment.invocation().clone(),
+                    invocation: invocation.clone(),
                     usage,
                     reservation: assignment.grant().reservation(),
                 }],
             )?;
-            workspace.release(assignment.invocation());
-            settle_committed_invocation(treasury, session_id, assignment.invocation(), &usage)?;
+            workspace.release(invocation);
+            settle_committed_invocation(treasury, session_id, invocation, &usage)?;
             Ok(StartOutcome::FailedAtStart {
                 class: failure.class().clone(),
             })
@@ -504,7 +513,7 @@ where
             // failure: the invocation stands uncertain.
             let event = SessionEvent::InvocationUncertain {
                 session_id: session_id.clone(),
-                invocation: assignment.invocation().clone(),
+                invocation: invocation.clone(),
                 cause: UncertaintyCause::StartOutcomeUnknown,
             };
             append_events(journal, session_id, expected_revision, vec![event])?;
@@ -515,7 +524,7 @@ where
         Ok(()) => {
             let event = SessionEvent::InvocationStarted {
                 session_id: session_id.clone(),
-                invocation: assignment.invocation().clone(),
+                invocation: invocation.clone(),
             };
             append_events(journal, session_id, expected_revision, vec![event])?;
             Ok(StartOutcome::Started)

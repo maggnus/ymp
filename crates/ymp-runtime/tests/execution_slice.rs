@@ -251,7 +251,7 @@ fn scripted_backend_lifecycle_end_to_end() {
 
     assert_eq!(
         scenario
-            .invoke(&id, &assignment, Revision::new(2))
+            .invoke(&id, assignment.invocation(), Revision::new(2))
             .expect("invocation starts"),
         StartOutcome::Started
     );
@@ -317,7 +317,7 @@ fn scripted_backend_lifecycle_end_to_end() {
         .expect("admission commits");
     assert_eq!(
         scenario
-            .invoke(&id, &assignment, Revision::new(2))
+            .invoke(&id, assignment.invocation(), Revision::new(2))
             .expect("invocation starts"),
         StartOutcome::Started
     );
@@ -345,7 +345,7 @@ fn scripted_backend_lifecycle_end_to_end() {
         .admit(&id, default_request(), Revision::new(1))
         .expect("admission commits");
     scenario
-        .invoke(&id, &assignment, Revision::new(2))
+        .invoke(&id, assignment.invocation(), Revision::new(2))
         .expect("invocation starts");
     let cancellation = scenario
         .cancel(&id, assignment.invocation(), Revision::new(3))
@@ -380,7 +380,7 @@ fn scripted_backend_lifecycle_end_to_end() {
         .admit(&id, default_request(), Revision::new(1))
         .expect("admission commits");
     scenario
-        .invoke(&id, &assignment, Revision::new(2))
+        .invoke(&id, assignment.invocation(), Revision::new(2))
         .expect("invocation starts");
     match scenario
         .observe(&id, assignment.invocation(), Revision::new(3))
@@ -742,7 +742,7 @@ fn atomic_admission_one_batch_recorded_sent_and_one_winner() {
 
     // `start` passes exactly the recorded sent settings.
     scenario
-        .invoke(&id, &assignment, Revision::new(2))
+        .invoke(&id, assignment.invocation(), Revision::new(2))
         .expect("invocation starts");
     let started = scenario
         .with_backend(BackendAccess::last_started)
@@ -804,7 +804,7 @@ fn atomic_admission_one_batch_recorded_sent_and_one_winner() {
     scenario.script_outcome(ScriptedOutcome::never_reports());
     assert_eq!(
         scenario
-            .invoke(&id, &assignment, Revision::new(2))
+            .invoke(&id, assignment.invocation(), Revision::new(2))
             .expect("start proceeds after the resolution"),
         StartOutcome::Started
     );
@@ -883,7 +883,7 @@ fn start_failure_branches_confirmed_and_unknown() {
         .admit(&id, default_request(), Revision::new(1))
         .expect("admission commits");
     match scenario
-        .invoke(&id, &assignment, Revision::new(2))
+        .invoke(&id, assignment.invocation(), Revision::new(2))
         .expect("start resolves")
     {
         StartOutcome::FailedAtStart { class } => assert_eq!(class.as_str(), "adapter_unavailable"),
@@ -922,7 +922,7 @@ fn start_failure_branches_confirmed_and_unknown() {
         .admit(&id, default_request(), Revision::new(1))
         .expect("admission commits");
     match scenario
-        .invoke(&id, &assignment, Revision::new(2))
+        .invoke(&id, assignment.invocation(), Revision::new(2))
         .expect("start resolves")
     {
         StartOutcome::UncertainAtStart { class } => {
@@ -988,7 +988,7 @@ fn host_enforced_limits_bound_output_turns_and_deadline() {
         .admit(&id, request, Revision::new(1))
         .expect("admission commits");
     scenario
-        .invoke(&id, &assignment, Revision::new(2))
+        .invoke(&id, assignment.invocation(), Revision::new(2))
         .expect("invocation starts");
     match scenario
         .observe(&id, assignment.invocation(), Revision::new(3))
@@ -1054,7 +1054,7 @@ fn host_enforced_limits_bound_output_turns_and_deadline() {
         .admit(&id, request, Revision::new(1))
         .expect("admission commits");
     scenario
-        .invoke(&id, &assignment, Revision::new(2))
+        .invoke(&id, assignment.invocation(), Revision::new(2))
         .expect("invocation starts");
     match scenario
         .observe(&id, assignment.invocation(), Revision::new(3))
@@ -1093,7 +1093,7 @@ fn bounded_cancellation_records_uncertainty_and_waits() {
         .admit(&id, default_request(), Revision::new(1))
         .expect("admission commits");
     scenario
-        .invoke(&id, &assignment, Revision::new(2))
+        .invoke(&id, assignment.invocation(), Revision::new(2))
         .expect("starts");
 
     let cancellation = scenario
@@ -1212,7 +1212,7 @@ fn bounded_cancellation_records_uncertainty_and_waits() {
         .admit(&id, default_request(), Revision::new(1))
         .expect("admission commits");
     scenario
-        .invoke(&id, &predecessor, Revision::new(2))
+        .invoke(&id, predecessor.invocation(), Revision::new(2))
         .expect("starts");
     scenario
         .cancel(&id, predecessor.invocation(), Revision::new(3))
@@ -1258,7 +1258,7 @@ fn accounting_totals_settlement_retry_and_unknown_usage() {
         .admit(&id, default_request(), Revision::new(1))
         .expect("first admission commits");
     scenario
-        .invoke(&id, &completed, Revision::new(2))
+        .invoke(&id, completed.invocation(), Revision::new(2))
         .expect("starts");
     scenario
         .observe(&id, completed.invocation(), Revision::new(3))
@@ -1276,7 +1276,7 @@ fn accounting_totals_settlement_retry_and_unknown_usage() {
         .admit(&id, default_request(), Revision::new(5))
         .expect("second admission commits");
     scenario
-        .invoke(&id, &failed, Revision::new(6))
+        .invoke(&id, failed.invocation(), Revision::new(6))
         .expect("starts");
     scenario
         .observe(&id, failed.invocation(), Revision::new(7))
@@ -1293,7 +1293,7 @@ fn accounting_totals_settlement_retry_and_unknown_usage() {
         .admit(&id, default_request(), Revision::new(9))
         .expect("third admission commits");
     scenario
-        .invoke(&id, &cancelled, Revision::new(10))
+        .invoke(&id, cancelled.invocation(), Revision::new(10))
         .expect("starts");
     scenario
         .cancel(&id, cancelled.invocation(), Revision::new(11))
@@ -1342,7 +1342,7 @@ fn accounting_totals_settlement_retry_and_unknown_usage() {
         .admit(&id, default_request(), Revision::new(1))
         .expect("admission commits");
     scenario
-        .invoke(&id, &assignment, Revision::new(2))
+        .invoke(&id, assignment.invocation(), Revision::new(2))
         .expect("starts");
     match scenario
         .observe(&id, assignment.invocation(), Revision::new(3))
@@ -1438,7 +1438,7 @@ fn no_real_provider_execution_implied_by_any_test() {
         .admit(&id, default_request(), Revision::new(1))
         .expect("admission commits");
     scenario
-        .invoke(&id, &assignment, Revision::new(2))
+        .invoke(&id, assignment.invocation(), Revision::new(2))
         .expect("starts");
     scenario
         .observe(&id, assignment.invocation(), Revision::new(3))

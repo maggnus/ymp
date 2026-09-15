@@ -133,11 +133,12 @@ where
     }
 
     /// Starts one admitted invocation with the settings recorded in the
-    /// admission batch.
+    /// admission batch. Only the invocation ID is the input; every executed
+    /// parameter comes from the journaled assignment.
     pub fn invoke(
         &self,
         session_id: &SessionId,
-        assignment: &Assignment,
+        invocation: &InvocationId,
         expected_revision: Revision,
     ) -> Result<StartOutcome, ExecutionError> {
         let mut backend = self.backend.lock().expect("backend lock is available");
@@ -148,7 +149,7 @@ where
             backend: &mut *backend,
             session_id,
             expected_revision,
-            assignment,
+            invocation,
             treasury: &mut *treasury,
             workspace: &mut *workspace,
         };
@@ -157,7 +158,7 @@ where
             self.started_at
                 .lock()
                 .expect("start-time lock is available")
-                .insert(assignment.invocation().clone(), self.clock.elapsed());
+                .insert(invocation.clone(), self.clock.elapsed());
         }
         Ok(outcome)
     }
