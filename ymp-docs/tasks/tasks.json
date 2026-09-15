@@ -5071,9 +5071,63 @@
         "status": "done",
         "note": "Parent accepted session c71d4eda: Sol and Opus5 1M both xhigh, completed/accepted-unconfirmed with one task/one attempt/10 calls. External33 assertions,20 New Game samples,96 legal solution clicks, two viewports and exact unique publication passed. Parent verified552 evidence hashes. Versus accepted Luna/Sonnet observation:30.0% earlier native completion and71.4% lower input, descriptive only because both models, plan/access/native context and verification changed."
       }]
+    },
+    {
+      "id": "YMP-169",
+      "title": "Prepare an independent migration plan for the proposed v3 kernel architecture",
+      "type": "design",
+      "priority": "P1",
+      "status": "done",
+      "owner": "Maintainer; independent Paseo review",
+      "authorization": "Owner requested a separate migration plan after the source-based architecture appraisal, explicitly referring to the existing other-agent plan. This authorizes planning and documentation only; target approval, migration implementation, test deletion and native experiments are not implied. On 2026-09-15 the owner requested needed refinements and clarified that any existing tests may be dropped as an implementation option if useful, including whole suites, without a mandatory retained count or equivalent replacement.",
+      "depends_on": [
+        "YMP-116",
+        "YMP-165"
+      ],
+      "reason": "The existing draft does not preserve all operational/transactional guarantees and conflates structural migration with untested new behavior. The owner needs a separate executable sequence with compatibility, invariant-based acceptance and an explicit retirement boundary.",
+      "acceptance": [
+        "Write a self-contained English migration plan in architecture/v3 while preserving the target proposal and approved intent. State the reviewed source baseline; omit references to an earlier plan and comparison tables as requested by the owner.",
+        "Define a cycle-free crate/port direction, transactional admission, cancellation/effect ownership, versioned views, acceptance/confirmation and supported legacy continuation contracts.",
+        "Separate structural extraction, criterion-directed/self-organizing behavior and evidence-dependent extensions; specify phase dependencies, outcomes, invariant-based exit criteria, optional test keep/port/drop policy and old Engine retirement.",
+        "Map phases to existing tasks without starting or duplicating their implementation; retain paused isolation/research and native-model restrictions. Explain compatibility and rollback limits, all five intent goals, untested assumptions and the first bounded proposed assignment.",
+        "Complete bounded independent review, check new local references and generated register consistency, and record required repository checks without treating them as proof that the proposed kernel compiles or the migration works.",
+        "Map all ten target build stages to migration phases and closure conditions; give explicitly preliminary effort ranges with units and assumptions; provide an optional source-backed file-level inventory. Apply the owner clarification that any existing tests or whole suites may be removed without extra approval, mandatory retention, replacement or exhaustive audit, while keeping product requirements separate."
+      ],
+      "evidence": [
+        "[Independent migration plan](../architecture/v3/migration-plan-kernel-transition.md)",
+        "[Planning acceptance and checks](../evidence/ymp-169/acceptance.md)",
+        "[Optional test inventory](../architecture/v3/migration-test-inventory.md)"
+      ],
+      "history": [
+        {
+          "at": "2026-09-14T16:07:49.492498+00:00",
+          "status": "in_progress",
+          "note": "Owner requested an independent plan; drafted the kernel transition separately from migration-plan.md. Scope is documentation and review. Preserves transactional authority, explicit legacy continuation compatibility and invariant tests; no implementation phase or native experiment has started."
+        },
+        {
+          "at": "2026-09-14T16:17:46.018610+00:00",
+          "status": "done",
+          "note": "Delivered separate migration-plan-kernel-transition.md (SHA256 8e46bd42) after independent Sol high acceptance with no material blocking findings. Defines transactional kernel seams, lifecycle and legacy compatibility, P0-P5 extraction, criterion-directed P6/P7 and conditional target extensions. Original plan/target/intent and product source remain unchanged. All 30 local references and generated views checked; fmt, strict Clippy and 666 workspace tests passed with 2 existing ignored tests. Planning only: no migration implementation, live data changes or native experiment authorized or started."
+        },
+        {
+          "at": "2026-09-14T16:20:45.040829+00:00",
+          "status": "done",
+          "note": "Applied the owner-requested editorial revision: the migration plan now stands alone, with source-plan references and the comparison table removed. Section 9 retains technical contract decisions as prose; phases, dependencies and K1-K10 are unchanged. Verified all 29 local references and the requested removals. Current document SHA256 d6b9b91b; prior independent review and Rust checks remain attributed to their recorded version. No product code changed."
+        },
+        {
+          "at": "2026-09-14T16:39:11.032114+00:00",
+          "status": "in_progress",
+          "note": "Owner requested necessary plan refinements and clarified that any existing tests may be dropped if useful, including entire suites, without mandatory retention or equivalent replacement. Updating the standalone plan with explicit target-stage coverage, preliminary engineering-effort ranges and an optional file-level test inventory. Documentation only; no tests deleted or migration work started."
+        },
+        {
+          "at": "2026-09-14T16:45:49.485869+00:00",
+          "status": "done",
+          "note": "Completed the owner-requested planning refinements. The standalone plan explicitly permits deletion of any existing tests or whole suites before parity or replacement, with no quota, protected category, audit or extra approval; AGENTS.md records the same migration-scoped permission. Added all ten target-stage mappings, preliminary effort ranges and an optional 77-file/668-attribute inventory, including 212 runtime attributes. Independent inventory and bounded revision review passed; parent matched hashes and references. Product code and tests remain unchanged; no migration implementation or native experiment started."
+        }
+      ]
     }
   ],
-  "updated_at": "2026-09-14T11:31:00+00:00",
+  "updated_at": "2026-09-14T16:45:49.485869+00:00",
   "delivery_order": [
     "YMP-116",
     "YMP-103",

@@ -37,6 +37,8 @@ The owner directed library unification on 2026-09-13. Reuse existing libraries a
 
 After changes, run `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, and `cargo test --workspace`. Real provider checks are separate from unattended tests.
 
+On 2026-09-15 the owner clarified the v3 migration test policy: any existing tests, including whole suites, may be deleted if that simplifies the migration. This is an available implementation option, not an instruction to delete tests now. There is no mandatory retained test count, protected test category, one-for-one replacement, or exhaustive per-test audit before using this option, and no additional owner approval is needed within authorized migration work. Choose focused acceptance evidence for the changed behavior separately; deleting tests does not change product requirements or runtime validation. The required Cargo commands apply to the resulting workspace and whatever tests remain.
+
 For test planning, run observation, acceptance and product research, use the
 repository skill `.agents/skills/ymp-trials/SKILL.md` and its shared system
 evaluation protocol. Keep one criterion set from planning through final analysis.

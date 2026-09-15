@@ -1,6 +1,6 @@
 # Task details and evidence
 
-Updated: 2026-09-14 11:31 UTC.
+Updated: 2026-09-14 16:45 UTC.
 
 Use the [delivery plan](plan.md) to follow progress. This generated register contains full acceptance criteria, dependencies and evidence. [tasks.json](tasks.json) is the single source; [manage.py](manage.py) updates both pages.
 
@@ -11,7 +11,7 @@ A planned task is not implemented functionality. Completed research and planning
 | Type | Completed | Total |
 | --- | ---: | ---: |
 | decision | 2 | 3 |
-| design | 2 | 2 |
+| design | 3 | 3 |
 | documentation | 5 | 5 |
 | experiment | 2 | 6 |
 | implementation | 40 | 52 |
@@ -110,6 +110,7 @@ A planned task is not implemented functionality. Completed research and planning
 | `[~]` | [YMP-166](#ymp-166) | P1 | Make generated verification artifacts reproducible and reviewer-accessible | 2026-09-14 09:59 |
 | `[ ]` | [YMP-167](#ymp-167) | P1 | Check selected local adapter readiness before inference and retain specific errors | 2026-09-14 09:57 |
 | `[x]` | [YMP-168](#ymp-168) | P1 | Observe the same fifteen-puzzle workflow with Sol and Opus at xhigh | 2026-09-14 11:31 |
+| `[x]` | [YMP-169](#ymp-169) | P1 | Prepare an independent migration plan for the proposed v3 kernel architecture | 2026-09-14 16:45 |
 
 ## YMP-001
 
@@ -2961,6 +2962,39 @@ The Luna/Sonnet diagnostic case cannot establish whether stronger models plan an
 **Evidence:**
 
 - ymp-docs/evidence/ymp-168/acceptance.md
+
+## YMP-169
+
+Prepare an independent migration plan for the proposed v3 kernel architecture
+
+**State:** `[x]` (done) · **Type:** design · **Priority:** P1
+
+**Last update (UTC):** 2026-09-14 16:45
+
+**Current reason:** Completed the owner-requested planning refinements. The standalone plan explicitly permits deletion of any existing tests or whole suites before parity or replacement, with no quota, protected category, audit or extra approval; AGENTS.md records the same migration-scoped permission. Added all ten target-stage mappings, preliminary effort ranges and an optional 77-file/668-attribute inventory, including 212 runtime attributes. Independent inventory and bounded revision review passed; parent matched hashes and references. Product code and tests remain unchanged; no migration implementation or native experiment started.
+
+**Owner:** Maintainer; independent Paseo review
+
+**Authorization:** Owner requested a separate migration plan after the source-based architecture appraisal, explicitly referring to the existing other-agent plan. This authorizes planning and documentation only; target approval, migration implementation, test deletion and native experiments are not implied. On 2026-09-15 the owner requested needed refinements and clarified that any existing tests may be dropped as an implementation option if useful, including whole suites, without a mandatory retained count or equivalent replacement.
+
+**Depends on:** [YMP-116](#ymp-116), [YMP-165](#ymp-165)
+
+The existing draft does not preserve all operational/transactional guarantees and conflates structural migration with untested new behavior. The owner needs a separate executable sequence with compatibility, invariant-based acceptance and an explicit retirement boundary.
+
+**Acceptance criteria:**
+
+- Write a self-contained English migration plan in architecture/v3 while preserving the target proposal and approved intent. State the reviewed source baseline; omit references to an earlier plan and comparison tables as requested by the owner.
+- Define a cycle-free crate/port direction, transactional admission, cancellation/effect ownership, versioned views, acceptance/confirmation and supported legacy continuation contracts.
+- Separate structural extraction, criterion-directed/self-organizing behavior and evidence-dependent extensions; specify phase dependencies, outcomes, invariant-based exit criteria, optional test keep/port/drop policy and old Engine retirement.
+- Map phases to existing tasks without starting or duplicating their implementation; retain paused isolation/research and native-model restrictions. Explain compatibility and rollback limits, all five intent goals, untested assumptions and the first bounded proposed assignment.
+- Complete bounded independent review, check new local references and generated register consistency, and record required repository checks without treating them as proof that the proposed kernel compiles or the migration works.
+- Map all ten target build stages to migration phases and closure conditions; give explicitly preliminary effort ranges with units and assumptions; provide an optional source-backed file-level inventory. Apply the owner clarification that any existing tests or whole suites may be removed without extra approval, mandatory retention, replacement or exhaustive audit, while keeping product requirements separate.
+
+**Evidence:**
+
+- [Independent migration plan](../architecture/v3/migration-plan-kernel-transition.md)
+- [Planning acceptance and checks](../evidence/ymp-169/acceptance.md)
+- [Optional test inventory](../architecture/v3/migration-test-inventory.md)
 
 ## Intent coverage
 
