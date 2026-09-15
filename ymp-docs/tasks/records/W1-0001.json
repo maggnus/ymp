@@ -5,7 +5,7 @@
   "title": "Create the Rust domain/kernel foundation and replayable in-memory Journal",
   "type": "implementation",
   "priority": 101,
-  "status": "in_progress",
+  "status": "done",
   "depends_on": [],
   "owner": "codex",
   "goal": "Establish the new implementation’s concrete boundaries and a working Journal consumer that reconstructs attributed decisions from immutable events.",
@@ -20,7 +20,9 @@
     "Stale append, malformed/missing refs, invalid parameter payloads and unknown event versions are rejected atomically. Two different strategy proposals are validated by the same consumer; neither obtains journal write authority.",
     "A later policy/parameter selection leaves earlier new-implementation events reproducible. The delivered behavior makes no durability or prior-iteration migration claim; W1-0016 owns persistence."
   ],
-  "evidence": [],
+  "evidence": [
+    "Commit adc78d190c023192d158259756fc86f31ca4fd59 in main; cargo build/fmt/clippy/test offline passed (16 integration tests and one compile-fail example); legacy-scan passed; see ymp-docs/journal-implementation.md for requirement-specific evidence."
+  ],
   "context": [
     "Authority: ymp-docs/self-organizing-team-domain-model.md, sections 0, 2 (D-1–D-5), 4 (Journal), 8 (R-1, R-17), 9 and build stage 1. Use the approved model with 811a872 semantics and the greenfield baseline in 0c61ff1 and §5.8 for experimental strategy boundaries. Other documents and existing names explain implementation facts only.",
     "Greenfield: create this behavior in the new implementation. Paths below are PROPOSED target modules under the layout owned by W1-0001; only completed prerequisite tasks supply implementation. Prior source, APIs, fixtures and delivery claims are not a baseline.",
@@ -30,7 +32,7 @@
     "Working tree at task start: the previous iteration's code is reachable only at git tag legacy-foundation (commit f95d8df); the workspace exists as the placeholder skeleton described in ymp-docs/project-worktree.md, which builds and passes the four required checks with zero tests. The first commit of this task adds behavior and the external dependencies it needs (sha2, serde, serde_json); the pinned rust-toolchain.toml and workspace rust-version are 1.98.1 by owner decision (2026-09-16). Consult the tag only for implementation facts, never as code to extend.",
     "Concrete mapping: ymp-docs/journal-implementation.md. The first consumer records full Method values through MethodChosen; Method/Capability/EscalationStep representations are in domain/journal.rs for this foundation and do not deliver scheduling or capability enforcement. Initial policy selections use SessionOpened; authorized later selections are atomic metadata on a real MethodChosen. ParameterSchemas binds each implementation/version to its own parameter validator."
   ],
-  "revision": 8,
+  "revision": 9,
   "history": [
     {
       "revision": 1,
@@ -87,6 +89,13 @@
       "actor": "codex",
       "status": "in_progress",
       "note": "Implemented the first MethodChosen consumer, versioned parameter-schema bindings and MemoryJournal replay; independent review identified a schema-binding defect that has been corrected. Verification and final review are in progress."
+    },
+    {
+      "revision": 9,
+      "at": "2026-09-15T19:47:27.046401Z",
+      "actor": "codex",
+      "status": "done",
+      "note": "Independent review accepted the journal foundation after schema/version and consumer authority corrections. The accepted result is committed to main; full W1 execution and persistence remain later tasks."
     }
   ]
 }
