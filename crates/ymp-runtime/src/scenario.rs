@@ -204,13 +204,15 @@ where
             .ok_or_else(|| ExecutionError::InvocationNotStarted {
                 invocation: invocation.clone(),
             })?;
-        let prior = self
+        // Keep one accumulation lock from the read through the observation
+        // and its resulting write. Concurrent observers of the same
+        // invocation therefore cannot start from one stale accumulation and
+        // overwrite each other's accepted usage.
+        let mut observations = self
             .observations
             .lock()
-            .expect("observation lock is available")
-            .get(invocation)
-            .cloned()
-            .unwrap_or_default();
+            .expect("observation lock is available");
+        let prior = observations.get(invocation).cloned().unwrap_or_default();
         let now = self.clock.elapsed();
 
         let mut backend = self.backend.lock().expect("backend lock is available");
@@ -229,10 +231,6 @@ where
             workspace: &mut *workspace,
         };
         let outcome = observe_invocation(context)?;
-        let mut observations = self
-            .observations
-            .lock()
-            .expect("observation lock is available");
         match &outcome {
             ObservationOutcome::WaitingForTermination { accumulation, .. } => {
                 observations.insert(invocation.clone(), accumulation.clone());

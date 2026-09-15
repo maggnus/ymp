@@ -12,13 +12,13 @@
 #![forbid(unsafe_code)]
 
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Barrier, Mutex};
+use std::sync::{Arc, Barrier, Condvar, Mutex};
 use std::thread;
 use std::time::Duration;
 
 use ymp_runtime::{
     AcceptanceContract, AdmissionDenial, AdmissionFailure, AgentId, AgentIneligibility, Allowance,
-    AssignmentRequest, Constraints, Criterion, CriterionId, EmptyPoolReason, ExecutionError,
+    AssignmentRequest, Clock, Constraints, Criterion, CriterionId, EmptyPoolReason, ExecutionError,
     ExecutionObservation, ExecutionScenario, Goal, IndependenceConflict, InvocationLimits,
     InvocationStatus, Journal, JournalError, ManualClock, MemoryJournal, ModelOffering,
     ObservationOutcome, ObservedUsage, OfferingId, ReservationPurpose, ResourceAmount, Revision,
@@ -247,6 +247,52 @@ fn prepared(clock: ManualClock) -> (MemoryJournal, ExecutionScenario<MemoryJourn
     assert_eq!(opened.revision(), Revision::new(1));
     scenario.scan().expect("scripted scan succeeds");
     (journal, scenario, id)
+}
+
+#[derive(Clone, Default)]
+struct ConcurrentObserveClock {
+    rendezvous: Arc<(Mutex<ConcurrentObserveState>, Condvar)>,
+}
+
+#[derive(Default)]
+struct ConcurrentObserveState {
+    armed: bool,
+    arrivals: u8,
+}
+
+impl ConcurrentObserveClock {
+    fn arm(&self) {
+        let (lock, _) = &*self.rendezvous;
+        let mut state = lock.lock().expect("clock rendezvous lock is available");
+        state.armed = true;
+        state.arrivals = 0;
+    }
+}
+
+impl Clock for ConcurrentObserveClock {
+    fn elapsed(&self) -> Duration {
+        let (lock, ready) = &*self.rendezvous;
+        let mut state = lock.lock().expect("clock rendezvous lock is available");
+        if !state.armed {
+            return Duration::ZERO;
+        }
+        state.arrivals += 1;
+        if state.arrivals >= 2 {
+            state.armed = false;
+            ready.notify_all();
+            return Duration::ZERO;
+        }
+        let (mut state, _) = ready
+            .wait_timeout_while(state, Duration::from_millis(250), |state| state.armed)
+            .expect("clock rendezvous wait succeeds");
+        if state.armed {
+            // With correct serialization, the second observer cannot reach
+            // the clock until the first completes the accumulation cycle.
+            state.armed = false;
+            ready.notify_all();
+        }
+        Duration::ZERO
+    }
 }
 
 #[test]
@@ -1796,6 +1842,63 @@ fn cumulative_usage_advances_across_observe_attempts() {
             assert!(enforcement.turns_capped);
         }
         other => panic!("expected a waiting observation, got {other:?}"),
+    }
+}
+
+/// Concurrent observers serialize the complete accumulation cycle for one
+/// invocation, so a caller that observes no new event retains output accepted
+/// by the concurrent caller instead of replacing it with stale state.
+#[test]
+fn concurrent_observe_calls_preserve_one_invocation_accumulation() {
+    let journal = MemoryJournal::new();
+    let clock = ConcurrentObserveClock::default();
+    let providers = providers();
+    let backend = ScriptedBackend::for_provider(&providers[0]);
+    let scenario = Arc::new(ExecutionScenario::over(
+        journal,
+        backend,
+        effective_workspace_accesses(),
+        ScriptedRegistry::new(providers),
+        ResourceAmount::new(10),
+        Arc::new(clock.clone()),
+    ));
+    let id = session("concurrent-observe-accumulation");
+    scenario
+        .open_session(id.clone(), task())
+        .expect("session opens");
+    scenario.scan().expect("scan succeeds");
+    scenario.script_outcome(ScriptedOutcome::never_reports_with(vec![
+        ExecutionObservation::OutputObserved { chars: 60 },
+    ]));
+    let assignment = scenario
+        .admit(&id, default_request(), Revision::new(1))
+        .expect("admission commits");
+    scenario
+        .invoke(&id, assignment.invocation(), Revision::new(2))
+        .expect("invocation starts");
+    clock.arm();
+
+    let handles = (0..2)
+        .map(|_| {
+            let scenario = Arc::clone(&scenario);
+            let id = id.clone();
+            let invocation = assignment.invocation().clone();
+            thread::spawn(move || {
+                scenario
+                    .observe(&id, &invocation, Revision::new(4))
+                    .expect("concurrent observation resolves")
+            })
+        })
+        .collect::<Vec<_>>();
+
+    for handle in handles {
+        match handle.join().expect("observer thread joins") {
+            ObservationOutcome::WaitingForTermination { accumulation, .. } => {
+                assert_eq!(accumulation.accepted_output_chars(), 60);
+                assert_eq!(accumulation.usage().output_chars(), Some(60));
+            }
+            other => panic!("expected a waiting observation, got {other:?}"),
+        }
     }
 }
 
