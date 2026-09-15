@@ -100,7 +100,9 @@ Codex sandbox are read-only so the invocation cannot alter the authoritative
 journal. A data directory outside the workspace permits read and write access.
 The CLI clears additional writable roots, excludes `/tmp` and `$TMPDIR` from
 workspace-write roots, disables approval prompts and requests an ephemeral Codex
-run so Codex does not retain a separate rollout file. It then starts
+run so Codex does not retain a separate rollout file. The adapter terminates Codex
+options with `--` before passing the exact goal text as the prompt, so task text
+that resembles an option cannot alter the provider command. It then starts
 `CodexBackend`, observes a termination and settles reported usage. The default
 allowance is 16 observed turns, 200,000 accepted output characters and 30 minutes
 of wall-clock time. The command requests cancellation five seconds before that

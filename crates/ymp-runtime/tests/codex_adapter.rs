@@ -692,6 +692,41 @@ fn codex_backend_passes_admitted_model_setting() {
 }
 
 #[test]
+fn codex_backend_separates_flag_shaped_prompt_from_options() {
+    let dir = FixtureDir::new("backend-prompt-separator");
+    let codex = dir.executable(
+        "codex",
+        "#!/bin/sh\n\
+         printf '%s\\n' \"$@\" > \"$(dirname \"$0\")/argv\"\n\
+         printf '%s\\n' '{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":1,\"cached_input_tokens\":0,\"output_tokens\":1,\"reasoning_output_tokens\":0}}'\n",
+    );
+    let mut backend = CodexBackend::new(
+        codex.to_string_lossy().into_owned(),
+        Arc::new(ManualClock::new()),
+    )
+    .with_prompt("--help");
+
+    backend
+        .start(&backend_invocation(&dir, Settings::new()))
+        .expect("the invocation starts");
+    let (_, receipt) = wait_for_observations(&mut backend, Duration::from_secs(5));
+    assert!(receipt.is_some(), "the scripted invocation terminates");
+    let arguments = std::fs::read_to_string(dir.path().join("argv"))
+        .expect("captured arguments are readable")
+        .lines()
+        .map(str::to_owned)
+        .collect::<Vec<_>>();
+
+    assert_eq!(arguments.last().map(String::as_str), Some("--help"));
+    assert_eq!(
+        arguments
+            .get(arguments.len().saturating_sub(2))
+            .map(String::as_str),
+        Some("--")
+    );
+}
+
+#[test]
 fn codex_backend_refuses_unsupported_sent_settings() {
     let dir = FixtureDir::new("backend-unsupported");
     let codex = happy_codex(&dir);

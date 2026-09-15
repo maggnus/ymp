@@ -720,7 +720,7 @@ impl CodexBackend {
         for arg in &self.extra_args {
             command.arg(arg);
         }
-        command.arg(prompt);
+        command.arg("--").arg(prompt);
 
         let started_at = self.clock.elapsed();
         let child = command.spawn().map_err(|error| {
