@@ -27,3 +27,11 @@ dependencies = [
  "ymp-domain",
  "ymp-kernel",
 ]
+
+[[package]]
+name = "ymp-storage"
+version = "0.1.0"
+dependencies = [
+ "ymp-domain",
+ "ymp-kernel",
+]
