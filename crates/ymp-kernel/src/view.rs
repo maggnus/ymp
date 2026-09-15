@@ -6,6 +6,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use ymp_domain::{
     Denial, Digest, Id, Ref, Result,
     journal::{Actor, Decision, Envelope, Method, PolicySelection},
+    task::{AcceptanceContract, Criterion, SessionStatus, Task},
 };
 
 /// The implemented journal portion of a session, not a claim that a runnable Session exists.
@@ -26,6 +27,9 @@ pub struct SessionView {
     method: Option<Method>,
     decisions: Vec<Decision<Method>>,
     references: BTreeSet<Ref>,
+    task: Option<Task>,
+    contract: Option<AcceptanceContract>,
+    criteria: Vec<Criterion>,
 }
 
 impl SessionView {
@@ -38,7 +42,22 @@ impl SessionView {
             method: None,
             decisions: Vec::new(),
             references: BTreeSet::new(),
+            task: None,
+            contract: None,
+            criteria: Vec::new(),
         }
+    }
+    pub fn task(&self) -> Option<&Task> {
+        self.task.as_ref()
+    }
+    pub fn contract(&self) -> Option<&AcceptanceContract> {
+        self.contract.as_ref()
+    }
+    pub fn criteria(&self) -> &[Criterion] {
+        &self.criteria
+    }
+    pub fn status(&self) -> Option<SessionStatus> {
+        self.task.as_ref().map(|_| SessionStatus::Intake)
     }
     pub fn session(&self) -> &Id {
         &self.session
@@ -94,6 +113,7 @@ impl SessionView {
         for event in events {
             view.apply(event, schemas)?;
         }
+        view.validate_complete()?;
         Ok(view)
     }
 
@@ -164,7 +184,57 @@ impl SessionView {
                 self.policies = policies;
                 self.opened = true;
             }
+            Event::CriteriaCommitted { data, .. } => {
+                if !self.opened {
+                    return Err(Denial::new(
+                        "session_missing",
+                        "Open a session journal before committing intake",
+                    ));
+                }
+                crate::intake::validate_commit(self.task.as_ref(), self.contract.as_ref(), data)?;
+                if event.policy.is_some()
+                    || event.input.is_some()
+                    || event.refs != data.previous.iter().cloned().collect::<Vec<_>>()
+                {
+                    return Err(Denial::new(
+                        "intake_attribution",
+                        "Explicit user intake must carry only its previous contract as basis",
+                    ));
+                }
+                for criterion in &data.criteria {
+                    self.references.insert(criterion.reference()?);
+                }
+                self.references.insert(data.contract.reference());
+                self.references.insert(Ref {
+                    id: data.task.id.erased(),
+                    version: Digest::of_value(&data.task)?,
+                });
+                self.task = Some(data.task.clone());
+                self.contract = Some(data.contract.clone());
+                self.criteria = data.criteria.clone();
+            }
+            Event::ClarificationRecorded { clarification, .. } => {
+                self.validate_intake_note(event)?;
+                clarification.validate()?;
+                self.task
+                    .as_mut()
+                    .ok_or_else(|| Denial::new("task_missing", "No task is open"))?
+                    .goal
+                    .clarifications
+                    .push(clarification.clone());
+            }
+            Event::AssumptionRecorded { assumption, .. } => {
+                self.validate_intake_note(event)?;
+                assumption.validate()?;
+                self.task
+                    .as_mut()
+                    .ok_or_else(|| Denial::new("task_missing", "No task is open"))?
+                    .goal
+                    .assumptions
+                    .push(assumption.clone());
+            }
             Event::MethodChosen { decision, .. } => {
+                self.validate_complete()?;
                 if decision.effective.policy.port != "MethodRouter" {
                     return Err(Denial::new(
                         "policy_port",
@@ -231,5 +301,33 @@ impl SessionView {
         self.references.insert(event.reference()?);
         self.revision = event.seq;
         Ok(())
+    }
+    fn validate_intake_note(&self, event: &Envelope<Event>) -> Result<()> {
+        let contract = self
+            .contract
+            .as_ref()
+            .ok_or_else(|| Denial::new("task_missing", "No task is open"))?;
+        if self.status() != Some(SessionStatus::Intake)
+            || event.policy.is_some()
+            || event.input.is_some()
+            || event.refs != vec![contract.reference()]
+        {
+            return Err(Denial::new(
+                "intake_attribution",
+                "A user clarification or assumption must name the current intake contract",
+            ));
+        }
+        Ok(())
+    }
+
+    pub(crate) fn validate_complete(&self) -> Result<()> {
+        match (&self.task, &self.contract) {
+            (Some(task), Some(contract)) => contract.validate(task, &self.criteria),
+            (None, None) => Ok(()),
+            _ => Err(Denial::new(
+                "intake_incomplete",
+                "Task and acceptance contract must be committed together",
+            )),
+        }
     }
 }

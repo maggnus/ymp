@@ -60,10 +60,27 @@ impl<J: Journal> DecisionConsumer<J> {
                 selections,
             },
         };
+        self.open_events(session, &[event])
+    }
+
+    pub(crate) fn authorize(&self, control: &SessionControl) -> Result<Id> {
+        if !Arc::ptr_eq(&control.consumer, &self.control) {
+            return Err(Denial::new(
+                "owner_authority",
+                "This control belongs to another application instance",
+            ));
+        }
+        Ok(control.session.clone())
+    }
+
+    pub(crate) fn open_events(
+        &self,
+        session: Id,
+        events: &[Envelope<Event>],
+    ) -> Result<SessionControl> {
         let current = self.journal.read(&session)?;
-        let events = [event];
-        let validated = validate_append(&current, &session, 0, &events, self.journal.schemas())?;
-        let committed = self.journal.append(&session, 0, &events)?;
+        let validated = validate_append(&current, &session, 0, events, self.journal.schemas())?;
+        let committed = self.journal.append(&session, 0, events)?;
         if committed != validated.revision() {
             return Err(Denial::new(
                 "journal_append",

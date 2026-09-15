@@ -11,6 +11,8 @@ An evolving terminal interface exposes this behavior.
 This iteration starts with a new implementation. The journal foundation supplies
 validated values, atomic in-memory events and replayable method decisions; see
 [the implementation boundary and evidence](ymp-docs/journal-implementation.md).
+The [Application intake](ymp-docs/intake-implementation.md) records explicit goals,
+constraints and versioned criteria, including attributable user refinements.
 The remaining modules are placeholders under
 [the proposed layout](ymp-docs/project-worktree.md). The executable still has no
 interactive or task-execution behavior.

@@ -85,3 +85,29 @@ fn parameters_are_recoverable_and_hash_bound() {
     };
     assert!(proposal.validate().is_err());
 }
+
+#[test]
+fn finite_reals_preserve_their_exact_bits_and_digest_through_json() {
+    use ymp_domain::task::Real;
+    let mut bits = 0x0123_4567_89ab_cdef_u64;
+    for _ in 0..2048 {
+        bits = bits.wrapping_mul(6_364_136_223_846_793_005).wrapping_add(1);
+        let float = f64::from_bits(bits);
+        if !float.is_finite() {
+            continue;
+        }
+        let real = Real::new(float).unwrap();
+        let bytes = encode(&real).unwrap();
+        let restored: Real = decode(&bytes).unwrap();
+        assert_eq!(
+            restored.get().to_bits(),
+            bits,
+            "{}",
+            String::from_utf8_lossy(&bytes)
+        );
+        assert_eq!(
+            Digest::of_value(&restored).unwrap(),
+            Digest::of_value(&real).unwrap()
+        );
+    }
+}

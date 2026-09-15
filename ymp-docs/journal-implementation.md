@@ -3,6 +3,8 @@
 This describes the W1-0001 Rust mapping of the approved model's base values,
 Journal and decision attribution. Canonical task status remains in
 `tasks/records/W1-0001.json`.
+The [intake extension](intake-implementation.md) adds task/contract projections,
+CriteriaCommitted, ClarificationRecorded and AssumptionRecorded through W1-0002.
 
 ## Boundaries
 

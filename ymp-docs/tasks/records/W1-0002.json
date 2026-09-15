@@ -5,11 +5,11 @@
   "title": "Commit explicit goals, constraints and versioned acceptance criteria",
   "type": "implementation",
   "priority": 102,
-  "status": "planned",
+  "status": "in_progress",
   "depends_on": [
     "W1-0001"
   ],
-  "owner": null,
+  "owner": "codex",
   "goal": "Give a session an accountable user task whose criteria and resource choices can be refined without silently changing the goal.",
   "scope": [
     "Implement Task, Goal, Assumption, Clarification, Constraints, Pins, Criterion and AcceptanceContract with stable identities and a content version. Cover NewBehavior, Preserve, ArtifactPresence, Quality and Constraint; required/weight/needs_class; User and Derived(Assignment) origins.",
@@ -29,7 +29,7 @@
     "Implement explicit user goal/criterion/constraint input first. Reporting capacity is derived later by ResourcePolicy into Budget, not an obligatory Constraints field. W1-0011 owns admitted Planner extraction, Derived(Assignment) authorship and the invalid/foreign producer checks at that real integration boundary.",
     "Development task records remain unrelated to product Task authority. Intake commits user scope; a future Planner proposal cannot silently override pins or replace the user goal."
   ],
-  "revision": 3,
+  "revision": 4,
   "history": [
     {
       "revision": 1,
@@ -51,6 +51,13 @@
       "actor": "owner",
       "status": "planned",
       "note": "Start decision 2026-09-16: W1 scheduled; readiness follows dependencies."
+    },
+    {
+      "revision": 4,
+      "at": "2026-09-15T19:49:44.831039Z",
+      "actor": "codex",
+      "status": "in_progress",
+      "note": "Claimed by codex."
     }
   ]
 }

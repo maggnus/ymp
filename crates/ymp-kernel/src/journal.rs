@@ -136,5 +136,6 @@ pub fn validate_append(
     for event in events {
         view.apply(event, schemas)?;
     }
+    view.validate_complete()?;
     Ok(view)
 }
