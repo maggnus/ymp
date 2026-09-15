@@ -3,7 +3,7 @@ use crate::{events::Event, view::SessionView};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use ymp_domain::{
-    Denial, Id, Ref, Result,
+    Denial, Digest, Id, Ref, Result,
     identity::{ExecutionProfile, Readiness},
     journal::{Capability, Envelope},
     require_text,
@@ -37,10 +37,39 @@ pub struct CessationRecord {
     pub basis: Vec<Ref>,
 }
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CaptureRead {
+    pub snapshot: Id<Snapshot>,
+    pub workspace: Id<Workspace>,
+    pub observation: PathObservation,
+    pub started: Ref,
+    pub owner: Digest,
+    pub started_at: u64,
+    pub ended: Option<Ref>,
+    pub failure: Option<String>,
+}
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum LockChange {
+    CaptureStarted {
+        owner: Digest,
+        snapshot: Id<Snapshot>,
+        workspace: Id<Workspace>,
+        observation: PathObservation,
+    },
+    CaptureAborted {
+        snapshot: Id<Snapshot>,
+        started: Ref,
+        reason: String,
+    },
     Acquired(Box<LockAcquisition>),
-    Authorized { assignment: Id, invocation: Id },
-    Revoked { assignment: Id, reason: String },
+    Authorized {
+        assignment: Id,
+        invocation: Id,
+    },
+    Revoked {
+        assignment: Id,
+        reason: String,
+    },
     Released(CessationRecord),
 }
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -146,6 +175,12 @@ pub fn apply(
 ) -> Result<BTreeMap<Id, AssignmentLocks>> {
     let mut locks = view.path_locks().clone();
     match change {
+        LockChange::CaptureStarted { .. } | LockChange::CaptureAborted { .. } => {
+            return Err(Denial::new(
+                "capture_change",
+                "Not an assignment ownership transition",
+            ));
+        }
         LockChange::Acquired(acquisition) => {
             let workspace = view
                 .workspaces()
@@ -260,20 +295,40 @@ pub struct WorkspaceOwnership {
 }
 impl WorkspaceOwnership {
     pub fn from_view(view: &SessionView) -> Self {
+        let mut locks: Vec<_> = view
+            .path_locks()
+            .values()
+            .filter(|l| l.released.is_none())
+            .map(|l| {
+                (
+                    l.acquired.assignment.clone(),
+                    l.last.clone(),
+                    l.acquired.effective.clone(),
+                )
+            })
+            .collect();
+        locks.extend(
+            view.capture_reads()
+                .values()
+                .filter(|c| c.ended.is_none())
+                .map(|capture| {
+                    (
+                        capture.snapshot.erased(),
+                        capture.started.clone(),
+                        vec![ObservedPathLock {
+                            lock: PathLock {
+                                path: WorkspacePath::root(),
+                                mode: LockMode::Read,
+                                holder: capture.snapshot.erased(),
+                            },
+                            observation: capture.observation.clone(),
+                        }],
+                    )
+                }),
+        );
         Self {
             session: view.session().clone(),
-            locks: view
-                .path_locks()
-                .values()
-                .filter(|l| l.released.is_none())
-                .map(|l| {
-                    (
-                        l.acquired.assignment.clone(),
-                        l.last.clone(),
-                        l.acquired.effective.clone(),
-                    )
-                })
-                .collect(),
+            locks,
         }
     }
     pub fn retained_weight(&self) -> Result<(usize, usize)> {
@@ -363,10 +418,24 @@ pub fn control_reserve(view: &SessionView) -> (usize, usize) {
             }
         })
         .sum::<usize>();
+    let events = events
+        + view
+            .capture_reads()
+            .values()
+            .filter(|c| c.ended.is_none())
+            .count();
     (events, events * 64 * 1024)
 }
 pub fn attribution(view: &SessionView, change: &LockChange) -> Result<Vec<Ref>> {
     let mut refs = match change {
+        LockChange::CaptureStarted { workspace, .. } => vec![
+            view.workspaces()
+                .get(workspace)
+                .ok_or_else(|| Denial::new("workspace_missing", "Workspace is not open"))?
+                .reference()?,
+        ],
+        LockChange::CaptureAborted { started, .. } => vec![started.clone()],
+
         LockChange::Acquired(acquisition) => {
             let mut refs = acquisition.basis.clone();
             refs.push(
@@ -395,7 +464,76 @@ pub fn attribution(view: &SessionView, change: &LockChange) -> Result<Vec<Ref>> 
     Ok(refs)
 }
 pub fn touches_ownership(events: &[Envelope<Event>]) -> bool {
-    events
-        .iter()
-        .any(|e| matches!(e.payload, Event::LockChanged { .. }))
+    events.iter().any(|e| {
+        matches!(
+            e.payload,
+            Event::LockChanged { .. } | Event::SnapshotTaken { version: 2, .. }
+        )
+    })
+}
+
+pub fn apply_capture(
+    view: &SessionView,
+    change: &LockChange,
+    reference: Ref,
+    at: u64,
+) -> Result<CaptureRead> {
+    match change {
+        LockChange::CaptureStarted {
+            owner,
+            snapshot,
+            workspace,
+            observation,
+        } => {
+            let recorded = view
+                .workspaces()
+                .get(workspace)
+                .ok_or_else(|| Denial::new("workspace_missing", "Workspace is not open"))?;
+            observation.validate(&recorded.location)?;
+            if observation.path != WorkspacePath::root()
+                || view.capture_reads().contains_key(snapshot)
+                || view.snapshots().contains_key(snapshot)
+            {
+                return Err(Denial::new(
+                    "capture_identity",
+                    "Capture must hold the root under a fresh snapshot identity",
+                ));
+            }
+            Ok(CaptureRead {
+                snapshot: snapshot.clone(),
+                workspace: workspace.clone(),
+                observation: observation.clone(),
+                started: reference,
+                owner: owner.clone(),
+                started_at: at,
+                ended: None,
+                failure: None,
+            })
+        }
+        LockChange::CaptureAborted {
+            snapshot,
+            started,
+            reason,
+        } => {
+            require_text(reason, 4096)?;
+            let mut capture = view
+                .capture_reads()
+                .get(snapshot)
+                .cloned()
+                .ok_or_else(|| Denial::new("capture_missing", "No recorded capture"))?;
+            if capture.ended.is_some() || capture.started != *started || at < capture.started_at {
+                return Err(Denial::new(
+                    "capture_state",
+                    "Capture is ended or belongs to another start",
+                ));
+            }
+            capture.ended = Some(reference);
+            capture.failure = Some(reason.clone());
+            Ok(capture)
+        }
+        _ => Err(Denial::new(
+            "capture_change",
+            "Not a capture ownership transition",
+        )),
+    }
 }

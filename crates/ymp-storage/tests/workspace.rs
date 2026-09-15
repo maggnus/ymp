@@ -100,7 +100,7 @@ fn direct_snapshots_retain_exact_bytes_permissions_and_empty_directories_after_r
     fs::write(root.0.join("binary"), [3, 2, 1, 0]).unwrap();
     fs::remove_file(root.0.join("run.sh")).unwrap();
     guard
-        .snapshot(&session, 4, 4, &workspace, id("after"), &provider)
+        .snapshot(&session, 5, 4, &workspace, id("after"), &provider)
         .unwrap();
     let after = guard.retained(&session, &id("after")).unwrap();
     let recorded = guard.view(&session).unwrap();
@@ -156,17 +156,19 @@ fn links_escapes_missing_content_and_changed_roots_cannot_commit_a_snapshot() {
     guard
         .open(&session, 2, 2, id("workspace"), &provider)
         .unwrap();
-    let before = journal.read(&session).unwrap();
+
     symlink(&outside.0, root.0.join("escape")).unwrap();
     assert!(
         provider
             .validate_paths(&[WorkspacePath::new("escape/secret").unwrap()])
             .is_err()
     );
-    assert!(
+    assert_eq!(
         guard
             .snapshot(&session, 3, 3, &id("workspace"), id("symlink"), &provider)
-            .is_err()
+            .unwrap_err()
+            .code,
+        "workspace_type"
     );
     fs::remove_file(root.0.join("escape")).unwrap();
     fs::hard_link(outside.0.join("secret"), root.0.join("alias")).unwrap();
@@ -175,13 +177,22 @@ fn links_escapes_missing_content_and_changed_roots_cannot_commit_a_snapshot() {
             .validate_paths(&[WorkspacePath::new("alias").unwrap()])
             .is_err()
     );
-    assert!(
+    assert_eq!(
         guard
-            .snapshot(&session, 3, 3, &id("workspace"), id("hardlink"), &provider)
-            .is_err()
+            .snapshot(&session, 5, 3, &id("workspace"), id("hardlink"), &provider)
+            .unwrap_err()
+            .code,
+        "workspace_alias"
     );
     fs::remove_file(root.0.join("alias")).unwrap();
-    assert_eq!(journal.read(&session).unwrap(), before);
+    let view = guard.view(&session).unwrap();
+    assert!(view.snapshots().is_empty());
+    assert!(
+        view.capture_reads()
+            .values()
+            .all(|c| c.ended.is_some() && c.failure.is_some())
+    );
+    let before = journal.read(&session).unwrap();
     for invalid in [
         "../secret",
         "/secret",
@@ -200,7 +211,7 @@ fn links_escapes_missing_content_and_changed_roots_cannot_commit_a_snapshot() {
         guard
             .snapshot(
                 &session,
-                3,
+                7,
                 3,
                 &id("workspace"),
                 id("replacement"),
@@ -227,7 +238,7 @@ impl ContentStore for MutatingStore {
     }
 }
 #[test]
-fn changes_during_capture_and_size_limits_leave_the_journal_unchanged() {
+fn changes_during_capture_are_aborted_without_publishing_a_snapshot() {
     let root = support::Directory::new();
     let database = support::Directory::new();
     fs::write(root.0.join("file"), b"original").unwrap();
@@ -244,7 +255,7 @@ fn changes_during_capture_and_size_limits_leave_the_journal_unchanged() {
     guard
         .open(&session, 2, 2, id("workspace"), &provider)
         .unwrap();
-    let before = journal.read(&session).unwrap();
+
     assert_eq!(
         guard
             .snapshot(&session, 3, 3, &id("workspace"), id("unstable"), &provider)
@@ -252,7 +263,16 @@ fn changes_during_capture_and_size_limits_leave_the_journal_unchanged() {
             .code,
         "workspace_changed"
     );
-    assert_eq!(journal.read(&session).unwrap(), before);
+    let view = guard.view(&session).unwrap();
+    assert!(view.snapshots().is_empty());
+    assert!(view.capture_reads()[&id("unstable")].ended.is_some());
+    assert!(
+        view.capture_reads()[&id("unstable")]
+            .failure
+            .as_ref()
+            .unwrap()
+            .contains("workspace_changed")
+    );
     let tiny = Direct::open(
         &root.0,
         CaptureLimits {

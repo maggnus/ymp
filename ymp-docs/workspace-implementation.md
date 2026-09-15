@@ -3,9 +3,9 @@
 Canonical task status is in `tasks/records/W1-0005.json`. Direct capture and
 retained snapshots are implemented. The ownership checkpoint adds path-lock state,
 opaque access/cessation inputs and aggregate checks within one Journal. W1-0005
-remains in progress: protected physical-root binding across independent stores,
-a real mediated executor/provider and temporary capture read holds are still
-required. There are no production access-evidence factories or native write calls.
+still requires protected physical-root binding across independent stores and a real
+mediated executor/provider. Capture read holds now cover synchronous capture and
+publication. There are no production access-evidence factories or native write calls.
 
 ## Capture and retained content
 
@@ -30,19 +30,52 @@ checks content and directory metadata around each read, compares directory listi
 and requires two equal scans of the complete bounded tree. A changed physical root
 is refused. Matching scans detect ordinary concurrent changes, but cannot establish
 an atomic filesystem snapshot against arbitrary external mutation or an ABA change.
-A coherent check/result snapshot still requires quiescent access under the remaining
-WorkspaceGuard ownership implementation. The adapter makes no isolation claim.
+WorkspaceGuard holds a root Read claim against managed writers in the same journal
+throughout capture and publication. The adapter itself makes no OS isolation claim;
+external mutation and independently configured stores are not thereby confined.
 
 WorkspaceGuard reconstructs workspace identity and provider selection from the journal,
 checks the returned tree and every stored file digest, and retains the manifest before
 committing SnapshotTaken. Event.contents explicitly links the manifest and file bytes;
-SQLite verifies those links on commit and read. A failed capture may leave unreferenced
-immutable content, but does not record a completed snapshot. Application storage should
+SQLite verifies those links on commit and read. A failed capture may leave unreferenced immutable content and records a capture
+abort after its synchronous I/O ends; it does not record a completed snapshot. Application storage should
 be outside the source tree so writes to storage cannot alter the tree being captured.
 
 `retained` loads and verifies the stored manifest and its files without consulting the
 live workspace. `read_artifact` returns the exact bytes named by a recorded snapshot.
 No method here applies those bytes to the user's directory or claims to have run a check.
+
+## Capture read lifecycle
+
+Before capture, WorkspaceGuard records LockChanged::CaptureStarted with a root
+PathObservation and a random per-attempt owner from OS entropy (`getrandom`). The
+owner is an identity, not a serialized authority token. It binds the local completion
+capability and prevents identical requests from different Guards from sharing one
+hold, including when an adapter resolves an indeterminate append by matching bytes.
+CaptureRead participates in the same aggregate conflict checks as assignment holds.
+
+The WorkspaceProvider capture contract is synchronous: all its I/O must end before
+it returns, including on failure. A local pending completion retains the exact start
+reference, owner, workspace, time and either a retained manifest digest or a bounded
+failure. The Guard keeps at most 64 pending entries. Once I/O has ended, resolve_capture
+retries only publication or abort at a fresh revision; it never recaptures the tree.
+A confirmed foreign/absent failed begin is removed locally without aborting another
+owner, even when the journal first became unavailable and is resolved later.
+
+SnapshotTaken version 2 requires the matching live Read hold and atomically publishes
+the snapshot and ends the hold. Version 1 remains replayable but cannot be newly
+appended. Commit resolution checks a valid preceding prefix before recognizing an
+exact historical packet, preserving the atomic intake-refinement boundary.
+
+If publication fails, local completion evidence remains available for retry or explicit
+abandon_capture. Abandonment is refused during I/O; after completion it records Abort
+without publishing a snapshot. A lost final acknowledgement resolves idempotently.
+A fresh Guard cannot recreate completion authority for an unfinished capture from
+stored data, so unresolved holds survive restart. With a readable, matching owner,
+a lost begin acknowledgement can resolve only that Guard's own never-started attempt.
+When storage is unavailable the hold and any local completion remain unresolved.
+The journal reserves one control event and 64 KiB per active capture for abort; this
+is a logical capacity guarantee, not a promise under disk exhaustion or I/O failure.
 
 ## Ownership bookkeeping and aggregate transactions
 
@@ -92,7 +125,8 @@ empty directories, changed/deleted files and reopening both snapshots after rest
 Negative cases cover traversal, symlink/hard-link aliases, root replacement, corruption
 of stored content, limits, a deterministic write between capture scans and a forged
 adapter view trying to attribute another directory to the recorded workspace. Failed
-capture leaves journal events and revision unchanged.
+validation before acquiring a hold leaves the journal unchanged; failures after
+acquisition retain their Begin/Abort history without publishing a snapshot.
 
 `workspace_guard_tests.rs` exercises the actual consumer with private synthetic
 access and cessation inputs: broad scopes, compatible reads, disjoint writes,
@@ -100,8 +134,15 @@ revoked holds, state-bound release, foreign evidence and missing read capability
 `workspace_locks.rs` integration tests use Direct observations and trusted synthetic
 LockChanged facts to check same-store cross-session/thread/process conflicts,
 physical ancestor roots and corruption of an owner's head. The SQLite capacity
-test uses a small test-only event limit to demonstrate that an ordinary snapshot
+test uses a small test-only event limit to demonstrate that an ordinary pool-refresh
 append is refused while authorize/revoke/release can still complete.
+
+`ymp-storage/tests/capture.rs` checks capture/writer exclusion, failure and CAS retry,
+lost begin/final acknowledgements, immutable completion without repeated I/O,
+abandonment, unresolved holds after restart, historical v1 replay, invalid partial
+refinement resolution and races between two Guards with identical requests. Repeated
+foreign begin losses, including temporary read failures, do not exhaust local capacity
+or abort the foreign holds.
 
 ## Remaining W1-0005 work
 
@@ -124,5 +165,5 @@ W1-0017; W1-0006 binds locks to admitted assignments. Revocation, stream loss, e
 time and parent exit alone cannot release conflicts. Financial settlement is independent.
 The remaining work includes a protected same-root binding across independent stores,
 an alternate provider that enforces operations through the actual consumer, withdrawal
-with operation draining, and a temporary root Read hold covering the entire capture.
+with operation draining, and integration of those controls with capture read holds.
 Their integration/concurrency/restart tests are required before W1-0005 is complete.

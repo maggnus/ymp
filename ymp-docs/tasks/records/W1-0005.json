@@ -32,9 +32,10 @@
     "Under §3.9/R-19, revocation, parent exit or stream loss alone cannot release conflicting access. Validate scoped cessation or never-started evidence; effective withdrawal of access may establish cessation. Financial settlement is independent and unrelated scopes can continue. Observation types remain implementation choices.",
     "Implementation checkpoints: ymp-docs/workspace-implementation.md. Direct retained snapshots are committed in e1707a9. The current ownership checkpoint adds physical PathObservation, opaque scope/cessation inputs, WorkspaceGuard lock/authorize/revoke/release, LockChanged replay and aggregate conflict validation inside MemoryJournal/SQLite commit locks. Compatible reads and disjoint writes are tested with private synthetic evidence through the real consumer; cross-session/thread/process tests use Direct observations and trusted fixture events. These do not claim native confinement or cessation. Production access-evidence factories and the mediated alternative are not implemented.",
     "Independent design review: native cwd is not confinement; an unconfined writer must be denied rather than given an artificial root scope. Path ownership needs physical/case/Unicode/ancestor alias treatment and one atomic coordinator across sessions/processes/stores. Holds persist after coordinator exit. A constrained alternative must mediate real operations and drain admitted operations before issuing withdrawal evidence. Direct double capture detects changes but is not an atomic filesystem snapshot; final check/result capture must be quiescent under the completed guard.",
-    "Ownership review ACCEPT after fixing orphan-head omission, requested-read capability enforcement and aggregate-history/control-capacity issues. SQLite inventories the union of heads/events/content links, rejects malformed session keys before loading strings, and retains only bounded active ownership from other sessions. All SQLite appends protect remaining authorization/revocation/release slots and bytes. Tests cover orphan owners, oversized keys, two-process conflict serialization, retained revocation and a small event limit that still permits authorize/revoke/release. Required remaining work: protected physical-root binding across independent stores; actual mediated operations and drain-before-withdrawal evidence; temporary root Read hold spanning snapshot capture. Keep W1-0005 in progress until these are implemented and independently accepted."
+    "Ownership review ACCEPT after fixing orphan-head omission, requested-read capability enforcement and aggregate-history/control-capacity issues. SQLite inventories the union of heads/events/content links, rejects malformed session keys before loading strings, and retains only bounded active ownership from other sessions. All SQLite appends protect remaining authorization/revocation/release slots and bytes. Tests cover orphan owners, oversized keys, two-process conflict serialization, retained revocation and a small event limit that still permits authorize/revoke/release. Remaining integration work: protected physical-root binding across independent stores; actual mediated operations and drain-before-withdrawal evidence. Capture read holds are supplied by the following checkpoint. Keep W1-0005 in progress until these are implemented and independently accepted.",
+    "CaptureRead checkpoint: LockChanged starts an observed root Read hold with a per-attempt OS-random owner; SnapshotTaken v2 atomically publishes and ends it, or CaptureAborted records ended synchronous I/O without a snapshot. Bounded local completion evidence retries commit only, survives CAS/lost ACK within its Guard, and cannot be reconstructed by a fresh Guard for unresolved I/O. Failed foreign/absent begins are cleaned locally without aborting another owner, including deferred resolution after read unavailability. Historical SnapshotTaken v1 remains replayable/resolvable but cannot be newly appended; exact resolution still checks a complete preceding prefix. Independent review ACCEPT after nonce, prefix, cleanup and delta-replay fixes. Tests cover writer exclusion, completion faults without recapture, two Guard races including exact-match resolution, own lost begin ACK, abandonment, restart, historical replay and 64 local cleanup attempts in both read modes. Full W1-0005 still requires protected root binding and the actual mediated provider."
   ],
-  "revision": 7,
+  "revision": 8,
   "history": [
     {
       "revision": 1,
@@ -84,6 +85,13 @@
       "actor": "codex",
       "status": "in_progress",
       "note": "Independent review ACCEPT for the ownership bookkeeping checkpoint after correctness and bounded-read fixes. Full W1-0005 remains in progress; protected root binding, actual mediation and snapshot read holds still required."
+    },
+    {
+      "revision": 8,
+      "at": "2026-09-15T23:17:19.330543Z",
+      "actor": "codex",
+      "status": "in_progress",
+      "note": "CaptureRead checkpoint independently accepted after concurrency, acknowledgement and pending cleanup fixes. Keep W1-0005 in progress for protected root binding and mediated access."
     }
   ]
 }

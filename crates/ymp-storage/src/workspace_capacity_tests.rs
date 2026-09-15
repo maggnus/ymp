@@ -73,11 +73,31 @@ fn unrelated_appends_cannot_consume_the_slots_needed_to_revoke_and_release_acces
         })),
     );
     journal.append(&session, 4, &[acquired]).unwrap();
-    // Snapshot publication would leave too few events for the outstanding owner.
-    assert!(
-        guard
-            .snapshot(&session, 5, 6, &id("workspace"), id("extra"), &provider)
-            .is_err()
+    // A non-ownership pool refresh would consume a slot needed for control.
+    let registry = ymp_kernel::registry::Registry::new(journal.clone());
+    let prior = guard.view(&session).unwrap().registry().unwrap().clone();
+    let input = registry
+        .prepare(&session, prior.input.facts.clone(), 6)
+        .unwrap();
+    let responses = ymp_kernel::registry::readiness_views(&input)
+        .iter()
+        .map(|v| ymp_kernel::registry::ReadinessResponse {
+            profile: v.profile.clone(),
+            input: ymp_domain::Digest::of_value(v).unwrap(),
+            proposal: ymp_domain::Proposal {
+                value: ymp_domain::identity::Readiness::Ready,
+                rationale: "Repeated fixture readiness".into(),
+                basis: vec![],
+                policy: prior.effective.policy.clone(),
+            },
+        })
+        .collect();
+    assert_eq!(
+        registry
+            .record(&session, 5, 6, input, prior.effective, responses)
+            .unwrap_err()
+            .code,
+        "journal_limit"
     );
     assert_eq!(journal.read(&session).unwrap().revision, 5);
     guard

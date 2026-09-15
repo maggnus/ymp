@@ -218,15 +218,16 @@ pub fn resolve_append(
         revision: expected,
         events: current.events[..offset].to_vec(),
     };
-    validate_append(&prefix, session, expected, events, schemas)?;
-    if current.revision == expected {
-        return Ok(AppendResolution::Absent);
-    }
+    prefix.view_with_schemas(session, None, schemas)?;
     if current.revision >= end {
         let stored = &current.events[offset..offset + events.len()];
         if encode(&stored)? == encode(&events)? {
             return Ok(AppendResolution::Committed(end));
         }
+    }
+    validate_append(&prefix, session, expected, events, schemas)?;
+    if current.revision == expected {
+        return Ok(AppendResolution::Absent);
     }
     Ok(AppendResolution::Conflict {
         revision: current.revision,
@@ -257,6 +258,13 @@ pub fn validate_append(
     }
     let mut view = current.view_with_schemas(session, None, schemas)?;
     for event in events {
+        if matches!(event.payload, Event::SnapshotTaken { version: 1, .. }) {
+            return Err(Denial::new(
+                "snapshot_version",
+                "Version 1 snapshots are replay-only; new captures require a read hold",
+            ));
+        }
+
         view.apply(event, schemas)?;
     }
     view.validate_complete()?;

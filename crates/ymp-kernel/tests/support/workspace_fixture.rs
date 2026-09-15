@@ -1,17 +1,20 @@
 //! Explicit Scripted ownership facts for financial-independent workspace tests.
 use super::kernel::{
+    events::Event,
     intake::{Intake, IntakeRequest},
     journal::{ContentStore, Journal},
     ports::execution::WorkspaceProvider,
     registry::{ReadinessResponse, Registry, readiness_views},
     workspace_guard::WorkspaceGuard,
+    workspace_locks::{LockAcquisition, LockChange, attribution},
 };
 use std::{collections::BTreeSet, sync::Arc};
 use ymp_domain::{
     Digest, Id, Proposal,
     identity::*,
-    journal::{Capability, PolicySelection},
+    journal::{Actor, Capability, Envelope, PolicySelection},
     task::*,
+    workspace::*,
 };
 fn id<T>(value: &str) -> Id<T> {
     Id::new(value).unwrap()
@@ -138,4 +141,50 @@ pub fn open_with_capabilities<J: Journal, C: ContentStore>(
         .open(session, 3, 3, id("workspace"), provider)
         .unwrap();
     (guard, profile)
+}
+
+/// Explicit synthetic boundary data for the aggregate adapter/replay contract.
+/// Consumer tests separately exercise the opaque evidence capability.
+#[allow(dead_code)]
+pub fn acquire<J: Journal>(
+    journal: &J,
+    session: &Id,
+    provider: &dyn WorkspaceProvider,
+    path: &str,
+    mode: LockMode,
+) -> Envelope<Event> {
+    let view = journal
+        .read(session)
+        .unwrap()
+        .view_with_schemas(session, None, journal.schemas())
+        .unwrap();
+    let workspace = &view.workspaces()[&id("workspace")];
+    let profile = view.registry().unwrap().decisions[0].profile.clone();
+    let path = WorkspacePath::new(path).unwrap();
+    let lock = PathLock {
+        path: path.clone(),
+        mode,
+        holder: id("assignment"),
+    };
+    let change = LockChange::Acquired(Box::new(LockAcquisition {
+        workspace: id("workspace"),
+        assignment: id("assignment"),
+        profile,
+        requested: vec![lock.clone()],
+        effective: vec![ObservedPathLock {
+            lock,
+            observation: provider.observe_paths(&[path]).unwrap().remove(0),
+        }],
+        basis: vec![workspace.reference().unwrap()],
+    }));
+    Envelope {
+        seq: view.revision() + 1,
+        session: session.clone(),
+        at: 5,
+        actor: Actor::Runtime,
+        policy: None,
+        input: None,
+        refs: attribution(&view, &change).unwrap(),
+        payload: Event::LockChanged { version: 1, change },
+    }
 }

@@ -347,7 +347,11 @@ for each existing component) and missing suffix for a WorkspacePath. An
 cannot establish independence across aliases or ancestor roots. Observations describe
 filesystem facts; they do not certify an executor's permissions or confinement.
 LockChanged records acquisition, authorization, revocation and separately justified
-release. Cross-session checks use active ownership derived from each session's Journal;
+release. `CaptureRead` is an implementation value for the kernel's own temporary
+root Read hold while it creates a Snapshot; it does not invent an agent Assignment.
+A per-attempt owner identity distinguishes concurrent identical capture requests.
+SnapshotTaken atomically publishes a completed capture and ends that hold; aborted
+or unresolved capture I/O cannot be presented as a completed snapshot. Cross-session checks use active ownership derived from each session's Journal;
 control space for release is protected while those holds remain active.
 
 ### 3.5. Coordination

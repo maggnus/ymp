@@ -35,6 +35,8 @@ pub struct SessionView {
     workspaces: BTreeMap<Id<ymp_domain::workspace::Workspace>, ymp_domain::workspace::Workspace>,
     snapshots: BTreeMap<Id<ymp_domain::workspace::Snapshot>, ymp_domain::workspace::Snapshot>,
     path_locks: BTreeMap<Id, crate::workspace_locks::AssignmentLocks>,
+    capture_reads:
+        BTreeMap<Id<ymp_domain::workspace::Snapshot>, crate::workspace_locks::CaptureRead>,
 }
 
 impl SessionView {
@@ -55,7 +57,13 @@ impl SessionView {
             workspaces: BTreeMap::new(),
             snapshots: BTreeMap::new(),
             path_locks: BTreeMap::new(),
+            capture_reads: BTreeMap::new(),
         }
+    }
+    pub fn capture_reads(
+        &self,
+    ) -> &BTreeMap<Id<ymp_domain::workspace::Snapshot>, crate::workspace_locks::CaptureRead> {
+        &self.capture_reads
     }
     pub fn path_locks(&self) -> &BTreeMap<Id, crate::workspace_locks::AssignmentLocks> {
         &self.path_locks
@@ -151,7 +159,9 @@ impl SessionView {
         event: &Envelope<Event>,
         schemas: &ParameterSchemas,
     ) -> Result<()> {
-        if event.payload.version() != 1 {
+        if event.payload.version() != 1
+            && !matches!(event.payload, Event::SnapshotTaken { version: 2, .. })
+        {
             return Err(Denial::new(
                 "event_version",
                 "Unsupported event payload version",
@@ -190,7 +200,22 @@ impl SessionView {
                         "Path ownership event metadata differs from its basis",
                     ));
                 }
-                self.path_locks = crate::workspace_locks::apply(self, change, event.reference()?)?;
+                if matches!(
+                    change,
+                    crate::workspace_locks::LockChange::CaptureStarted { .. }
+                        | crate::workspace_locks::LockChange::CaptureAborted { .. }
+                ) {
+                    let capture = crate::workspace_locks::apply_capture(
+                        self,
+                        change,
+                        event.reference()?,
+                        event.at,
+                    )?;
+                    self.capture_reads.insert(capture.snapshot.clone(), capture);
+                } else {
+                    self.path_locks =
+                        crate::workspace_locks::apply(self, change, event.reference()?)?;
+                }
                 crate::workspace_locks::validate_conflicts([&*self])?;
             }
 
@@ -220,22 +245,47 @@ impl SessionView {
                 self.workspaces
                     .insert(workspace.id.clone(), (**workspace).clone());
             }
-            Event::SnapshotTaken { snapshot, .. } => {
+            Event::SnapshotTaken { snapshot, version } => {
                 self.validate_complete()?;
                 snapshot.tree.validate()?;
                 let workspace = self.workspaces.get(&snapshot.workspace).ok_or_else(|| {
                     Denial::new("workspace_missing", "Snapshot has no recorded workspace")
                 })?;
+                let mut refs = vec![workspace.reference()?];
+                if *version == 2 {
+                    let capture = self.capture_reads.get(&snapshot.id).ok_or_else(|| {
+                        Denial::new("capture_missing", "Snapshot requires a held capture read")
+                    })?;
+                    if capture.ended.is_some()
+                        || capture.workspace != snapshot.workspace
+                        || snapshot.taken < capture.started_at
+                    {
+                        return Err(Denial::new(
+                            "capture_state",
+                            "Snapshot capture is ended or names another workspace",
+                        ));
+                    }
+                    refs.push(capture.started.clone());
+                    refs.sort();
+                    refs.dedup();
+                }
                 if self.snapshots.contains_key(&snapshot.id)
-                    || snapshot.taken != event.at
+                    || (*version == 1 && snapshot.taken != event.at)
+                    || (*version == 2 && snapshot.taken > event.at)
                     || event.policy.as_ref() != Some(&workspace.provider.policy)
                     || event.input.is_some()
-                    || event.refs != vec![workspace.reference()?]
+                    || event.refs != refs
                 {
                     return Err(Denial::new(
                         "snapshot_record",
                         "Snapshot identity or attribution is invalid",
                     ));
+                }
+                if *version == 2 {
+                    self.capture_reads
+                        .get_mut(&snapshot.id)
+                        .expect("validated capture")
+                        .ended = Some(event.reference()?);
                 }
                 self.references.insert(snapshot.reference()?);
                 self.snapshots

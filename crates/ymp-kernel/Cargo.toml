@@ -9,6 +9,7 @@ publish.workspace = true
 ymp-domain = { path = "../ymp-domain" }
 serde.workspace = true
 serde_json.workspace = true
+getrandom = "0.4.3"
 
 [lints]
 workspace = true

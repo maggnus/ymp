@@ -8,66 +8,17 @@ use std::{
     sync::{Arc, Barrier},
     thread,
 };
-use ymp_domain::{
-    Id,
-    journal::{Actor, Envelope},
-    workspace::*,
-};
+use ymp_domain::{Id, workspace::*};
 use ymp_kernel::{
-    events::Event,
     journal::{Journal, ParameterSchemas},
     ports::execution::WorkspaceProvider,
-    workspace_locks::{LockAcquisition, LockChange, attribution},
 };
 use ymp_runtime::{memory_journal::MemoryJournal, workspace::direct::Direct};
 use ymp_storage::journal::SqliteJournal;
 fn id<T>(value: &str) -> Id<T> {
     Id::new(value).unwrap()
 }
-/// Explicit synthetic boundary data for the aggregate adapter/replay contract.
-/// Consumer tests separately exercise the opaque evidence capability.
-fn acquire<J: Journal>(
-    journal: &J,
-    session: &Id,
-    provider: &Direct,
-    path: &str,
-    mode: LockMode,
-) -> Envelope<Event> {
-    let view = journal
-        .read(session)
-        .unwrap()
-        .view_with_schemas(session, None, journal.schemas())
-        .unwrap();
-    let workspace = &view.workspaces()[&id("workspace")];
-    let profile = view.registry().unwrap().decisions[0].profile.clone();
-    let path = WorkspacePath::new(path).unwrap();
-    let lock = PathLock {
-        path: path.clone(),
-        mode,
-        holder: id("assignment"),
-    };
-    let change = LockChange::Acquired(Box::new(LockAcquisition {
-        workspace: id("workspace"),
-        assignment: id("assignment"),
-        profile,
-        requested: vec![lock.clone()],
-        effective: vec![ObservedPathLock {
-            lock,
-            observation: provider.observe_paths(&[path]).unwrap().remove(0),
-        }],
-        basis: vec![workspace.reference().unwrap()],
-    }));
-    Envelope {
-        seq: view.revision() + 1,
-        session: session.clone(),
-        at: 5,
-        actor: Actor::Runtime,
-        policy: None,
-        input: None,
-        refs: attribution(&view, &change).unwrap(),
-        payload: Event::LockChanged { version: 1, change },
-    }
-}
+use fixture::acquire;
 #[test]
 fn incompatible_cross_session_appends_have_one_winner_in_both_adapters() {
     let root = support::Directory::new();

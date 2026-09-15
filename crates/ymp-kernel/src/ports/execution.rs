@@ -19,6 +19,8 @@ pub trait WorkspaceProvider: Send + Sync {
         ))
     }
     /// Store immutable file bytes before returning a complete manifest.
+    /// All capture I/O must finish before return, including on failure; no detached
+    /// operations may survive this synchronous call.
     /// The caller validates that every digest resolves before committing SnapshotTaken.
     fn capture(&self, store: &dyn ContentStore) -> Result<SnapshotTree>;
 }
