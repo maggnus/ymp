@@ -1,6 +1,7 @@
 # YMP architecture: domain model of a self-organizing agent team
 
-Status: approved architecture and product scope by owner decision, 2026-09-15.
+Status: approved architecture and product scope by owner decision, 2026-09-15;
+amended 2026-09-16 by owner decision (amendment log in section 12.1).
 This is the single authoritative architectural model for YMP. Approval establishes
 the development target; it does not claim that every capability is implemented,
 tested, or empirically beneficial. Numerical values remain initial assumptions
@@ -282,6 +283,7 @@ entity Contribution {                   -- work with a declared target, forecast
   id; session; kind: ContributionKind; targets: Set<Id<Criterion>>
   subject: Opt<Id<WorkItem> | Id<ResultVersion> | Id<Objection>>
   needs: Set<Capability>; forecast: Forecast; cost: CostEstimate
+  difficulty: Difficulty                -- estimate recorded with the proposal; input to A4 and Observation
   proposed_by: Runtime | Agent(Id<Assignment>); basis: List<Ref> }
 enum  ContributionKind = Plan | DesignChecks | Produce | Verify | Review | Research
                        | Alternative | Diagnose | Decompose | Integrate | Clarify
@@ -439,6 +441,9 @@ value Allowance { cost: CostUnits; timeout: Duration; native_turns: Int; output_
 ```text
 enum  Competence = Planning | CheckDesign | Implementation | Verification | Research | Synthesis
 enum  Difficulty = Simple | Standard | Complex
+-- competence(kind): Plan | Decompose | Clarify -> Planning; DesignChecks -> CheckDesign;
+--   Produce | Alternative | Integrate -> Implementation; Verify | Review | Judge -> Verification;
+--   Research | Diagnose -> Research; Narrate | Curate -> Synthesis
 
 entity Observation {
   id; profile: ExecutionProfile; competence: Competence; difficulty: Difficulty
@@ -534,7 +539,8 @@ kernel Gatekeeper {                                -- admission
     -- validates: Pins and Constraints (R-3); contribution.needs ⊆ capabilities (R-9);
     -- role independence (R-4, R-5, R-10); Treasury.reserve; WorkspaceGuard.lock;
     -- parallel_limit; attempt_limit.
-    -- creates: Assignment, Grant, Commitment(Active, Lease)
+    -- creates: Assignment, Grant; activates the Proposed Commitment created by Arbiter.award (P2)
+    -- Denied: the Proposed Commitment moves to Cancelled(reason) and the contribution reopens
   revoke(assignment, reason) -> ()                 -- revokes Grant immediately; retains unresolved holds
     -- Dispatcher requests ExecutionBackend.cancel and observes effects.
     -- WorkspaceGuard.release and Treasury.settle/release_unstarted have independent evidence conditions.
@@ -543,7 +549,7 @@ kernel Gatekeeper {                                -- admission
 kernel Arbiter {                                   -- board arbitration
   open(contribution, stimulus, deadline, eligible, visibility) -> Id<Solicitation>
   submit(offer) -> Result<Id<Offer>>               -- validates the Grant, deadline and eligibility
-  award(solicitation, proposal: Proposal<Award>) -> Result<Award>
+  award(solicitation, proposal: Proposal<Award>) -> Result<Award>   -- records Awarded; creates Commitment(Proposed)
   commitment(op: Renew | Release | Delegate | Cancel | Discharge, id, reason) -> Result<CommitmentState>
   notice(notice) -> Result<Id<Notice>>
   propose(contribution_draft, grant) -> Result<Id<Contribution>>   -- contribution proposed by an agent
@@ -711,6 +717,7 @@ port ConsequenceSource { poll(since: Instant) -> List<Consequence> }
 port ContextComposer { prompt(assignment, retrieval, handoff: Opt<ContextDigest>, projection) -> Prompt }
      -- Default: CriteriaProjection + JournalDigest: criterion texts and visible checks;
      --          hidden checks excluded (R-10); a condensed decision history instead of the full journal
+     --          participant-authored text is quoted as attributed, untrusted content (R-21)
 
 port NarrativeComposer { compose(session_view) -> Proposal<Report> }
      -- Default: admitted Narrator assignment, charged to Reporting
@@ -725,9 +732,13 @@ port WorkspaceProvider { open(kind, base) -> Workspace; merge(result, target) ->
 port ExecutionBackend {
   start(assignment, prompt, grant, allowance) -> Handle
   cancel(handle) -> ()                    -- requests cancellation; does not prove termination or ended writes
-  events(handle) -> Stream<ProgressSignal | ToolDenied(Capability) | Output>
+  events(handle) -> Stream<ProgressSignal | ToolDenied(Capability) | Output
+                          | OperationRequest(op: TeamOperation, args: Text, correlation: Text)>
+  reply(handle, correlation, result: Text) -> ()   -- returns the kernel's typed result or Denial
   receipt(handle) -> Receipt }
      -- implementations: Codex, Claude, Glm, Scripted
+     -- OperationRequest is forwarded by the host to the owning kernel service under the
+     -- invocation's Grant; the actor is the admitted assignment, never the text (R-2, R-21)
 ```
 
 **Replacement rule.** Contract tests exercise each strategy through its real consumer with at least two substantially different implementations. An experiment or session records the `PolicyRef` of every implementation it used.
@@ -784,8 +795,10 @@ workflow is a useful baseline, not a replacement for the required agent initiati
 ### P2. Commitment lifecycle
 
 ```text
+-- Arbiter.award creates Commitment(Proposed) for the awarded offer; admission activates or cancels it
 state Commitment:
   Proposed -> Active     [Gatekeeper.admit = Ok] / lease.expires = now + min(allowance.timeout, T_lease)
+  Proposed -> Cancelled  [Gatekeeper.admit = Denied] / the contribution reopens
   Active   -> Active     [signal in lease.renew_on ∧ renewals_left > 0] / renew the lease
   Active   -> Discharged [Acceptance(subject) = Accepted ∨ a contribution without an artifact result finished]
   Active   -> Released   [agent: release(reason)] / the contribution reopens; stimulus += Δ_release
@@ -1258,6 +1271,10 @@ algo settle(receipt): once for its invocation/reservation, spent += cost(receipt
 stop rule (in A1): no running assignments ∧ (max score (A3) < θ_min
                    ∨ Treasury.remaining(Verification) < minimum verification cost of unmet criteria)
                    → finalize; unmet criteria appear in the Report
+minimum verification cost of unmet criteria =
+    min over unmet required k of CostModel.estimate(Contribution{kind: Verify, targets: {k}},
+                                                    cheapest eligible profile, history_view).expected
+    -- no eligible profile or no estimate → treated as exceeding the remaining verification reserve
 ```
 
 ## 8. Invariants
@@ -1289,6 +1306,8 @@ R-19 Revocation is not termination: conflicting workspace holds persist until va
      or never-started evidence; financial holds persist until conservative settlement or verified non-execution
 R-20 Explicit recovery preserves the session's task, accepted results, spent/held resources and history;
      it cannot revive a revoked grant, duplicate an invocation, or reset a budget
+R-21 Agent-authored text (notices, offers, objections, handoff summaries, role output) enters another
+     participant's context only as attributed, untrusted content; it carries no runtime, user or grant authority
 ```
 
 ## 9. Journal events
@@ -1393,3 +1412,34 @@ calibration and optional experimental policies, not whether the model is binding
   evolving TUI presentation are implementation choices within this approved model.
   The protected reporting reserve, recovery evidence rules and A8 evidence guard
   are architectural requirements, not options to be silently dropped.
+
+### 12.1. Amendments (owner decision, 2026-09-16)
+
+Recorded after the start review. Each item names the sections changed and the
+tasks that own the behavior; none narrows earlier scope.
+
+1. **Team operations through the execution port** (section 5.7, R-21). `ExecutionBackend.events`
+   gains `OperationRequest(op, args, correlation)` and the port gains `reply`. The host forwards
+   a request to the owning kernel service under the invocation's Grant; the actor is derived
+   from the admitted assignment. Owner: W3-0001 (transport), W1-0017 (host contract).
+2. **Stop rule input defined** (A13). "Minimum verification cost of unmet criteria" is the
+   minimum expected cost of a `Verify` contribution over unmet required criteria for the
+   cheapest eligible profile; absence of an estimate counts as exceeding the reserve.
+   Owner: W1-0004 (estimate), W1-0014 (stop rule).
+3. **Difficulty and competence bound to contributions** (sections 3.4, 3.8). `Contribution`
+   carries `difficulty`; `competence(kind)` maps every `ContributionKind` to a `Competence`.
+   Owner: W1-0006 (value), W1-0011 (estimate), W5-0001 (observation key).
+4. **Proposed commitments have a creator** (section 4, P2). `Arbiter.award` creates
+   `Commitment(Proposed)`; `Gatekeeper.admit` activates it or cancels it on denial.
+   Owner: W1-0006, W1-0007.
+5. **Untrusted participant text** (section 5.7, R-21). Text written by one agent reaches
+   another only as attributed, untrusted content. Owner: W1-0013 (ContextComposer),
+   W3-0001 (Board projections), W3-0005 (handoff).
+6. **Declared implementation choices** (section 12): `load(a)` in A4 is the agent's count of
+   `Running` assignments divided by `parallel_limit`, owned by VolunteerPolicy (W3-0003);
+   "strengths" in DisputePolicy are `ReputationModel.estimate` for (profile, Verification,
+   difficulty), and unknown or uncalibrated strength denies the debate path (W3-0006);
+   "similar-task history" in A1.1 is the set of ExperienceVault observations whose scope
+   matches the task (W6-0003); kernel concurrency serializes journal appends per session
+   under the expected revision while independent sessions proceed concurrently, with the
+   concrete form fixed by W1-0014 and preserved by W3-0008.
