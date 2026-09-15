@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "id": "W3-0003",
+  "area": "allocation",
+  "title": "Award contributions through voluntary offers, deadlines and bounded reopening",
+  "type": "implementation",
+  "priority": 303,
+  "status": "new",
+  "depends_on": [
+    "W1-0004",
+    "W1-0011",
+    "W3-0001",
+    "W3-0002"
+  ],
+  "owner": null,
+  "goal": "Allocate useful work through the complete P1 solicitation protocol with measurable offer costs and a bounded response when nobody volunteers.",
+  "scope": [
+    "Implement full Solicitation Open/Awarded/Withdrawn/Expired lifecycle, Open/Sealed visibility, eligible set, stimulus, deadline and reopened count. Validate Offer solicitation/agent/profile/forecast/cost/approach/source and active-grant eligibility; persist SolicitationChanged/OfferSubmitted/Awarded.",
+    "Implement ResponseThreshold with A4 criterion age/weight/belief/load/reputation formula and recorded random inputs; retain RuntimeProxy and AlwaysOffer alternatives. Support RuntimeProxy without inference, InAssignment through OfferSubmit, and a separately admitted cheap BidAssignment only when contribution.cost.p90 > B_bid.",
+    "Implement CalibratedValuePerCost with explicit forecast/cost inputs and uncalibrated fallback, plus ReputationRank and FirstOffer. At deadline the trusted Arbiter validates the proposed award and Gatekeeper rechecks current eligibility, resources, independence and locks before assignment admission.",
+    "When offers are absent increase stimulus by (1+κ), increment reopened and retry up to N_open; then request a capability-aware TeamPolicy revision or diagnose CapabilityMismatch/CapabilityLimit. Cancellation/withdrawal/deadline races retain already consumed bidding costs."
+  ],
+  "acceptance": [
+    "Through the Dispatcher/Arbiter/Gatekeeper consumer, each offer source can produce an award; InAssignment identifies its originating assignment, RuntimeProxy makes no model call, and BidAssignment is charged and rejected below its threshold.",
+    "A controllable-clock no-offer scenario raises stimulus, reaches the bounded reopen threshold and either admits a justified new capable member or records the capability diagnosis. Late/ineligible/stale offers and stale awards cannot gain authority.",
+    "ResponseThreshold/RuntimeProxy/AlwaysOffer and CalibratedValuePerCost/ReputationRank/FirstOffer change actual allocation decisions with persisted policy inputs. Replay preserves deadlines, random basis, all bids, award rationale and spent cost.",
+    "Experiment input selects voluntary-response and award implementations/parameters without consumer edits. A valid agent offer can change allocation relative to the fixed control; recorded work-boundary policy changes preserve old offers, choices and resolved values for comparison."
+  ],
+  "evidence": [],
+  "context": [
+    "Authority: ymp-docs/self-organizing-team-domain-model.md, sections 3.5, 4 (Arbiter.open/submit/award), 5.3 (VolunteerPolicy, AwardPolicy), P1, A3/A4, R-3/R-8 and section 10.1. Use the approved model with 811a872 semantics and the greenfield baseline in 0c61ff1 and §5.8 for experimental strategy boundaries. Other documents and existing names explain implementation facts only.",
+    "Greenfield: create this behavior in the new implementation. Paths below are PROPOSED target modules under the layout owned by W1-0001; only completed prerequisite tasks supply implementation. Prior source, APIs, fixtures and delivery claims are not a baseline.",
+    "Create the complete P1 lifecycle in proposed crates/ymp-kernel/src/arbiter.rs and crates/ymp-runtime/src/policies/{volunteer,award}.rs. W1-0006 supplies the minimal runtime-proxy award bootstrap; W3-0001/0002 supply team operations and member/profile selection.",
+    "A BidAssignment is ordinary paid Coordination work, bootstrapped through the minimal runtime-proxy path rather than recursive bidding. InAssignment offers retain their actual grant; solicitation eligibility and current admission eligibility are separately checked. Unknown forecasts stay uncalibrated until W5.",
+    "ResponseThreshold/RuntimeProxy/AlwaysOffer and CalibratedValuePerCost/ReputationRank/FirstOffer are real run selections with recoverable random inputs/parameters. The no-offer protocol raises stimulus then requests justified capability repair; assignment admission still validates all kernel constraints."
+  ],
+  "revision": 2,
+  "history": [
+    {
+      "revision": 1,
+      "at": "2026-09-15T14:27:34.077344Z",
+      "actor": "manage.py",
+      "status": "new",
+      "note": "Task created."
+    },
+    {
+      "revision": 2,
+      "at": "2026-09-15T16:14:23.891861Z",
+      "actor": "manage.py",
+      "status": "new",
+      "note": "Plan new implementation from greenfield baseline 0c61ff1, preserving approved experimental mechanisms, reporting/evidence/recovery rules and explicit prerequisite boundaries."
+    }
+  ]
+}

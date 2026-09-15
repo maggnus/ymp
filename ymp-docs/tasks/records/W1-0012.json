@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "id": "W1-0012",
+  "area": "progress",
+  "title": "Diagnose stalls and perform bounded recovery without discarding verified work",
+  "type": "implementation",
+  "priority": 112,
+  "status": "new",
+  "depends_on": [
+    "W1-0007",
+    "W1-0009",
+    "W1-0010",
+    "W1-0011"
+  ],
+  "owner": null,
+  "goal": "Make failed execution and stalled criterion progress change the next decision for a stated reason rather than repeat the same assignment indefinitely.",
+  "scope": [
+    "Implement ProgressLedger/ProgressRecord and EvidenceDelta with weighted belief change, repeated (kind,targets,outcome)/rejection detection, epsilon, stall_count and stall_limit. Keep the derived stall decision reproducible from journaled inputs.",
+    "Implement RuleBasedDiagnoser in the exact A9 first-match order for Environment, CheckDefect, CapabilityMismatch, ArtifactDefect, CapabilityLimit, Ambiguity, PlanDefect, BudgetExhausted and Unknown. Preserve run/invocation/review sources and separate Error from failing result evidence.",
+    "Implement DiagnosisFirstLadder proposals with expected effect, limit and success condition; execute the W1 handlers FixEnvironment, independently reviewed ReplaceCheck, Retry with failing runs/counterexample, AddVerifier as Researcher diagnosis, and StopPreserving. Return explicit capability/independence limitations for handlers whose operational owners are later tasks.",
+    "Keep full EscalationStep representation and used-step history for Reassign, Decompose, AlternativeAttempts, StrongerProfile, Clarify and Replan; W3-0007 and W4-0003 complete their real execution. Require recorded diagnosis for member/profile/effort growth and preserve accepted results and consumed cost on every failure path."
+  ],
+  "acceptance": [
+    "Through a real work-boundary consumer, repeated unproductive work triggers a recorded stall, selects the first matching diagnosis and executes a bounded useful next step; progress resets the stall count.",
+    "Broken environment, defective check and incorrect artifact select different actions. Retry receives the failing evidence; ReplaceCheck requires independent review; depleted verification capacity stops and leaves accepted versions and unmet criteria available.",
+    "ProgressMonitor, FailureDiagnoser and EscalationPolicy each have two materially different implementations exercised through the consumer. A growth proposal without diagnosis or an exhausted retry limit is denied instead of creating another invocation."
+  ],
+  "evidence": [],
+  "context": [
+    "Authority: ymp-docs/self-organizing-team-domain-model.md, sections 3.6 (ProgressLedger), 5.4, A9, A13 stop rule and R-14/R-16. Use the approved model with 811a872 semantics and the greenfield baseline in 0c61ff1 and §5.8 for experimental strategy boundaries. Other documents and existing names explain implementation facts only.",
+    "Greenfield: create this behavior in the new implementation. Paths below are PROPOSED target modules under the layout owned by W1-0001; only completed prerequisite tasks supply implementation. Prior source, APIs, fixtures and delivery claims are not a baseline.",
+    "Create proposed crates/ymp-kernel/src/progress.rs and crates/ymp-runtime/src/policies/{progress,diagnosis,escalation}.rs. Dependencies provide actual lease/completion/check/ledger/plan facts; implement the model’s progress and first-match diagnosis logic, then bounded W1 handlers.",
+    "RuleBasedDiagnoser distinguishes check/environment/capability/artifact/plan/interpretation/resource failures. W3-0007 supplies ModelAssistedDiagnoser and the team/plan-dependent action handlers; W4-0003 supplies AlternativeAttempts. Unsupported later actions are explicit limitations, not silently completed steps.",
+    "ProgressMonitor/FailureDiagnoser/EscalationPolicy are replaceable algorithms with recoverable inputs and parameters. A handler cannot ignore R-19 holds, revive authority or discard accepted work. Each escalation records purpose, bound and criterion for judging its outcome."
+  ],
+  "revision": 2,
+  "history": [
+    {
+      "revision": 1,
+      "at": "2026-09-15T14:27:33.595113Z",
+      "actor": "manage.py",
+      "status": "new",
+      "note": "Task created."
+    },
+    {
+      "revision": 2,
+      "at": "2026-09-15T16:14:23.405438Z",
+      "actor": "manage.py",
+      "status": "new",
+      "note": "Plan new implementation from greenfield baseline 0c61ff1, preserving approved experimental mechanisms, reporting/evidence/recovery rules and explicit prerequisite boundaries."
+    }
+  ]
+}

@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "id": "W2-0001",
+  "area": "verification",
+  "title": "Design independent hidden checks before production and enforce their visibility",
+  "type": "implementation",
+  "priority": 201,
+  "status": "new",
+  "depends_on": [
+    "W1-0003",
+    "W1-0006",
+    "W1-0009",
+    "W1-0013",
+    "W1-0014"
+  ],
+  "owner": null,
+  "goal": "Commission a separate CheckDesigner to anticipate false-positive checks, execute the baseline and keep hidden specifications/data out of producer access.",
+  "scope": [
+    "Implement IndependentHiddenDesigner through an admitted DesignChecks contribution with CheckDesigner role and a premortem. Supply criteria, base Snapshot, actual available permissions and excluded author information; record each check’s actual author, visibility, independence and version.",
+    "Implement ProducerChecks as the experimental control, with ProducerAuthored attribution. Register only kernel-validated proposals. Run each proposed check on Baseline: NewBehavior expects Fail, every other criterion kind expects Pass; Error triggers FixEnvironment and an unexpected outcome requests independently attributable replacement.",
+    "Introduce the enforceable CheckDesigner independence window used later by full P7. Restrict participant projections/native context and access to check files, data, outputs and stored payloads; hidden checks never enter producer context, including retries, reports reused as context or native-session resume.",
+    "Enforce hidden-author exclusion for production on the same criterion in Gatekeeper, using author history rather than current role. Expose safe check identities/status and evidence references to human inspection without making an information-panel filter the security boundary."
+  ],
+  "acceptance": [
+    "Through the actual Designer → AcceptanceAuthority → producer admission flow, the independent design is completed before production; a baseline-passing NewBehavior check requests replacement, and an environment error cannot become a failed behavioral criterion.",
+    "IndependentHiddenDesigner and ProducerChecks produce different, correctly attributed evidence through the same consumer, with all design/replacement calls charged and their policy/view provenance retained.",
+    "A producer attempting to read hidden material through context, board projection, retained output, native resume or filesystem access is denied; the hidden-check author cannot become producer for that criterion. Human inspection does not contaminate later producer prompts."
+  ],
+  "evidence": [],
+  "context": [
+    "Authority: ymp-docs/self-organizing-team-domain-model.md, sections 3.2, 5.1 (VerificationDesigner), A2, P7 for CheckDesigner, R-9/R-10 and principles 4/5/14. Use the approved model with 811a872 semantics and the greenfield baseline in 0c61ff1 and §5.8 for experimental strategy boundaries. Other documents and existing names explain implementation facts only.",
+    "Greenfield: create this behavior in the new implementation. Paths below are PROPOSED target modules under the layout owned by W1-0001; only completed prerequisite tasks supply implementation. Prior source, APIs, fixtures and delivery claims are not a baseline.",
+    "Create proposed crates/ymp-runtime/src/policies/verification_designer.rs and kernel hidden-check/visibility validation alongside acceptance.rs and gatekeeper.rs. W1-0009/0013/0017/0018 supply actual checks, context, execution and Codex; the whole capability is new in this implementation.",
+    "IndependentHiddenDesigner and ProducerChecks are explicit run choices through the same consumer. Execute the A2 baseline/premortem/replacement branches and track author identity permanently for R-10; a provider that can read hidden payloads through actual native access is not a conforming hidden producer.",
+    "P7 protects designers here; W3-0001 adds Board projection and W4-0002 alternative windows. Closure never discloses hidden checks to producers. Persist effective designer/check parameters and apply new check versions consistently in A7/A8/report evidence."
+  ],
+  "revision": 2,
+  "history": [
+    {
+      "revision": 1,
+      "at": "2026-09-15T14:27:33.792114Z",
+      "actor": "manage.py",
+      "status": "new",
+      "note": "Task created."
+    },
+    {
+      "revision": 2,
+      "at": "2026-09-15T16:14:23.599384Z",
+      "actor": "manage.py",
+      "status": "new",
+      "note": "Plan new implementation from greenfield baseline 0c61ff1, preserving approved experimental mechanisms, reporting/evidence/recovery rules and explicit prerequisite boundaries."
+    }
+  ]
+}

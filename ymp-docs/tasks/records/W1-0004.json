@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "id": "W1-0004",
+  "area": "resources",
+  "title": "Charge invocations while protecting verification and policy-derived reporting capacity",
+  "type": "implementation",
+  "priority": 104,
+  "status": "new",
+  "depends_on": [
+    "W1-0001",
+    "W1-0002",
+    "W1-0003"
+  ],
+  "owner": null,
+  "goal": "Make replaceable cost/resource policies allocate bounded work while Treasury protects verification and reporting, retains unknown cost, and accounts for every invocation.",
+  "scope": [
+    "Implement Budget, PriceBook/Rates, Reservation, Receipt/Usage and Allowance with normalized CostUnits and immutable price version. Budget has verification_reserve and reporting_reserve; purposes are Production/Verification/Coordination/Reporting. Retain Held/Settled/Released and Complete/Partial/Unknown coverage; normalize total input including cache reads/writes and optional reasoning counts.",
+    "Implement PriceWeighted cost/estimate and PurposeBounded ResourcePolicy.allowance/reporting_reserve(task_view,pool_view). Derive and persist reporting capacity when opening Budget, including bounded narration/correction or deterministic fallback; do not require reporting_reserve in user Constraints. Use the A13 cost formula/fallback rates 1/0.1/1.25/4 and expected/p90 estimates without double charging cache or reasoning output.",
+    "Enforce overall spent+held+amount <= limit; Production/Coordination also fit limit minus both reserves, Verification fits limit minus reporting_reserve, and Reporting fits its own spent/held reserve. Unknown Stop retains financial holds and permits only defensibly bounded Verification/Reporting within reserves; Estimate settles labeled allowance.cost. Partial without defensible complete cost follows Unknown.",
+    "Expose remaining(purpose) and per-purpose totals. Settle once: matching committed receipts are idempotent, conflicting data is denied, and later attributable usage can resolve an unsettled Unknown observation. revoke does not settle usage or release financial holds; release_unstarted requires validated never-started evidence. Reporting cannot extend production; post-delivery learning uses only unprotected resources."
+  ],
+  "acceptance": [
+    "Select substantially different CostModel and ResourcePolicy implementations for the actual Treasury/admission consumer without changing consumer code; allowances, derived reporting reserve and charges have recoverable implementation/version/parameters/basis. Cache-heavy and resumed cumulative receipts reconcile without duplication.",
+    "Boundary scenarios deny Production/Coordination access to both reserves, Verification access to reporting reserve, and Reporting beyond either its own reserve or total limit. Stop/Estimate/Partial differ truthfully; unknown unbounded prior consumption cannot be hidden by a nominal reserve.",
+    "Duplicate/late/conflicting receipts, verified never-started work, revocation and reopened journals preserve cost and holds under A13. A stopped user session has a deterministic report path from W1-0013 without authorizing another paid call."
+  ],
+  "evidence": [],
+  "context": [
+    "Authority: ymp-docs/self-organizing-team-domain-model.md, sections 3.7, 4 (Treasury), 5.5, A13, R-7/R-8 and section 10.1. Use the approved model with 811a872 semantics and the greenfield baseline in 0c61ff1 and §5.8 for experimental strategy boundaries. Other documents and existing names explain implementation facts only.",
+    "Greenfield: create this behavior in the new implementation. Paths below are PROPOSED target modules under the layout owned by W1-0001; only completed prerequisite tasks supply implementation. Prior source, APIs, fixtures and delivery claims are not a baseline.",
+    "Create proposed crates/ymp-domain/src/resources.rs, crates/ymp-kernel/src/treasury.rs and crates/ymp-runtime/src/policies/resources.rs. Dependencies supply model values, explicit constraints and execution-profile/offerings facts. Implement Budget/Treasury and cost/allowance policies from scratch.",
+    "Treasury’s own reserve/settle consumer establishes budget behavior here; W1-0006 binds reservations to actual admission, W1-0017 supplies invocation receipts, and W1-0013 demonstrates paid reporting/fallback. Test references at these seams must not be described as a completed agent invocation.",
+    "§5.8 requires whole CostModel/ResourcePolicy replacement with named/validated/defaulted, recoverable values. Derive reporting_reserve(task_view,pool_view) into Budget and validate both reserves. R-19 separates financial settlement/release_unstarted from workspace cessation; incomplete coverage follows the exact A13 Stop/Estimate rules."
+  ],
+  "revision": 2,
+  "history": [
+    {
+      "revision": 1,
+      "at": "2026-09-15T14:27:33.208336Z",
+      "actor": "manage.py",
+      "status": "new",
+      "note": "Task created."
+    },
+    {
+      "revision": 2,
+      "at": "2026-09-15T16:14:22.917801Z",
+      "actor": "manage.py",
+      "status": "new",
+      "note": "Plan new implementation from greenfield baseline 0c61ff1, preserving approved experimental mechanisms, reporting/evidence/recovery rules and explicit prerequisite boundaries."
+    }
+  ]
+}

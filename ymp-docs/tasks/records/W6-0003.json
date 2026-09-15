@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "id": "W6-0003",
+  "area": "routing",
+  "title": "Choose executable work methods from task structure and qualified history",
+  "type": "implementation",
+  "priority": 603,
+  "status": "new",
+  "depends_on": [
+    "W1-0011",
+    "W3-0008",
+    "W4-0003",
+    "W5-0002",
+    "W5-0004"
+  ],
+  "owner": null,
+  "goal": "Route a task to the smallest justified method and make every MethodKind executable while keeping routing decisions traceable and constrained by the kernel.",
+  "scope": [
+    "Implement CascadeRouter’s feature extraction and exact branch order: independent research breadth ≥2 → BreadthResearch(min(groups,parallel_limit)); independent write groups ≥2 with budget → AsNeededDecomposition; similar-task CapabilityLimit history → IndependentAttempts(2); otherwise SoloWithVerifier.",
+    "Complete execution of Solo, SoloWithVerifier, AsNeededDecomposition, IndependentAttempts(k) and BreadthResearch(k). BreadthResearch runs independent Researcher work by criterion/question group, then uses admitted Integrate work for actual combined artifacts/evidence; results still pass independent acceptance/final review.",
+    "Retain FixedMethod for experiments and implement a concrete LearnedRouter alternative trained/selected from versioned recorded task features and outcomes. Define explicit insufficient-data behavior instead of passing a label through to CascadeRouter or inventing learned success.",
+    "Persist MethodChosen with features, policy/version/params/input, rationale and ladder. Reject incompatible pins/budget/capability/independence proposals; current resource growth still needs recorded diagnosis. Expose feature/history basis through the prerequisite inspection/report paths."
+  ],
+  "acceptance": [
+    "Through the real Dispatcher, fixed task/history inputs exercise every A1.1 branch and all five MethodKinds, including a breadth task whose independent groups overlap and whose integrated result is independently checked.",
+    "A task with dependent write groups is not incorrectly parallelized; unavailable independent reviewers, pinned roster/effort and inadequate budget cannot be overridden by a routing proposal.",
+    "CascadeRouter, FixedMethod and LearnedRouter produce materially different real consumer decisions with policy/input/history provenance. Missing calibration/training data is explicit, and changing a method alone is not reported as measured improvement."
+  ],
+  "evidence": [],
+  "context": [
+    "Authority: ymp-docs/self-organizing-team-domain-model.md, sections 3.3 (MethodKind), 5.2 (MethodRouter), A1.1/A9/A10, principles 3/8/13 and R-3/R-14. Use the approved model with 811a872 semantics and the greenfield baseline in 0c61ff1 and §5.8 for experimental strategy boundaries. Other documents and existing names explain implementation facts only.",
+    "Greenfield: create this behavior in the new implementation. Paths below are PROPOSED target modules under the layout owned by W1-0001; only completed prerequisite tasks supply implementation. Prior source, APIs, fixtures and delivery claims are not a baseline.",
+    "Create proposed runtime/policies/router.rs and full MethodKind execution wiring using W1 fixed method/planning, W3 cooperation, W4 alternatives and W5 qualified history. Routing methods are executable behavior, not labels.",
+    "Solo specifies a production method, not an exemption from R-4/R-5; invalid one-member pins can still block independent acceptance. Research/write group independence must come from actual dependencies/paths. Integrate contributions creating combined artifacts use Producer role and enter the final producer union.",
+    "CascadeRouter, FixedMethod and LearnedRouter are selectable whole implementations with resolved feature/history/parameter basis. The fixed workflow is a control for useful self-organization, not the final product definition; sparse training/calibration remains explicit."
+  ],
+  "revision": 1,
+  "history": [
+    {
+      "revision": 1,
+      "at": "2026-09-15T16:14:24.648498Z",
+      "actor": "manage.py",
+      "status": "new",
+      "note": "Task created."
+    }
+  ]
+}

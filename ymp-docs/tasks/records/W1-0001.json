@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "id": "W1-0001",
+  "area": "journal",
+  "title": "Create the Rust domain/kernel foundation and replayable in-memory Journal",
+  "type": "implementation",
+  "priority": 101,
+  "status": "new",
+  "depends_on": [],
+  "owner": null,
+  "goal": "Establish the new implementation’s concrete boundaries and a working Journal consumer that reconstructs attributed decisions from immutable events.",
+  "scope": [
+    "Create the initial Rust workspace and only the crates with concrete behavior in this task: pure model values/validation in ymp-domain, trusted operations/port contracts in ymp-kernel, and MemoryJournal/runtime composition in ymp-runtime. Later owners add durable storage and CLI/TUI crates when their capabilities are implemented; no placeholder crates or generic service container.",
+    "Implement validated Id/Ref, SHA-256 Digest, PolicyRef, Proposal<T>, Denial and common Envelope. A decision stores implementation/version, recoverable effective parameter values and digest, input-view digest, rationale, basis, proposal and kernel outcome. Implement atomic ordered append with expected-revision handling and deterministic read-only *View replay through MemoryJournal.",
+    "Define a concrete first kernel event/decision consumer and an extensible typed payload/versioning mechanism. New event families preserve records produced earlier in this new implementation; missing/mismatched versioned refs are denied. Durable storage, crash behavior and content retention are W1-0016, not implied by an in-memory journal.",
+    "Record explicit per-run strategy/parameter selections and authorized changes at work boundaries. Strategies receive projections and cannot write Store/Journal; earlier decision/reputation history stays tied to its original recoverable values. This task establishes the mechanism; feature owners add their policy types and consumers."
+  ],
+  "acceptance": [
+    "The new workspace builds and a real kernel consumer appends/reads a session decision through MemoryJournal; replay at the same sequence reconstructs the same view and resolves policy implementation/version, actual parameter values, proposal and basis.",
+    "Stale append, malformed/missing refs, invalid parameter payloads and unknown event versions are rejected atomically. Two different strategy proposals are validated by the same consumer; neither obtains journal write authority.",
+    "A later policy/parameter selection leaves earlier new-implementation events reproducible. The delivered behavior makes no durability or prior-iteration migration claim; W1-0016 owns persistence."
+  ],
+  "evidence": [],
+  "context": [
+    "Authority: ymp-docs/self-organizing-team-domain-model.md, sections 0, 2 (D-1–D-5), 4 (Journal), 8 (R-1, R-17), 9 and build stage 1. Use the approved model with 811a872 semantics and the greenfield baseline in 0c61ff1 and §5.8 for experimental strategy boundaries. Other documents and existing names explain implementation facts only.",
+    "Greenfield: create this behavior in the new implementation. Paths below are PROPOSED target modules under the layout owned by W1-0001; only completed prerequisite tasks supply implementation. Prior source, APIs, fixtures and delivery claims are not a baseline.",
+    "Proposed layout: crates/ymp-domain/src/{lib,journal}.rs for pure values; crates/ymp-kernel/src/{lib,journal}.rs for Journal/Envelope/replay and trusted validation; crates/ymp-runtime/src/{lib,memory_journal}.rs for the reference in-memory adapter and a working application consumer. Cargo.toml uses repository-relative workspace dependencies and the executable name will be ymp.",
+    "W1-0002 adds actual Task/intake payloads; W1-0016 creates crates/ymp-storage for durable Journal/content; W1-0015 creates crates/ymp-cli for the real terminal consumer. Document this proposed Rust mapping as part of the implementation, without changing model service ownership.",
+    "Choose concrete dependencies only for needed serialization/digest/synchronization capabilities. Time, random decision inputs and effective policy parameters must be recoverable; replay reconstructs the stored model proposal, not an identical fresh stochastic model response."
+  ],
+  "revision": 2,
+  "history": [
+    {
+      "revision": 1,
+      "at": "2026-09-15T14:27:33.072040Z",
+      "actor": "manage.py",
+      "status": "new",
+      "note": "Task created."
+    },
+    {
+      "revision": 2,
+      "at": "2026-09-15T16:14:22.729102Z",
+      "actor": "manage.py",
+      "status": "new",
+      "note": "Plan new implementation from greenfield baseline 0c61ff1, preserving approved experimental mechanisms, reporting/evidence/recovery rules and explicit prerequisite boundaries."
+    }
+  ]
+}

@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "id": "W1-0015",
+  "area": "interface",
+  "title": "Expose the accountable session through a simple interactive Ratatui interface",
+  "type": "implementation",
+  "priority": 115,
+  "status": "new",
+  "depends_on": [
+    "W1-0014"
+  ],
+  "owner": null,
+  "goal": "Let a user state a goal, follow agent work, control recoverable execution and inspect the checked result from a usable terminal interface.",
+  "scope": [
+    "Add a real Ratatui interface over runtime operations and deterministic journal projections. Preserve the broad chat/conversation surface, commands and information-panel direction; concrete layout, command spelling and visual polish remain implementation choices.",
+    "Support initial goal/constraints, eligible agents, start/interrupt/open/recover, ongoing attributed activity and inspection of criteria, plan, assignment/commitment, known/unknown usage, reserve, results, checks, acceptance and report. Display pending decisions and denials from the same kernel operations used elsewhere.",
+    "Keep terminal event handling responsive during provider work and restore the terminal on normal exit, error and interruption. Navigation must make the essential recorded information accessible without requiring full-journal reconstruction by the user."
+  ],
+  "acceptance": [
+    "A real terminal session completes the W1 scripted user journey and reopens its durable report; the user can interrupt work and recover when the runtime permits, and inspect an unmet criterion plus unknown usage.",
+    "A stale/denied action leaves recorded state unchanged and is shown clearly. Provider activity does not freeze input, and exiting/erroring restores terminal operation.",
+    "A short reproducible terminal transcript or recording demonstrates the actual executable and kernel-derived state. Detailed layout snapshots or a mockup cannot substitute for working interaction.",
+    "Interruption uses the same trusted runtime operation, produces a truthful deterministic report without new model calls, and exposes scoped recovery limitations. Agent text cannot trigger user-only continuation. No fixed screen/command catalog or separate form for every policy parameter is required."
+  ],
+  "evidence": [],
+  "context": [
+    "Authority: ymp-docs/self-organizing-team-domain-model.md, intent.md (complete interactive terminal experience), model sections 2/4/9 and the user’s flexible TUI direction. Use the approved model with 811a872 semantics and the greenfield baseline in 0c61ff1 and §5.8 for experimental strategy boundaries. Other documents and existing names explain implementation facts only.",
+    "Greenfield: create this behavior in the new implementation. Paths below are PROPOSED target modules under the layout owned by W1-0001; only completed prerequisite tasks supply implementation. Prior source, APIs, fixtures and delivery claims are not a baseline.",
+    "Create proposed crates/ymp-cli/src/{main,lib,tui}.rs and its Cargo manifest when delivering the actual ymp executable. W1-0014 supplies working Application operations and projections. Ratatui is a justified concrete dependency for a usable interactive terminal, not a placeholder frontend crate.",
+    "Preserve broad chat/commands/information-panel direction while leaving layout and command spelling open. The TUI is one evolving consumer of actual state/authority, not a domain store, strategy or fixed inventory of per-wave screens.",
+    "User intake/clarification, interrupt/recover and inspection use kernel-backed application operations. Agent text cannot impersonate continuation authority. A report after stop uses recorded facts with no further inference; terminal restoration/responsiveness are part of this task."
+  ],
+  "revision": 2,
+  "history": [
+    {
+      "revision": 1,
+      "at": "2026-09-15T14:27:33.743622Z",
+      "actor": "manage.py",
+      "status": "new",
+      "note": "Task created."
+    },
+    {
+      "revision": 2,
+      "at": "2026-09-15T16:14:23.553291Z",
+      "actor": "manage.py",
+      "status": "new",
+      "note": "Plan new implementation from greenfield baseline 0c61ff1, preserving approved experimental mechanisms, reporting/evidence/recovery rules and explicit prerequisite boundaries."
+    }
+  ]
+}

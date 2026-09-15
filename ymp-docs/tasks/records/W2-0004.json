@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "id": "W2-0004",
+  "area": "verification",
+  "title": "Measure check discrimination with faulty candidates and complete independent verification",
+  "type": "implementation",
+  "priority": 204,
+  "status": "new",
+  "depends_on": [
+    "W1-0010",
+    "W1-0012",
+    "W1-0014",
+    "W2-0001",
+    "W2-0002",
+    "W2-0003"
+  ],
+  "owner": null,
+  "goal": "Distinguish checks that merely pass from checks that detect relevant defects, and make the complete verification cycle earn or withhold Discriminated transparently.",
+  "scope": [
+    "Implement FaultInjectionWithEquivalenceFilter, SyntacticOperators and None through MutationStrategy. Materialize immutable mutants from result.after with base/patch/operator and equivalent = true/false/unknown; exclude only established equivalent mutants and retain equivalence rationale.",
+    "For NewBehavior targets execute applicable checks on Candidate and non-equivalent mutants, retain Mutant-role CheckRuns and compute killed/eligible mutation_score. Distinguish no applicable mutants, all excluded, generator/run error and surviving mutants instead of fabricating a perfect score.",
+    "Complete A6 sequencing in Dispatcher: candidate checks, mutation evidence, an independently admitted reviewer with required tools, then AcceptanceAuthority.accept. Apply A7’s hidden/Executed-or-Browser/candidate-pass/baseline-fail/mutation-threshold predicates and A8’s discriminating versus non-discriminating LR groups.",
+    "Integrate W2 through the W1 runtime/projections and audited report: compare valid candidate, faulty candidate and defective check with run roles, polarity and grade explained. A simple real consumer demonstrates discrimination without a new UI layout gate."
+  ],
+  "acceptance": [
+    "Through the full verification consumer, an independently hidden check kills a known non-equivalent defect and can earn Discriminated; a surviving relevant mutant prevents the grade when the configured threshold is not reached.",
+    "Equivalent mutants do not depress the denominator; unknown equivalence is not silently excluded. Mutant/environment errors are diagnosed and cannot become candidate contradictions or fabricated mutation successes.",
+    "FaultInjectionWithEquivalenceFilter, SyntacticOperators and None run through the actual cycle, retaining policies/costs and visibly different evidence. A fixed baseline/candidate/mutant/control scenario demonstrates all check families and cannot leak hidden material through its producer contexts."
+  ],
+  "evidence": [],
+  "context": [
+    "Authority: ymp-docs/self-organizing-team-domain-model.md, sections 3.6 (Mutant, Discrimination), 5.1 (MutationStrategy), A2/A6/A7/A8, R-4/R-6/R-10 and section 10.1. Use the approved model with 811a872 semantics and the greenfield baseline in 0c61ff1 and §5.8 for experimental strategy boundaries. Other documents and existing names explain implementation facts only.",
+    "Greenfield: create this behavior in the new implementation. Paths below are PROPOSED target modules under the layout owned by W1-0001; only completed prerequisite tasks supply implementation. Prior source, APIs, fixtures and delivery claims are not a baseline.",
+    "Create proposed crates/ymp-runtime/src/policies/mutation.rs and the A6 orchestration around the kernel acceptance consumer. W2-0001/0002/0003 provide independent design and all runner families; W1 provides snapshots/results/ledger/review.",
+    "Use check-owned snapshot materializations through Direct/Container support; this does not depend on the future W4 competing-agent isolation engine. Never modify an accepted version to create a mutant. Empty/equivalent/unknown/error sets must not manufacture mutation score 1.",
+    "FaultInjectionWithEquivalenceFilter/SyntacticOperators/None are selectable algorithms, not only μ values. Record actual parameters/basis; initial μ/LR values remain assumptions until W6-0005 compares them. Preserve A7/A8 applicability and R-10."
+  ],
+  "revision": 2,
+  "history": [
+    {
+      "revision": 1,
+      "at": "2026-09-15T14:27:33.934417Z",
+      "actor": "manage.py",
+      "status": "new",
+      "note": "Task created."
+    },
+    {
+      "revision": 2,
+      "at": "2026-09-15T16:14:23.798598Z",
+      "actor": "manage.py",
+      "status": "new",
+      "note": "Plan new implementation from greenfield baseline 0c61ff1, preserving approved experimental mechanisms, reporting/evidence/recovery rules and explicit prerequisite boundaries."
+    }
+  ]
+}

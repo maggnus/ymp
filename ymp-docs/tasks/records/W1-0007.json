@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "id": "W1-0007",
+  "area": "coordination",
+  "title": "Complete commitment leases, release and delegation without losing accepted work",
+  "type": "implementation",
+  "priority": 107,
+  "status": "new",
+  "depends_on": [
+    "W1-0006"
+  ],
+  "owner": null,
+  "goal": "Keep responsibility for admitted work explicit across progress, expiration, voluntary release, cancellation and transfer.",
+  "scope": [
+    "Implement Proposed → Active and every P2 terminal branch: Discharged, Released(reason), Expired, Cancelled(reason), Delegated(agent), plus bounded Active renewal. Preserve debtor, Team/Runtime creditor, subject, condition, lease and history independently of a Plan version.",
+    "Renew only on configured EvidenceAdded/CheckRun/ResultSubmitted/Heartbeat signals with renewals_left; initial expiry is now + min(allowance.timeout, T_lease). tick(now) deterministically expires commitments and revokes associated grants.",
+    "Release reopens the contribution with Δ_release; cancellation follows satisfied targets or an applicable plan revision; discharge follows accepted artifact work or completed non-artifact contribution. Delegation admits the successor through Gatekeeper before recording transfer, creates its own commitment, and refuses self-reacceptance of current work.",
+    "Record transition context for W3-0005 handoffs and W1-0012 diagnosis. revoke stops authority immediately; WorkspaceGuard.release requires scoped cessation/non-execution evidence, while Treasury.settle/release_unstarted uses its independent cost basis. Retain accepted versions, consumed cost and unresolved holds. Use explicit recorded method/owning-strategy inputs for lease and renewal choices; Arbiter retains lifecycle authority."
+  ],
+  "acceptance": [
+    "Through actual Arbiter operations and a controllable clock, demonstrate renewal exhaustion, expiry, release/reopen, cancellation and successful/refused delegation. Discharge validates an attributable kernel acceptance/completion reference/projection and rejects foreign or unsupported basis; these contract inputs are not claimed as delivered artifact acceptance.",
+    "At every boundary each live assignment has exactly one active commitment; duplicate self-responsibility and reuse of a revoked grant are denied. Replay yields identical debtor/lease/history and remaining resources.",
+    "Expiring/cancelling an assignment cannot delete accepted work, release unresolved conflicting access or erase financial uncertainty. Refused delegation leaves the original responsibility intact and creates no orphan successor reservation. Alternate recorded lease-policy inputs change actual renewal behavior without replacing Arbiter invariants."
+  ],
+  "evidence": [],
+  "context": [
+    "Authority: ymp-docs/self-organizing-team-domain-model.md, sections 3.5, 4 (Arbiter.commitment/tick, Gatekeeper.revoke), P2, A1, R-2/R-12/R-16 and section 10.1. Use the approved model with 811a872 semantics and the greenfield baseline in 0c61ff1 and §5.8 for experimental strategy boundaries. Other documents and existing names explain implementation facts only.",
+    "Greenfield: create this behavior in the new implementation. Paths below are PROPOSED target modules under the layout owned by W1-0001; only completed prerequisite tasks supply implementation. Prior source, APIs, fixtures and delivery claims are not a baseline.",
+    "Create commitment/lease operations in proposed crates/ymp-kernel/src/arbiter.rs and model values in crates/ymp-domain/src/coordination.rs. W1-0006 supplies real active commitments/admission and W1-0001 journal projections; build a deterministic clock seam for transition evidence.",
+    "Own the P2 transition consumer, including validation against an attributable kernel acceptance/completion reference or projection. Actual non-artifact invocation completion is connected by W1-0017; real ResultVersion → Acceptance → Discharged is explicitly connected in W1-0010/W1-0014. Do not implement future result/acceptance production or fabricate an accepted artifact just to close this task.",
+    "A selected Method/owning strategy supplies recorded lease/renewal inputs and can change their computation under §5.8; Arbiter retains lifecycle/one-active-commitment authority. Delegation admits the successor first and leaves responsibility intact if admission is refused. R-19 release conditions remain independent."
+  ],
+  "revision": 2,
+  "history": [
+    {
+      "revision": 1,
+      "at": "2026-09-15T14:27:33.349545Z",
+      "actor": "manage.py",
+      "status": "new",
+      "note": "Task created."
+    },
+    {
+      "revision": 2,
+      "at": "2026-09-15T16:14:23.071079Z",
+      "actor": "manage.py",
+      "status": "new",
+      "note": "Plan new implementation from greenfield baseline 0c61ff1, preserving approved experimental mechanisms, reporting/evidence/recovery rules and explicit prerequisite boundaries."
+    }
+  ]
+}

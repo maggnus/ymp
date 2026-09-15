@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "id": "W5-0004",
+  "area": "learning",
+  "title": "Test knowledge with controlled retrieval and record exact context inclusion",
+  "type": "implementation",
+  "priority": 504,
+  "status": "new",
+  "depends_on": [
+    "W3-0005",
+    "W5-0002",
+    "W5-0003"
+  ],
+  "owner": null,
+  "goal": "Use qualified knowledge in matching assignments and test hypotheses through explicit With/Without comparisons before promoting them.",
+  "scope": [
+    "Implement ScopedLexical RetrievalPolicy over matching project/features/preconditions and status. Normal automatic context includes only current Validated/Confirmed versions; Hypothesis may enter only its labeled With trial arm. Record exact included (Knowledge,digest) and excluded reasons before invocation.",
+    "Implement AlternatingArms TrialPolicy for matching hypotheses, persist With/Without allocation, predefined metric and observed session value. Ensure trial assignment is reproducible across restarts/concurrent sessions and cannot be chosen after seeing a favorable result.",
+    "Promote Hypothesis → Validated only when With outperforms Without in at least n_trial matching sessions on the predefined metric; preserve negative/inconclusive outcomes. Integrate promotion and later Confirmed support checks through ExperienceVault.",
+    "Feed Retrieval into ContextComposer alongside handoff and criteria, retaining visibility constraints and exact knowledge versions. Expose trial/retrieval basis to reports or the prerequisite projections so reuse can be explained without copying entire knowledge history into prompts."
+  ],
+  "acceptance": [
+    "Through actual assignment execution, a matching Validated/Confirmed record appears with its exact digest, an out-of-scope or retired record is excluded with reason, and a Hypothesis appears only in a labeled With arm.",
+    "Controlled matching sessions alternate arms before outcomes, record metric/cost and promote only after the specified comparative threshold. Negative or insufficient comparisons remain Hypothesis without a fabricated improvement claim.",
+    "ScopedLexical and a materially different RetrievalPolicy, and AlternatingArms and a materially different TrialPolicy, are exercised through their real consumers. Reopening cannot change the recorded arm or silently retrieve a newer knowledge version."
+  ],
+  "evidence": [],
+  "context": [
+    "Authority: ymp-docs/self-organizing-team-domain-model.md, sections 3.8 (KnowledgeTrial, Retrieval), 5.6 (RetrievalPolicy, TrialPolicy), A5/A12, R-10/R-18 and section 10.1. Use the approved model with 811a872 semantics and the greenfield baseline in 0c61ff1 and §5.8 for experimental strategy boundaries. Other documents and existing names explain implementation facts only.",
+    "Greenfield: create this behavior in the new implementation. Paths below are PROPOSED target modules under the layout owned by W1-0001; only completed prerequisite tasks supply implementation. Prior source, APIs, fixtures and delivery claims are not a baseline.",
+    "Create proposed runtime/policies/{retrieval,trial}.rs and kernel trial/promotion validation. W5-0003 supplies knowledge lifecycle/provenance, W3-0005 ContextComposer and W5-0002 accountable metrics. Record exact Retrieval/Trial facts before outcomes.",
+    "Choose whole ScopedLexical/alternative retrieval and AlternatingArms/alternative trial mechanisms through their real consumer, retaining actual parameters/basis and past arms/versions. n_trial is a recorded assumption, not a reason to invent outside statistical requirements.",
+    "Only matching current Validated/Confirmed knowledge enters normal context; Hypothesis enters its labeled With arm. Scope/retrieval cannot bypass hidden/sealed exclusions. Negative/inconclusive comparisons do not fabricate validation."
+  ],
+  "revision": 1,
+  "history": [
+    {
+      "revision": 1,
+      "at": "2026-09-15T16:14:24.554269Z",
+      "actor": "manage.py",
+      "status": "new",
+      "note": "Task created."
+    }
+  ]
+}

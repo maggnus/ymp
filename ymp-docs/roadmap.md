@@ -1,62 +1,27 @@
 # Roadmap
 
-Canonical development status, ownership, dependencies, acceptance criteria, and
-evidence live only in development task records. Link outcome sections to the
-corresponding wave task records as those tasks are defined. Use the
-[development task workflow](development-tasks.md) to select work; this roadmap
-describes product outcomes and does not duplicate task status.
+The approved [self-organizing team model](self-organizing-team-domain-model.md)
+owns architecture and scope. This iteration starts with a new implementation;
+previous source material is not delivered functionality. The [wave proposal](waves_ideas.md)
+explains the sequence, and the [task coverage map](task-coverage.md) links model
+elements to concrete owners.
 
-## Product definition
+Task definitions, dependencies and status live only in
+[tasks/records](tasks/records/). This roadmap describes outcomes without copying
+status. Use the [task workflow](development-tasks.md) to select work; numeric IDs
+identify tasks, while explicit dependencies determine execution order.
 
-The [intent](../intent.md), [domain vocabulary](domain.md),
-[architecture](architecture.md), and [foundation contract](foundation.md) define the
-initial direction. Product hypotheses remain hypotheses until evaluated.
+| Wave | Product outcome | Principal integration tasks |
+| --- | --- | --- |
+| W1 | A new accountable producer/reviewer session: task contract, resource limits, immutable result, evidence, recovery and an audited report through a simple terminal interface. | [Session integration](tasks/records/W1-0014.json), [initial TUI](tasks/records/W1-0015.json). Foundations include [durability](tasks/records/W1-0016.json), [execution and Scripted](tasks/records/W1-0017.json), and [Codex](tasks/records/W1-0018.json). |
+| W2 | Independent hidden checks can distinguish relevant defects from correct behavior and justify the result's confirmation grade. | [Hidden design](tasks/records/W2-0001.json), [discriminating verification](tasks/records/W2-0004.json). |
+| W3 | Agents initiate contributions, exchange context, take and transfer commitments, object, and adapt their team and plan; independent work can overlap. | [Agent operations](tasks/records/W3-0001.json), [voluntary allocation](tasks/records/W3-0003.json), [dynamic cooperation](tasks/records/W3-0008.json). |
+| W4 | Independent attempts execute in isolated workspaces, are compared through a complete check matrix, and yield a justified selection and merge. | [Isolation](tasks/records/W4-0001.json), [attempts](tasks/records/W4-0002.json), [selection and escalation](tasks/records/W4-0003.json). |
+| W5 | Qualified experience supports reputation and reusable knowledge, with controlled trials, attributable retrieval and correction after later consequences. | [Reputation](tasks/records/W5-0001.json), [knowledge trials](tasks/records/W5-0004.json), [consequences](tasks/records/W5-0005.json). |
+| W6 | The complete model selects methods and contributions through replaceable policies and evaluates the conditions where self-organization is useful. | [Method routing](tasks/records/W6-0003.json), [complete session integration](tasks/records/W6-0004.json), [policy experiments](tasks/records/W6-0005.json). |
 
-## 1. Executable foundation
-
-Four crates provide validated task contracts, an atomic revisioned in-memory
-journal, open/read/cancel through the kernel, and a truthful CLI entry point.
-Acceptance tests cover invalid domain input, stale and duplicate operations,
-concurrent append, and malformed history. This outcome performs no agent execution
-and provides no persistent storage.
-
-## 2. Durable session state
-
-Define the durable `Journal` contract before selecting a storage approach, then
-implement a persistent adapter with atomic append, schema versions, corruption
-handling, and restart checks through the kernel consumer. Preserve exact task
-content, event order, and typed failures.
-
-## 3. Bounded native execution
-
-Introduce `Registry`, `Treasury`, `WorkspaceGuard`, `Gatekeeper`, and
-`ExecutionBackend` through one admitted execution scenario. Discover native
-identities, preserve authentication and settings, account for every invocation,
-and distinguish cancellation from confirmed termination. Use scripted providers
-for unattended checks.
-
-## 4. Checked task delivery
-
-Introduce result versions, retained evidence, and `AcceptanceAuthority`. Demonstrate
-independent review and an honest acceptance decision, including an
-accepted-but-unconfirmed outcome, before adding credit. Deliver a report tied to
-the checked result, with explicit unmet criteria.
-
-## 5. Useful cooperation and terminal interaction
-
-Introduce contribution selection, `Arbiter`, commitments, and addressed
-communication. Proposals must change admitted work when appropriate. Demonstrate
-useful overlap and conflict exclusion, then expose observable session controls in
-the terminal UI. Public MCP uses the same trusted application commands over stdio.
-
-## 6. Qualified experience
-
-Introduce `ExperienceVault` with scoped knowledge, qualified observations, and
-correction. Test whether experience improves later work using disjoint tasks and
-resource accounting that includes learning. Keep insufficient data explicit.
-
-## Evaluation
-
-Evaluate quality, resources, useful concurrency, human intervention, and the value
-of experience separately. State the task set, constraints, evidence, and limits of
-each conclusion. A working demonstration does not establish comparative advantage.
+The core product question is useful self-organization, not a fixed task-solving
+workflow. Key decision mechanisms remain interchangeable through explicit
+interfaces. The TUI exposes their behavior and may evolve without imposing a
+screen redesign on each wave. Comparisons report benefits, costs, limitations
+and negative or inconclusive outcomes separately from implementation completion.

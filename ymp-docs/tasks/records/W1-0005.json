@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "id": "W1-0005",
+  "area": "workspace",
+  "title": "Capture direct workspace snapshots and enforce assignment path ownership",
+  "type": "implementation",
+  "priority": 105,
+  "status": "new",
+  "depends_on": [
+    "W1-0001",
+    "W1-0003",
+    "W1-0016"
+  ],
+  "owner": null,
+  "goal": "Make the workspace state used for production and checking content-addressed, and allow only work whose effective access and path ownership are enforceable.",
+  "scope": [
+    "Implement trusted WorkspaceGuard.open(Direct), lock(Read/Write), snapshot and release(assignment,basis) over a Direct WorkspaceProvider. Record workspace IDs, canonical relative paths, digests and release basis. Release conflicting access only after attributable cessation or never-started evidence; cessation may follow termination or effective withdrawal of access.",
+    "Retain snapshot content needed for later before/after checks, immutable results and finalization. Keep artifact bytes/content references under explicit application storage ownership; a digest without recoverable content is insufficient for rerunning a snapshot.",
+    "Replace invocation-wide blanket scope exclusivity with model path ownership: overlapping writes conflict, safe reads coexist where actual access permits, and declared disjoint paths are not treated as proof that a broad native writer is confined. Handle aliases, ancestor paths and symlink escapes according to effective capabilities."
+  ],
+  "acceptance": [
+    "A real temporary filesystem consumer captures a before snapshot, observes changed bytes and reopens both exact snapshots after journal restart; subsequent workspace edits cannot change earlier snapshot content.",
+    "Concurrent compatible reads/disjoint enforceable writes succeed, overlapping or escaping writes are denied with owner references. A backend with broader effective write access cannot gain artificial parallelism from a narrower declared path list.",
+    "Direct and a substantially different constrained WorkspaceProvider run through WorkspaceGuard. Revoked/disconnected work retains conflicting holds until validated cessation or non-execution, while an unrelated scope remains usable. Reopened state retains the same release basis independently of cost settlement."
+  ],
+  "evidence": [],
+  "context": [
+    "Authority: ymp-docs/self-organizing-team-domain-model.md, sections 3.2 (Snapshot, Artifact), 3.4 (Workspace, PathLock), 4 (WorkspaceGuard), 5.7 (WorkspaceProvider), principle 13 and R-9/R-16. Use the approved model with 811a872 semantics and the greenfield baseline in 0c61ff1 and §5.8 for experimental strategy boundaries. Other documents and existing names explain implementation facts only.",
+    "Greenfield: create this behavior in the new implementation. Paths below are PROPOSED target modules under the layout owned by W1-0001; only completed prerequisite tasks supply implementation. Prior source, APIs, fixtures and delivery claims are not a baseline.",
+    "Create proposed crates/ymp-domain/src/workspace.rs, crates/ymp-kernel/src/workspace_guard.rs and crates/ymp-runtime/src/workspace/direct.rs. W1-0016 supplies durable content storage; W1-0003 supplies explicit actual-capability facts. Implement Direct snapshot/path ownership as new behavior.",
+    "W1-0006 binds locks to admitted assignments; W1-0017 supplies native cessation observations, and W1-0008 submits ResultVersion from retained snapshots. This task tests WorkspaceGuard operations over attributable ownership/basis fixtures, not a fabricated completed agent result. IsolatedCopy/CopyOnWrite/merge are W4-0001.",
+    "Under §3.9/R-19, revocation, parent exit or stream loss alone cannot release conflicting access. Validate scoped cessation or never-started evidence; effective withdrawal of access may establish cessation. Financial settlement is independent and unrelated scopes can continue. Observation types remain implementation choices."
+  ],
+  "revision": 2,
+  "history": [
+    {
+      "revision": 1,
+      "at": "2026-09-15T14:27:33.252592Z",
+      "actor": "manage.py",
+      "status": "new",
+      "note": "Task created."
+    },
+    {
+      "revision": 2,
+      "at": "2026-09-15T16:14:22.966485Z",
+      "actor": "manage.py",
+      "status": "new",
+      "note": "Plan new implementation from greenfield baseline 0c61ff1, preserving approved experimental mechanisms, reporting/evidence/recovery rules and explicit prerequisite boundaries."
+    }
+  ]
+}

@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "id": "W5-0003",
+  "area": "knowledge",
+  "title": "Curate scoped knowledge after delivery with independent review and provenance",
+  "type": "implementation",
+  "priority": 503,
+  "status": "new",
+  "depends_on": [
+    "W1-0013",
+    "W3-0001",
+    "W3-0003",
+    "W5-0001"
+  ],
+  "owner": null,
+  "goal": "Retain reusable findings as qualified knowledge only after the user has received the report, preserving source, scope and a way to refute each finding.",
+  "scope": [
+    "Implement Knowledge Fact/Procedure/Pitfall/Strategy with project/features/preconditions Scope, body, provenance/evidence, mandatory falsifier and supersedes link. Store content versions and Candidate/Hypothesis/Validated/Confirmed/Rejected/Superseded/Retired lifecycle facts.",
+    "Implement AfterActionReview KnowledgeCurator through an admitted Curator assignment after ReportDelivered. Agent KnowledgePropose uses the W3-0001 scoped grant transport; the kernel validates drafts and records Candidate, then an independently admitted scope review moves to Hypothesis or Rejected.",
+    "Implement trusted promotion prerequisites, stronger-basis contradictory supersession and retirement on a observed falsifier/refuted support. W5-0004 supplies actual controlled trials for Hypothesis → Validated; Confirmed requires Confirmed(*) supporting evidence.",
+    "Run learning as resumable post-delivery work only after ReportDelivered with Delivered status and applicable continuation authority, using ordinary assignments charged to remaining unprotected session resources. Curation failure, insufficient resources or interruption leaves the report available; a user stop cannot launch new learning calls."
+  ],
+  "acceptance": [
+    "Through a delivered session’s real asynchronous consumer, a Curator proposes a scoped finding and an independent reviewer produces Hypothesis or Rejected. Missing scope/provenance/basis/falsifier is denied and cannot enter retrieval.",
+    "A weaker contradictory replacement cannot supersede existing knowledge; a stronger same-scope basis can. Confirmed promotion requires confirmed support, while an observed falsifier retires without deleting history.",
+    "AfterActionReview and a materially different KnowledgeCurator execute through the same consumer with PolicyRefs. ReportDelivered precedes learning/curation work; interruption or budget refusal preserves the report and all consumed learning cost."
+  ],
+  "evidence": [],
+  "context": [
+    "Authority: ymp-docs/self-organizing-team-domain-model.md, sections 3.8 (Knowledge, Scope), 4 (ExperienceVault.knowledge), 5.6 (KnowledgeCurator), A12, R-8/R-15/R-18. Use the approved model with 811a872 semantics and the greenfield baseline in 0c61ff1 and §5.8 for experimental strategy boundaries. Other documents and existing names explain implementation facts only.",
+    "Greenfield: create this behavior in the new implementation. Paths below are PROPOSED target modules under the layout owned by W1-0001; only completed prerequisite tasks supply implementation. Prior source, APIs, fixtures and delivery claims are not a baseline.",
+    "Create proposed runtime/policies/knowledge_curator.rs and new Knowledge lifecycle validation in ExperienceVault. W1-0014 supplies post-delivery continuation, W3-0001 KnowledgePropose transport and W5-0001 observation provenance. Use the new Journal/content store for exact retained versions.",
+    "A real independent scope review moves Candidate only to Hypothesis/Rejected. W5-0004 supplies actual trials for Validated, and confirmed evidence supports Confirmed. Stronger contradictory same-scope basis is required for supersession; recency or confident prose alone is insufficient.",
+    "Schedule Curator work only after Delivered/report and within unprotected resources and continuation authority. Stop or unavailable funding yields no new learning call. Policy replacement/history retention follows §5.8 and curation never becomes a report prerequisite."
+  ],
+  "revision": 1,
+  "history": [
+    {
+      "revision": 1,
+      "at": "2026-09-15T16:14:24.504785Z",
+      "actor": "manage.py",
+      "status": "new",
+      "note": "Task created."
+    }
+  ]
+}

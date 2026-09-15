@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "id": "W1-0014",
+  "area": "session",
+  "title": "Run and recover the minimal accountable producer-reviewer session",
+  "type": "implementation",
+  "priority": 114,
+  "status": "new",
+  "depends_on": [
+    "W1-0007",
+    "W1-0011",
+    "W1-0012",
+    "W1-0013",
+    "W1-0018"
+  ],
+  "owner": null,
+  "goal": "Connect the W1 services into an accountable initial session and experimental fixed-workflow baseline, preserving the authority and recovery needed for later genuine agent initiative.",
+  "scope": [
+    "Implement Dispatcher.run call ordering: readiness/budget, admitted intake, fixed visible checks, method/plan, ledger/progress, candidate admission, invocation completion, result submission, verification/review, finalization and delivery. Business rules remain in the owning services and strategies.",
+    "Wake on invocation completion and lease expiry, stop when required criteria are Satisfied or the A13 no-running/no-useful-work/verification-cost condition applies, and route typed failures to diagnosis. Keep the later board/consequence wakeup extension explicit without fake active behavior.",
+    "Expose trusted application start/interrupt/read/recover operations over recorded state. User stop stops autonomous admissions and requests cancellation; a grant/notice cannot impersonate the user. Preserve task, commitments/results, spent/held amounts, receipts and scoped holds; reattach/observe unresolved work without duplicate starts, settlement, budget reset or revived grants. Handle concurrent/duplicate controls without starving stop behind unrelated journal writes.",
+    "Compose and audit reports for Delivered/Blocked/Cancelled, using zero-call DeterministicReport after user stop and no final review/learning without continuation authority. Only Delivered sessions can schedule learning within unprotected budget. Build the new Application/Dispatcher entry point and a real-filesystem Scripted scenario; exact control names/types are implementation choices."
+  ],
+  "acceptance": [
+    "One executable/runtime scenario proceeds from goal to producer, exact ResultVersion, independent review, ledger, final aggregate check and ReportDelivered, with attributable decisions and reconciled receipts for planning, production, review and narration.",
+    "A failing applicable check defeats approval; unavailable final reviewer produces Blocked(final_review_pending); insufficient verification capacity preserves work and explains unmet criteria. No case declares success because the provider exited normally.",
+    "Interrupt/reopen amid execution or reporting preserves committed work/accounting and does not repeat native starts, settlement or report delivery. A stopped session starts no final-review/narrator/learning call, unresolved effects block only conflicting scopes, and repeated unrelated events cannot starve user stop. The session runs over MemoryJournal and SqliteJournal.",
+    "The complete producer/reviewer session connects real A7 artifact acceptance to P2 discharge and actual non-artifact completion to its own discharge. It never requires fabricated acceptance/provenance to demonstrate lifecycle completion."
+  ],
+  "evidence": [],
+  "context": [
+    "Authority: ymp-docs/self-organizing-team-domain-model.md, section 4 (Dispatcher), A1/A3/A5/A6/A11/A13, P2, build stages 1–5 and intent.md interactive-session outcomes. Use the approved model with 811a872 semantics and the greenfield baseline in 0c61ff1 and §5.8 for experimental strategy boundaries. Other documents and existing names explain implementation facts only.",
+    "Greenfield: create this behavior in the new implementation. Paths below are PROPOSED target modules under the layout owned by W1-0001; only completed prerequisite tasks supply implementation. Prior source, APIs, fixtures and delivery claims are not a baseline.",
+    "Create proposed crates/ymp-runtime/src/{application,dispatcher}.rs as the composition of the new kernel services/strategies. W1-0017 supplies invocation execution and W1-0018 the first native Codex backend. Dispatcher orders calls and handles results; business rules remain in their owning services/policies.",
+    "Integrate the W1 fixed-workflow baseline from explicit intake through accountable production/review/report. W3 adds real initiative, voluntary allocation and dynamic coordination; no ready prior executable, parser or session engine is assumed.",
+    "§3.9/R-19/R-20 require scoped cessation/release, independent settlement, no duplicate unresolved start, preserved budgets/history and effective user stop handling. Choose minimal concrete observation/control forms. After stop no new model call runs without applicable continuation authority."
+  ],
+  "revision": 2,
+  "history": [
+    {
+      "revision": 1,
+      "at": "2026-09-15T14:27:33.694150Z",
+      "actor": "manage.py",
+      "status": "new",
+      "note": "Task created."
+    },
+    {
+      "revision": 2,
+      "at": "2026-09-15T16:14:23.505411Z",
+      "actor": "manage.py",
+      "status": "new",
+      "note": "Plan new implementation from greenfield baseline 0c61ff1, preserving approved experimental mechanisms, reporting/evidence/recovery rules and explicit prerequisite boundaries."
+    }
+  ]
+}

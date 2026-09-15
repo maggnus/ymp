@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "id": "W3-0004",
+  "area": "planning",
+  "title": "Respond to goal-status notices and clarification by revising accountable work",
+  "type": "implementation",
+  "priority": 304,
+  "status": "new",
+  "depends_on": [
+    "W1-0011",
+    "W1-0012",
+    "W1-0015",
+    "W3-0001",
+    "W3-0003"
+  ],
+  "owner": null,
+  "goal": "Make participant claims and user clarification change the next work boundary, plan and commitments without letting a status message decide acceptance.",
+  "scope": [
+    "Consume Satisfied/Unachievable/Irrelevant GoalStatusClaim notices at the next work boundary. Insufficient support for Satisfied creates Verify; Unachievable enters FailureDiagnoser then Clarify/Replan/StopPreserving; Irrelevant prompts Planner.revise and cancellation of affected commitments after the trusted revision.",
+    "Complete VoiClarification: compare P(misinterpretation) × rework cost with cost_interrupt, ask high-value questions and persist answered Clarification, otherwise record the chosen Assumption/reason and carry it to Report. Support NoQuestions as the control.",
+    "Build pending-question/answer/resume operations on the Application/TUI from W1-0014/0015 without freezing independent work. Link replies to the exact question/goal/criterion and reject stale/unrelated answers; commit interpretation changes through W1-0002 intake authority.",
+    "Complete Planner.revise and UpfrontDecomposition alternative with versioned PlanRevised, parent WorkItems, all WorkState transitions, dependency/criterion coverage checks and commitment cancellation for replaced work. AsNeededDecomposition splits after diagnosed failure; UpfrontDecomposition proposes a graph before production."
+  ],
+  "acceptance": [
+    "An executable cooperation scenario posts all three claim variants and observes the exact Verify, diagnose/escalate or revise/cancel response at the next boundary; an unsupported Satisfied notice never directly changes Acceptance.",
+    "High-value ambiguity asks the user, records the answer and resumes affected work; low-value ambiguity records an assumption visible in the final report. An unanswered clarification leaves only dependent work waiting.",
+    "AsNeededDecomposition and UpfrontDecomposition produce materially different real plans through the same validator. Cycles, stale revisions, lost required criteria and invalid cancellation are denied while accepted work and provenance survive revision."
+  ],
+  "evidence": [],
+  "context": [
+    "Authority: ymp-docs/self-organizing-team-domain-model.md, sections 3.2/3.3/3.5, P3/P6, 5.1 (IntakePolicy), 5.2 (Planner), A3/A9 and R-3/R-6. Use the approved model with 811a872 semantics and the greenfield baseline in 0c61ff1 and §5.8 for experimental strategy boundaries. Other documents and existing names explain implementation facts only.",
+    "Greenfield: create this behavior in the new implementation. Paths below are PROPOSED target modules under the layout owned by W1-0001; only completed prerequisite tasks supply implementation. Prior source, APIs, fixtures and delivery claims are not a baseline.",
+    "Create plan-revision/P3/P6 orchestration using the W1 Planner/intake/commitment contracts and W3 Board/allocation. Proposed modules are runtime/policies/intake.rs and planner.rs plus kernel/plans.rs; add only necessary question/answer UI interaction.",
+    "An Irrelevant notice does not erase a required user criterion. P3 revises/cancels work through trusted transitions; a contract change needs its user/clarification basis. A Satisfied notice requests verification when evidence is insufficient.",
+    "AsNeededDecomposition and UpfrontDecomposition are actual interchangeable planning mechanisms. Record forecast/VOI/cost_interrupt basis, charged Planner calls and answered versus assumed interpretation. A replanned graph preserves immutable accepted results."
+  ],
+  "revision": 2,
+  "history": [
+    {
+      "revision": 1,
+      "at": "2026-09-15T14:27:34.125171Z",
+      "actor": "manage.py",
+      "status": "new",
+      "note": "Task created."
+    },
+    {
+      "revision": 2,
+      "at": "2026-09-15T16:14:23.938752Z",
+      "actor": "manage.py",
+      "status": "new",
+      "note": "Plan new implementation from greenfield baseline 0c61ff1, preserving approved experimental mechanisms, reporting/evidence/recovery rules and explicit prerequisite boundaries."
+    }
+  ]
+}

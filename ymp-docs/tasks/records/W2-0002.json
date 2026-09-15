@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "id": "W2-0002",
+  "area": "checks",
+  "title": "Execute property checks in explicit process and container environments",
+  "type": "implementation",
+  "priority": 202,
+  "status": "new",
+  "depends_on": [
+    "W1-0009",
+    "W2-0001"
+  ],
+  "owner": null,
+  "goal": "Add generative property checking and a ContainerRunner alternative so a check’s scope and execution environment are reproducible and can support audited claims.",
+  "scope": [
+    "Implement CheckSpec.Property(harness,generator,oracle) with a documented executable contract for generator/oracle inputs, bounded execution, reproducible generator state and captured check outputs. Bind harness/generator/oracle versions and declared inputs to the Check version.",
+    "Implement ContainerRunner as a real CheckRunner alternative to ProcessRunner for suitable Command/Property checks. Use an explicitly selected local environment/image, record its identity in env, expose available capabilities and map unavailable runtime/start/sandbox failures to Error rather than Fail.",
+    "Run Baseline, Candidate and Control snapshots through both paths, preserving input/output/check/environment provenance. Give ClaimAuditor usable Property evidence for the verified scope; a bounded generator run must not turn an arbitrary universal statement into proof beyond the check’s scope."
+  ],
+  "acceptance": [
+    "A real local property harness passes an appropriate candidate and fails a deliberate counterexample through AcceptanceAuthority; fixed generator inputs reproduce the run and identify the oracle/environment.",
+    "ProcessRunner and ContainerRunner execute the same applicable check through the real consumer, with different recorded environment identities. Missing container support or unsupported capability yields a typed Error/denial, never a claimed successful container run.",
+    "Changing a harness, generator, oracle or environment invalidates the matching evidence reference. Report audit accepts only a scope actually supported by the recorded Property check."
+  ],
+  "evidence": [],
+  "context": [
+    "Authority: ymp-docs/self-organizing-team-domain-model.md, sections 3.2 (CheckSpec.Property), 3.6 (CheckRun), 5.1 (CheckRunner), A2/A6/A11 and R-9. Use the approved model with 811a872 semantics and the greenfield baseline in 0c61ff1 and §5.8 for experimental strategy boundaries. Other documents and existing names explain implementation facts only.",
+    "Greenfield: create this behavior in the new implementation. Paths below are PROPOSED target modules under the layout owned by W1-0001; only completed prerequisite tasks supply implementation. Prior source, APIs, fixtures and delivery claims are not a baseline.",
+    "Create proposed crates/ymp-runtime/src/checks/{property,container}.rs and corresponding CheckRunner wiring. W1-0009 supplies ProcessRunner/CheckRun/AcceptanceAuthority; W2-0001 supplies independent author/visibility. Choose and document a concrete local property harness and container execution mechanism.",
+    "Harness/generator/oracle/image/environment inputs are versioned and bounded. No ambient remote service or automatic installation is assumed; unavailable container capability yields explicit Error/denial. ProcessRunner/ContainerRunner are real interchangeable consumers, not labels.",
+    "Property support limits the scope of a claim to the actual check. Preserve immutable snapshots, hidden input separation and the shared evidence-applicability contract."
+  ],
+  "revision": 2,
+  "history": [
+    {
+      "revision": 1,
+      "at": "2026-09-15T14:27:33.840380Z",
+      "actor": "manage.py",
+      "status": "new",
+      "note": "Task created."
+    },
+    {
+      "revision": 2,
+      "at": "2026-09-15T16:14:23.645810Z",
+      "actor": "manage.py",
+      "status": "new",
+      "note": "Plan new implementation from greenfield baseline 0c61ff1, preserving approved experimental mechanisms, reporting/evidence/recovery rules and explicit prerequisite boundaries."
+    }
+  ]
+}

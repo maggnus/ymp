@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "id": "W1-0018",
+  "area": "providers",
+  "title": "Build the native Codex backend and discovery for accountable sessions",
+  "type": "implementation",
+  "priority": 113,
+  "status": "new",
+  "depends_on": [
+    "W1-0003",
+    "W1-0017"
+  ],
+  "owner": null,
+  "goal": "Deliver the first complete native ExecutionBackend by implementing Codex execution, discovery and accountable observations in the new product.",
+  "scope": [
+    "Implement Codex native readiness/discovery and ExecutionBackend against a supported local protocol selected and documented in this task. Preserve native authentication/agent identity, provider version, per-model efforts and requested/sent/reported settings; no previous Codex adapter is credited.",
+    "Implement start, bounded output/role response, progress/ToolDenied, cancellation, receipt and native session continuation through the W1-0017 host. Normalize total input/cache-read/cache-write/output/reasoning usage, distinguishing cumulative/resumed counters and Complete/Partial/Unknown coverage.",
+    "Expose actual enforceable workspace/capability facts and attributable cessation/never-started observations. Protocol failure, parent exit or disconnect alone cannot release holds; unsupported reattachment remains explicit and cannot cause a duplicate native call.",
+    "Build new local protocol fixtures and conformance scenarios through Registry/Gatekeeper/host, plus a documented separately authorized native-run procedure. W3-0001 later adds agent-callable team operations through this native boundary."
+  ],
+  "context": [
+    "Authority: model sections 3.1/3.4/3.7/3.9/5.1/5.7, A5/A13 and R-2/R-3/R-8/R-9/R-19/R-20; greenfield baseline 0c61ff1.",
+    "Proposed modules: crates/ymp-runtime/src/backends/codex.rs and focused protocol/discovery/usage modules, with new runtime protocol fixtures. W1-0003 supplies Registry/offerings and W1-0017 the execution host; create the actual adapter here rather than assuming App Server or another prior implementation is delivered.",
+    "Choose the native wire protocol using installed/official provider information during implementation. Do not copy credentials, infer unsupported model/effort values or rely on old tests. Fixture evidence is separate from real inference; builds/tests do not authorize native calls or real user-data mutation."
+  ],
+  "acceptance": [
+    "Through the real Registry/Gatekeeper/host consumer, a new Codex protocol fixture discovers supported offerings, runs a bounded admitted turn, returns attributable role output and settles a correctly normalized receipt without copying authentication.",
+    "Unsupported settings, malformed/foreign responses, duplicate/partial/cumulative usage and ambiguous cancellation/reconnect cases are denied or recorded truthfully; none grants authority, duplicates a start or releases unresolved holds.",
+    "Codex and Scripted run the shared execution contract through actual consumers. Native-run evidence, if separately authorized and collected, records exact runtime version/settings/observations and is not conflated with fixture behavior."
+  ],
+  "evidence": [],
+  "revision": 1,
+  "history": [
+    {
+      "revision": 1,
+      "at": "2026-09-15T16:14:23.211847Z",
+      "actor": "manage.py",
+      "status": "new",
+      "note": "Task created."
+    }
+  ]
+}

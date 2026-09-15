@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "id": "W3-0001",
+  "area": "communication",
+  "title": "Let agents use grant-scoped team operations and addressed board projections",
+  "type": "implementation",
+  "priority": 301,
+  "status": "new",
+  "depends_on": [
+    "W1-0006",
+    "W1-0007",
+    "W1-0014",
+    "W2-0001"
+  ],
+  "owner": null,
+  "goal": "Make agent communication change a shared, accountable Board through real kernel operations instead of treating conversational messages as authorized work.",
+  "scope": [
+    "Implement Board and Notice with Everyone/agent addressing, Finding, Question, Answer(notice,text), StatusChange and ProposalRef bodies; preserve actual sender, time and versioned references. Arbiter.notice/propose validates references, targets and active grant before committing NoticePosted/ContributionProposed.",
+    "Build assignment-to-kernel operation transport for the Scripted and Codex backends delivered by W1-0017/0018: operation name, admitted invocation/assignment, scoped grant and typed arguments/results. Correlate requests and derive identity from the invocation boundary; text cannot impersonate another agent or Runtime.",
+    "Route BoardRead, NoticePost, ContributionPropose, OfferSubmit, CommitmentRelease, CommitmentDelegate, ObjectionRaise, StatusNotify, CheckPropose and KnowledgePropose to their owning services. W1 release/delegation/check operations work immediately; later owners add substantive offer/dispute/knowledge behavior, with explicit denials until available.",
+    "Expose only the participant’s addressed and permitted Board/*View records, applying hidden-check and sealed-window exclusions below prompts/UI. Merge agent proposals with ContributionPolicy candidates while retaining their rationale/basis and separate kernel decision."
+  ],
+  "acceptance": [
+    "An actual Scripted/Codex protocol-fixture assignment reads its Board, posts an addressed question/answer and proposes criterion-directed work; the proposal enters the real candidate consumer and either becomes admitted work or has an inspectable denial.",
+    "Expired/revoked/foreign grants, forged authors, unknown refs and disallowed operations cannot mutate Board or other services. Repeating a transport request does not duplicate the committed contribution/notice.",
+    "Two participants receive different permitted projections; sealed-window board entries, hidden check data and another agent’s private context are absent from native responses and generated prompts, not merely hidden by presentation.",
+    "An agent-originated contribution with new criterion/evidence rationale changes the actual admitted work beyond the fixed baseline, or receives a justified refusal. TeamOperation credentials cannot impersonate a user policy change, stop or continuation request."
+  ],
+  "evidence": [],
+  "context": [
+    "Authority: ymp-docs/self-organizing-team-domain-model.md, sections 3.4 (Grant, TeamOperation), 3.5 (Board, Notice), 4 (Arbiter), P1/P3/P7, A3/A5 and R-1/R-2/R-10/R-17. Use the approved model with 811a872 semantics and the greenfield baseline in 0c61ff1 and §5.8 for experimental strategy boundaries. Other documents and existing names explain implementation facts only.",
+    "Greenfield: create this behavior in the new implementation. Paths below are PROPOSED target modules under the layout owned by W1-0001; only completed prerequisite tasks supply implementation. Prior source, APIs, fixtures and delivery claims are not a baseline.",
+    "Create proposed crates/ymp-runtime/src/team_operations.rs and expand the new kernel Arbiter plus Scripted/Codex adapter integrations. W1-0006/0007 provide actual grants/lifecycle, W1-0017/0018 native execution, W2-0001 hidden-data boundaries.",
+    "The wire schema/tool exposure is an implementation choice, while named TeamOperation values and kernel ownership are fixed. Native output is an untrusted proposal/request; the kernel derives its actor from the admitted invocation and rejects stale/foreign/revoked grants.",
+    "Do not distribute the full journal or hidden payloads. Proposals enter A3’s common candidate list and can change work beyond the fixed control. Agent operations cannot impersonate user stop/continuation or authorized experiment-policy changes."
+  ],
+  "revision": 2,
+  "history": [
+    {
+      "revision": 1,
+      "at": "2026-09-15T14:27:33.983770Z",
+      "actor": "manage.py",
+      "status": "new",
+      "note": "Task created."
+    },
+    {
+      "revision": 2,
+      "at": "2026-09-15T16:14:23.746042Z",
+      "actor": "manage.py",
+      "status": "new",
+      "note": "Plan new implementation from greenfield baseline 0c61ff1, preserving approved experimental mechanisms, reporting/evidence/recovery rules and explicit prerequisite boundaries."
+    }
+  ]
+}

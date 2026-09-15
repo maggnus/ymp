@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "id": "W1-0003",
+  "area": "identity",
+  "title": "Resolve native agents and execution profiles through a trusted Registry",
+  "type": "implementation",
+  "priority": 103,
+  "status": "new",
+  "depends_on": [
+    "W1-0001",
+    "W1-0002"
+  ],
+  "owner": null,
+  "goal": "Select eligible persistent agents and supported native settings while keeping identity, provider, model, capabilities and invocation metadata distinct.",
+  "scope": [
+    "Implement Agent, Provider, ModelOffering, ProfileSettings, ExecutionProfile and Pool projections. Preserve stable agent IDs, instructions, enabled/default settings and per-model native effort sets; represent Codex, Claude, Glm, Scripted and Other(Text) provider kinds without pretending all adapters are already available.",
+    "Make Registry.pool(constraints), profile(agent, settings) and capabilities(profile, workspace) trusted operations over explicit discovery/probe facts. StaticDependencyProbe checks executables/adapters/dependencies without inference, with typed exclusion reasons; effective capabilities include all nine model values and remain constrained by actual workspace/backend enforcement.",
+    "Create native discovery/probe contracts and explicit Scripted identity/offerings fixtures for Registry. Keep Invocation requested/sent/reported ProfileSettings distinct from ExecutionProfile, keyed by agent/provider version/model/family/native effort. The actual Scripted executor is W1-0017; complete Codex discovery/execution is W1-0018."
+  ],
+  "acceptance": [
+    "Through the real Registry consumer, explicit probe/discovery inputs expose per-model offerings, identity/version/capabilities and typed exclusions. Registry.profile denies unsupported settings and invalid pins before inference; W1-0006 later demonstrates their use in admission.",
+    "Replacing StaticDependencyProbe with a materially different deterministic probe changes eligibility through Registry while preserving the same invariants and recorded policy/input provenance.",
+    "Missing reported model/effort/family is visible as unknown, distinct from requested/sent settings. A local discovery/fixture run neither authenticates by copying credentials nor performs a model turn."
+  ],
+  "evidence": [],
+  "context": [
+    "Authority: ymp-docs/self-organizing-team-domain-model.md, sections 3.1, 3.4 (ExecutionProfile and Invocation), 4 (Registry), 5.1 (ReadinessProbe), 5.7 (ExecutionBackend), A5 and R-2/R-3/R-9. Use the approved model with 811a872 semantics and the greenfield baseline in 0c61ff1 and §5.8 for experimental strategy boundaries. Other documents and existing names explain implementation facts only.",
+    "Greenfield: create this behavior in the new implementation. Paths below are PROPOSED target modules under the layout owned by W1-0001; only completed prerequisite tasks supply implementation. Prior source, APIs, fixtures and delivery claims are not a baseline.",
+    "Create proposed crates/ymp-domain/src/identity.rs, crates/ymp-kernel/src/registry.rs and crates/ymp-runtime/src/readiness.rs. W1-0001 provides events/provenance and W1-0002 user constraints. Use StaticDependencyProbe plus a substantially different deterministic probe through Registry.",
+    "Each ModelOffering preserves its own native effort values. Family/version metadata has a stated source; absent native data stays unknown and yields an explicit fallback/denial when a decision requires it. An agent has persistent instructions/defaults, not permanent role authority.",
+    "This Registry implementation does not claim an executor exists. W1-0017 builds Scripted, W1-0018 builds Codex, W6-0001 builds Claude and W6-0002 builds Glm against this contract."
+  ],
+  "revision": 2,
+  "history": [
+    {
+      "revision": 1,
+      "at": "2026-09-15T14:27:33.163950Z",
+      "actor": "manage.py",
+      "status": "new",
+      "note": "Task created."
+    },
+    {
+      "revision": 2,
+      "at": "2026-09-15T16:14:22.824675Z",
+      "actor": "manage.py",
+      "status": "new",
+      "note": "Plan new implementation from greenfield baseline 0c61ff1, preserving approved experimental mechanisms, reporting/evidence/recovery rules and explicit prerequisite boundaries."
+    }
+  ]
+}

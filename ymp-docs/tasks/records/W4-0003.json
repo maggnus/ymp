@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "id": "W4-0003",
+  "area": "selection",
+  "title": "Select an admissible attempt, merge it and recheck the integrated result",
+  "type": "implementation",
+  "priority": 403,
+  "status": "new",
+  "depends_on": [
+    "W1-0013",
+    "W3-0007",
+    "W3-0008",
+    "W4-0002"
+  ],
+  "owner": null,
+  "goal": "Complete A10 escalation by selecting a candidate from discriminating execution evidence and preserving every alternative and the final merged verification basis.",
+  "scope": [
+    "Implement DualExecutionAgreement: admit only candidates with Pass for every hidden check; group admissible candidates by identical passed-test sets from all T_i; score clusters as member_count × passed_test_count and commission an independent reviewer to choose within the leading cluster.",
+    "Implement ReviewerChoice as a distinct SelectionPolicy alternative through the same trusted consumer, retaining applicable-check/independence/authority invariants. Document deterministic handling of ties, an empty hidden suite and incomplete/error cells without inflating evidence strength.",
+    "Commit the selection proposal and review basis, invoke WorkspaceGuard.merge only for the valid selected ResultVersion, rerun all applicable checks on the resulting integrated snapshot and obtain FinalReviewer outside the final producer union.",
+    "Install AlternativeAttempts(k) into DiagnosisFirstLadder and Dispatcher. If no candidate is admissible, perform no merge and diagnose CapabilityLimit/CheckDefect; stop or continue by the recorded ladder. Expose candidates, matrix, cluster/choice, merge and retained alternatives through the prerequisite inspection/report paths.",
+    "Complete the live CapabilityLimit ladder across real Decompose, AlternativeAttempts(2) and, when their recorded outcomes justify it, the StrongerProfile handler from W3-0007. No unavailable earlier step is skipped and no fixture history is presented as a prior live attempt."
+  ],
+  "acceptance": [
+    "Through a real independent-attempt session, the expected admissible cluster wins by the A10 formula and an independent reviewer selects within it; only that candidate merges and final checks reference the integrated snapshot.",
+    "A hidden-check failure, missing matrix cell, self-review, stale selection or changed target cannot merge a candidate. With no admissible candidates the target stays unchanged and the recorded diagnosis controls the next action.",
+    "DualExecutionAgreement and ReviewerChoice produce inspectably different valid choices through the same consumer. All attempts, test costs, selected/non-selected results and disclosure decisions survive restart and appear in the audited report.",
+    "An executable failure case traverses actual decomposition and independent attempts before a justified stronger profile, preserving the used-step history, diagnosis, budget and pins. This is the end-to-end StrongerProfile sequence; W3-0007 owns only its earlier handler contract."
+  ],
+  "evidence": [],
+  "context": [
+    "Authority: ymp-docs/self-organizing-team-domain-model.md, section 5.3 (SelectionPolicy), A9/A10/A11, P7 and R-4/R-5/R-6/R-16/R-17. Use the approved model with 811a872 semantics and the greenfield baseline in 0c61ff1 and §5.8 for experimental strategy boundaries. Other documents and existing names explain implementation facts only.",
+    "Greenfield: create this behavior in the new implementation. Paths below are PROPOSED target modules under the layout owned by W1-0001; only completed prerequisite tasks supply implementation. Prior source, APIs, fixtures and delivery claims are not a baseline.",
+    "Create proposed runtime/policies/selection.rs and install the alternatives handler in the Dispatcher. W4-0002 supplies candidates/matrix, W4-0001 validated merge and W1-0013 stable aggregate recheck/final review.",
+    "DualExecutionAgreement’s reviewer chooses inside the leading admissible cluster; ReviewerChoice can use another selection mechanism while preserving hard checks/independence. Choose implementations and recoverable parameters for a run without rewriting the consumer or old matrix/choice history.",
+    "Integrate the W4 scenario from diagnosed CapabilityLimit through independent choices and merge/no-admissible outcome. It demonstrates mechanism behavior and preserved alternatives, not a guaranteed benefit or mandatory new UI design."
+  ],
+  "revision": 1,
+  "history": [
+    {
+      "revision": 1,
+      "at": "2026-09-15T16:14:24.362689Z",
+      "actor": "manage.py",
+      "status": "new",
+      "note": "Task created."
+    }
+  ]
+}

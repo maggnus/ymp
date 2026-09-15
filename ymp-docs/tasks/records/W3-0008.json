@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "id": "W3-0008",
+  "area": "session",
+  "title": "Dispatch independent contributions concurrently and react to coordination events",
+  "type": "implementation",
+  "priority": 308,
+  "status": "new",
+  "depends_on": [
+    "W1-0014",
+    "W3-0003",
+    "W3-0004",
+    "W3-0005",
+    "W3-0006",
+    "W3-0007"
+  ],
+  "owner": null,
+  "goal": "Make the full W3 team operate around criteria and work boundaries: useful independent work can overlap while notices, bids, leases and objections change subsequent admissions.",
+  "scope": [
+    "Replace fixed W1 sequencing with agent proposals and complete solicitation/award at event-driven work boundaries. Wake on invocation, Board, offer deadline, lease and user action; do not starve stop behind unrelated writes. Apply authorized policy/parameter changes only at recorded boundaries, preserving exact effective selections for past decisions.",
+    "Schedule only dependency-independent WorkItems with compatible effective workspace access within parallel_limit, attempt_limit, max_members and Treasury constraints. Permit multiple Producer/Researcher assignments when safe; serialize interfering writes and dependent work.",
+    "Integrate agent-generated proposals, all P3 responses, objections, handoffs, diagnosis and team/profile changes into the same Dispatcher. Role completions produce the correct result/evidence/notice/review payloads rather than a generic “agent finished” fact.",
+    "Recover dynamic sessions from Journal: pending solicitations, committed awards, active/expired commitments and questions remain coherent after interruption. Provide one executable cooperation scenario showing actual reassignment/replanning/concurrent contribution and an audited result through the prerequisite projections/TUI."
+  ],
+  "acceptance": [
+    "A deterministic real-filesystem scenario shows an agent initiating useful work not preallocated by the fixed workflow, offers changing allocation, transferred responsibility, and objections/status notices changing the plan. Independent contributions overlap; dependent/conflicting work waits; the audited report accounts for all calls.",
+    "Concurrent completion/board/expiry events cannot double-award a contribution, keep two active commitments for one assignment or admit work against a stale plan. A runtime restart preserves outstanding allocation and avoids repeating native starts.",
+    "The user can inspect why the team changed and which criterion/evidence gap each admitted contribution addresses. More messages or participants alone are never presented as measured quality or speed improvement."
+  ],
+  "evidence": [],
+  "context": [
+    "Authority: ymp-docs/self-organizing-team-domain-model.md, A1/A3/A4/A5/A9, P1–P7, sections 3.3/3.5, principles 2/6/7/13 and R-3/R-12/R-17. Use the approved model with 811a872 semantics and the greenfield baseline in 0c61ff1 and §5.8 for experimental strategy boundaries. Other documents and existing names explain implementation facts only.",
+    "Greenfield: create this behavior in the new implementation. Paths below are PROPOSED target modules under the layout owned by W1-0001; only completed prerequisite tasks supply implementation. Prior source, APIs, fixtures and delivery claims are not a baseline.",
+    "Build dynamic scheduling in proposed runtime/dispatcher.rs using the W1 loop and completed W3 protocols. Permit real independent overlap without holding a global adapter lock across all work; kernel event commits still enforce concurrency and authority.",
+    "All P1–P6 mechanisms are prerequisite outputs, and P7 protects CheckDesigner/Board visibility. W4 adds competing attempt groups; W5 adds experience. User stop must not be starved and stops autonomous model work until applicable continuation.",
+    "The demonstration must show initiative, offers and transferred commitments changing admitted work and plan, not just simultaneous messages. Preserve each experiment’s implementation/parameter selection at authorized work boundaries and report costs/limitations honestly."
+  ],
+  "revision": 2,
+  "history": [
+    {
+      "revision": 1,
+      "at": "2026-09-15T14:27:34.312633Z",
+      "actor": "manage.py",
+      "status": "new",
+      "note": "Task created."
+    },
+    {
+      "revision": 2,
+      "at": "2026-09-15T16:14:24.127274Z",
+      "actor": "manage.py",
+      "status": "new",
+      "note": "Plan new implementation from greenfield baseline 0c61ff1, preserving approved experimental mechanisms, reporting/evidence/recovery rules and explicit prerequisite boundaries."
+    }
+  ]
+}

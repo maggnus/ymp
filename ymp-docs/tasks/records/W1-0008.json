@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "id": "W1-0008",
+  "area": "results",
+  "title": "Submit immutable result versions bound to attempts and exact workspace snapshots",
+  "type": "implementation",
+  "priority": 108,
+  "status": "new",
+  "depends_on": [
+    "W1-0005",
+    "W1-0006",
+    "W1-0007",
+    "W1-0017"
+  ],
+  "owner": null,
+  "goal": "Turn a producer’s completed work into a durable candidate whose authorship, before/after state and artifacts remain available for independent verification and later recovery.",
+  "scope": [
+    "Implement the Plan/WorkItem storage and validated one-item graph needed to attach actual production to criterion targets, dependencies, write paths and attempts. A fixed explicit initial graph is sufficient here; model-generated planning/revision is W1-0011.",
+    "Implement Attempt Pending/Submitted/Accepted/Rejected(reason)/Abandoned and immutable ResultVersion submission with WorkItem, actual producer/profile, before/after Snapshot references, Artifact path/digest set and summary. Validate ownership against the admitted assignment and its workspace rather than trusting a response’s claimed author.",
+    "Capture before state before production and submit after state only when attributable cessation/non-execution facts permit a stable snapshot of that scope. Keep rejected/abandoned candidates and accepted work addressable; new candidates get new identities and cannot rewrite evidence links. A grant revocation or parent exit alone is not a stable-result signal.",
+    "Persist ResultSubmitted and the work/attempt transition through kernel operations, expose result bytes/references to a later checker, and keep accepted WorkItem references separate from a producer’s submission claim."
+  ],
+  "acceptance": [
+    "A real temporary workspace producer submits a candidate through the runtime; reopening the journal retrieves its exact before/after bytes, producer/profile, criterion targets and artifact digests after later workspace edits.",
+    "A foreign assignment, changed digest, missing snapshot or unresolved write effect cannot submit a valid candidate. Process completion alone leaves the work unaccepted.",
+    "A rejected/abandoned attempt remains inspectable, and revocation does not mutate any stored candidate or accepted WorkItem reference. A retry creates a distinct attempt and result instead of overwriting history."
+  ],
+  "evidence": [],
+  "context": [
+    "Authority: ymp-docs/self-organizing-team-domain-model.md, sections 3.3 (Plan, WorkItem), 3.4 (Attempt, ResultVersion), 4 (WorkspaceGuard), A6/A10/A11 and R-16. Use the approved model with 811a872 semantics and the greenfield baseline in 0c61ff1 and §5.8 for experimental strategy boundaries. Other documents and existing names explain implementation facts only.",
+    "Greenfield: create this behavior in the new implementation. Paths below are PROPOSED target modules under the layout owned by W1-0001; only completed prerequisite tasks supply implementation. Prior source, APIs, fixtures and delivery claims are not a baseline.",
+    "Create proposed crates/ymp-domain/src/{plan,result}.rs and crates/ymp-kernel/src/results.rs. W1-0005 supplies immutable snapshots/content and W1-0017 supplies attributable producer completion/cessation. Define the minimal explicit one-item Plan/WorkItem needed to submit a real result; model planning/revision belongs to W1-0011/W3-0004.",
+    "Submission validates actual assignment/workspace/producer/profile ownership and records a fresh Attempt/ResultVersion. No submission or process completion is acceptance. W1-0009 checks these candidates, W1-0010 independently accepts/rejects them and discharges artifact commitments.",
+    "Retain snapshot bytes and non-selected/rejected/abandoned versions. A retry cannot overwrite results/evidence and unresolved writing cannot yield a stable after snapshot. Use the durable store from W1-0016; no previous-iteration migration is required."
+  ],
+  "revision": 2,
+  "history": [
+    {
+      "revision": 1,
+      "at": "2026-09-15T14:27:33.399818Z",
+      "actor": "manage.py",
+      "status": "new",
+      "note": "Task created."
+    },
+    {
+      "revision": 2,
+      "at": "2026-09-15T16:14:23.165403Z",
+      "actor": "manage.py",
+      "status": "new",
+      "note": "Plan new implementation from greenfield baseline 0c61ff1, preserving approved experimental mechanisms, reporting/evidence/recovery rules and explicit prerequisite boundaries."
+    }
+  ]
+}

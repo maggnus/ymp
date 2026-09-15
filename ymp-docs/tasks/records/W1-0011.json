@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "id": "W1-0011",
+  "area": "planning",
+  "title": "Extract criteria and select minimal criterion-directed work through admitted strategies",
+  "type": "implementation",
+  "priority": 111,
+  "status": "new",
+  "depends_on": [
+    "W1-0002",
+    "W1-0006",
+    "W1-0008",
+    "W1-0010"
+  ],
+  "owner": null,
+  "goal": "Create a one-item SoloWithVerifier plan and choose useful next contributions from unmet criteria while charging all model-assisted intake and planning.",
+  "scope": [
+    "Implement CriteriaExtraction through an admitted Planner, preserving user criteria and Derived(Assignment) origins. Support explicit user answers and recorded assumptions for intake; expose VoiClarification question proposals with inputs to P6. W3-0004 completes interactive ask/resume and work-boundary clarification.",
+    "Implement FixedMethod(SoloWithVerifier), Method/Team/Membership persistence for the initial eligible team, and Planner AsNeededDecomposition: begin with one work item, split only after diagnosed need. Validate criterion coverage, acyclic dependencies, write paths and accepted prerequisite links before committing Plan.",
+    "Implement ContributionPolicy OrdinalValue and the FixedWorkflow experimental control. Generate Produce for no candidate, Verify/DesignChecks for insufficient evidence, Diagnose for contradiction, Research/Verify/Clarify for questions; filter dependencies, capabilities, producer independence, purpose budget, path conflicts and available parallel slots.",
+    "Retain contribution forecast source, expected/p90 cost and expected criterion benefit even before calibration. An unavailable later-wave mechanism produces an explicit limitation or supported next step; it is not silently treated as finished.",
+    "Provide explicit application/run selection of the initial strategy implementations and their effective parameters through the named ports. Register concrete implementations without a generic service container; later feature tasks extend these same consumer boundaries. Resolve/store selected implementation, version, actual parameter values and input/basis via W1-0001."
+  ],
+  "acceptance": [
+    "Through actual admitted Planner and ContributionPolicy consumers, a small goal becomes atomic criteria and one WorkItem; an unmet evidence class chooses verification instead of declaring completion, and a failed criterion chooses diagnosis before more production.",
+    "A cyclic or uncovered plan, stale plan proposal, unsupported capability and proposal to spend verification reserve on planning are denied. Every Planner call is visible in Invocation/Receipt records.",
+    "CriteriaExtraction+VoiClarification versus NoQuestions, AsNeededDecomposition versus a substantially different Planner control, FixedMethod variants and OrdinalValue versus FixedWorkflow each change a real consumer decision with stored policy provenance.",
+    "An experimental run switches actual Planner/IntakePolicy/ContributionPolicy implementations without editing algorithm or kernel consumer code. Authorized in-session changes occur at a recorded work boundary and preserve earlier decisions; unsupported native settings and kernel invariant bypasses remain denied.",
+    "An actual paid Planner invocation creates Derived(Assignment) criteria with its own admitted identity and receipt. Forged, foreign, missing or stale assignment provenance is rejected at this integration consumer; W1-0002 owns only the earlier typed representation/user intake."
+  ],
+  "evidence": [],
+  "context": [
+    "Authority: ymp-docs/self-organizing-team-domain-model.md, sections 3.3–3.4, 5.1 (IntakePolicy), 5.2, A1 intake/A3, P6 and build stage 5. Use the approved model with 811a872 semantics and the greenfield baseline in 0c61ff1 and §5.8 for experimental strategy boundaries. Other documents and existing names explain implementation facts only.",
+    "Greenfield: create this behavior in the new implementation. Paths below are PROPOSED target modules under the layout owned by W1-0001; only completed prerequisite tasks supply implementation. Prior source, APIs, fixtures and delivery claims are not a baseline.",
+    "Create proposed crates/ymp-runtime/src/policies/{intake,planner,contribution,method}.rs and trusted plan validation in crates/ymp-kernel/src/plans.rs. W1-0002 supplies user intake, W1-0017 admitted model/Scripted execution, W1-0008 plan/result structures and W1-0010 criterion ledger.",
+    "Own the real charged Planner → Derived(Assignment) path and provenance rejection. Begin with FixedMethod(SoloWithVerifier), an explicit initial Team and AsNeededDecomposition; UpfrontDecomposition/full revisions arrive in W3-0004 and CascadeRouter/LearnedRouter/VocValue in W6.",
+    "Expose run selection of actual strategy implementations/effective parameters through named interfaces, with recorded authorized work-boundary changes and immutable history. This fixed initial workflow is a foundation/control for later agent initiative, not the product’s final organizing logic."
+  ],
+  "revision": 2,
+  "history": [
+    {
+      "revision": 1,
+      "at": "2026-09-15T14:27:33.546844Z",
+      "actor": "manage.py",
+      "status": "new",
+      "note": "Task created."
+    },
+    {
+      "revision": 2,
+      "at": "2026-09-15T16:14:23.354702Z",
+      "actor": "manage.py",
+      "status": "new",
+      "note": "Plan new implementation from greenfield baseline 0c61ff1, preserving approved experimental mechanisms, reporting/evidence/recovery rules and explicit prerequisite boundaries."
+    }
+  ]
+}

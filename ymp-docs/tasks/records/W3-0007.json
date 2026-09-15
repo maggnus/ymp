@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "id": "W3-0007",
+  "area": "recovery",
+  "title": "Execute diagnosis-driven reassignment, decomposition and profile escalation",
+  "type": "implementation",
+  "priority": 307,
+  "status": "new",
+  "depends_on": [
+    "W1-0012",
+    "W3-0002",
+    "W3-0003",
+    "W3-0004",
+    "W3-0005",
+    "W3-0006"
+  ],
+  "owner": null,
+  "goal": "Complete the recovery actions available to a self-organizing team so a diagnosed stall changes capabilities, plan, verification or interpretation for a bounded purpose.",
+  "scope": [
+    "Execute Reassign(needs) through capability/profile/workspace validation, Decompose(WorkItem) through Planner.revise, StrongerProfile through ProfilePolicy, Clarify through P6 and Replan through the plan authority. Carry failure/counterexample/handoff evidence into successors.",
+    "Complete escalation sequencing across earlier FixEnvironment/ReplaceCheck/Retry/AddVerifier/StopPreserving handlers: record expected effect, bound and observable outcome; do not repeat an exhausted step without new basis. CapabilityLimit follows first-unused Decompose → AlternativeAttempts(2) → StrongerProfile; W4-0003 supplies the alternatives handler.",
+    "Implement ModelAssistedDiagnoser as the alternative to RuleBasedDiagnoser through a paid Researcher assignment. Its result proposes a typed diagnosis with supporting references; the kernel validates facts and cannot let a model reclassify executable contradiction as infrastructure without evidence.",
+    "Reassess after ToolDenied, conflicting interpretation, check replacement or unresolved objections, retaining the exact A9 first-match default and distinguishing plan/check/environment failures from competence. Expose diagnosis/action/outcome projections through the prerequisite inspection paths."
+  ],
+  "acceptance": [
+    "Actual W3 consumers demonstrate missing-capability reassignment, plan decomposition, user clarification and stop-preserving with diagnosis/effect/bound/outcome. Test the StrongerProfile handler against attributable validated decision/history prerequisites without claiming a live prior alternatives run; W4-0003 owns the full Decompose → AlternativeAttempts → StrongerProfile session sequence.",
+    "A conflicting pin, missing permission, depleted reserve or no-new-basis retry is denied without losing accepted work. Profile/effort/member growth cannot occur without a preceding diagnosis.",
+    "RuleBasedDiagnoser and ModelAssistedDiagnoser alter decisions through the same consumer; the model-assisted case has a Researcher assignment and receipt, and neither can erase contradictory evidence or charge infrastructure errors as competence failures.",
+    "Reassignment or delegation after revocation preserves conflicting holds until attributable cessation/non-execution and financial holds until conservative settlement. An independently usable scope remains schedulable under §3.9; no handler revives an old grant or resets expenses."
+  ],
+  "evidence": [],
+  "context": [
+    "Authority: ymp-docs/self-organizing-team-domain-model.md, section 5.4, A9, P3/P5/P6, R-8/R-14/R-16 and section 10.1. Use the approved model with 811a872 semantics and the greenfield baseline in 0c61ff1 and §5.8 for experimental strategy boundaries. Other documents and existing names explain implementation facts only.",
+    "Greenfield: create this behavior in the new implementation. Paths below are PROPOSED target modules under the layout owned by W1-0001; only completed prerequisite tasks supply implementation. Prior source, APIs, fixtures and delivery claims are not a baseline.",
+    "Create cross-service recovery handlers around W1-0012 progress/diagnosis/escalation and W3 team/plan/handoff/clarification/dispute consumers. Proposed runtime/recovery.rs calls their trusted transitions; it is not a second retry engine or authority.",
+    "Implement the paid Researcher ModelAssistedDiagnoser alternative through W1-0017 execution. A9 first-match RuleBasedDiagnoser and purpose/bound/outcome recording remain the default. W4-0003 alone supplies actual AlternativeAttempts execution.",
+    "A stale/missing diagnosis cannot justify growth; a replacement cannot erase contradiction. R-19/R-20 require independent scoped release/settlement and preservation of accepted work/cost; unsupported alternatives remain explicit rather than silently skipped.",
+    "StrongerProfile handler implementation is available here, but a live CapabilityLimit ladder cannot skip the earlier AlternativeAttempts step. W4-0003 connects real alternatives and their recorded outcome to the handler; this task’s bounded handler contract tests do not fabricate those outcomes as completed product work."
+  ],
+  "revision": 2,
+  "history": [
+    {
+      "revision": 1,
+      "at": "2026-09-15T14:27:34.264512Z",
+      "actor": "manage.py",
+      "status": "new",
+      "note": "Task created."
+    },
+    {
+      "revision": 2,
+      "at": "2026-09-15T16:14:24.079753Z",
+      "actor": "manage.py",
+      "status": "new",
+      "note": "Plan new implementation from greenfield baseline 0c61ff1, preserving approved experimental mechanisms, reporting/evidence/recovery rules and explicit prerequisite boundaries."
+    }
+  ]
+}

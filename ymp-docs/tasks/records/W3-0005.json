@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "id": "W3-0005",
+  "area": "context",
+  "title": "Transfer bounded decision and evidence context across commitment changes",
+  "type": "implementation",
+  "priority": 305,
+  "status": "new",
+  "depends_on": [
+    "W1-0007",
+    "W1-0013",
+    "W3-0001",
+    "W3-0003",
+    "W3-0004"
+  ],
+  "owner": null,
+  "goal": "Let a successor continue valid work from the relevant decisions, questions and evidence without rereading the full session or inheriting another role’s hidden context.",
+  "scope": [
+    "Create Handoff on Released, Delegated, Expired and a new contribution for the same WorkItem, retaining from/to, subject and ContextDigest decisions/open_questions/evidence/summary. Use durable journal refs rather than copied authoritative records.",
+    "Build the default JournalDigest without inference, scoped to the successor’s assignment targets and permitted visibility. If insufficient, admit a bounded cheap Narrator contribution with a stated need and receipt; model condensation is never a hidden coordination call.",
+    "Compose the next assignment prompt with selected criteria, visible checks, handoff and relevant decision history. Account for native thread reuse: continuing the same agent identity does not authorize exposure of its previous role’s hidden context.",
+    "Make missing/corrupted/stale references and unresolved external effects explicit; carry completed evidence and pending questions without implying the predecessor’s work was accepted or undone."
+  ],
+  "acceptance": [
+    "Through real release, delegation and expiry/reassignment flows, a successor receives the relevant completed decisions, failed checks and open questions, and can continue the WorkItem without the full history.",
+    "Hidden checks, another participant’s sealed result and previous-role native context are absent from the successor prompt/tool access. A broken evidence ref is surfaced rather than replaced with invented detail.",
+    "JournalDigest and a materially different admitted Narrator-assisted ContextComposer path run through actual execution; only the latter creates a paid invocation. Replay does not duplicate HandoffCreated or discard retained accepted results."
+  ],
+  "evidence": [],
+  "context": [
+    "Authority: ymp-docs/self-organizing-team-domain-model.md, sections 3.5 (Handoff, ContextDigest), 5.7 (ContextComposer), P5, A5 and R-8/R-10/R-16. Use the approved model with 811a872 semantics and the greenfield baseline in 0c61ff1 and §5.8 for experimental strategy boundaries. Other documents and existing names explain implementation facts only.",
+    "Greenfield: create this behavior in the new implementation. Paths below are PROPOSED target modules under the layout owned by W1-0001; only completed prerequisite tasks supply implementation. Prior source, APIs, fixtures and delivery claims are not a baseline.",
+    "Create Handoff/ContextDigest behavior in proposed kernel coordination and runtime/policies/context.rs. W1-0007 supplies transition facts, W3-0003 reawards work and W3-0004 revises plans; W1-0013 supplies ContextComposer.",
+    "JournalDigest normally condenses relevant permitted refs without inference. A necessary Narrator-assisted handoff is Coordination paid from unprotected resources, not A11 Reporting reserve, and cannot run after user stop without continuation authority.",
+    "A new assignment keeps agent identity but not prior role/grant/hidden-context authority. Native session reuse must honor actual context visibility; missing references/uncertain external effects remain explicit. Persist one attributable HandoffCreated per transition."
+  ],
+  "revision": 2,
+  "history": [
+    {
+      "revision": 1,
+      "at": "2026-09-15T14:27:34.171583Z",
+      "actor": "manage.py",
+      "status": "new",
+      "note": "Task created."
+    },
+    {
+      "revision": 2,
+      "at": "2026-09-15T16:14:24.033331Z",
+      "actor": "manage.py",
+      "status": "new",
+      "note": "Plan new implementation from greenfield baseline 0c61ff1, preserving approved experimental mechanisms, reporting/evidence/recovery rules and explicit prerequisite boundaries."
+    }
+  ]
+}

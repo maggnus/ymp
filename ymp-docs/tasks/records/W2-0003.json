@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "id": "W2-0003",
+  "area": "checks",
+  "title": "Verify browser behavior and external data with attributable check evidence",
+  "type": "implementation",
+  "priority": 203,
+  "status": "new",
+  "depends_on": [
+    "W1-0009",
+    "W1-0013",
+    "W2-0001"
+  ],
+  "owner": null,
+  "goal": "Make BrowserScenario and ExternalQuery executable sources of evidence so browser and external-data criteria can be assessed without relying on an agent’s prose.",
+  "scope": [
+    "Implement BrowserRunner for BrowserScenario(script,viewport) against the target snapshot, with an explicit browser environment, bounded lifecycle, necessary process/socket/network/browser permissions and captured outputs/artifact references.",
+    "Implement ExternalQuery(source,query) through an explicit CheckRunner execution path with versioned source/query, response capture and attributable environment/source. Cover successful support, applicable contradictory response and unavailable/error cases without equating a transport error with a false criterion.",
+    "Map actual browser runs to Browser evidence and actual external results to ExternalData; bind criterion/result/check/snapshot/environment and polarity. Feed independent review, A7 grading/rejection, A8 ledger and ClaimAuditor through the same AcceptanceAuthority consumer."
+  ],
+  "acceptance": [
+    "Through AcceptanceAuthority, a real browser fixture distinguishes a rendering/interaction defect from a correct snapshot and records Browser evidence. An external fixture query records supporting and contradicting ExternalData with inspectable source/response references.",
+    "Missing browser/network permissions and unavailable sources yield typed Error/denial. Contradicting applicable Browser/ExternalData evidence rejects a candidate despite approving reviewers.",
+    "A report’s browser claim is accepted only with Browser evidence; a static read or a fake adapter success cannot satisfy it. The runner replacement contract is exercised through actual consumers with materially different behavior and recorded PolicyRefs."
+  ],
+  "evidence": [],
+  "context": [
+    "Authority: ymp-docs/self-organizing-team-domain-model.md, sections 3.2 (CheckSpec), 3.6 (EvidenceClass), 5.1 (CheckRunner), A6/A7/A11, R-6/R-9. Use the approved model with 811a872 semantics and the greenfield baseline in 0c61ff1 and §5.8 for experimental strategy boundaries. Other documents and existing names explain implementation facts only.",
+    "Greenfield: create this behavior in the new implementation. Paths below are PROPOSED target modules under the layout owned by W1-0001; only completed prerequisite tasks supply implementation. Prior source, APIs, fixtures and delivery claims are not a baseline.",
+    "Create proposed crates/ymp-runtime/src/checks/{browser,external}.rs with concrete browser and explicit query-source adapters. W1-0009 supplies checks/evidence and W1-0013 claim audit; W2-0001 supplies hidden-data protection. No prior runner or fixture is credited.",
+    "New local fixture pages/query servers can demonstrate real browser/external execution behavior without claiming evidence about an arbitrary live site. Actual native permissions decide Browser/Network/process access before method selection.",
+    "Browser/ExternalData evidence is classified from actual runs/responses, never adapter authority. Applicable contradiction defeats approval; unknown transport/environment failures remain Error and cannot be mislabeled as behavioral failure."
+  ],
+  "revision": 2,
+  "history": [
+    {
+      "revision": 1,
+      "at": "2026-09-15T14:27:33.887312Z",
+      "actor": "manage.py",
+      "status": "new",
+      "note": "Task created."
+    },
+    {
+      "revision": 2,
+      "at": "2026-09-15T16:14:23.697272Z",
+      "actor": "manage.py",
+      "status": "new",
+      "note": "Plan new implementation from greenfield baseline 0c61ff1, preserving approved experimental mechanisms, reporting/evidence/recovery rules and explicit prerequisite boundaries."
+    }
+  ]
+}

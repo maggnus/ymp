@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "id": "W4-0002",
+  "area": "alternatives",
+  "title": "Run sealed independent attempts and build the complete cross-candidate check matrix",
+  "type": "implementation",
+  "priority": 402,
+  "status": "new",
+  "depends_on": [
+    "W2-0004",
+    "W3-0002",
+    "W3-0003",
+    "W3-0005",
+    "W4-0001"
+  ],
+  "owner": null,
+  "goal": "Obtain genuinely independent candidate implementations and comparable evidence by running every hidden and producer-supplied test against every candidate.",
+  "scope": [
+    "Implement IndependentAttempts(k) execution from one target snapshot, k isolated workspaces and distinct eligible producers of comparable strength, from different families when available. Validate k, available team, budget, attempt and parallel limits before and during admission.",
+    "Create sealed solicitations/window with criteria, own context and visible checks only; hide other participants’ results/tests/Board entries until all candidates are submitted or the deadline passes. Hidden checks themselves remain excluded from producer context after disclosure.",
+    "Require each Produce contribution to submit its own tests T_i with the candidate. Persist submitted/missing/failed/abandoned attempts and costs; do not manufacture a candidate or tests for a timed-out participant.",
+    "After window closure build and execute the complete matrix of H ∪ all T_i against every submitted cand_j on their immutable snapshots. Bind each cell to exact test/result/environment/role and retain Pass/Fail/Error/missing distinctions for selection."
+  ],
+  "acceptance": [
+    "Two different real Scripted candidate processes submit implementations and tests independently; before closure neither can read the other’s context/results/tests/Board entries through native access or projections.",
+    "All-hidden plus all-producer-tests matrix contains a recorded result for every applicable candidate/test pair. An intentionally selective/missing cell cannot masquerade as a pass; test/result digest changes invalidate that cell.",
+    "Submission/deadline races close the window once, preserve partial candidates and spent cost, and expose which attempt failed to submit. Restart resumes/reuses recorded work without duplicate production or leaking hidden checks."
+  ],
+  "evidence": [],
+  "context": [
+    "Authority: ymp-docs/self-organizing-team-domain-model.md, sections 3.3 (IndependentAttempts), 3.4 (Attempt), P7, A10, R-4/R-8/R-10/R-16. Use the approved model with 811a872 semantics and the greenfield baseline in 0c61ff1 and §5.8 for experimental strategy boundaries. Other documents and existing names explain implementation facts only.",
+    "Greenfield: create this behavior in the new implementation. Paths below are PROPOSED target modules under the layout owned by W1-0001; only completed prerequisite tasks supply implementation. Prior source, APIs, fixtures and delivery claims are not a baseline.",
+    "Create independent-attempt scheduling in proposed runtime/attempts.rs over W4-0001 workspaces, W2 checks, and W3 offers/profile/context protocols. Qualified experience arrives in W5; use explicit neutral/unknown strength facts for this wave.",
+    "Each candidate supplies real tests T_i and remains isolated until P7 submission/deadline closure. The full H ∪ all T_i matrix is substantive verification on immutable snapshots. Producer tests keep their authored independence and do not become Trusted merely by cross-execution.",
+    "W4-0003 selects the winner. This task’s output is durable independent candidates and a complete attributable matrix, including errors/missing submissions and all costs; it does not choose by confidence or arrival order."
+  ],
+  "revision": 1,
+  "history": [
+    {
+      "revision": 1,
+      "at": "2026-09-15T16:14:24.220662Z",
+      "actor": "manage.py",
+      "status": "new",
+      "note": "Task created."
+    }
+  ]
+}

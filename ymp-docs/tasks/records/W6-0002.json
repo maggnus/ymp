@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "id": "W6-0002",
+  "area": "providers",
+  "title": "Execute Glm assignments with native identity, team operations and accountable receipts",
+  "type": "implementation",
+  "priority": 602,
+  "status": "new",
+  "depends_on": [
+    "W1-0003",
+    "W1-0004",
+    "W1-0006",
+    "W3-0001",
+    "W3-0008",
+    "W4-0001"
+  ],
+  "owner": null,
+  "goal": "Make the Glm execution environment a conforming team participant through its real native runtime and accounting contract.",
+  "scope": [
+    "Implement ExecutionBackend(Glm) and explicit native discovery/readiness. Identify the actual local execution protocol and supported models/efforts/capabilities, preserving agent identity and authentication in that native environment.",
+    "Map start/cancel/events/receipt, native session/profile settings, structured role response and scoped TeamOperation transport into the shared admitted execution consumer. Native success/output never becomes a kernel verdict or new authority.",
+    "Normalize total input, cache-read/write, output and optional reasoning counts with Complete/Partial/Unknown coverage, preserving cumulative/resumed-counter attribution. Report unsupported controls and typed failures without guessing missing family/settings.",
+    "Exercise direct and IsolatedCopy permission/context guarantees and recovery through actual host contract fixtures, with an explicit real-provider invocation recipe for separately authorized verification."
+  ],
+  "acceptance": [
+    "A Glm protocol fixture runs through Registry/Gatekeeper/Dispatcher, posts a scoped team operation, submits role output and settles a traceable receipt; unsupported/missing native dependencies are excluded before inference.",
+    "Malformed output, mismatched invocation/session, foreign grant, partial/cache usage and uncertain cancellation cannot corrupt resources, leak hidden context or accept a result.",
+    "Glm and a materially different backend run the shared contract through actual consumers. Fixture and real native evidence remain distinct, with native identities/authentication and unknown metadata preserved.",
+    "Scoped cancellation/reattachment fixtures distinguish parent exit or stream loss from validated cessation, retain holds/cost until their independent conditions and do not duplicate execution. Native choices are explicit supported offerings; experiment parameters never invent model/effort support or bypass §3.9/R-19/R-20."
+  ],
+  "evidence": [],
+  "context": [
+    "Authority: ymp-docs/self-organizing-team-domain-model.md, sections 3.1/3.4/3.7, 5.1 (ReadinessProbe), 5.7 (ExecutionBackend), A5/A13 and R-2/R-3/R-8/R-9/R-10. Use the approved model with 811a872 semantics and the greenfield baseline in 0c61ff1 and §5.8 for experimental strategy boundaries. Other documents and existing names explain implementation facts only.",
+    "Greenfield: create this behavior in the new implementation. Paths below are PROPOSED target modules under the layout owned by W1-0001; only completed prerequisite tasks supply implementation. Prior source, APIs, fixtures and delivery claims are not a baseline.",
+    "Create proposed crates/ymp-runtime/src/backends/glm.rs and new protocol fixtures. W1-0017 supplies the execution contract, W3-0001 team transport and W4-0001 workspace enforcement. Build the full native Glm adapter, not a provider-kind alias.",
+    "Resolve the actual supported native environment/protocol from installed/official information. Shared transport is appropriate only if that environment supports it; Glm identity cannot be replaced with Claude identity or an invented endpoint. Keep all dependencies/settings explicit.",
+    "This task and Claude have separate provider ownership; parallel future writers still require disjoint owned worktrees. Fixture and native evidence remain distinct, while unsupported controls, unknown metadata, cessation and settlement use the common kernel contracts."
+  ],
+  "revision": 1,
+  "history": [
+    {
+      "revision": 1,
+      "at": "2026-09-15T16:14:24.316180Z",
+      "actor": "manage.py",
+      "status": "new",
+      "note": "Task created."
+    }
+  ]
+}

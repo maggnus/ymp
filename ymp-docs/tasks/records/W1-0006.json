@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "id": "W1-0006",
+  "area": "execution",
+  "title": "Admit contributions atomically with grants, reservations and active commitments",
+  "type": "implementation",
+  "priority": 106,
+  "status": "new",
+  "depends_on": [
+    "W1-0002",
+    "W1-0003",
+    "W1-0004",
+    "W1-0005",
+    "W1-0016"
+  ],
+  "owner": null,
+  "goal": "Create the trusted admission boundary that turns an attributable contribution and award into bounded authority without partially granting resources or responsibility.",
+  "scope": [
+    "Implement Contribution/Forecast/CostEstimate, Assignment, Grant, Invocation and active Commitment/Lease values needed by admission. Use typed ContributionKind and RoleKind; preserve subject/criterion targets and proposed_by Runtime or Agent(Assignment). Validate the committed Award’s solicitation/offer/profile/subject before execution.",
+    "Implement trusted Gatekeeper.admit/revoke: pins/constraints, actual capabilities, subject/producer independence, path locks, both reserves, parallel_limit, attempt_limit, deadline and exactly one active commitment. Record AssignmentAdmitted/GrantIssued/CommitmentChanged/ReservationChanged atomically. Revoke authority immediately while retaining unresolved scoped/financial holds under their independent release conditions.",
+    "For the fixed W1 flow, implement a minimal persisted Arbiter open/submit/award path with one RuntimeProxy offer; it still records ContributionProposed/SolicitationOpened/OfferSubmitted/Awarded. Full voluntary solicitation and reopening are W3-0003."
+  ],
+  "acceptance": [
+    "The real Gatekeeper consumer validates a persisted contribution/RuntimeProxy offer/award and commits one bounded Assignment/Grant/Commitment with matching resource/path ownership over MemoryJournal and durable Journal. It starts no backend by itself.",
+    "Stale/mismatched awards, invalid settings/pins, producer independence, missing capabilities, exhausted budget/limits or path conflicts yield attributable denial with no partial grant/reservation/commitment. Independent producers may share RoleKind when other rules permit.",
+    "A repeated admission cannot grant duplicate responsibility. Revoke invalidates authority without fabricating cessation or settlement; W1-0017 exercises actual starts/completion/recovery and W1-0010 owns accepted-result review integration."
+  ],
+  "evidence": [],
+  "context": [
+    "Authority: ymp-docs/self-organizing-team-domain-model.md, sections 3.4–3.5, 4 (Gatekeeper, Arbiter), A5, P2 admission, R-2/R-3/R-4/R-5/R-8/R-9/R-12/R-14. Use the approved model with 811a872 semantics and the greenfield baseline in 0c61ff1 and §5.8 for experimental strategy boundaries. Other documents and existing names explain implementation facts only.",
+    "Greenfield: create this behavior in the new implementation. Paths below are PROPOSED target modules under the layout owned by W1-0001; only completed prerequisite tasks supply implementation. Prior source, APIs, fixtures and delivery claims are not a baseline.",
+    "Create proposed crates/ymp-domain/src/assignment.rs, crates/ymp-kernel/src/{gatekeeper,arbiter}.rs and runtime admission wiring. Dependencies supply Registry, Treasury, Direct WorkspaceGuard and atomic durable Journal. W1-0017 separately builds the execution host and Scripted backend, keeping this task sized around authority/ownership.",
+    "A minimal W1 Arbiter open/submit/award path with one RuntimeProxy offer is real persisted behavior, not a free-floating fabricated Award. W3-0003 adds all voluntary offer/deadline/reopen branches; agent-callable transport is W3-0001.",
+    "Bootstrap Plan contributions can have no committed criterion targets yet. Admission validates committed facts and typed subject references; W1-0008/0010 later supply real result/acceptance producers. W1-0007 owns the rest of P2 lifecycle. Role/Grant/Assignment IDs remain distinct from Invocation/native session."
+  ],
+  "revision": 2,
+  "history": [
+    {
+      "revision": 1,
+      "at": "2026-09-15T14:27:33.301379Z",
+      "actor": "manage.py",
+      "status": "new",
+      "note": "Task created."
+    },
+    {
+      "revision": 2,
+      "at": "2026-09-15T16:14:23.018855Z",
+      "actor": "manage.py",
+      "status": "new",
+      "note": "Plan new implementation from greenfield baseline 0c61ff1, preserving approved experimental mechanisms, reporting/evidence/recovery rules and explicit prerequisite boundaries."
+    }
+  ]
+}

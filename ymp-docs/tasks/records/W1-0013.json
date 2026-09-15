@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "id": "W1-0013",
+  "area": "reporting",
+  "title": "Finalize the integrated result and deliver an evidence-audited report",
+  "type": "implementation",
+  "priority": 113,
+  "status": "new",
+  "depends_on": [
+    "W1-0006",
+    "W1-0008",
+    "W1-0009",
+    "W1-0010",
+    "W1-0011",
+    "W1-0012"
+  ],
+  "owner": null,
+  "goal": "Deliver a report that explains the checked result, unmet criteria, assumptions and uncertainty, with independent final acceptance on the actual integrated snapshot.",
+  "scope": [
+    "Implement CriteriaProjection+JournalDigest ContextComposer: assignment targets, criterion text, permitted visible checks, relevant decision/evidence refs and bounded history, with attributable profile/instructions. Use actual projection boundaries; hidden content filtering is extended in W2-0001.",
+    "Finalize only when no invocation, including revoked/disconnected work, can still change the aggregate workspace; otherwise record Blocked(effects_uncertain) without snapshot/merge/final acceptance. Rerun checks on the stable target and admit FinalReviewer outside the producer union; absence yields Blocked(final_review_pending). A user stop skips further model-assisted finalization.",
+    "Implement Report/Claim and replaceable NarrativeComposer: bounded admitted Narrator charged to Reporting, plus DeterministicReport alternative/fallback from journal facts. EvidenceClassRules audits applicable Status/Executed/Browser/Causal/Scope/Recommendation support; allow at most one paid correction within reserve and continuation authority, then narrow unsupported claims to uncertainty.",
+    "Deliver an audited report also for Blocked/Cancelled outcomes. After user stop, unavailable/failed Narrator, insufficient defensible funds or absent continuation authority, use DeterministicReport without another model call. Settle or conservatively retain narration/correction cost before ReportDelivered; include actual expenses/unknowns, unmet criteria and assumptions without another narration call. Fallback is an explanation, not an unfinished task artifact."
+  ],
+  "acceptance": [
+    "Finalization rechecks the actual stable aggregate with an independent FinalReviewer. An invocation that may still change that aggregate blocks finalization; unrelated isolated work does not fabricate a global stop. Stale candidate evidence or review cannot justify current aggregate acceptance.",
+    "ClaimAuditor applies the same applicability boundary as A7/A8, rejects stale or mismatched causal support, and retains unmet criteria/assumptions. Unsupported narration receives at most one authorized funded correction; otherwise an audited deterministic report contains uncertainty, not invented acceptance or completed artifacts.",
+    "A run selects admitted Narrator or DeterministicReport through the same NarrativeComposer consumer, with recoverable PolicyRef values. User stop launches zero new model calls; failed/unaffordable narration still delivers facts and accounted expenses. ContextComposer/ClaimAuditor/ReviewerPolicy also have materially different real-consumer implementations, and learning cannot delay delivery."
+  ],
+  "evidence": [],
+  "context": [
+    "Authority: ymp-docs/self-organizing-team-domain-model.md, sections 3.6, 4 (AcceptanceAuthority.finalize), 5.3 (ReviewerPolicy), 5.7 (ContextComposer, NarrativeComposer, ClaimAuditor), A11 and R-5/R-8/R-15. Use the approved model with 811a872 semantics and the greenfield baseline in 0c61ff1 and §5.8 for experimental strategy boundaries. Other documents and existing names explain implementation facts only.",
+    "Greenfield: create this behavior in the new implementation. Paths below are PROPOSED target modules under the layout owned by W1-0001; only completed prerequisite tasks supply implementation. Prior source, APIs, fixtures and delivery claims are not a baseline.",
+    "Create proposed crates/ymp-domain/src/report.rs, crates/ymp-kernel/src/finalization.rs and crates/ymp-runtime/src/policies/{context,narrative,claim_audit}.rs. Prerequisites provide stable snapshots, producer sets, checks, acceptance and execution. Build finalization/report behavior from these new contracts.",
+    "ResourcePolicy.reporting_reserve from W1-0004 supplies protected Budget capacity without a mandatory Constraints/TUI field. Narrator and one correction are bounded Reporting assignments; DeterministicReport is a selectable alternative and the zero-call fallback after stop or unavailable/unfunded narration. Account narration expenses before ReportDelivered.",
+    "A11 blocks only work that can still change the aggregate. Apply the same evidence applicability as A7/A8; final review excludes the aggregate producer union. Fallback explains recorded results, unknowns and unmet criteria and never replaces an unfinished task artifact."
+  ],
+  "revision": 2,
+  "history": [
+    {
+      "revision": 1,
+      "at": "2026-09-15T14:27:33.642972Z",
+      "actor": "manage.py",
+      "status": "new",
+      "note": "Task created."
+    },
+    {
+      "revision": 2,
+      "at": "2026-09-15T16:14:23.452359Z",
+      "actor": "manage.py",
+      "status": "new",
+      "note": "Plan new implementation from greenfield baseline 0c61ff1, preserving approved experimental mechanisms, reporting/evidence/recovery rules and explicit prerequisite boundaries."
+    }
+  ]
+}

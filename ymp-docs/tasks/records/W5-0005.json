@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "id": "W5-0005",
+  "area": "consequences",
+  "title": "Regrade accepted results from later signals and correct dependent experience",
+  "type": "implementation",
+  "priority": 505,
+  "status": "new",
+  "depends_on": [
+    "W1-0014",
+    "W3-0008",
+    "W5-0001",
+    "W5-0003",
+    "W5-0004"
+  ],
+  "owner": null,
+  "goal": "Let later checks, reverts and user feedback revise confidence in exact artifacts and retire knowledge whose supporting basis has been refuted.",
+  "scope": [
+    "Implement ConsequenceSource LaterChecks, VcsReverts and UserFeedback with explicit source/subject digest/evidence/time and durable polling progress. Cover LaterCheckPass/LaterCheckFail/Revert/Reopen/UserAccepted/UserRejected without changing their attribution or turning a generic project event into evidence about every result.",
+    "Ingest each external signal once; regrade acceptances whose artifact digest equals subject. LaterCheckFail/Revert/UserRejected produce Refuted; LaterCheckPass/UserAccepted count toward n_corroborate and Confirmed(Consequences) only with no negative signals.",
+    "Give Reopen an explicit non-confirming/non-refuting handling consistent with its supporting evidence: record and surface the signal for renewed investigation; do not equate the name alone with failure because A7 does not assign it a grade transition.",
+    "Feed regraded consequences into CreditPolicy/ExperienceVault, revisit dependent Knowledge and retire when a falsifier/refuted consequence applies. Integrate consequence wakeups and resumable post-delivery processing into the Dispatcher built by W1/W3; preserve original acceptances/results and an attributable later Regraded history."
+  ],
+  "acceptance": [
+    "A real local later check, a fixture repository revert and explicit user feedback are ingested through their actual source consumers; only matching artifact acceptances regrade. Duplicate polls and unrelated digests have no duplicate effect.",
+    "Positive corroboration reaches Confirmed(Consequences) at the configured threshold, a negative signal refutes, and Reopen alone does not invent a fail/pass. Dependent knowledge is reviewed/retired while prior content and retrieval versions remain traceable.",
+    "The W5 executable scenario delivers first, learns and trials knowledge in later sessions, then ingests a negative consequence and exposes regrading/retirement with reconciled learning costs. Source replacement uses materially different implementations and records them."
+  ],
+  "evidence": [],
+  "context": [
+    "Authority: ymp-docs/self-organizing-team-domain-model.md, sections 3.6 (Consequence), 4 (AcceptanceAuthority.regrade, ExperienceVault.observe), 5.6 (ConsequenceSource), A7/A12 and R-11/R-16/R-18. Use the approved model with 811a872 semantics and the greenfield baseline in 0c61ff1 and §5.8 for experimental strategy boundaries. Other documents and existing names explain implementation facts only.",
+    "Greenfield: create this behavior in the new implementation. Paths below are PROPOSED target modules under the layout owned by W1-0001; only completed prerequisite tasks supply implementation. Prior source, APIs, fixtures and delivery claims are not a baseline.",
+    "Create proposed runtime/consequences.rs with concrete LaterChecks/VcsReverts/UserFeedback adapters and kernel regrading/experience integration. W5 predecessors provide qualified observations, knowledge lineage and exact retrieval versions. Polling is explicit and does not authorize reverting user code or sending messages.",
+    "Apply source signals only to exact artifact digests. Reopen alone has no prescribed A7 grade transition: record it for investigation without manufacturing success/failure. Attribute initial acceptance/later consequences and deduplicate repeated ingestion of the same source.",
+    "Regraded is new history, not a rewrite of results or delivered report. Non-model ingestion does not authorize further model investigation/curation after stop; such work needs continuation authority and unprotected budget. Complete the wave scenario with post-delivery learning/trials and later correction."
+  ],
+  "revision": 1,
+  "history": [
+    {
+      "revision": 1,
+      "at": "2026-09-15T16:14:24.601215Z",
+      "actor": "manage.py",
+      "status": "new",
+      "note": "Task created."
+    }
+  ]
+}

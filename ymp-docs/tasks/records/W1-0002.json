@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "id": "W1-0002",
+  "area": "intake",
+  "title": "Commit explicit goals, constraints and versioned acceptance criteria",
+  "type": "implementation",
+  "priority": 102,
+  "status": "new",
+  "depends_on": [
+    "W1-0001"
+  ],
+  "owner": null,
+  "goal": "Give a session an accountable user task whose criteria and resource choices can be refined without silently changing the goal.",
+  "scope": [
+    "Implement Task, Goal, Assumption, Clarification, Constraints, Pins, Criterion and AcceptanceContract with stable identities and a content version. Cover NewBehavior, Preserve, ArtifactPresence, Quality and Constraint; required/weight/needs_class; User and Derived(Assignment) origins.",
+    "Provide trusted application operations to open and refine intake from explicit user data, commit criteria, record clarifications and assumptions, and expose the current contract. Validate finite weights/budgets, reserve within budget, positive limits, criterion references and compatible pins; preserve reason and prior contract references for substantive revisions.",
+    "Implement SessionStatus Intake/Running/Finalizing/Delivered/Blocked(Text)/Cancelled representations and intake projections without equating process exit with acceptance. This task owns typed user-origin intake and provenance representation; executable lifecycle/control behavior is W1-0014."
+  ],
+  "acceptance": [
+    "Opening a session through Application with several criterion kinds persists and replays the exact goal, contract version, user pins, required evidence classes and limits.",
+    "User-origin refinement retains its prior contract/basis and records ClarificationRecorded or AssumptionRecorded. The Derived(Assignment) representation retains the precise assignment reference; actual charged Planner production and provenance validation are demonstrated in W1-0011, not fabricated here.",
+    "Invalid limits, duplicate/missing criteria and contradictory explicit pins cannot create partially committed intake. A revised criterion/contract receives a new attributable version and cannot silently inherit evidence for another interpretation."
+  ],
+  "evidence": [],
+  "context": [
+    "Authority: ymp-docs/self-organizing-team-domain-model.md, sections 3.2, 3.3 (SessionStatus), 4 (AcceptanceAuthority), P6, A1 intake, A11 and R-3. Use the approved model with 811a872 semantics and the greenfield baseline in 0c61ff1 and §5.8 for experimental strategy boundaries. Other documents and existing names explain implementation facts only.",
+    "Greenfield: create this behavior in the new implementation. Paths below are PROPOSED target modules under the layout owned by W1-0001; only completed prerequisite tasks supply implementation. Prior source, APIs, fixtures and delivery claims are not a baseline.",
+    "Create proposed crates/ymp-domain/src/task.rs and crates/ymp-kernel/src/intake.rs, exposed through crates/ymp-runtime/src/application.rs. W1-0001 supplies values, Journal and deterministic projection contracts; W1-0016 persists the resulting payloads.",
+    "Implement explicit user goal/criterion/constraint input first. Reporting capacity is derived later by ResourcePolicy into Budget, not an obligatory Constraints field. W1-0011 owns admitted Planner extraction, Derived(Assignment) authorship and the invalid/foreign producer checks at that real integration boundary.",
+    "Development task records remain unrelated to product Task authority. Intake commits user scope; a future Planner proposal cannot silently override pins or replace the user goal."
+  ],
+  "revision": 2,
+  "history": [
+    {
+      "revision": 1,
+      "at": "2026-09-15T14:27:33.116406Z",
+      "actor": "manage.py",
+      "status": "new",
+      "note": "Task created."
+    },
+    {
+      "revision": 2,
+      "at": "2026-09-15T16:14:22.777386Z",
+      "actor": "manage.py",
+      "status": "new",
+      "note": "Plan new implementation from greenfield baseline 0c61ff1, preserving approved experimental mechanisms, reporting/evidence/recovery rules and explicit prerequisite boundaries."
+    }
+  ]
+}

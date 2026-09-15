@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "id": "W6-0004",
+  "area": "allocation",
+  "title": "Use calibrated contribution value throughout the complete session loop",
+  "type": "implementation",
+  "priority": 604,
+  "status": "new",
+  "depends_on": [
+    "W3-0008",
+    "W4-0003",
+    "W5-0002",
+    "W5-0005",
+    "W6-0001",
+    "W6-0002",
+    "W6-0003"
+  ],
+  "owner": null,
+  "goal": "Use qualified forecasts to allocate the next useful work and connect all model mechanisms through one recoverable session loop with an accountable final result.",
+  "scope": [
+    "Implement VocValue beside OrdinalValue and FixedWorkflow: calibrate profile-hint success, calculate weighted p × belief jump × remaining belief gap, divide by expected cost and apply θ_min. Define explicit safe handling for zero/unknown cost and unsupported forecasts without creating infinite-value work.",
+    "Merge agent proposals and policy templates for Unmet/Supported/Contradicted criteria. Filter accepted dependencies, actual needs, effective write conflicts, producer independence, purpose budget and parallel capacity; every selected contribution declares its expected effect and expected/p90 cost.",
+    "Connect learned calibration/reputation to ResponseThreshold, CalibratedValuePerCost, CheapestAdequate and reviewer/attempt strength comparisons while preserving explicit raw/uncalibrated fallback. Remove fixed W1 selection bypasses; actual decisions retain their exact policy and input provenance.",
+    "Complete A1 across all role outcomes and invocation/Board/lease/consequence/user wakeups. Apply authorized strategy/parameter selections at recorded boundaries through the model’s named ports without consumer rewrites. Integrate native backends, scoped recovery and stable finalization; after user stop deliver DeterministicReport without new model calls, and permit learning only after Delivered within unprotected budget.",
+    "Apply A13 stop rules with protected verification and ResourcePolicy-derived reporting capacity. Preserve checked work on StopPreserving and recover without duplicate assignments/settlement/merge/learning/report or lost user decisions. Report receipts are settled or conservatively held before delivery; A7/A8/report audit use current applicable evidence."
+  ],
+  "acceptance": [
+    "A real scenario chooses different useful contributions under VocValue versus OrdinalValue/FixedWorkflow, records gain/probability/cost/basis, and refuses an otherwise high-scoring proposal that violates capability, dependency, independence, budget or path ownership.",
+    "Complete sessions demonstrate agent initiative, changed awards, responsibility transfer, objections and adaptation compared with the fixed control, alongside breadth, alternatives, knowledge and consequences. Both positive and harmful/ineffective organizational outcomes remain traceable to selected mechanisms, costs and unmet criteria.",
+    "Reopening at allocation, verification, merge, reporting or asynchronous-learning boundaries preserves deterministic decisions and user controls without duplicating effects. Every used policy and native backend is reachable through its real consumer rather than a dead configuration option."
+  ],
+  "evidence": [],
+  "context": [
+    "Authority: ymp-docs/self-organizing-team-domain-model.md, section 5.2 (ContributionPolicy), A1/A3/A4/A5/A9/A11/A12/A13, R-3/R-7/R-8/R-14/R-15/R-17. Use the approved model with 811a872 semantics and the greenfield baseline in 0c61ff1 and §5.8 for experimental strategy boundaries. Other documents and existing names explain implementation facts only.",
+    "Greenfield: create this behavior in the new implementation. Paths below are PROPOSED target modules under the layout owned by W1-0001; only completed prerequisite tasks supply implementation. Prior source, APIs, fixtures and delivery claims are not a baseline.",
+    "Create proposed runtime/policies/value.rs and complete composition in runtime/dispatcher.rs from all prerequisite mechanisms. Use A3’s calibrated gain/cost over A8’s applicable criterion ledger; kernel constraints still win over ranking. Keep one session loop.",
+    "The explicit role mapping is Plan/Decompose/Clarify → Planner; DesignChecks → CheckDesigner; Produce/Alternative/Integrate → Producer; Verify → Verifier; Review → Reviewer/FinalReviewer; Research/Diagnose → Researcher; Curate → Curator; Narrate → Narrator; Judge → Judge. P4 Advocates are bounded Research contributions.",
+    "Run-level and authorized work-boundary policy selection changes actual mechanisms without consumer rewrites; record resolved parameters/basis and preserve prior decisions/reputation. Reporting uses its policy-derived reserve and deterministic stop fallback; recovery remains scoped. W6-0005 evaluates when organization helps or harms, separately from implementing it."
+  ],
+  "revision": 1,
+  "history": [
+    {
+      "revision": 1,
+      "at": "2026-09-15T16:14:24.697587Z",
+      "actor": "manage.py",
+      "status": "new",
+      "note": "Task created."
+    }
+  ]
+}

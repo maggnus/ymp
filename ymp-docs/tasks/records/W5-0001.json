@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "id": "W5-0001",
+  "area": "experience",
+  "title": "Create qualified competence observations and decaying profile reputation",
+  "type": "implementation",
+  "priority": 501,
+  "status": "new",
+  "depends_on": [
+    "W1-0010",
+    "W3-0002",
+    "W3-0007",
+    "W4-0003"
+  ],
+  "owner": null,
+  "goal": "Turn attributable accepted or refuted work into qualified experience, without rewarding self-assessment or penalizing agents for infrastructure and defective checks.",
+  "scope": [
+    "Implement Observation by complete ExecutionProfile, Competence Planning/CheckDesign/Implementation/Verification/Research/Synthesis and Difficulty Simple/Standard/Complex, with Success/Failure, grade and Acceptance/Consequence source.",
+    "Apply A12 credit filtering in trusted ExperienceVault: Accepted plus creditable grade yields Success only for invocations that produced accepted versions; contradicted rejection with ArtifactDefect/CapabilityLimit yields Failure. Self-assessment/agreement, Environment/CheckDefect/CapabilityMismatch and Infrastructure/Environment execution errors yield no observation.",
+    "Implement Confirmed(*)-only CreditPolicy and the alternative also crediting Discriminated as real interchangeable implementations selected by the owner for an experiment. Record the selected policy with observations and keep differently governed results distinguishable; no one experimental choice becomes permanently mandatory or retrospectively changes earlier credit.",
+    "Implement Reputation BetaWithForgetting(λ), mean/variance and neutral initial prior, plus MeanOnly alternative. Retain per-profile/competence/difficulty provenance and update exactly once from qualified source events; expose read-only experience views for team/profile/reviewer policies."
+  ],
+  "acceptance": [
+    "Through ExperienceVault on actual accepted/rejected session history, creditable producer work yields the correct keyed Success/Failure and excluded outcome classes yield none, even when an agent explicitly claims success.",
+    "Confirmed-only versus experimental Discriminated and BetaWithForgetting versus MeanOnly change actual observation/reputation behavior with recorded PolicyRefs. Decay and variance are computed from the configured parameters, not asserted as measured quality.",
+    "Duplicate observation delivery or replay does not count the same basis twice; changing native profile/provider version keeps separate reputation. The user can trace an estimate back to the qualified source and diagnosis."
+  ],
+  "evidence": [],
+  "context": [
+    "Authority: ymp-docs/self-organizing-team-domain-model.md, sections 3.8, 4 (ExperienceVault.observe/reputation), 5.6 (CreditPolicy, ReputationModel), A12 and R-11. Use the approved model with 811a872 semantics and the greenfield baseline in 0c61ff1 and §5.8 for experimental strategy boundaries. Other documents and existing names explain implementation facts only.",
+    "Greenfield: create this behavior in the new implementation. Paths below are PROPOSED target modules under the layout owned by W1-0001; only completed prerequisite tasks supply implementation. Prior source, APIs, fixtures and delivery claims are not a baseline.",
+    "Create proposed domain/experience.rs, kernel/experience_vault.rs and runtime/policies/{credit,reputation}.rs. Prerequisites provide actual profiles, grades, source refs and competence diagnoses. Build experience storage/projections in the new journal, not a separate source of authority.",
+    "A12 credits actual qualified producers, not every participant’s role or session agreement. Full ExecutionProfile plus Competence/Difficulty distinguishes observations; a native profile/version change cannot inherit unrelated credit.",
+    "Confirmed-only and Discriminated-crediting CreditPolicy are selectable experiment implementations. BetaWithForgetting and MeanOnly replace complete mechanisms, not only λ. Record effective policy/parameters with observations and preserve differently governed history. W5-0005 adds real delayed consequences."
+  ],
+  "revision": 1,
+  "history": [
+    {
+      "revision": 1,
+      "at": "2026-09-15T16:14:24.410201Z",
+      "actor": "manage.py",
+      "status": "new",
+      "note": "Task created."
+    }
+  ]
+}

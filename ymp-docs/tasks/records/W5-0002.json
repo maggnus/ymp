@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "id": "W5-0002",
+  "area": "calibration",
+  "title": "Compare success and cost forecasts with attributable outcomes",
+  "type": "implementation",
+  "priority": 502,
+  "status": "new",
+  "depends_on": [
+    "W1-0004",
+    "W3-0003",
+    "W5-0001"
+  ],
+  "owner": null,
+  "goal": "Make profile forecasts testable and expose calibrated probabilities only when adequate outcome data supports them.",
+  "scope": [
+    "Implement CalibrationRecord for Success and Cost with profile, raw forecast, actual outcome, score and time. Join offers to their admitted assignments/results/receipts, distinguishing declined/unawarded offers, unknown outcomes and incomplete actual costs.",
+    "Implement BrierIsotonic success scoring and per-profile calibration curves; insufficient data returns raw probability explicitly marked uncalibrated. Define and document the cost-score rule and treatment of partial coverage as implementation choices while retaining expected/p90/actual values.",
+    "Provide persisted calibration projections to VolunteerPolicy, AwardPolicy, ProfilePolicy and later MethodRouter/VocValue, keeping training inputs/version and raw-versus-calibrated values reconstructable. Native profile changes must not silently reuse incompatible curves."
+  ],
+  "acceptance": [
+    "Through ExperienceVault and a real award/profile consumer, known success and cost outcomes yield reconstructable scores; corrected raw probabilities affect a decision when enough fitting data exists, while sparse data remains raw/uncalibrated.",
+    "Unawarded offers, duplicate outcomes, unknown cost coverage and different ExecutionProfiles are handled without false failures, double scoring or silently mixing native profiles.",
+    "BrierIsotonic and a materially different CalibrationScorer are exercised through the same consumer; forecasts, outcomes, curve version and selected PolicyRef can be inspected after journal restart."
+  ],
+  "evidence": [],
+  "context": [
+    "Authority: ymp-docs/self-organizing-team-domain-model.md, sections 3.8 (CalibrationRecord), 4 (ExperienceVault.forecast_outcome), 5.6 (CalibrationScorer), A3/A4/A12 and section 10.1. Use the approved model with 811a872 semantics and the greenfield baseline in 0c61ff1 and §5.8 for experimental strategy boundaries. Other documents and existing names explain implementation facts only.",
+    "Greenfield: create this behavior in the new implementation. Paths below are PROPOSED target modules under the layout owned by W1-0001; only completed prerequisite tasks supply implementation. Prior source, APIs, fixtures and delivery claims are not a baseline.",
+    "Create proposed runtime/policies/calibration.rs and ExperienceVault.forecast_outcome projections. W3-0003 supplies Offer/Award/assignment attribution, W1-0004/0017 actual costs and W5-0001 qualified outcomes/profile keys.",
+    "Unawarded offers have no execution outcome and are not failures. Partial/unknown cost and insufficient fitting data remain explicit. Document concrete fitting thresholds/cost-score choices and persist curve/version/training basis; W6-0005 owns separated-data evaluation.",
+    "BrierIsotonic and a materially different scorer are actual consumer selections. Expose raw versus calibrated values to award/profile/volunteer routing without claiming empirical product improvement from a fitted curve alone."
+  ],
+  "revision": 1,
+  "history": [
+    {
+      "revision": 1,
+      "at": "2026-09-15T16:14:24.457086Z",
+      "actor": "manage.py",
+      "status": "new",
+      "note": "Task created."
+    }
+  ]
+}

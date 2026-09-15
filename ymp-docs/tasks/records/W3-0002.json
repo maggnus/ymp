@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "id": "W3-0002",
+  "area": "team",
+  "title": "Choose team members, profiles and reviewers from explicit demand and independence",
+  "type": "implementation",
+  "priority": 302,
+  "status": "new",
+  "depends_on": [
+    "W1-0003",
+    "W1-0006",
+    "W1-0012",
+    "W1-0013",
+    "W3-0001"
+  ],
+  "owner": null,
+  "goal": "Change who works and with which native profile only when unmet criteria, capability or independence justify it, while preserving user pins.",
+  "scope": [
+    "Implement DemandDriven TeamPolicy proposals and trusted TeamChange validation: add for missing capabilities/independence, remove after idleness, retain Membership intervals/reasons and Team revision. Record the diagnosis required by R-14 before committing resource growth.",
+    "Implement CheapestAdequate ProfilePolicy over per-model offerings, cost estimates and success estimates with p_target. Check Pins and actual capabilities at admission; record the source of every estimate and use an explicit conservative fallback while estimates are uncalibrated.",
+    "Implement DifferentFamilyComparableStrength ReviewerPolicy for CheckDesigner/Reviewer/FinalReviewer and producer candidates used by independent attempts. Retain AnyNonProducer as a real alternative; enforce producer exclusions independently of ranking and record lack of family/strength evidence.",
+    "Use pool exclusion reasons and capability/independence demand to make an impossible team truthful: no eligible independent final reviewer under pins yields Blocked(final_review_pending), not an invented participant or silently changed roster/model/effort."
+  ],
+  "acceptance": [
+    "Through actual solicitation/final-review consumers, missing capability or independence yields an attributable member/profile choice when allowed, and a typed denial/blocked state when pins prevent it. Idle removal retains membership history.",
+    "An unjustified member/profile/effort increase, a disallowed native setting or removal of a member still owning active work cannot commit. The cheapest adequately supported available profile is selected without spending protected verification funds on production.",
+    "DemandDriven, CheapestAdequate and DifferentFamilyComparableStrength each run against a materially different strategy through their actual consumers; AnyNonProducer demonstrates the reviewer alternative. Unknown/uncalibrated inputs and all chosen PolicyRefs remain inspectable."
+  ],
+  "evidence": [],
+  "context": [
+    "Authority: ymp-docs/self-organizing-team-domain-model.md, sections 3.1/3.3, 5.3 (TeamPolicy, ProfilePolicy, ReviewerPolicy), A6/A11, R-3/R-4/R-5/R-9/R-14 and section 10.1. Use the approved model with 811a872 semantics and the greenfield baseline in 0c61ff1 and §5.8 for experimental strategy boundaries. Other documents and existing names explain implementation facts only.",
+    "Greenfield: create this behavior in the new implementation. Paths below are PROPOSED target modules under the layout owned by W1-0001; only completed prerequisite tasks supply implementation. Prior source, APIs, fixtures and delivery claims are not a baseline.",
+    "Create proposed crates/ymp-runtime/src/policies/{team,profile,reviewer}.rs and kernel TeamChange validation. W1 supplies Registry, initial Team and admission; W3-0001 supplies actual Board demand. This task makes team/profile/reviewer mechanisms interchangeable through their real consumers.",
+    "Use explicit neutral/fixture estimates marked uncalibrated until W5 delivers qualified reputation/calibration. Unknown family/strength metadata cannot establish diversity/comparability. Record a demand diagnosis before resource growth under R-14, including P1/A11 independence repair.",
+    "Whole algorithms, including history-dependent thresholds/idleness/adequacy factors, are selected through the owning policy; effective values/basis are recoverable. Kernel pins, actual access, active-work ownership and producer exclusions remain hard constraints."
+  ],
+  "revision": 2,
+  "history": [
+    {
+      "revision": 1,
+      "at": "2026-09-15T14:27:34.030658Z",
+      "actor": "manage.py",
+      "status": "new",
+      "note": "Task created."
+    },
+    {
+      "revision": 2,
+      "at": "2026-09-15T16:14:23.845373Z",
+      "actor": "manage.py",
+      "status": "new",
+      "note": "Plan new implementation from greenfield baseline 0c61ff1, preserving approved experimental mechanisms, reporting/evidence/recovery rules and explicit prerequisite boundaries."
+    }
+  ]
+}

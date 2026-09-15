@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "id": "W1-0010",
+  "area": "acceptance",
+  "title": "Compute criterion satisfaction and independent acceptance from the recorded evidence",
+  "type": "implementation",
+  "priority": 110,
+  "status": "new",
+  "depends_on": [
+    "W1-0009"
+  ],
+  "owner": null,
+  "goal": "Make AcceptanceAuthority apply A7 and A8 exactly, distinguishing independent approval, criterion satisfaction and strength of confirmation.",
+  "scope": [
+    "Implement Acceptance Accepted/Rejected(reason), per-criterion grades and required-criterion minimum grade. Filter reviews/evidence for applicability to this result, criterion/check versions and run environment before polarity or grading; applicable Contradicts Executed/Browser/ExternalData defeats approval. Require a Reviewer distinct from the actual producer.",
+    "Implement Unconfirmed, Discriminated and Confirmed(TrustedCheck/ExternalData/Consequences) representations with A7 predicates; only currently supported bases may create grades. Hidden discrimination is exercised in W2, consequence regrading in W5. Do not grant a grade because a reviewer claims it.",
+    "Implement CriteriaLedger/LedgerEntry and BeliefModel.update(entry,evidence,criterion,subject:Ref). A8 first filters applicability, then applies contradiction precedence; supporting contains only applicable Supports. Default LikelihoodRatioTable uses prior 0.5, counts each correlated (independence,class,discrimination) group once, and requires nonempty supporting plus needs_class coverage and threshold for Satisfied.",
+    "Keep the BeliefModel interface replaceable, with versioned initial LR/threshold parameters and a substantially different experimental implementation. Any experimental prior is finite within (0,1), explicitly about the current criterion/result and supported by a recorded basis; an assignment-success forecast is not such a prior. Implement Confirmed-only CreditPolicy and an alternative also crediting Discriminated, selectable for an experiment; actual observations belong to W5-0001.",
+    "Connect a real W1-0008 candidate and independent W1-0009 review/evidence to AcceptanceAuthority.accept, then pass its committed acceptance reference to W1-0007 Arbiter discharge. Rejection or unrelated acceptance cannot discharge the artifact commitment."
+  ],
+  "acceptance": [
+    "The real acceptance consumer accepts an independently approved passing candidate with the justified grade and rejects applicable executable contradiction despite multiple approving reviews. Producer self-review never qualifies.",
+    "Old/unrelated support and contradiction are excluded before A7/A8. Repeating one correlated group cannot inflate belief; a high prior alone or missing positive needs_class coverage cannot satisfy a criterion. The default producer execution + independent inspection + static-read example remains about 0.71 for NewBehavior.",
+    "Select different BeliefModel implementations through the real ledger consumer without rewriting it, retaining resolved parameters/input/basis. Experiment-scoped priors cannot bypass applicable contradiction or Supports coverage. CreditPolicy variants give distinct attributable eligibility; changing selection does not rewrite grades or earlier observations.",
+    "A real producer result independently Accepted by A7 discharges exactly its artifact commitment; Rejected, forged, stale or another subject’s acceptance leaves that commitment undischargeable. This completes the P2 artifact seam without requiring W1-0007 to produce acceptance."
+  ],
+  "evidence": [],
+  "context": [
+    "Authority: ymp-docs/self-organizing-team-domain-model.md, sections 3.6, 4 (AcceptanceAuthority), 5.2 (BeliefModel), 5.6 (CreditPolicy), A7/A8, R-4/R-6/R-11. Use the approved model with 811a872 semantics and the greenfield baseline in 0c61ff1 and §5.8 for experimental strategy boundaries. Other documents and existing names explain implementation facts only.",
+    "Greenfield: create this behavior in the new implementation. Paths below are PROPOSED target modules under the layout owned by W1-0001; only completed prerequisite tasks supply implementation. Prior source, APIs, fixtures and delivery claims are not a baseline.",
+    "Implement proposed crates/ymp-kernel/src/{acceptance,ledger}.rs and crates/ymp-runtime/src/policies/belief.rs. W1-0008/0009 provide real immutable candidates, checks and reviews; W1-0007 provides the commitment transition consumer. Own actual candidate acceptance, A8 ledger and acceptance-to-discharge integration.",
+    "Retain BeliefModel, default LikelihoodRatioTable prior=0.5 and subject:Ref. An experimental prior must mean present criterion/result satisfaction, never future assignment success. Filter applicability before polarity, count correlated support once and require nonempty applicable Supports coverage. A7 acceptance, A8 satisfaction and CreditPolicy remain distinct.",
+    "Select materially different BeliefModel implementations through the same consumer with recoverable parameters/basis. Implement both CreditPolicy variants as selectable policy values here; W5-0001 consumes them for real observations. W1-0013 handles final aggregates."
+  ],
+  "revision": 2,
+  "history": [
+    {
+      "revision": 1,
+      "at": "2026-09-15T14:27:33.496589Z",
+      "actor": "manage.py",
+      "status": "new",
+      "note": "Task created."
+    },
+    {
+      "revision": 2,
+      "at": "2026-09-15T16:14:23.307335Z",
+      "actor": "manage.py",
+      "status": "new",
+      "note": "Plan new implementation from greenfield baseline 0c61ff1, preserving approved experimental mechanisms, reporting/evidence/recovery rules and explicit prerequisite boundaries."
+    }
+  ]
+}

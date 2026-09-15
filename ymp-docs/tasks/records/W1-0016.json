@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "id": "W1-0016",
+  "area": "persistence",
+  "title": "Persist the new Journal and content-addressed payloads across restart",
+  "type": "implementation",
+  "priority": 103,
+  "status": "new",
+  "depends_on": [
+    "W1-0001",
+    "W1-0002"
+  ],
+  "owner": null,
+  "goal": "Make the new implementation’s decisions, task state and referenced content durable and reconstructable without importing prior-iteration history.",
+  "scope": [
+    "Create a concrete durable Journal adapter and content-addressed store for event payloads, effective policy parameters and later snapshots/output. Embedded SQLite is the proposed local implementation choice; all runtime dependencies remain explicit and repository-contained.",
+    "Implement atomic ordered append with expected revision, coherent read/replay, versioned payload encoding, digest validation and restart. Resolve acknowledged/failed/indeterminate commits without duplicate events; reject corruption, unsupported format and missing content rather than silently repair authoritative history.",
+    "Define durable content write/reference ordering, interrupted-write handling and bounded reading. Parameter digests must resolve to actual immutable values; W1-0005/0008 will store exact snapshot/result content through this contract.",
+    "Document the durability assumptions of the chosen local filesystem/database. Compatibility preserves events written by this new implementation as features evolve; there is no migration requirement from previous products or old source artifacts."
+  ],
+  "context": [
+    "Authority: approved model sections 0/2/4/5.8/9, D-1–D-5 and R-1/R-17/R-19/R-20; greenfield baseline 0c61ff1.",
+    "Proposed new crate: crates/ymp-storage with src/{lib,journal,content}.rs and focused storage integration tests. W1-0001 owns Journal/Envelope/MemoryJournal/type boundaries; W1-0002 supplies concrete Task/intake events. Add storage dependencies only for this implemented capability.",
+    "This task owns durable transaction/content behavior; later features own their payload schemas and use the same Journal contract. No prior SQLite implementation, API, migration or fixture is assumed."
+  ],
+  "acceptance": [
+    "A real temporary durable store persists W1 task/decision events and effective parameters; reopening yields the same projection/digests and exact content as MemoryJournal through the same kernel consumer.",
+    "Competing/stale appends, interrupted/indeterminate commits and missing/corrupt/unsupported content preserve atomic history or give a precise refusal. Retrying a known committed append cannot duplicate events.",
+    "Restart preserves original effective parameter values after later configuration changes. The implementation documents what its actual durability test establishes, without claiming prior-iteration compatibility or inaccessible native effects."
+  ],
+  "evidence": [],
+  "revision": 1,
+  "history": [
+    {
+      "revision": 1,
+      "at": "2026-09-15T16:14:22.871065Z",
+      "actor": "manage.py",
+      "status": "new",
+      "note": "Task created."
+    }
+  ]
+}

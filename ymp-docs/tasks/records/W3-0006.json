@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "id": "W3-0006",
+  "area": "disputes",
+  "title": "Resolve objections with counterexamples, evidence requests and bounded debate",
+  "type": "implementation",
+  "priority": 306,
+  "status": "new",
+  "depends_on": [
+    "W1-0010",
+    "W1-0012",
+    "W2-0004",
+    "W3-0001",
+    "W3-0002",
+    "W3-0003"
+  ],
+  "owner": null,
+  "goal": "Turn disagreement about a result, plan or check into an executable test or accountable review without letting unsupported opinion override passing evidence.",
+  "scope": [
+    "Implement Objection against ResultVersion/Plan/Check with actual author, claim and optional counterexample; track Pending/Upheld/Dismissed/Unresolved and ObjectionRaised/ObjectionResolved. Resolve relevant candidate/check/criterion refs for each subject instead of assuming every objection targets the current result.",
+    "Implement CounterexampleFirst: register a supplied check as IndependentVisible, run against the applicable candidate; Fail upholds and records Contradicts/rejection, Pass dismisses, Error remains Unresolved and diagnoses Environment/CheckDefect.",
+    "Support all DisputeAction branches: RunCounterexample, RequestEvidence via admitted DesignChecks, Escalate via EscalationPolicy, and Debate with two Advocate assignments plus Judge whose outcome is recorded as Review.",
+    "Admit debate only when the judge is demonstrably weaker than both debaters using recorded strength inputs; if that cannot be established choose an evidence/escalation path. Charge advocates/judge and preserve tool permissions and producer/final-review exclusions."
+  ],
+  "acceptance": [
+    "The real objection consumer demonstrates Fail/Pass/Error counterexamples producing Upheld/Dismissed/Unresolved and the corresponding evidence/diagnosis, including attributable Plan and Check subjects.",
+    "An objection without a counterexample requests evidence or escalates while a passing applicable check continues to apply. A recorded weaker-judge case runs two Advocates and a Judge; equal/stronger/unknown judge inputs deny that debate path.",
+    "CounterexampleFirst and a materially different DisputePolicy are exercised through Arbiter/AcceptanceAuthority; model opinions never override applicable executable failure, and every debate/evidence call reconciles to the session account."
+  ],
+  "evidence": [],
+  "context": [
+    "Authority: ymp-docs/self-organizing-team-domain-model.md, sections 3.5 (Objection), 3.6 (Review), 5.3 (DisputePolicy), P4, A6/A9 and R-6/R-13. Use the approved model with 811a872 semantics and the greenfield baseline in 0c61ff1 and §5.8 for experimental strategy boundaries. Other documents and existing names explain implementation facts only.",
+    "Greenfield: create this behavior in the new implementation. Paths below are PROPOSED target modules under the layout owned by W1-0001; only completed prerequisite tasks supply implementation. Prior source, APIs, fixtures and delivery claims are not a baseline.",
+    "Create proposed runtime/policies/dispute.rs with kernel Arbiter/AcceptanceAuthority integration. W3-0001 supplies ObjectionRaise, W3-0002 profile/reviewer facts, W3-0003 admitted offers and W2 actual counterexample checking.",
+    "For Plan/Check objections resolve the relevant criterion/work/snapshot without inventing a ResultVersion. Pass/Fail/Error counterexamples produce Dismissed/Upheld/Unresolved; opinion alone cannot override a passing applicable check.",
+    "Debate uses two bounded Research contributions with Advocate roles and a Judge contribution with Judge role for the same Objection. Require recorded weaker-judge evidence; neutral/unknown strength is insufficient. All calls are charged and neither debate nor a changed DisputePolicy overrides hard executable evidence."
+  ],
+  "revision": 2,
+  "history": [
+    {
+      "revision": 1,
+      "at": "2026-09-15T14:27:34.218291Z",
+      "actor": "manage.py",
+      "status": "new",
+      "note": "Task created."
+    },
+    {
+      "revision": 2,
+      "at": "2026-09-15T16:14:23.986500Z",
+      "actor": "manage.py",
+      "status": "new",
+      "note": "Plan new implementation from greenfield baseline 0c61ff1, preserving approved experimental mechanisms, reporting/evidence/recovery rules and explicit prerequisite boundaries."
+    }
+  ]
+}

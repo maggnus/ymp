@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "id": "W6-0005",
+  "area": "evaluation",
+  "title": "Evaluate and calibrate the complete policy set on reproducible comparisons",
+  "type": "implementation",
+  "priority": 605,
+  "status": "new",
+  "depends_on": [
+    "W6-0004"
+  ],
+  "owner": null,
+  "goal": "Run reproducible comparisons that establish when agent initiative and self-organization help, fail or cost more, while making key mechanisms genuinely interchangeable and separating implementation from empirical improvement.",
+  "scope": [
+    "Build a bounded experiment runner over actual Application/Dispatcher with explicit selectable strategy implementations and parameter values, task/result/check/environment versions and separate fitting/evaluation cases. Compare self-organizing initiative/allocation/commitment/handoff/adaptation against the fixed workflow at matched resources, measuring checked quality, cost, latency and intervention without presuming a winner.",
+    "Calibrate or explicitly retain as uncalibrated every listed parameter: T_offer, B_bid, κ, N_open, T_lease, Δ_release, θ_min, γ, T_ref, θ0, ρ, μ, n_corroborate, LR table, τ_behavior, τ_quality, τ_support, ε, stall_limit, p_min, λ, n_trial, cost_interrupt and p_target. Include PriceWeighted fallback/rate choices and creditable-grade policy in recorded experiment conditions.",
+    "Exercise every strategy through its real consumer with at least two materially different implementations, including named alternatives. Critical mechanisms such as assessment, resource allocation, reputation, award/team decisions, thresholds, escalation and knowledge selection must be replaceable as algorithms, not only coefficients. Select them without editing kernel consumer code; retain effective implementation/version, resolvable parameters, input/proposal/basis/decision/cost.",
+    "Run available bounded offline comparisons and report favorable, negative and inconclusive results honestly. Fixture/synthetic outcomes validate mechanisms and accounting; conclusions about real agents or causal product improvement require suitable matched native evidence, never agent count/message volume/process exit.",
+    "Deliver a reproducible complete-product example that connects routing, cooperation, independent verification/alternatives, experience and report/control surfaces; parameter selection must not silently change authoritative invariants or skip an unimplemented branch."
+  ],
+  "acceptance": [
+    "One documented command selects implementations and parameters, reproduces bounded comparisons and outputs actual recoverable values/versions, fitting/evaluation membership, agent-initiative/organization changes and outcome/cost evidence. Changed/incomplete conditions prevent a causal-improvement claim; fixed workflow is a control rather than the sole product path.",
+    "Every section-10.1 parameter has an inspectable selected/default value, evidence source and calibrated/uncalibrated label; held-out outcomes are not used to fit the reported calibration. Negative/inconclusive outcomes do not get omitted.",
+    "Every strategy/default/alternative has actual consumer replacement evidence. Authorized within-session changes happen at recorded boundaries without rewriting earlier policy/reputation history; kernel invariants remain enforced. The final example demonstrates useful, ineffective or harmful self-organization honestly through the evolving interface, including zero-call reporting after stop and scoped recovery."
+  ],
+  "evidence": [],
+  "context": [
+    "Authority: ymp-docs/self-organizing-team-domain-model.md, sections 1 (principles 3/8/11), 5 replacement rule, 10 build-stage contracts, 10.1, 12 and intent.md intended outcomes. Use the approved model with 811a872 semantics and the greenfield baseline in 0c61ff1 and §5.8 for experimental strategy boundaries. Other documents and existing names explain implementation facts only.",
+    "Greenfield: create this behavior in the new implementation. Paths below are PROPOSED target modules under the layout owned by W1-0001; only completed prerequisite tasks supply implementation. Prior source, APIs, fixtures and delivery claims are not a baseline.",
+    "Create a concrete repository-owned experiment runner and dataset/result artifacts over the new Application/Dispatcher and scenarios delivered by prerequisite tasks. No historical tests, benchmark results or native runs count as delivered evidence for this iteration.",
+    "W5-0002 owns calibration mechanics; this task owns separated comparisons, parameter evidence and selectable production/experimental mechanism choices. Use real named alternatives and materially different controls through actual consumers, not empty traits or coefficient-only substitutes.",
+    "Fit/evaluate separately and compare initiative, changed allocation/responsibility, context/objections and team/plan adaptation with the fixed baseline at matched conditions. Inconclusive or harmful self-organization is valid evidence. A default or fixture run never establishes universal advantage; AGENTS.md checks/review remain feature-delivery obligations."
+  ],
+  "revision": 1,
+  "history": [
+    {
+      "revision": 1,
+      "at": "2026-09-15T16:14:24.745335Z",
+      "actor": "manage.py",
+      "status": "new",
+      "note": "Task created."
+    }
+  ]
+}

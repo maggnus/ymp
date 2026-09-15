@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "id": "W4-0001",
+  "area": "workspace",
+  "title": "Open isolated copies and merge a selected immutable result through WorkspaceGuard",
+  "type": "implementation",
+  "priority": 401,
+  "status": "new",
+  "depends_on": [
+    "W1-0005",
+    "W1-0008",
+    "W3-0008"
+  ],
+  "owner": null,
+  "goal": "Provide enforceable independent workspaces with a shared immutable base and a validated merge that preserves target ownership and all result history.",
+  "scope": [
+    "Implement WorkspaceProvider CopyOnWrite and WorkspaceGuard.open(IsolatedCopy(base)) alongside Direct. Persist base snapshot/root/workspace associations and capture candidate changes without modifying the base, target or another copy.",
+    "Establish actual execution isolation for admitted producers and checks on supported macOS/Linux environments, including filesystem aliases, shared metadata and access to other candidate/hidden-check stores. A copied directory or declared write list alone is not an enforceable guarantee.",
+    "Implement kernel-validated merge(ResultVersion,target) with recorded selection input, target/base checks and path locks. Detect a changed target or conflicting paths before applying an invalid result; retain sufficient content/provenance to recover a failed/interrupted merge without reporting a partial application as complete.",
+    "Record ResultMerged and resulting Snapshot, keep non-selected candidates immutable, and release task-owned isolated resources only when their work/effects end while retaining the artifact/evidence content required by the journal."
+  ],
+  "acceptance": [
+    "Two real admitted processes in distinct IsolatedCopy workspaces can make independent candidate changes; attempts to modify/read the other copy, target or protected hidden data are denied by the actual environment.",
+    "WorkspaceGuard merges a chosen result onto its applicable target and records exact before/after snapshots. A stale base, conflicting target change or failed merge leaves a truthful recoverable outcome and cannot be recorded as a successful complete merge.",
+    "Direct and CopyOnWrite run through the same real WorkspaceGuard consumer. Reopening the journal retains selected and non-selected results and does not grant authority to a provider-returned merge success.",
+    "Revoked/disconnected producers cannot cause a stale or unstable merge: scoped cessation/release evidence survives restart, financial settlement remains independent, and unrelated safe scopes are not globally blocked. Concrete observations implement R-19/R-20 without requiring new model-wide lifecycle abstractions."
+  ],
+  "evidence": [],
+  "context": [
+    "Authority: ymp-docs/self-organizing-team-domain-model.md, sections 3.4 (Workspace, ResultVersion), 4 (WorkspaceGuard.open/lock/snapshot/merge), 5.7 (WorkspaceProvider), A10/A11, principle 13 and R-9/R-16. Use the approved model with 811a872 semantics and the greenfield baseline in 0c61ff1 and §5.8 for experimental strategy boundaries. Other documents and existing names explain implementation facts only.",
+    "Greenfield: create this behavior in the new implementation. Paths below are PROPOSED target modules under the layout owned by W1-0001; only completed prerequisite tasks supply implementation. Prior source, APIs, fixtures and delivery claims are not a baseline.",
+    "Create proposed runtime/workspace/copy_on_write.rs and kernel merge validation using W1 Direct snapshots/content/path locks and W3 scheduling. The materialization/isolation/merge mechanism is new implementation work; choose one concrete local approach with actual supported macOS/Linux enforcement.",
+    "A copied directory or declared path list alone is not an isolation guarantee. Verify target/candidate/hidden-store separation using real processes and refuse unsupported combinations. W4-0002 produces alternatives; W4-0003 owns policy selection.",
+    "WorkspaceGuard validates merge ownership/base/current target and persists exact ResultMerged basis. R-19/R-20 retain unresolved conflicting access independently of financial settlement; cleanup of isolated resources cannot delete retained result/evidence content."
+  ],
+  "revision": 1,
+  "history": [
+    {
+      "revision": 1,
+      "at": "2026-09-15T16:14:24.173647Z",
+      "actor": "manage.py",
+      "status": "new",
+      "note": "Task created."
+    }
+  ]
+}
