@@ -37,7 +37,7 @@ reference each other only by relative `path` dependencies.
 ymp/
 ├── Cargo.toml                      # W1-0001: workspace, resolver 3, edition 2024, lints
 ├── Cargo.lock
-├── rust-toolchain.toml             # retained: 1.89.0 with clippy and rustfmt
+├── rust-toolchain.toml             # pinned: 1.98.1 with clippy and rustfmt
 ├── Makefile                        # make help: build, verify, task-register targets
 ├── tools/
 │   └── legacy_scan.py              # make legacy-scan: rejects code copied from legacy-* tags
@@ -201,7 +201,7 @@ ymp/
   `tests/`, shared helpers in `tests/support/mod.rs`, filesystem scenarios and
   protocol fixtures only under `ymp-runtime/tests/`.
 - **Workspace manifest.** `resolver = "3"`, `edition = "2024"`,
-  `rust-version = "1.89.0"`, `publish = false`, `unsafe_code = "forbid"` and
+  `rust-version = "1.98.1"`, `publish = false`, `unsafe_code = "forbid"` and
   `clippy::all = "warn"` for the whole workspace, so that
   `cargo clippy -- -D warnings` from `AGENTS.md` is meaningful from the first
   commit.

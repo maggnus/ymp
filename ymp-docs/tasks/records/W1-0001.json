@@ -27,9 +27,9 @@
     "Proposed layout: crates/ymp-domain/src/{lib,journal}.rs for pure values; crates/ymp-kernel/src/{lib,journal}.rs for Journal/Envelope/replay and trusted validation; crates/ymp-runtime/src/{lib,memory_journal}.rs for the reference in-memory adapter and a working application consumer. Cargo.toml uses repository-relative workspace dependencies and the executable name will be ymp.",
     "W1-0002 adds actual Task/intake payloads; W1-0016 creates crates/ymp-storage for durable Journal/content; W1-0015 creates crates/ymp-cli for the real terminal consumer. Document this proposed Rust mapping as part of the implementation, without changing model service ownership.",
     "Choose concrete dependencies only for needed serialization/digest/synchronization capabilities. Time, random decision inputs and effective policy parameters must be recoverable; replay reconstructs the stored model proposal, not an identical fresh stochastic model response.",
-    "Working tree at task start: the previous iteration's code is reachable only at git tag legacy-foundation (commit f95d8df); the workspace exists as the placeholder skeleton described in ymp-docs/project-worktree.md, which builds and passes the four required checks with zero tests. The first commit of this task adds behavior and the external dependencies it needs (sha2, serde, serde_json); the retained rust-toolchain.toml (1.89.0) applies. Consult the tag only for implementation facts, never as code to extend."
+    "Working tree at task start: the previous iteration's code is reachable only at git tag legacy-foundation (commit f95d8df); the workspace exists as the placeholder skeleton described in ymp-docs/project-worktree.md, which builds and passes the four required checks with zero tests. The first commit of this task adds behavior and the external dependencies it needs (sha2, serde, serde_json); the pinned rust-toolchain.toml and workspace rust-version are 1.98.1 by owner decision (2026-09-16). Consult the tag only for implementation facts, never as code to extend."
   ],
-  "revision": 5,
+  "revision": 6,
   "history": [
     {
       "revision": 1,
@@ -65,6 +65,13 @@
       "actor": "manage.py",
       "status": "planned",
       "note": "Owner decision 2026-09-16: the placeholder module skeleton of ymp-docs/project-worktree.md is checked in; 'create' now means 'give the placeholder its behavior'."
+    },
+    {
+      "revision": 6,
+      "at": "2026-09-15T19:17:21.802831Z",
+      "actor": "manage.py",
+      "status": "planned",
+      "note": "Owner decision 2026-09-16: upgrade the pinned Rust toolchain and workspace minimum version from 1.89.0 to stable 1.98.1; product implementation remains planned."
     }
   ]
 }
