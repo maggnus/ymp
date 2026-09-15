@@ -32,9 +32,10 @@
     "Greenfield: create this behavior in the new implementation. Paths below are PROPOSED target modules under the layout owned by W1-0001; only completed prerequisite tasks supply implementation. Prior source, APIs, fixtures and delivery claims are not a baseline.",
     "Create proposed crates/ymp-runtime/src/team_operations.rs and expand the new kernel Arbiter plus Scripted/Codex adapter integrations. W1-0006/0007 provide actual grants/lifecycle, W1-0017/0018 native execution, W2-0001 hidden-data boundaries.",
     "The wire schema/tool exposure is an implementation choice, while named TeamOperation values and kernel ownership are fixed. Native output is an untrusted proposal/request; the kernel derives its actor from the admitted invocation and rejects stale/foreign/revoked grants.",
-    "Do not distribute the full journal or hidden payloads. Proposals enter A3’s common candidate list and can change work beyond the fixed control. Agent operations cannot impersonate user stop/continuation or authorized experiment-policy changes."
+    "Do not distribute the full journal or hidden payloads. Proposals enter A3’s common candidate list and can change work beyond the fixed control. Agent operations cannot impersonate user stop/continuation or authorized experiment-policy changes.",
+    "Model amendment 12.1 (2026-09-16): ExecutionBackend.events carries OperationRequest and the port gains reply; R-21 requires participant-authored text to reach other agents only as attributed, untrusted content."
   ],
-  "revision": 2,
+  "revision": 3,
   "history": [
     {
       "revision": 1,
@@ -49,6 +50,13 @@
       "actor": "manage.py",
       "status": "new",
       "note": "Plan new implementation from greenfield baseline 0c61ff1, preserving approved experimental mechanisms, reporting/evidence/recovery rules and explicit prerequisite boundaries."
+    },
+    {
+      "revision": 3,
+      "at": "2026-09-15T17:05:13.757116Z",
+      "actor": "manage.py",
+      "status": "new",
+      "note": "Start review 2026-09-16: reference model amendment 12.1 (OperationRequest, R-21)."
     }
   ]
 }

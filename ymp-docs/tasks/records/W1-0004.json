@@ -5,7 +5,7 @@
   "title": "Charge invocations while protecting verification and policy-derived reporting capacity",
   "type": "implementation",
   "priority": 104,
-  "status": "new",
+  "status": "planned",
   "depends_on": [
     "W1-0001",
     "W1-0002",
@@ -32,7 +32,7 @@
     "Treasury’s own reserve/settle consumer establishes budget behavior here; W1-0006 binds reservations to actual admission, W1-0017 supplies invocation receipts, and W1-0013 demonstrates paid reporting/fallback. Test references at these seams must not be described as a completed agent invocation.",
     "§5.8 requires whole CostModel/ResourcePolicy replacement with named/validated/defaulted, recoverable values. Derive reporting_reserve(task_view,pool_view) into Budget and validate both reserves. R-19 separates financial settlement/release_unstarted from workspace cessation; incomplete coverage follows the exact A13 Stop/Estimate rules."
   ],
-  "revision": 2,
+  "revision": 3,
   "history": [
     {
       "revision": 1,
@@ -47,6 +47,13 @@
       "actor": "manage.py",
       "status": "new",
       "note": "Plan new implementation from greenfield baseline 0c61ff1, preserving approved experimental mechanisms, reporting/evidence/recovery rules and explicit prerequisite boundaries."
+    },
+    {
+      "revision": 3,
+      "at": "2026-09-15T17:05:14.023322Z",
+      "actor": "owner",
+      "status": "planned",
+      "note": "Start decision 2026-09-16: W1 scheduled; readiness follows dependencies."
     }
   ]
 }

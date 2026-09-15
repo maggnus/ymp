@@ -9,7 +9,7 @@
   "depends_on": [
     "W1-0003",
     "W1-0006",
-    "W1-0009",
+    "W1-0019",
     "W1-0013",
     "W1-0014"
   ],
@@ -34,7 +34,7 @@
     "IndependentHiddenDesigner and ProducerChecks are explicit run choices through the same consumer. Execute the A2 baseline/premortem/replacement branches and track author identity permanently for R-10; a provider that can read hidden payloads through actual native access is not a conforming hidden producer.",
     "P7 protects designers here; W3-0001 adds Board projection and W4-0002 alternative windows. Closure never discloses hidden checks to producers. Persist effective designer/check parameters and apply new check versions consistently in A7/A8/report evidence."
   ],
-  "revision": 2,
+  "revision": 3,
   "history": [
     {
       "revision": 1,
@@ -49,6 +49,13 @@
       "actor": "manage.py",
       "status": "new",
       "note": "Plan new implementation from greenfield baseline 0c61ff1, preserving approved experimental mechanisms, reporting/evidence/recovery rules and explicit prerequisite boundaries."
+    },
+    {
+      "revision": 3,
+      "at": "2026-09-15T17:05:13.306861Z",
+      "actor": "manage.py",
+      "status": "new",
+      "note": "Start review 2026-09-16: depend on W1-0019 (evidence/review binding) instead of the narrowed W1-0009."
     }
   ]
 }

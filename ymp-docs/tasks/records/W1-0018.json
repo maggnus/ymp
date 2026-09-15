@@ -5,7 +5,7 @@
   "title": "Build the native Codex backend and discovery for accountable sessions",
   "type": "implementation",
   "priority": 113,
-  "status": "new",
+  "status": "planned",
   "depends_on": [
     "W1-0003",
     "W1-0017"
@@ -29,7 +29,7 @@
     "Codex and Scripted run the shared execution contract through actual consumers. Native-run evidence, if separately authorized and collected, records exact runtime version/settings/observations and is not conflated with fixture behavior."
   ],
   "evidence": [],
-  "revision": 1,
+  "revision": 2,
   "history": [
     {
       "revision": 1,
@@ -37,6 +37,13 @@
       "actor": "manage.py",
       "status": "new",
       "note": "Task created."
+    },
+    {
+      "revision": 2,
+      "at": "2026-09-15T17:05:14.761515Z",
+      "actor": "owner",
+      "status": "planned",
+      "note": "Start decision 2026-09-16: W1 scheduled; readiness follows dependencies."
     }
   ]
 }

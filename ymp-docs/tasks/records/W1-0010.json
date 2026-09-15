@@ -5,9 +5,10 @@
   "title": "Compute criterion satisfaction and independent acceptance from the recorded evidence",
   "type": "implementation",
   "priority": 110,
-  "status": "new",
+  "status": "planned",
   "depends_on": [
-    "W1-0009"
+    "W1-0009",
+    "W1-0019"
   ],
   "owner": null,
   "goal": "Make AcceptanceAuthority apply A7 and A8 exactly, distinguishing independent approval, criterion satisfaction and strength of confirmation.",
@@ -28,11 +29,11 @@
   "context": [
     "Authority: ymp-docs/self-organizing-team-domain-model.md, sections 3.6, 4 (AcceptanceAuthority), 5.2 (BeliefModel), 5.6 (CreditPolicy), A7/A8, R-4/R-6/R-11. Use the approved model with 811a872 semantics and the greenfield baseline in 0c61ff1 and §5.8 for experimental strategy boundaries. Other documents and existing names explain implementation facts only.",
     "Greenfield: create this behavior in the new implementation. Paths below are PROPOSED target modules under the layout owned by W1-0001; only completed prerequisite tasks supply implementation. Prior source, APIs, fixtures and delivery claims are not a baseline.",
-    "Implement proposed crates/ymp-kernel/src/{acceptance,ledger}.rs and crates/ymp-runtime/src/policies/belief.rs. W1-0008/0009 provide real immutable candidates, checks and reviews; W1-0007 provides the commitment transition consumer. Own actual candidate acceptance, A8 ledger and acceptance-to-discharge integration.",
+    "Implement proposed crates/ymp-kernel/src/{acceptance,ledger}.rs and crates/ymp-runtime/src/policies/belief.rs. W1-0008/0009/0019 provide real immutable candidates, check runs, evidence and reviews; W1-0007 provides the commitment transition consumer. Own actual candidate acceptance, A8 ledger and acceptance-to-discharge integration.",
     "Retain BeliefModel, default LikelihoodRatioTable prior=0.5 and subject:Ref. An experimental prior must mean present criterion/result satisfaction, never future assignment success. Filter applicability before polarity, count correlated support once and require nonempty applicable Supports coverage. A7 acceptance, A8 satisfaction and CreditPolicy remain distinct.",
     "Select materially different BeliefModel implementations through the same consumer with recoverable parameters/basis. Implement both CreditPolicy variants as selectable policy values here; W5-0001 consumes them for real observations. W1-0013 handles final aggregates."
   ],
-  "revision": 2,
+  "revision": 4,
   "history": [
     {
       "revision": 1,
@@ -47,6 +48,20 @@
       "actor": "manage.py",
       "status": "new",
       "note": "Plan new implementation from greenfield baseline 0c61ff1, preserving approved experimental mechanisms, reporting/evidence/recovery rules and explicit prerequisite boundaries."
+    },
+    {
+      "revision": 3,
+      "at": "2026-09-15T17:05:13.418292Z",
+      "actor": "manage.py",
+      "status": "new",
+      "note": "Start review 2026-09-16: consume evidence/review applicability from W1-0019."
+    },
+    {
+      "revision": 4,
+      "at": "2026-09-15T17:05:14.335737Z",
+      "actor": "owner",
+      "status": "planned",
+      "note": "Start decision 2026-09-16: W1 scheduled; readiness follows dependencies."
     }
   ]
 }

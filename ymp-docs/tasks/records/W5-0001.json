@@ -9,8 +9,7 @@
   "depends_on": [
     "W1-0010",
     "W3-0002",
-    "W3-0007",
-    "W4-0003"
+    "W3-0007"
   ],
   "owner": null,
   "goal": "Turn attributable accepted or refuted work into qualified experience, without rewarding self-assessment or penalizing agents for infrastructure and defective checks.",
@@ -33,7 +32,7 @@
     "A12 credits actual qualified producers, not every participant’s role or session agreement. Full ExecutionProfile plus Competence/Difficulty distinguishes observations; a native profile/version change cannot inherit unrelated credit.",
     "Confirmed-only and Discriminated-crediting CreditPolicy are selectable experiment implementations. BetaWithForgetting and MeanOnly replace complete mechanisms, not only λ. Record effective policy/parameters with observations and preserve differently governed history. W5-0005 adds real delayed consequences."
   ],
-  "revision": 1,
+  "revision": 2,
   "history": [
     {
       "revision": 1,
@@ -41,6 +40,13 @@
       "actor": "manage.py",
       "status": "new",
       "note": "Task created."
+    },
+    {
+      "revision": 2,
+      "at": "2026-09-15T17:05:13.531827Z",
+      "actor": "manage.py",
+      "status": "new",
+      "note": "Start review 2026-09-16: reputation needs acceptances and diagnoses, not independent attempts; W4-0003 dependency removed."
     }
   ]
 }

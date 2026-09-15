@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "id": "W3-0009",
+  "area": "evaluation",
+  "title": "Compare fixed and self-organizing policy sets on matched sessions",
+  "type": "implementation",
+  "priority": 304,
+  "status": "new",
+  "depends_on": [
+    "W1-0011",
+    "W1-0014"
+  ],
+  "owner": null,
+  "goal": "Provide a bounded, repository-owned comparison runner so that the usefulness of self-organization is measured from W3 on, under the accounting and honesty rules that W6-0005 later extends.",
+  "scope": [
+    "Implement a command over Application/Dispatcher that runs one task definition under two or more explicitly selected policy sets (PolicyRef per port and effective parameters) at matched Constraints, recording per run: required criteria Satisfied and their ConfirmationGrades, unmet criteria, CostUnits spent/held/unknown, wall time, user interventions and journal references.",
+    "Support Scripted backends for validating the runner itself and native backends (Codex from W1-0018, further families as their adapters land) under the separately authorized native-run procedure. Label Scripted and native rows distinctly and never aggregate them.",
+    "Emit a comparison record as an inspectable artifact plus a bounded terminal summary. Report measured differences without causal claims; unequal conditions, unknown usage or a failed run mark the comparison inconclusive.",
+    "Define the first W3 experiment: the implementation + browser + ambiguous-constraint scenario from waves_ideas.md under FixedWorkflow/AnyNonProducer/RuntimeProxy versus OrdinalValue/ResponseThreshold/DemandDriven. W3-0008 uses this runner for its demonstration."
+  ],
+  "acceptance": [
+    "One documented command executes two Scripted runs of the same task under different recorded policy sets and outputs per-run metrics with PolicyRefs, resolved parameters and journal references; replay reproduces the same comparison record.",
+    "A separately authorized native run is recorded with provider version and settings and never mixed with Scripted rows; missing authorization yields an explicit skip, not a fabricated row.",
+    "Unequal budgets, unknown usage or a failed run make the record inconclusive; the runner reports differences and cannot declare one policy set better."
+  ],
+  "evidence": [],
+  "context": [
+    "Authority: intent.md intended outcomes; model sections 1 (principles 3/8/11), 5.8, A11 claim rules and 12. W6-0005 owns calibration, fitting/evaluation separation and the complete comparison suite. Use the approved model with 811a872 semantics and the greenfield baseline in 0c61ff1 and §5.8 for experimental strategy boundaries. Other documents and existing names explain implementation facts only.",
+    "Greenfield: create this behavior in the new implementation. Paths below are PROPOSED target modules under the layout owned by W1-0001; only completed prerequisite tasks supply implementation. Prior source, APIs, fixtures and delivery claims are not a baseline.",
+    "Created 2026-09-16 from the start review: W6-0005 was the last task of the graph, so no comparison could begin before the whole model existed. This runner is the seed that W6-0005 extends, not a second evaluation system.",
+    "Scripted comparisons validate mechanism and accounting only; statements about useful self-organization require matched native runs under the W6-0005 rules."
+  ],
+  "revision": 1,
+  "history": [
+    {
+      "revision": 1,
+      "at": "2026-09-15T17:05:13.645512Z",
+      "actor": "manage.py",
+      "status": "new",
+      "note": "Task created."
+    }
+  ]
+}

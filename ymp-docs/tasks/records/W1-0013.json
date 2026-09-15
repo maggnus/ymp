@@ -5,11 +5,11 @@
   "title": "Finalize the integrated result and deliver an evidence-audited report",
   "type": "implementation",
   "priority": 113,
-  "status": "new",
+  "status": "planned",
   "depends_on": [
     "W1-0006",
     "W1-0008",
-    "W1-0009",
+    "W1-0019",
     "W1-0010",
     "W1-0011",
     "W1-0012"
@@ -35,7 +35,7 @@
     "ResourcePolicy.reporting_reserve from W1-0004 supplies protected Budget capacity without a mandatory Constraints/TUI field. Narrator and one correction are bounded Reporting assignments; DeterministicReport is a selectable alternative and the zero-call fallback after stop or unavailable/unfunded narration. Account narration expenses before ReportDelivered.",
     "A11 blocks only work that can still change the aggregate. Apply the same evidence applicability as A7/A8; final review excludes the aggregate producer union. Fallback explains recorded results, unknowns and unmet criteria and never replaces an unfinished task artifact."
   ],
-  "revision": 2,
+  "revision": 4,
   "history": [
     {
       "revision": 1,
@@ -50,6 +50,20 @@
       "actor": "manage.py",
       "status": "new",
       "note": "Plan new implementation from greenfield baseline 0c61ff1, preserving approved experimental mechanisms, reporting/evidence/recovery rules and explicit prerequisite boundaries."
+    },
+    {
+      "revision": 3,
+      "at": "2026-09-15T17:05:13.251770Z",
+      "actor": "manage.py",
+      "status": "new",
+      "note": "Start review 2026-09-16: depend on W1-0019 (evidence/review binding) instead of the narrowed W1-0009."
+    },
+    {
+      "revision": 4,
+      "at": "2026-09-15T17:05:14.497414Z",
+      "actor": "owner",
+      "status": "planned",
+      "note": "Start decision 2026-09-16: W1 scheduled; readiness follows dependencies."
     }
   ]
 }

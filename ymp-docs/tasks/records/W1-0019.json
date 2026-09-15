@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "id": "W1-0019",
+  "area": "verification",
+  "title": "Bind attributed evidence and reviews to immutable results",
+  "type": "implementation",
+  "priority": 109,
+  "status": "planned",
+  "depends_on": [
+    "W1-0008",
+    "W1-0009"
+  ],
+  "owner": null,
+  "goal": "Turn recorded check runs and reviewer verdicts into attributed Evidence bound to the exact result version, criterion, check version and environment, with the applicability rules shared by A7, A8 and claim audit.",
+  "scope": [
+    "Implement Evidence with criterion/result, EvidenceClass StaticRead/Executed/Browser/ExternalData/Inspection, Independence, run references, Discrimination and Supports/Contradicts polarity, created only by AcceptanceAuthority.evidence from W1-0009 CheckRuns against a W1-0008 ResultVersion.",
+    "Implement kernel applicability validation: evidence applies only to the current result/snapshot, criterion and check versions and execution environment; superseded or unrelated evidence is excluded without deletion. Expose this validation as one shared contract for A7 and A8 (W1-0010) and ClaimAuditor (W1-0013).",
+    "Record Review Approve/Reject/NeedsEvidence with Blocking/Advisory findings and proposed checks as attributed statements without acceptance authority; distinguish StaticRead/Inspection from Executed evidence."
+  ],
+  "acceptance": [
+    "For a real W1-0008 candidate, W1-0009 runs on its after snapshot yield Evidence with correct class, independence, polarity and discrimination fields; a run on another snapshot, criterion or check version cannot support the current result.",
+    "Review records persist their producer-independent reviewer and findings; neither a Review nor an adapter-returned verdict can create Trusted independence or accept a result.",
+    "The applicability filter is exercised through one shared consumer contract that W1-0010 and W1-0013 reuse; evidence made stale by a new ResultVersion is excluded while remaining inspectable."
+  ],
+  "evidence": [],
+  "context": [
+    "Authority: ymp-docs/self-organizing-team-domain-model.md, sections 3.6 (Evidence, Review, Discrimination), 4 (AcceptanceAuthority.evidence), A6/A7/A8/A11 and R-4/R-6. Use the approved model with 811a872 semantics and the greenfield baseline in 0c61ff1 and §5.8 for experimental strategy boundaries. Other documents and existing names explain implementation facts only.",
+    "Greenfield: create this behavior in the new implementation. Paths below are PROPOSED target modules under the layout owned by W1-0001; only completed prerequisite tasks supply implementation. Prior source, APIs, fixtures and delivery claims are not a baseline.",
+    "Created 2026-09-16 by splitting the original W1-0009. Proposed modules: Evidence and Review in crates/ymp-domain/src/verification.rs and the evidence part of crates/ymp-kernel/src/acceptance.rs. W1-0008 supplies immutable ResultVersions; W1-0009 supplies CheckRuns.",
+    "Do not compute belief, grades or acceptance here; W1-0010 owns A7/A8 and consumes this task’s applicability contract."
+  ],
+  "revision": 2,
+  "history": [
+    {
+      "revision": 1,
+      "at": "2026-09-15T17:05:13.148275Z",
+      "actor": "manage.py",
+      "status": "new",
+      "note": "Task created."
+    },
+    {
+      "revision": 2,
+      "at": "2026-09-15T17:05:14.813538Z",
+      "actor": "owner",
+      "status": "planned",
+      "note": "Start decision 2026-09-16: W1 scheduled; readiness follows dependencies."
+    }
+  ]
+}

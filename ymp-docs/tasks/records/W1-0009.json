@@ -2,36 +2,36 @@
   "schema_version": 1,
   "id": "W1-0009",
   "area": "verification",
-  "title": "Run versioned checks against immutable snapshots and record attributable evidence",
+  "title": "Run versioned checks against immutable snapshots and record attributable check runs",
   "type": "implementation",
-  "priority": 109,
-  "status": "new",
+  "priority": 107,
+  "status": "planned",
   "depends_on": [
     "W1-0002",
-    "W1-0006",
-    "W1-0008"
+    "W1-0005",
+    "W1-0006"
   ],
   "owner": null,
-  "goal": "Give AcceptanceAuthority executable evidence tied to the check version, criterion, candidate snapshot and actual environment instead of a loose post-invocation check.",
+  "goal": "Give AcceptanceAuthority executable check runs tied to the check version, target snapshot and actual environment, independent of any producer result.",
   "scope": [
-    "Implement register_check, run and evidence for visible/user checks with CheckAuthor, Independence, needs and version; support Command(program,args,inputs) and ExactBytes(path,digest). Record Baseline/Candidate/Control CheckRun roles, output/environment digests and Pass/Fail/Error(ErrorClass).",
-    "Build ProcessRunner with explicit Command executable/arguments/inputs and ExactBytes execution, bounded process lifecycle, verifier/input protection, retained stdout/stderr and environment identity. Run against the requested immutable Snapshot rather than the changing live workspace. The adapter returns observations; AcceptanceAuthority validates and commits them.",
-    "Create attributed Evidence with criterion/result, class, independence, run references, Discrimination and Supports/Contradicts. Validate applicability against current result/snapshot, criterion/check versions and environment before downstream use; the same applicability semantics feed A7, A8 and ClaimAuditor. Distinguish StaticRead/Inspection from Executed; record Review Approve/Reject/NeedsEvidence and Blocking/Advisory findings without acceptance authority."
+    "Implement register_check and run for visible/user checks with CheckAuthor, Independence, needs and version; support Command(program,args,inputs) and ExactBytes(path,digest). Record Baseline/Candidate/Control CheckRun roles, output/environment digests and Pass/Fail/Error(ErrorClass).",
+    "Build ProcessRunner with explicit Command executable/arguments/inputs and ExactBytes execution, bounded process lifecycle, verifier/input protection, retained stdout/stderr and environment identity. Run against the requested immutable Snapshot from W1-0005 rather than the changing live workspace. The adapter returns observations; AcceptanceAuthority validates and commits CheckRegistered/CheckRunRecorded.",
+    "Bind every CheckRun to the exact check version, target snapshot and environment so that W1-0019 can derive attributed Evidence later. This task creates no Evidence or Review records and needs no submitted ResultVersion; snapshots of a real temporary workspace are sufficient."
   ],
   "acceptance": [
-    "Through AcceptanceAuthority, a real command and exact-byte check run on before/after snapshots, retaining reproducible output and environment references. A deliberately incorrect artifact yields Fail while a missing executable or broken environment yields Error.",
-    "Changing the live workspace after result submission cannot change the checked snapshot. Evidence from another candidate, criterion or check version cannot support the current result.",
-    "ProcessRunner and a materially different CheckRunner implementation are exercised through the same consumer; an adapter-returned approval cannot register trusted independence or accept a result."
+    "Through AcceptanceAuthority, a real command and an exact-byte check run on two snapshots of a temporary workspace, retaining reproducible output and environment references. A deliberately incorrect artifact yields Fail while a missing executable or broken environment yields Error.",
+    "Changing the live workspace after a snapshot cannot change the checked snapshot; a CheckRun cannot be recorded against an unknown check version, snapshot or environment.",
+    "ProcessRunner and a materially different CheckRunner implementation are exercised through the same consumer; an adapter-returned outcome cannot register Trusted independence or mark a run as passing without kernel validation."
   ],
   "evidence": [],
   "context": [
     "Authority: ymp-docs/self-organizing-team-domain-model.md, sections 3.2 (Check), 3.6 (CheckRun, Evidence, Review), 4 (AcceptanceAuthority), 5.1 (CheckRunner), A6/A7/A11. Use the approved model with 811a872 semantics and the greenfield baseline in 0c61ff1 and §5.8 for experimental strategy boundaries. Other documents and existing names explain implementation facts only.",
     "Greenfield: create this behavior in the new implementation. Paths below are PROPOSED target modules under the layout owned by W1-0001; only completed prerequisite tasks supply implementation. Prior source, APIs, fixtures and delivery claims are not a baseline.",
-    "Create proposed crates/ymp-domain/src/verification.rs, crates/ymp-kernel/src/acceptance.rs and crates/ymp-runtime/src/checks/process.rs. W1-0008 supplies real ResultVersions, W1-0005/0016 exact snapshot content, and W1-0017 attributable execution/limits. Build all checking/evidence behavior in this iteration.",
+    "Create proposed crates/ymp-domain/src/verification.rs (Check, CheckSpec, CheckRun), the register_check/run part of crates/ymp-kernel/src/acceptance.rs and crates/ymp-runtime/src/checks/process.rs. W1-0005/0016 supply exact snapshot content; W1-0006 supplies assignment references for CheckAuthor. Evidence, Review and result applicability are W1-0019.",
     "Command is the model’s explicit program/args/inputs contract. Do not substitute an unversioned shell string or a loose invocation-success label. W2 owns independent hidden design, Property/BrowserScenario/ExternalQuery, ContainerRunner and mutation.",
-    "Applicable criterion/result/check/environment bindings and source independence are kernel validation, shared by A7, A8 and ClaimAuditor. Cross-version evidence and an adapter-returned verdict cannot authorize acceptance."
+    "Split on 2026-09-16 from the original W1-0009 so that check execution proceeds in parallel with W1-0007 → W1-0017 → W1-0008; the evidence/review half is W1-0019."
   ],
-  "revision": 2,
+  "revision": 4,
   "history": [
     {
       "revision": 1,
@@ -46,6 +46,20 @@
       "actor": "manage.py",
       "status": "new",
       "note": "Plan new implementation from greenfield baseline 0c61ff1, preserving approved experimental mechanisms, reporting/evidence/recovery rules and explicit prerequisite boundaries."
+    },
+    {
+      "revision": 3,
+      "at": "2026-09-15T17:05:13.095539Z",
+      "actor": "manage.py",
+      "status": "new",
+      "note": "Start review 2026-09-16: narrow to check execution over snapshots; evidence/review binding moves to W1-0019 so this task no longer waits for W1-0008/W1-0017."
+    },
+    {
+      "revision": 4,
+      "at": "2026-09-15T17:05:14.283742Z",
+      "actor": "owner",
+      "status": "planned",
+      "note": "Start decision 2026-09-16: W1 scheduled; readiness follows dependencies."
     }
   ]
 }

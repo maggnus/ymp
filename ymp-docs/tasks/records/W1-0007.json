@@ -5,7 +5,7 @@
   "title": "Complete commitment leases, release and delegation without losing accepted work",
   "type": "implementation",
   "priority": 107,
-  "status": "new",
+  "status": "planned",
   "depends_on": [
     "W1-0006"
   ],
@@ -30,7 +30,7 @@
     "Own the P2 transition consumer, including validation against an attributable kernel acceptance/completion reference or projection. Actual non-artifact invocation completion is connected by W1-0017; real ResultVersion → Acceptance → Discharged is explicitly connected in W1-0010/W1-0014. Do not implement future result/acceptance production or fabricate an accepted artifact just to close this task.",
     "A selected Method/owning strategy supplies recorded lease/renewal inputs and can change their computation under §5.8; Arbiter retains lifecycle/one-active-commitment authority. Delegation admits the successor first and leaves responsibility intact if admission is refused. R-19 release conditions remain independent."
   ],
-  "revision": 2,
+  "revision": 3,
   "history": [
     {
       "revision": 1,
@@ -45,6 +45,13 @@
       "actor": "manage.py",
       "status": "new",
       "note": "Plan new implementation from greenfield baseline 0c61ff1, preserving approved experimental mechanisms, reporting/evidence/recovery rules and explicit prerequisite boundaries."
+    },
+    {
+      "revision": 3,
+      "at": "2026-09-15T17:05:14.181093Z",
+      "actor": "owner",
+      "status": "planned",
+      "note": "Start decision 2026-09-16: W1 scheduled; readiness follows dependencies."
     }
   ]
 }

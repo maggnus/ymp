@@ -7,7 +7,7 @@
   "priority": 203,
   "status": "new",
   "depends_on": [
-    "W1-0009",
+    "W1-0019",
     "W1-0013",
     "W2-0001"
   ],
@@ -31,7 +31,7 @@
     "New local fixture pages/query servers can demonstrate real browser/external execution behavior without claiming evidence about an arbitrary live site. Actual native permissions decide Browser/Network/process access before method selection.",
     "Browser/ExternalData evidence is classified from actual runs/responses, never adapter authority. Applicable contradiction defeats approval; unknown transport/environment failures remain Error and cannot be mislabeled as behavioral failure."
   ],
-  "revision": 2,
+  "revision": 3,
   "history": [
     {
       "revision": 1,
@@ -46,6 +46,13 @@
       "actor": "manage.py",
       "status": "new",
       "note": "Plan new implementation from greenfield baseline 0c61ff1, preserving approved experimental mechanisms, reporting/evidence/recovery rules and explicit prerequisite boundaries."
+    },
+    {
+      "revision": 3,
+      "at": "2026-09-15T17:05:13.363898Z",
+      "actor": "manage.py",
+      "status": "new",
+      "note": "Start review 2026-09-16: depend on W1-0019 (evidence/review binding) instead of the narrowed W1-0009."
     }
   ]
 }

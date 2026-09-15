@@ -5,7 +5,7 @@
   "title": "Execute admitted assignments through a new host and Scripted backend",
   "type": "implementation",
   "priority": 108,
-  "status": "new",
+  "status": "planned",
   "depends_on": [
     "W1-0006",
     "W1-0007",
@@ -30,7 +30,7 @@
     "Scripted and a materially different backend contract implementation run through the real host; whole-invocation limits and response identity are enforced, unknown metadata/usage remain unknown, and malicious output cannot grant itself authority."
   ],
   "evidence": [],
-  "revision": 1,
+  "revision": 2,
   "history": [
     {
       "revision": 1,
@@ -38,6 +38,13 @@
       "actor": "manage.py",
       "status": "new",
       "note": "Task created."
+    },
+    {
+      "revision": 2,
+      "at": "2026-09-15T17:05:14.705527Z",
+      "actor": "owner",
+      "status": "planned",
+      "note": "Start decision 2026-09-16: W1 scheduled; readiness follows dependencies."
     }
   ]
 }

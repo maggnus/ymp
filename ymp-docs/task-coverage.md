@@ -8,7 +8,8 @@ neither status nor full task bodies. Read a task with `manage.py show ID`.
 
 The approved [self-organizing team model](self-organizing-team-domain-model.md)
 defines architecture and product scope, including the final experimental rules
-from `811a872` and the greenfield starting point from `0c61ff1`.
+from `811a872`, the greenfield starting point from `0c61ff1` and the amendments
+recorded in its section 12.1 on 2026-09-16.
 Useful self-organization is the central product question: agent initiative,
 offers, commitments and their transfer, communication, objections, and team/plan
 adaptation must change actual work. User tasks make their benefits, failures and
@@ -24,17 +25,19 @@ within a session occur at recorded work boundaries and preserve earlier history.
 
 | Wave / build stages | Concrete implementation owners | Executable outcome |
 | --- | --- | --- |
-| W1 / 1–5 | W1-0001–W1-0018, including W1-0015 interface | Accountable producer/reviewer session, criterion ledger, recovery and audited report through a simple TUI. |
+| W1 / 1–5 | W1-0001–W1-0019, including W1-0015 interface | Accountable producer/reviewer session, criterion ledger, recovery and audited report through a simple TUI. |
 | W2 / 6 | W2-0001–W2-0004 | Independently designed hidden checks and measured discrimination. |
-| W3 / 7 | W3-0001–W3-0008 | Grant-scoped communication, voluntary allocation and evidence-driven self-organization. |
+| W3 / 7 | W3-0001–W3-0009, plus the rescheduled W6-0001 Claude adapter | Grant-scoped communication, voluntary allocation and evidence-driven self-organization. |
 | W4 / 8 | W4-0001–W4-0003 | Sealed isolated alternatives, complete test matrix, justified selection and merge. |
 | W5 / 9 | W5-0001–W5-0005 | Qualified experience, tested knowledge and delayed correction. |
 | W6 / 10 | W6-0001–W6-0005 | All native backends, calibrated routing/allocation and reproducible policy evaluation. |
 
 These ranges identify wave composition only; detailed ownership below uses
 specific IDs. No wave boundary is an implicit dependency. The records contain the
-actual graph. There are 43 tasks: W1 has 18, W2 has 4, W3 has 8, W4 has 3,
-W5 has 5 and W6 has 5. W1 creates the entire foundation and first user journey.
+actual graph. There are 45 tasks: W1 has 19, W2 has 4, W3 has 9, W4 has 3,
+W5 has 5 and W6 has 5. W1-0019 and W3-0009 were added on 2026-09-16 after the start
+review; W6-0001 keeps its ID but is scheduled in the W3 window through its dependencies
+and priority. W1 creates the entire foundation and first user journey.
 The in-memory Journal (W1-0001), durable Journal/content (W1-0016), admission
 (W1-0006), execution host/Scripted backend (W1-0017), and complete native Codex
 backend (W1-0018) are separate behavior/ownership boundaries. Explicit dependencies
@@ -68,7 +71,7 @@ files are changed by this decomposition.
 | `ymp-kernel/src/arbiter.rs`, `ymp-domain/src/coordination.rs` | W1-0006/0007 create minimal award and P2 transition consumer; W3-0001/0003/0006 build full communication/allocation/dispute behavior. |
 | `ymp-runtime/src/{execution_host,clock,backends/scripted}.rs` | W1-0017 creates bounded execution, observations/receipts/recovery and Scripted; connects real non-artifact discharge. |
 | `ymp-runtime/src/backends/codex.rs` and focused protocol modules | W1-0018 builds complete native Codex discovery/execution and new fixtures. No ready App Server or prior adapter is assumed. |
-| `ymp-domain/src/{plan,result,verification}.rs`, `ymp-kernel/src/{results,acceptance,ledger}.rs` | W1-0008/0009/0010 create immutable results, checks/evidence and A7/A8. W1-0010 connects real acceptance to P2 artifact discharge. |
+| `ymp-domain/src/{plan,result,verification}.rs`, `ymp-kernel/src/{results,acceptance,ledger}.rs` | W1-0008/0009/0019/0010 create immutable results, check runs, attributed evidence/reviews and A7/A8. W1-0010 connects real acceptance to P2 artifact discharge. |
 | `ymp-runtime/src/policies/`, `ymp-kernel/src/{plans,progress,finalization}.rs` | W1-0011/0012/0013 create planning, diagnosis, context, independent finalization and audited narration/fallback. Later policy tasks add concrete implementations through the same contracts. |
 | `ymp-runtime/src/{application,dispatcher}.rs`, `ymp-cli/src/{main,lib,tui}.rs` | W1-0014/0015 create the actual session loop and simple terminal product; W3-0008/W6-0004 add dynamic/value-based orchestration. |
 | `ymp-runtime/src/checks/`, `workspace/`, `attempts.rs` | W2-0001–0004 create independent/discriminating checks; W4-0001–0003 create isolated alternatives and selection/merge. |
@@ -100,7 +103,7 @@ behavior; listed variants identify branch coverage, not separate tasks.
 | Team, Membership participation intervals/reasons and revision | W1-0011 initial team; W3-0002 dynamic changes |
 | Method/ladder/PolicyRef; MethodKind `Solo/SoloWithVerifier/AsNeededDecomposition/IndependentAttempts(k)/BreadthResearch(k)` | W1-0011 fixed SoloWithVerifier; W3-0004 decomposition; W4-0002 independent attempts; W6-0003 all methods and routing |
 | Plan graph/version/author; WorkItem targets/deps/needs/writes/parent/accepted; WorkState `Open/Committed/Running/InReview/Accepted/Failed/Blocked/Superseded` | W1-0008 result-linked graph, W1-0011 planning, W3-0004 revisions/state, W3-0008 concurrent execution |
-| Contribution; Forecast `Agent(ExecutionProfile)/Model(PolicyRef)`; CostEstimate expected/p90; proposed_by `Runtime/Agent(Assignment)` | W1-0004, W1-0006; agent proposal flow W3-0001 and value selection W6-0004 |
+| Contribution with `difficulty` (§12.1); Forecast `Agent(ExecutionProfile)/Model(PolicyRef)`; CostEstimate expected/p90; proposed_by `Runtime/Agent(Assignment)` | W1-0004, W1-0006; agent proposal flow W3-0001 and value selection W6-0004 |
 | ContributionKind `Plan/Produce/Verify/Review/Diagnose/Decompose/Clarify/Narrate` | W1-0006, W1-0011/0012/0013; complete Decompose/Clarify W3-0004/0007 |
 | ContributionKind `DesignChecks/Research/Alternative/Integrate/Curate/Judge` | W2-0001; W3-0007 and W6-0003 Research; W4-0002 Alternative; W6-0003 Integrate; W5-0003 Curate; W3-0006 Judge |
 | RoleKind `Planner/CheckDesigner/Producer/Verifier/Reviewer/FinalReviewer/Researcher/Curator/Narrator/Judge/Advocate` | W1-0006 typed admission; substantive consumers W1-0011/0013, W2-0001, W3-0006/0007, W4-0002, W5-0003, W6-0003/0004 |
@@ -118,8 +121,8 @@ behavior; listed variants identify branch coverage, not separate tasks.
 | Handoff; ContextDigest decisions/open_questions/evidence/summary | W3-0005 |
 | CheckRun roles `Baseline/Candidate/Mutant/Control`, outcomes `Pass/Fail/Error`, stdout/stderr/env digests | W1-0009 baseline/candidate/control; W2-0004 mutant; complete cross-matrix W4-0002 |
 | Mutant base/patch/operator/equivalent `true/false/unknown`; Discrimination baseline_fails/candidate_passes/mutation_score | W2-0004 |
-| `EvidenceClass` `StaticRead/Executed/Browser/ExternalData/Inspection`; polarity `Supports/Contradicts`; author/result/criterion/run attribution | W1-0009; Browser/ExternalData W2-0003; grade use W1-0010/W2-0004 |
-| Review `Approve/Reject/NeedsEvidence`; Finding `Blocking/Advisory`, criterion and proposed_check | W1-0009/0010; dispute review W3-0006 |
+| `EvidenceClass` `StaticRead/Executed/Browser/ExternalData/Inspection`; polarity `Supports/Contradicts`; author/result/criterion/run attribution | W1-0019; Browser/ExternalData W2-0003; grade use W1-0010/W2-0004 |
+| Review `Approve/Reject/NeedsEvidence`; Finding `Blocking/Advisory`, criterion and proposed_check | W1-0019/0010; dispute review W3-0006 |
 | Acceptance subject `ResultVersion/FinalAggregate`, decision `Accepted/Rejected`; per-criterion/minimum ConfirmationGrade `Refuted/Unconfirmed/Discriminated/Confirmed(TrustedCheck/ExternalData/Consequences)` | W1-0010/0013; Discriminated W2-0004, ExternalData W2-0003, consequences/refutation W5-0005 |
 | CriteriaLedger/LedgerEntry `Unmet/Supported/Satisfied/Contradicted`, subject-bound belief/evidence/stimulus/unmet_since/changed, neutral default prior and applicable Supports coverage | W1-0010; stimulus W3-0003, calibrated allocation W6-0004 |
 | ProgressLedger/ProgressRecord progress/satisfaction/looping/diagnosis/stall count | W1-0012; complete recovery W3-0007 |
@@ -150,9 +153,9 @@ Source: model [section 4](self-organizing-team-domain-model.md#4-trusted-runtime
 | WorkspaceGuard | W1-0005 Direct open/lock/snapshot/release(basis), using W1-0016 content; W1-0017 actual cessation integration; W4-0001 IsolatedCopy/merge. |
 | Gatekeeper | W1-0006 admit/revoke, atomic grant/commitment/reservation/locks; W1-0007 lifecycle; W2-0001 author exclusion; W3-0002 dynamic pins/growth. |
 | Arbiter | W1-0006 minimal open/submit/award, W1-0007 commitment/tick; W3-0001 notice/propose; W3-0003 full open/submit/award; W3-0006 objection. |
-| AcceptanceAuthority | W1-0009 register_check/run/evidence; W1-0010 accept/ledger; W1-0013 finalize; W2-0001/0004 independent design/discrimination; W5-0005 regrade. |
+| AcceptanceAuthority | W1-0009 register_check/run; W1-0019 evidence and review applicability; W1-0010 accept/ledger; W1-0013 finalize; W2-0001/0004 independent design/discrimination; W5-0005 regrade. |
 | ExperienceVault | W5-0001 observe/reputation; W5-0002 forecast_outcome; W5-0003 knowledge Propose/Promote/Supersede/Retire; trial promotion W5-0004; consequences W5-0005. |
-| Dispatcher | W1-0014 run baseline; W3-0008 dynamic coordination; W4-0003 alternatives; W5-0003/0005 asynchronous learning/consequences; W6-0004 complete loop. |
+| Dispatcher | W1-0014 run baseline; W3-0009 comparison runner over Application/Dispatcher; W3-0008 dynamic coordination; W4-0003 alternatives; W5-0003/0005 asynchronous learning/consequences; W6-0004 complete loop. |
 
 ## Strategies, defaults and alternatives
 
@@ -194,7 +197,7 @@ collects reproducible comparisons, not replacement tests deferred from early wav
 | ContextComposer — CriteriaProjection + JournalDigest | W1-0013; hidden protection W2-0001; handoff W3-0005; retrieval W5-0004 |
 | NarrativeComposer — admitted Narrator charged to Reporting; DeterministicReport alternative/fallback; ClaimAuditor — EvidenceClassRules | W1-0013, zero-call user-stop integration W1-0014 |
 | WorkspaceProvider — Direct; CopyOnWrite | W1-0005; W4-0001 |
-| ExecutionBackend — Scripted; Codex; Claude; Glm | W1-0017 host/Scripted; W1-0018 complete Codex; W3-0001 team transport; W6-0001 Claude; W6-0002 Glm |
+| ExecutionBackend — Scripted; Codex; Claude; Glm | W1-0017 host/Scripted; W1-0018 complete Codex; W3-0001 team transport; W6-0001 Claude (scheduled in the W3 window after W1-0017 and W3-0001); W6-0002 Glm |
 
 ### Experimental interface contract (§5.8)
 
@@ -299,6 +302,7 @@ forms in their owning tasks; no extra architecture task is hidden here.
 | R-18 | W5-0003 provenance/scope/basis and stronger supersession; W5-0004 trial promotion; W5-0005 retirement. |
 | R-19 | W1-0004 financial settle/release_unstarted; W1-0005 scoped cessation/release; W1-0006/0007 revocation retains holds; W1-0017/0018 actual observations; W4-0001 isolation. |
 | R-20 | W1-0016 durable history/content; W1-0017/0018 no duplicate unresolved start; W1-0014 user recovery/budget/grant preservation; W3-0008/W6-0004 dynamic recovery. |
+| R-21 | W1-0013 ContextComposer labeling; W3-0001 Board projections and actor derivation from the admitted invocation; W3-0005 handoff digests. |
 
 ## Journal event families
 
@@ -312,7 +316,8 @@ journal facts; the model does not require three additional named recovery events
 | --- | --- |
 | SessionOpened; CriteriaCommitted; ClarificationRecorded; AssumptionRecorded | W1-0002, W1-0011; interactive revisions W3-0004 |
 | BudgetOpened; ReservationChanged; ReceiptSettled | W1-0004/0006, lifecycle W1-0007 |
-| CheckRegistered; CheckRunRecorded; EvidenceRecorded; ReviewRecorded | W1-0009; hidden W2-0001, new runners W2-0002/0003, discrimination W2-0004, objections W3-0006 |
+| CheckRegistered; CheckRunRecorded | W1-0009; hidden W2-0001, new runners W2-0002/0003, discrimination W2-0004 |
+| EvidenceRecorded; ReviewRecorded | W1-0019; Browser/ExternalData W2-0003, discrimination W2-0004, objections W3-0006 |
 | MutantRecorded | W2-0004 |
 | MethodChosen; PlanCommitted; PlanRevised | W1-0011, W3-0004, W6-0003 |
 | ContributionProposed; SolicitationOpened; SolicitationChanged; OfferSubmitted; Awarded | W1-0006 fixed baseline, W3-0001 proposals, W3-0003 full lifecycle |
@@ -340,7 +345,7 @@ journal facts; the model does not require three additional named recovery events
 | P6 cost_interrupt | W3-0004 | W6-0005 |
 | PriceBook/fallback/unknown usage; policy-derived reporting reserve; creditable-grade choice | W1-0004; W1-0010/W5-0001 | W6-0005 records resolved values/conditions and evaluated mechanisms |
 | Brier/isotonic fitting, insufficient-data fallback, success/cost attribution | W5-0002 | W6-0005 separated fitting/evaluation and honest inconclusive outcomes |
-| Every strategy’s real-consumer replacement contract | Each owning feature task above | W6-0005 reproducible comparisons |
+| Every strategy’s real-consumer replacement contract | Each owning feature task above | W3-0009 first matched comparisons at fixed conditions; W6-0005 reproducible calibrated comparisons |
 
 AGENTS.md applies to every implementation task: before a code commit run
 `cargo build --workspace --offline`, `cargo fmt --all --check`,

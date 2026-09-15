@@ -5,7 +5,7 @@
   "title": "Commit explicit goals, constraints and versioned acceptance criteria",
   "type": "implementation",
   "priority": 102,
-  "status": "new",
+  "status": "planned",
   "depends_on": [
     "W1-0001"
   ],
@@ -29,7 +29,7 @@
     "Implement explicit user goal/criterion/constraint input first. Reporting capacity is derived later by ResourcePolicy into Budget, not an obligatory Constraints field. W1-0011 owns admitted Planner extraction, Derived(Assignment) authorship and the invalid/foreign producer checks at that real integration boundary.",
     "Development task records remain unrelated to product Task authority. Intake commits user scope; a future Planner proposal cannot silently override pins or replace the user goal."
   ],
-  "revision": 2,
+  "revision": 3,
   "history": [
     {
       "revision": 1,
@@ -44,6 +44,13 @@
       "actor": "manage.py",
       "status": "new",
       "note": "Plan new implementation from greenfield baseline 0c61ff1, preserving approved experimental mechanisms, reporting/evidence/recovery rules and explicit prerequisite boundaries."
+    },
+    {
+      "revision": 3,
+      "at": "2026-09-15T17:05:13.917537Z",
+      "actor": "owner",
+      "status": "planned",
+      "note": "Start decision 2026-09-16: W1 scheduled; readiness follows dependencies."
     }
   ]
 }

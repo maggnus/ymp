@@ -5,10 +5,10 @@
   "title": "Diagnose stalls and perform bounded recovery without discarding verified work",
   "type": "implementation",
   "priority": 112,
-  "status": "new",
+  "status": "planned",
   "depends_on": [
     "W1-0007",
-    "W1-0009",
+    "W1-0019",
     "W1-0010",
     "W1-0011"
   ],
@@ -33,7 +33,7 @@
     "RuleBasedDiagnoser distinguishes check/environment/capability/artifact/plan/interpretation/resource failures. W3-0007 supplies ModelAssistedDiagnoser and the team/plan-dependent action handlers; W4-0003 supplies AlternativeAttempts. Unsupported later actions are explicit limitations, not silently completed steps.",
     "ProgressMonitor/FailureDiagnoser/EscalationPolicy are replaceable algorithms with recoverable inputs and parameters. A handler cannot ignore R-19 holds, revive authority or discard accepted work. Each escalation records purpose, bound and criterion for judging its outcome."
   ],
-  "revision": 2,
+  "revision": 4,
   "history": [
     {
       "revision": 1,
@@ -48,6 +48,20 @@
       "actor": "manage.py",
       "status": "new",
       "note": "Plan new implementation from greenfield baseline 0c61ff1, preserving approved experimental mechanisms, reporting/evidence/recovery rules and explicit prerequisite boundaries."
+    },
+    {
+      "revision": 3,
+      "at": "2026-09-15T17:05:13.200568Z",
+      "actor": "manage.py",
+      "status": "new",
+      "note": "Start review 2026-09-16: depend on W1-0019 (evidence/review binding) instead of the narrowed W1-0009."
+    },
+    {
+      "revision": 4,
+      "at": "2026-09-15T17:05:14.441458Z",
+      "actor": "owner",
+      "status": "planned",
+      "note": "Start decision 2026-09-16: W1 scheduled; readiness follows dependencies."
     }
   ]
 }

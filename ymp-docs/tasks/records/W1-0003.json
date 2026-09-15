@@ -5,7 +5,7 @@
   "title": "Resolve native agents and execution profiles through a trusted Registry",
   "type": "implementation",
   "priority": 103,
-  "status": "new",
+  "status": "planned",
   "depends_on": [
     "W1-0001",
     "W1-0002"
@@ -30,7 +30,7 @@
     "Each ModelOffering preserves its own native effort values. Family/version metadata has a stated source; absent native data stays unknown and yields an explicit fallback/denial when a decision requires it. An agent has persistent instructions/defaults, not permanent role authority.",
     "This Registry implementation does not claim an executor exists. W1-0017 builds Scripted, W1-0018 builds Codex, W6-0001 builds Claude and W6-0002 builds Glm against this contract."
   ],
-  "revision": 2,
+  "revision": 3,
   "history": [
     {
       "revision": 1,
@@ -45,6 +45,13 @@
       "actor": "manage.py",
       "status": "new",
       "note": "Plan new implementation from greenfield baseline 0c61ff1, preserving approved experimental mechanisms, reporting/evidence/recovery rules and explicit prerequisite boundaries."
+    },
+    {
+      "revision": 3,
+      "at": "2026-09-15T17:05:13.968181Z",
+      "actor": "owner",
+      "status": "planned",
+      "note": "Start decision 2026-09-16: W1 scheduled; readiness follows dependencies."
     }
   ]
 }

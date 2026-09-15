@@ -5,7 +5,7 @@
   "title": "Admit contributions atomically with grants, reservations and active commitments",
   "type": "implementation",
   "priority": 106,
-  "status": "new",
+  "status": "planned",
   "depends_on": [
     "W1-0002",
     "W1-0003",
@@ -33,7 +33,7 @@
     "A minimal W1 Arbiter open/submit/award path with one RuntimeProxy offer is real persisted behavior, not a free-floating fabricated Award. W3-0003 adds all voluntary offer/deadline/reopen branches; agent-callable transport is W3-0001.",
     "Bootstrap Plan contributions can have no committed criterion targets yet. Admission validates committed facts and typed subject references; W1-0008/0010 later supply real result/acceptance producers. W1-0007 owns the rest of P2 lifecycle. Role/Grant/Assignment IDs remain distinct from Invocation/native session."
   ],
-  "revision": 2,
+  "revision": 3,
   "history": [
     {
       "revision": 1,
@@ -48,6 +48,13 @@
       "actor": "manage.py",
       "status": "new",
       "note": "Plan new implementation from greenfield baseline 0c61ff1, preserving approved experimental mechanisms, reporting/evidence/recovery rules and explicit prerequisite boundaries."
+    },
+    {
+      "revision": 3,
+      "at": "2026-09-15T17:05:14.125506Z",
+      "actor": "owner",
+      "status": "planned",
+      "note": "Start decision 2026-09-16: W1 scheduled; readiness follows dependencies."
     }
   ]
 }

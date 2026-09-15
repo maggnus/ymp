@@ -5,7 +5,7 @@
   "title": "Expose the accountable session through a simple interactive Ratatui interface",
   "type": "implementation",
   "priority": 115,
-  "status": "new",
+  "status": "planned",
   "depends_on": [
     "W1-0014"
   ],
@@ -30,7 +30,7 @@
     "Preserve broad chat/commands/information-panel direction while leaving layout and command spelling open. The TUI is one evolving consumer of actual state/authority, not a domain store, strategy or fixed inventory of per-wave screens.",
     "User intake/clarification, interrupt/recover and inspection use kernel-backed application operations. Agent text cannot impersonate continuation authority. A report after stop uses recorded facts with no further inference; terminal restoration/responsiveness are part of this task."
   ],
-  "revision": 2,
+  "revision": 3,
   "history": [
     {
       "revision": 1,
@@ -45,6 +45,13 @@
       "actor": "manage.py",
       "status": "new",
       "note": "Plan new implementation from greenfield baseline 0c61ff1, preserving approved experimental mechanisms, reporting/evidence/recovery rules and explicit prerequisite boundaries."
+    },
+    {
+      "revision": 3,
+      "at": "2026-09-15T17:05:14.600640Z",
+      "actor": "owner",
+      "status": "planned",
+      "note": "Start decision 2026-09-16: W1 scheduled; readiness follows dependencies."
     }
   ]
 }

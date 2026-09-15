@@ -5,7 +5,7 @@
   "title": "Create the Rust domain/kernel foundation and replayable in-memory Journal",
   "type": "implementation",
   "priority": 101,
-  "status": "new",
+  "status": "planned",
   "depends_on": [],
   "owner": null,
   "goal": "Establish the new implementation’s concrete boundaries and a working Journal consumer that reconstructs attributed decisions from immutable events.",
@@ -29,7 +29,7 @@
     "Choose concrete dependencies only for needed serialization/digest/synchronization capabilities. Time, random decision inputs and effective policy parameters must be recoverable; replay reconstructs the stored model proposal, not an identical fresh stochastic model response.",
     "Working tree at task start: the previous iteration's crates, Cargo.toml and Cargo.lock were removed from the repository and remain reachable only at git tag legacy-foundation (commit f95d8df). Create the Cargo workspace and crates from scratch; the retained rust-toolchain.toml (1.89.0) applies. Consult the tag only for implementation facts, never as code to extend."
   ],
-  "revision": 3,
+  "revision": 4,
   "history": [
     {
       "revision": 1,
@@ -51,6 +51,13 @@
       "actor": "manage.py",
       "status": "new",
       "note": "Record that the legacy crates and Cargo manifests were removed before this task; historical code lives at tag legacy-foundation."
+    },
+    {
+      "revision": 4,
+      "at": "2026-09-15T17:05:13.864576Z",
+      "actor": "owner",
+      "status": "planned",
+      "note": "Start decision 2026-09-16: W1 scheduled; readiness follows dependencies."
     }
   ]
 }

@@ -12,7 +12,8 @@
     "W3-0004",
     "W3-0005",
     "W3-0006",
-    "W3-0007"
+    "W3-0007",
+    "W3-0009"
   ],
   "owner": null,
   "goal": "Make the full W3 team operate around criteria and work boundaries: useful independent work can overlap while notices, bids, leases and objections change subsequent admissions.",
@@ -35,7 +36,7 @@
     "All P1–P6 mechanisms are prerequisite outputs, and P7 protects CheckDesigner/Board visibility. W4 adds competing attempt groups; W5 adds experience. User stop must not be starved and stops autonomous model work until applicable continuation.",
     "The demonstration must show initiative, offers and transferred commitments changing admitted work and plan, not just simultaneous messages. Preserve each experiment’s implementation/parameter selection at authorized work boundaries and report costs/limitations honestly."
   ],
-  "revision": 2,
+  "revision": 3,
   "history": [
     {
       "revision": 1,
@@ -50,6 +51,13 @@
       "actor": "manage.py",
       "status": "new",
       "note": "Plan new implementation from greenfield baseline 0c61ff1, preserving approved experimental mechanisms, reporting/evidence/recovery rules and explicit prerequisite boundaries."
+    },
+    {
+      "revision": 3,
+      "at": "2026-09-15T17:05:13.703207Z",
+      "actor": "manage.py",
+      "status": "new",
+      "note": "Start review 2026-09-16: the dynamic-cooperation demonstration runs through the W3-0009 comparison runner."
     }
   ]
 }

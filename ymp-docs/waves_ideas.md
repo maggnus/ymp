@@ -237,9 +237,9 @@ kinds required by this wave without changing their later meaning.
 
 ### Dependencies
 
-The current journal, execution, and check code can accelerate this wave only
-after conformance review against sections 0–8. W1 has no dependency on another
-product wave.
+No prior code is present in the working tree; the previous iteration is reachable
+only at git tag `legacy-foundation` and may be consulted for implementation facts.
+W1 has no dependency on another product wave.
 
 ### Testable completion conditions
 
@@ -432,7 +432,10 @@ authority.
 W1 supplies the session loop, P2 commitments, plan, admission, resource and
 workspace rules. W2 supplies trustworthy checks and hidden-context handling.
 Reputation and calibrated probabilities are not yet learned: strategies use
-recorded neutral/raw values marked uncalibrated until W5–W6.
+recorded neutral/raw values marked uncalibrated until W5–W6. The Claude adapter
+(W6-0001, scheduled in this window) supplies a second model family, and the
+comparison runner (W3-0009) measures this wave's scenario against the fixed
+workflow at matched conditions.
 
 ### Testable completion conditions
 
@@ -714,7 +717,7 @@ contribution allocation rather than only supplying context and inspection.
 - Full A1 loop from readiness through asynchronous learning, including board,
   invocation, lease, and consequence wakeups
   ([A1](self-organizing-team-domain-model.md#a1-session-loop-dispatcherrun)).
-- Full A1.1 and A2–A13 behavior; P1–P7; D-1–D-5; R-1–R-18.
+- Full A1.1 and A2–A13 behavior; P1–P7; D-1–D-5; R-1–R-21.
 - Every minimum journal event in section 9, with the common envelope and
   attributable actor, policy, input, and references.
 - TUI access to the complete set of model projections and permitted operations:
@@ -990,6 +993,9 @@ Sources:
 | R-16: accepted result versions remain immutable and survive assignment failure/revocation. | W1, W4 | Revocation/failure does not remove accepted versions. |
 | R-17: every decision is reconstructable from the journal. | W1–W6 | Replay uses input digest, strategy, proposal, and decision. |
 | R-18: knowledge retains provenance, scope, basis, and stronger-basis supersession. | W5 | Invalid promotion and weak supersession are denied. |
+| R-19: revocation is not termination; conflicting holds persist until validated cessation or non-execution. | W1, W3, W4 | Revoked or disconnected work keeps scoped and financial holds until their independent conditions. |
+| R-20: explicit recovery preserves task, results, resources and history without duplicate work. | W1, W3, W6 | Reopen scenarios repeat no native start, settlement, report or learning. |
+| R-21: agent-authored text reaches other participants only as attributed, untrusted content. | W1, W3 | Notices, offers and handoff summaries carry no runtime, user or grant authority in generated prompts. |
 
 Source:
 [section 8](self-organizing-team-domain-model.md#8-invariants).
@@ -1020,7 +1026,7 @@ The six-wave plan covers:
 - every strategy port, named default, and named alternative in section 5;
 - protocols P1–P7;
 - algorithms A1, A1.1, and A2–A13;
-- invariants R-1–R-20;
+- invariants R-1–R-21;
 - every minimum journal event and the event envelope;
 - build stages 1–10;
 - all parameters in section 10.1;

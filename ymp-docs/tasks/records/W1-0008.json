@@ -5,7 +5,7 @@
   "title": "Submit immutable result versions bound to attempts and exact workspace snapshots",
   "type": "implementation",
   "priority": 108,
-  "status": "new",
+  "status": "planned",
   "depends_on": [
     "W1-0005",
     "W1-0006",
@@ -33,7 +33,7 @@
     "Submission validates actual assignment/workspace/producer/profile ownership and records a fresh Attempt/ResultVersion. No submission or process completion is acceptance. W1-0009 checks these candidates, W1-0010 independently accepts/rejects them and discharges artifact commitments.",
     "Retain snapshot bytes and non-selected/rejected/abandoned versions. A retry cannot overwrite results/evidence and unresolved writing cannot yield a stable after snapshot. Use the durable store from W1-0016; no previous-iteration migration is required."
   ],
-  "revision": 2,
+  "revision": 3,
   "history": [
     {
       "revision": 1,
@@ -48,6 +48,13 @@
       "actor": "manage.py",
       "status": "new",
       "note": "Plan new implementation from greenfield baseline 0c61ff1, preserving approved experimental mechanisms, reporting/evidence/recovery rules and explicit prerequisite boundaries."
+    },
+    {
+      "revision": 3,
+      "at": "2026-09-15T17:05:14.232728Z",
+      "actor": "owner",
+      "status": "planned",
+      "note": "Start decision 2026-09-16: W1 scheduled; readiness follows dependencies."
     }
   ]
 }

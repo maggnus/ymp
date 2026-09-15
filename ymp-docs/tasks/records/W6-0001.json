@@ -4,22 +4,18 @@
   "area": "providers",
   "title": "Execute Claude assignments with native identity, team operations and accountable receipts",
   "type": "implementation",
-  "priority": 601,
+  "priority": 302,
   "status": "new",
   "depends_on": [
-    "W1-0003",
-    "W1-0004",
-    "W1-0006",
-    "W3-0001",
-    "W3-0008",
-    "W4-0001"
+    "W1-0017",
+    "W3-0001"
   ],
   "owner": null,
   "goal": "Make the Claude execution environment a conforming participant in the complete team without copying authentication or guessing native settings and isolation.",
   "scope": [
     "Implement ExecutionBackend(Claude) and native discovery/readiness using the actual supported local protocol. Preserve persistent Agent identity, provider version, native session, per-model efforts and requested/sent/reported settings; explicitly retain unknown metadata.",
     "Support admitted prompt/grant/allowance, structured role output, progress, ToolDenied, TeamOperation requests, cancellation/timeout and final Receipt. Normalize input/cache-read/cache-write/output/reasoning usage to A13 without double counting or turning partial counters into complete usage.",
-    "Integrate with actual direct/isolated workspace permission enforcement and hidden-context exclusions. Map Infrastructure/Environment/Protocol/Content/Unknown failures and unresolved side effects into the recovery path built by W1/W3; do not build a provider-specific acceptance or retry authority.",
+    "Integrate with actual Direct workspace permission enforcement and hidden-context exclusions; add IsolatedCopy enforcement when W4-0001 lands and before W4-0002 uses Claude producers. Map Infrastructure/Environment/Protocol/Content/Unknown failures and unresolved side effects into the recovery path built by W1/W3; do not build a provider-specific acceptance or retry authority.",
     "Provide reproducible native-protocol fixtures through Registry, Gatekeeper and Dispatcher, and document how an explicitly authorized real native run is performed and which observations it can establish."
   ],
   "acceptance": [
@@ -34,9 +30,10 @@
     "Greenfield: create this behavior in the new implementation. Paths below are PROPOSED target modules under the layout owned by W1-0001; only completed prerequisite tasks supply implementation. Prior source, APIs, fixtures and delivery claims are not a baseline.",
     "Create proposed crates/ymp-runtime/src/backends/claude.rs plus focused native protocol modules and new protocol fixtures. W1-0017 supplies the host/backend contract, W3-0001 team-operation bridge and W4-0001 actual workspace isolation. Build the full Claude adapter here.",
     "Resolve the supported installed/official native protocol during implementation; preserve identity, authentication, native offerings/settings and unknown metadata. Do not copy Codex wire names or effort scales. Build fixture supervision/accounting tests against the common kernel consumer.",
-    "Fixtures establish protocol/host behavior and are separate from an explicitly authorized real native run. Scoped cessation, reattachment and independent settlement follow §3.9/R-19/R-20; local build/test grants no inference, installation or real-data mutation authority."
+    "Fixtures establish protocol/host behavior and are separate from an explicitly authorized real native run. Scoped cessation, reattachment and independent settlement follow §3.9/R-19/R-20; local build/test grants no inference, installation or real-data mutation authority.",
+    "Rescheduled 2026-09-16 into the W3 window: a second model family must exist before W3-0002 (DifferentFamilyComparableStrength), W3-0006 (weaker-judge debate) and the first matched comparisons in W3-0009. The W6 prefix stays because IDs are immutable; scheduling follows dependencies and priority."
   ],
-  "revision": 1,
+  "revision": 2,
   "history": [
     {
       "revision": 1,
@@ -44,6 +41,13 @@
       "actor": "manage.py",
       "status": "new",
       "note": "Task created."
+    },
+    {
+      "revision": 2,
+      "at": "2026-09-15T17:05:13.589788Z",
+      "actor": "manage.py",
+      "status": "new",
+      "note": "Start review 2026-09-16: schedule after W1-0017 and W3-0001 with W3-level priority so a second model family exists during W3."
     }
   ]
 }
