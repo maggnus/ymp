@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "area": "execution",
+  "title": "Codex App Server adapter upgrade and review-findings fix",
+  "type": "implementation",
+  "priority": 57,
+  "status": "planned",
+  "depends_on": [
+    "DEV-0013"
+  ],
+  "goal": "Replace the exec --json adapter with the proven App Server protocol ported from the prior implementation, fixing all independent-review findings.",
+  "scope": [
+    "Review findings: duplicate-start typed failure (not confirmed_never_started); observations feed the kernel limit-accumulation one-at-a-time; no EOF-before-wait hang; process-group management; validated CLI args surface.",
+    "Port deltas: resume/session field in BackendInvocation; token fields with partial flag and baseline accounting in ObservedUsage; RetryObserved variant.",
+    "App Server port per the study map: RpcProcess core, handshake, paginated model/list registry, settings negotiation with verification, event mapping, usage accounting with resume baselines, supervision (process group, stdin-close reaping).",
+    "Terminology gate: canonical domain.md vocabulary only; denylist grep before commit; no prior-implementation names in product files."
+  ],
+  "acceptance": [
+    "All review findings closed with named tests; gates green offline; real invocation still only in the ignored test.",
+    "Port deltas reviewed and merged; usage baseline tests (double-count, reset, partial) ported and green."
+  ],
+  "evidence": [],
+  "context": [
+    "Sequenced after the execution-slice fix agent lands (same kernel execution files)."
+  ],
+  "id": "DEV-0014",
+  "owner": null,
+  "revision": 1,
+  "history": [
+    {
+      "revision": 1,
+      "at": "2026-09-15T05:06:40.332412Z",
+      "actor": "manage.py",
+      "status": "planned",
+      "note": "Task created."
+    }
+  ]
+}
