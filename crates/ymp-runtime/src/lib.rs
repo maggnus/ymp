@@ -1,5 +1,9 @@
 #![forbid(unsafe_code)]
 
+pub mod clock;
+mod scenario;
+pub mod scripted;
+
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
@@ -9,8 +13,27 @@ pub use ymp_domain::{
 };
 use ymp_kernel::Dispatcher;
 pub use ymp_kernel::{
-    DispatchError, Journal, JournalEntry, JournalError, Revision, SessionEvent, SessionStatus,
-    SessionView,
+    DispatchError, HistoryError, Journal, JournalEntry, JournalError, LifecycleEventKind, Revision,
+    SessionEvent, SessionStatus, SessionView,
+};
+
+pub use clock::{Clock, ManualClock, SystemClock};
+pub use scenario::ExecutionScenario;
+pub use scripted::{
+    ScriptedBackend, ScriptedOutcome, ScriptedProvider, ScriptedReceiptSpec, ScriptedRegistry,
+};
+pub use ymp_kernel::execution::{
+    AdmissionDenial, AdmissionFailure, AgentId, AgentIneligibility, Allowance, Assignment,
+    AssignmentRequest, BackendCancelRefused, BackendInvocation, BackendStartFailure,
+    CancellationOutcome, EmptyPoolReason, ErrorClass, EvidenceOutcome, ExclusionReason,
+    ExecutionBackend, ExecutionError, ExecutionObservation, ExecutionProfile, Grant, GrantId,
+    HostEnforcement, IndependenceConflict, InvocationId, InvocationLimits, InvocationStatus,
+    InvocationView, LedgerTreasury, LiveAssignment, ModelOffering, ObservationOutcome,
+    ObservedUsage, OfferingId, PolicyGatekeeper, Pool, PoolEligibility, PoolEntry, Receipt,
+    Registry, RegistryFailure, ReserveRefused, ResourceAmount, Role, SessionAccounting,
+    SessionExecutionView, SettingKey, SettingValue, Settings, SettleRefused, StartOutcome,
+    SupportedControl, Termination, TrackedWorkspaceGuard, Treasury, UncertaintyCause,
+    UsageAggregate, WorkspaceAccessRefusal, WorkspaceGuard, WorkspaceHoldConflict, WorkspaceScope,
 };
 
 pub const APPLICATION_NAME: &str = "ymp";

@@ -1,8 +1,12 @@
 #![forbid(unsafe_code)]
 
+pub mod execution;
+
+use std::collections::BTreeMap;
 use std::error::Error;
 use std::fmt;
 
+use execution::InvocationId;
 use ymp_domain::{SessionId, Task};
 
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
@@ -35,8 +39,78 @@ impl fmt::Display for Revision {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum SessionEvent {
-    SessionOpened { session_id: SessionId, task: Task },
-    SessionCancelled { session_id: SessionId },
+    SessionOpened {
+        session_id: SessionId,
+        task: Task,
+    },
+    SessionCancelled {
+        session_id: SessionId,
+    },
+    /// One committed admission: the assignment with its grant, allowance,
+    /// requested and resolved sent settings, and workspace scope.
+    /// Assignment, grant, allowance, reservation and sent settings appear
+    /// together in this one event or not at all.
+    AssignmentAdmitted {
+        session_id: SessionId,
+        invocation: InvocationId,
+        assignment: execution::Assignment,
+    },
+    /// The host started one admitted invocation. The sent settings were
+    /// resolved and recorded at admission; `start` passes exactly those.
+    InvocationStarted {
+        session_id: SessionId,
+        invocation: InvocationId,
+    },
+    /// The kernel recorded `uncertain` for one invocation: the bounded wait
+    /// deadline passed without a termination observation, or a start error
+    /// had an unknown outcome. The reservation and workspace hold stay
+    /// intact.
+    InvocationUncertain {
+        session_id: SessionId,
+        invocation: InvocationId,
+        cause: execution::UncertaintyCause,
+    },
+    /// Cancellation was requested for one started invocation. Cancellation
+    /// does not prove termination.
+    InvocationCancellationRequested {
+        session_id: SessionId,
+        invocation: InvocationId,
+    },
+    /// A typed start failure that confirms the invocation never started:
+    /// terminal `failed` without a termination observation. The reservation
+    /// and workspace hold are released and accounting is permitted.
+    InvocationFailedAtStart {
+        session_id: SessionId,
+        invocation: InvocationId,
+        class: execution::ErrorClass,
+    },
+    /// Effect evidence for one invocation: an observation on its own event
+    /// stream or receipt reported that its writes to the held scope have
+    /// ended. Recording the evidence releases the workspace hold and lifts
+    /// the successor bar in this one append; the invocation itself remains
+    /// `uncertain` with its reservation held.
+    EffectEvidenceRecorded {
+        session_id: SessionId,
+        invocation: InvocationId,
+    },
+    /// One termination observation for one invocation: the typed
+    /// termination, the settings the backend reported (unknown stays
+    /// unknown) and the usage observed.
+    InvocationObserved {
+        session_id: SessionId,
+        invocation: InvocationId,
+        termination: execution::Termination,
+        reported_settings: Option<execution::Settings>,
+        usage: execution::ObservedUsage,
+    },
+    /// One settlement: the reservation released and the usage the
+    /// settlement recorded. Settled at the termination observation.
+    InvocationAccounted {
+        session_id: SessionId,
+        invocation: InvocationId,
+        usage: execution::ObservedUsage,
+        reservation: execution::ResourceAmount,
+    },
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -177,6 +251,50 @@ pub enum HistoryError {
     EventAfterCancellation {
         revision: Revision,
     },
+    UnknownInvocation {
+        revision: Revision,
+        invocation: InvocationId,
+    },
+    DuplicateAdmission {
+        revision: Revision,
+        invocation: InvocationId,
+    },
+    DuplicateLifecycleEvent {
+        revision: Revision,
+        invocation: InvocationId,
+        event: LifecycleEventKind,
+    },
+    LifecycleOutOfOrder {
+        revision: Revision,
+        invocation: InvocationId,
+    },
+}
+
+/// The lifecycle events one invocation records, for error specificity.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum LifecycleEventKind {
+    Started,
+    CancellationRequested,
+    Observed,
+    Uncertain,
+    FailedAtStart,
+    EffectEvidence,
+    Accounted,
+}
+
+impl fmt::Display for LifecycleEventKind {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let name = match self {
+            Self::Started => "started",
+            Self::CancellationRequested => "cancellation requested",
+            Self::Observed => "observed",
+            Self::Uncertain => "uncertain",
+            Self::FailedAtStart => "failed at start",
+            Self::EffectEvidence => "effect evidence",
+            Self::Accounted => "accounted",
+        };
+        formatter.write_str(name)
+    }
 }
 
 impl fmt::Display for HistoryError {
@@ -202,6 +320,37 @@ impl fmt::Display for HistoryError {
                     "event follows cancellation at revision {revision}"
                 )
             }
+            Self::UnknownInvocation {
+                revision,
+                invocation,
+            } => write!(
+                formatter,
+                "event at revision {revision} references invocation '{invocation}', which was \
+                 never admitted"
+            ),
+            Self::DuplicateAdmission {
+                revision,
+                invocation,
+            } => write!(
+                formatter,
+                "duplicate admission of invocation '{invocation}' at revision {revision}"
+            ),
+            Self::DuplicateLifecycleEvent {
+                revision,
+                invocation,
+                event,
+            } => write!(
+                formatter,
+                "duplicate {event} event for invocation '{invocation}' at revision {revision}"
+            ),
+            Self::LifecycleOutOfOrder {
+                revision,
+                invocation,
+            } => write!(
+                formatter,
+                "lifecycle event at revision {revision} does not follow invocation \
+                 '{invocation}''s recorded state"
+            ),
         }
     }
 }
@@ -220,6 +369,7 @@ pub fn replay_session(
     let mut task = None;
     let mut status = SessionStatus::Open;
     let mut current_revision = Revision::INITIAL;
+    let mut invocations = BTreeMap::new();
 
     for (index, entry) in entries.iter().enumerate() {
         let expected_revision =
@@ -262,6 +412,176 @@ pub fn replay_session(
                 }
                 status = SessionStatus::Cancelled;
             }
+            SessionEvent::AssignmentAdmitted {
+                session_id,
+                invocation,
+                ..
+            } => {
+                ensure_session_id(stream_id, session_id)?;
+                ensure_opened(&task)?;
+                if invocations.contains_key(invocation) {
+                    return Err(HistoryError::DuplicateAdmission {
+                        revision: entry.revision,
+                        invocation: invocation.clone(),
+                    });
+                }
+                invocations.insert(invocation.clone(), InvocationTrack::default());
+            }
+            SessionEvent::InvocationStarted {
+                session_id,
+                invocation,
+            } => {
+                ensure_session_id(stream_id, session_id)?;
+                let track = invocation_track(&mut invocations, invocation, entry.revision)?;
+                if track.started {
+                    return Err(HistoryError::DuplicateLifecycleEvent {
+                        revision: entry.revision,
+                        invocation: invocation.clone(),
+                        event: LifecycleEventKind::Started,
+                    });
+                }
+                // Observed and accounted imply the invocation left the
+                // admitted phase through another path.
+                if track.observed || track.accounted || track.uncertain {
+                    return Err(HistoryError::LifecycleOutOfOrder {
+                        revision: entry.revision,
+                        invocation: invocation.clone(),
+                    });
+                }
+                track.started = true;
+            }
+            SessionEvent::InvocationUncertain {
+                session_id,
+                invocation,
+                ..
+            } => {
+                ensure_session_id(stream_id, session_id)?;
+                let track = invocation_track(&mut invocations, invocation, entry.revision)?;
+                if track.uncertain {
+                    return Err(HistoryError::DuplicateLifecycleEvent {
+                        revision: entry.revision,
+                        invocation: invocation.clone(),
+                        event: LifecycleEventKind::Uncertain,
+                    });
+                }
+                if track.observed || track.accounted || track.failed_at_start {
+                    return Err(HistoryError::LifecycleOutOfOrder {
+                        revision: entry.revision,
+                        invocation: invocation.clone(),
+                    });
+                }
+                track.uncertain = true;
+            }
+            SessionEvent::InvocationCancellationRequested {
+                session_id,
+                invocation,
+            } => {
+                ensure_session_id(stream_id, session_id)?;
+                let track = invocation_track(&mut invocations, invocation, entry.revision)?;
+                if track.cancel_requested {
+                    return Err(HistoryError::DuplicateLifecycleEvent {
+                        revision: entry.revision,
+                        invocation: invocation.clone(),
+                        event: LifecycleEventKind::CancellationRequested,
+                    });
+                }
+                if !track.started || track.observed || track.accounted {
+                    return Err(HistoryError::LifecycleOutOfOrder {
+                        revision: entry.revision,
+                        invocation: invocation.clone(),
+                    });
+                }
+                track.cancel_requested = true;
+            }
+            SessionEvent::InvocationFailedAtStart {
+                session_id,
+                invocation,
+                ..
+            } => {
+                ensure_session_id(stream_id, session_id)?;
+                let track = invocation_track(&mut invocations, invocation, entry.revision)?;
+                if track.failed_at_start {
+                    return Err(HistoryError::DuplicateLifecycleEvent {
+                        revision: entry.revision,
+                        invocation: invocation.clone(),
+                        event: LifecycleEventKind::FailedAtStart,
+                    });
+                }
+                // Only an invocation that never started can fail at start.
+                if track.started || track.observed || track.uncertain || track.accounted {
+                    return Err(HistoryError::LifecycleOutOfOrder {
+                        revision: entry.revision,
+                        invocation: invocation.clone(),
+                    });
+                }
+                track.failed_at_start = true;
+            }
+            SessionEvent::EffectEvidenceRecorded {
+                session_id,
+                invocation,
+            } => {
+                ensure_session_id(stream_id, session_id)?;
+                let track = invocation_track(&mut invocations, invocation, entry.revision)?;
+                if track.evidence {
+                    return Err(HistoryError::DuplicateLifecycleEvent {
+                        revision: entry.revision,
+                        invocation: invocation.clone(),
+                        event: LifecycleEventKind::EffectEvidence,
+                    });
+                }
+                // Evidence concerns an invocation that has not terminated.
+                if track.observed || track.failed_at_start || track.accounted {
+                    return Err(HistoryError::LifecycleOutOfOrder {
+                        revision: entry.revision,
+                        invocation: invocation.clone(),
+                    });
+                }
+                track.evidence = true;
+            }
+            SessionEvent::InvocationObserved {
+                session_id,
+                invocation,
+                ..
+            } => {
+                ensure_session_id(stream_id, session_id)?;
+                let track = invocation_track(&mut invocations, invocation, entry.revision)?;
+                if track.observed {
+                    return Err(HistoryError::DuplicateLifecycleEvent {
+                        revision: entry.revision,
+                        invocation: invocation.clone(),
+                        event: LifecycleEventKind::Observed,
+                    });
+                }
+                if track.accounted || track.uncertain || track.failed_at_start {
+                    return Err(HistoryError::LifecycleOutOfOrder {
+                        revision: entry.revision,
+                        invocation: invocation.clone(),
+                    });
+                }
+                track.observed = true;
+            }
+            SessionEvent::InvocationAccounted {
+                session_id,
+                invocation,
+                ..
+            } => {
+                ensure_session_id(stream_id, session_id)?;
+                let track = invocation_track(&mut invocations, invocation, entry.revision)?;
+                if track.accounted {
+                    return Err(HistoryError::DuplicateLifecycleEvent {
+                        revision: entry.revision,
+                        invocation: invocation.clone(),
+                        event: LifecycleEventKind::Accounted,
+                    });
+                }
+                if !track.observed && !track.failed_at_start {
+                    return Err(HistoryError::LifecycleOutOfOrder {
+                        revision: entry.revision,
+                        invocation: invocation.clone(),
+                    });
+                }
+                track.accounted = true;
+            }
         }
 
         previous_revision = entry.revision;
@@ -275,6 +595,41 @@ pub fn replay_session(
         status,
         revision: current_revision,
     }))
+}
+
+/// The lifecycle facts one admitted invocation has recorded. `observed`
+/// without `started` is the confirmed never-started failure path;
+/// `uncertain` without `started` is a start error with an unknown outcome.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+struct InvocationTrack {
+    started: bool,
+    cancel_requested: bool,
+    uncertain: bool,
+    failed_at_start: bool,
+    evidence: bool,
+    observed: bool,
+    accounted: bool,
+}
+
+fn ensure_opened(task: &Option<Task>) -> Result<(), HistoryError> {
+    if task.is_none() {
+        Err(HistoryError::FirstEventMustOpen)
+    } else {
+        Ok(())
+    }
+}
+
+fn invocation_track<'a>(
+    invocations: &'a mut BTreeMap<InvocationId, InvocationTrack>,
+    invocation: &InvocationId,
+    revision: Revision,
+) -> Result<&'a mut InvocationTrack, HistoryError> {
+    invocations
+        .get_mut(invocation)
+        .ok_or(HistoryError::UnknownInvocation {
+            revision,
+            invocation: invocation.clone(),
+        })
 }
 
 fn ensure_session_id(stream_id: &SessionId, event_id: &SessionId) -> Result<(), HistoryError> {
