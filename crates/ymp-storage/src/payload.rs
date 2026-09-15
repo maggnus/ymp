@@ -169,10 +169,8 @@ pub(super) fn encode_event(event: &SessionEvent) -> Result<Vec<u8>, JournalError
 }
 
 fn serialize<T: Serialize>(dto: T) -> Result<Vec<u8>, JournalError> {
-    let bytes = serde_json::to_vec(&dto).map_err(|error| {
-        JournalError::AdapterFailure {
-            message: format!("payload encoding failed: {error}"),
-        }
+    let bytes = serde_json::to_vec(&dto).map_err(|error| JournalError::AdapterFailure {
+        message: format!("payload encoding failed: {error}"),
     })?;
     if bytes.len() > MAX_PAYLOAD_BYTES {
         return Err(JournalError::AdapterFailure {
@@ -193,9 +191,8 @@ pub(super) fn decode_payload(bytes: &[u8]) -> Result<SessionEvent, String> {
             "stored payload exceeds the {MAX_PAYLOAD_BYTES}-byte limit"
         ));
     }
-    let dto: PayloadDtoOwned = serde_json::from_slice(bytes).map_err(|error| {
-        format!("stored payload is not a valid version-1 payload: {error}")
-    })?;
+    let dto: PayloadDtoOwned = serde_json::from_slice(bytes)
+        .map_err(|error| format!("stored payload is not a valid version-1 payload: {error}"))?;
     require_stored_limit(&dto.session_id)?;
     let session_id =
         SessionId::new(dto.session_id).map_err(|error| domain_error("session_id", &error))?;
@@ -314,7 +311,10 @@ mod tests {
             session_id: SessionId::new("s1").expect("valid session ID"),
         })
         .expect("payload encodes");
-        assert_eq!(payload, br#"{"type":"session_cancelled","session_id":"s1"}"#);
+        assert_eq!(
+            payload,
+            br#"{"type":"session_cancelled","session_id":"s1"}"#
+        );
         let again = encode_event(&SessionEvent::SessionCancelled {
             session_id: SessionId::new("s1").expect("valid session ID"),
         })
@@ -381,7 +381,10 @@ mod tests {
             ),
         ];
         for (name, payload) in cases {
-            assert!(decode_payload(&payload).is_err(), "case '{name}' should fail");
+            assert!(
+                decode_payload(&payload).is_err(),
+                "case '{name}' should fail"
+            );
         }
     }
 
@@ -400,9 +403,7 @@ mod tests {
     #[test]
     fn decode_rejects_oversized_stored_strings() {
         let oversized = "x".repeat(MAX_STRING_BYTES + 1);
-        let payload = format!(
-            "{{\"type\":\"session_cancelled\",\"session_id\":\"{oversized}\"}}"
-        );
+        let payload = format!("{{\"type\":\"session_cancelled\",\"session_id\":\"{oversized}\"}}");
         assert!(decode_payload(payload.as_bytes()).is_err());
     }
 }

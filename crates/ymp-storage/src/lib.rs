@@ -9,8 +9,25 @@
 //! snapshot while validating the payload version, a per-row content checksum,
 //! strict payload decoding, revision continuity and head agreement.
 //!
-//! The invariants, failure mapping and acceptance criteria are fixed by
-//! `ymp-docs/durable-journal-contract.md`.
+//! # Durability and filesystem assumptions
+//!
+//! The database runs in WAL mode with `synchronous=FULL` and a bounded busy
+//! timeout (5 seconds): every commit flushes to the storage device before it
+//! is acknowledged, and competing writers serialize on the write lock instead
+//! of failing immediately. This assumes an honest local filesystem whose
+//! `fsync` actually persists data; network filesystems and storage stacks that
+//! acknowledge writes before they are durable void the durability claim.
+//!
+//! Copying a database file while a journal handle is open is unsafe: the WAL
+//! and shared-memory side files may hold committed frames the main file lacks.
+//! Only a quiescent database (every handle closed) may be copied, or a
+//! coherent backup taken through SQLite's own backup API, which remains safe
+//! while the database is in use.
+//!
+//! The invariants, failure mapping and acceptance criteria are fixed by the
+//! DEV-0005 work order (`ymp-docs/tasks/records/persistence/DEV-0005.json`);
+//! the standalone durable Journal contract document is DEV-0004 work and is
+//! deliberately not part of this crate.
 
 #![forbid(unsafe_code)]
 
@@ -109,7 +126,9 @@ impl SqliteJournal {
         })?;
         let database_path = root.join(DATABASE_FILE_NAME);
         let mut connection = Connection::open(&database_path).map_err(sqlite_to_adapter)?;
-        connection.busy_timeout(BUSY_TIMEOUT).map_err(sqlite_to_adapter)?;
+        connection
+            .busy_timeout(BUSY_TIMEOUT)
+            .map_err(sqlite_to_adapter)?;
         prepare(&mut connection)?;
         Ok(Self {
             inner: Arc::new(Inner {
@@ -134,9 +153,12 @@ impl SqliteJournal {
     }
 
     fn lock(&self) -> Result<std::sync::MutexGuard<'_, Connection>, JournalError> {
-        self.inner.connection.lock().map_err(|_| JournalError::AdapterFailure {
-            message: "journal connection lock is poisoned".to_owned(),
-        })
+        self.inner
+            .connection
+            .lock()
+            .map_err(|_| JournalError::AdapterFailure {
+                message: "journal connection lock is poisoned".to_owned(),
+            })
     }
 
     fn take_fault(&self) -> Option<FaultPoint> {
@@ -216,8 +238,13 @@ impl Journal for SqliteJournal {
             );
         }
 
-        if let Err(error) = write_batch(&transaction, session_id, head.is_some(), attempted, &encoded)
-        {
+        if let Err(error) = write_batch(
+            &transaction,
+            session_id,
+            head.is_some(),
+            attempted,
+            &encoded,
+        ) {
             return Err(statement_failure(
                 transaction,
                 error,
@@ -260,13 +287,13 @@ impl Journal for SqliteJournal {
                 })
             }
             None => {
-                transaction.commit().map_err(|error| {
-                    JournalError::IndeterminateCommit {
+                transaction
+                    .commit()
+                    .map_err(|error| JournalError::IndeterminateCommit {
                         expected: expected_revision,
                         attempted,
                         message: format!("commit outcome is not proven: {error}"),
-                    }
-                })?;
+                    })?;
                 Ok(attempted)
             }
         }
@@ -324,6 +351,12 @@ fn prepare(connection: &mut Connection) -> Result<(), JournalError> {
 }
 
 /// Initializes an empty database as schema version 1 in one transaction.
+///
+/// The `payload_version` column is deliberately not pinned by a CHECK
+/// constraint: an unknown payload version must be readable so the read
+/// protocol can report it as [`JournalError::UnsupportedFormat`]; pinning the
+/// column would make that typed failure unreachable. Representation bounds
+/// (nonnegative 32-bit halves, `NOT NULL`) stay enforced by the schema.
 fn initialize(connection: &mut Connection) -> Result<(), JournalError> {
     let transaction = connection
         .transaction_with_behavior(TransactionBehavior::Immediate)
@@ -342,7 +375,7 @@ fn initialize(connection: &mut Connection) -> Result<(), JournalError> {
                                  CHECK (revision_hi BETWEEN 0 AND 4294967295),
                  revision_lo     INTEGER NOT NULL
                                  CHECK (revision_lo BETWEEN 0 AND 4294967295),
-                 payload_version INTEGER NOT NULL CHECK (payload_version = 1),
+                 payload_version INTEGER NOT NULL,
                  payload         BLOB NOT NULL,
                  checksum        INTEGER NOT NULL
                                  CHECK (checksum BETWEEN 0 AND 4294967295),
@@ -491,9 +524,10 @@ fn validate_entries(
                 version: u16::try_from(raw.payload_version).unwrap_or(u16::MAX),
             });
         }
-        let stored_checksum = u32::try_from(raw.checksum).map_err(|_| JournalError::Corruption {
-            message: "stored checksum column is out of range".to_owned(),
-        })?;
+        let stored_checksum =
+            u32::try_from(raw.checksum).map_err(|_| JournalError::Corruption {
+                message: "stored checksum column is out of range".to_owned(),
+            })?;
         let revision = compose_revision(raw.revision_hi, raw.revision_lo)?;
         let (revision_hi, revision_lo) = split_revision(revision.value());
         let computed = content_checksum(
@@ -508,17 +542,19 @@ fn validate_entries(
                 message: format!("content checksum mismatch at revision {revision}"),
             });
         }
-        let event = payload::decode_payload(&raw.payload).map_err(|reason| {
-            JournalError::Corruption {
+        let event =
+            payload::decode_payload(&raw.payload).map_err(|reason| JournalError::Corruption {
                 message: format!("at revision {revision}: {reason}"),
-            }
-        })?;
-        let expected_revision = previous_revision.checked_next().ok_or(JournalError::Corruption {
-            message: format!(
-                "session history revision is not contiguous: expected above \
+            })?;
+        let expected_revision =
+            previous_revision
+                .checked_next()
+                .ok_or(JournalError::Corruption {
+                    message: format!(
+                        "session history revision is not contiguous: expected above \
                  {previous_revision}, actual {revision}"
-            ),
-        })?;
+                    ),
+                })?;
         if revision != expected_revision {
             return Err(JournalError::Corruption {
                 message: format!(
@@ -559,20 +595,12 @@ fn write_batch(
     if stream_exists {
         transaction.execute(
             "UPDATE journal_streams SET head_hi = ?1, head_lo = ?2 WHERE session_id = ?3",
-            rusqlite::params![
-                i64::from(head_hi),
-                i64::from(head_lo),
-                session_id.as_str()
-            ],
+            rusqlite::params![i64::from(head_hi), i64::from(head_lo), session_id.as_str()],
         )?;
     } else {
         transaction.execute(
             "INSERT INTO journal_streams (session_id, head_hi, head_lo) VALUES (?1, ?2, ?3)",
-            rusqlite::params![
-                session_id.as_str(),
-                i64::from(head_hi),
-                i64::from(head_lo)
-            ],
+            rusqlite::params![session_id.as_str(), i64::from(head_hi), i64::from(head_lo)],
         )?;
     }
     for (revision, payload_bytes) in encoded {
@@ -647,18 +675,26 @@ fn sqlite_to_adapter(error: rusqlite::Error) -> JournalError {
 }
 
 /// Maps a SQLite error to the contract's typed failures: corruption-class
-/// result codes are `Corruption`, everything else (busy, ordinary I/O, lock)
-/// is `AdapterFailure`.
+/// result codes and stored column-type mismatches are `Corruption`; anything
+/// else (busy, ordinary I/O, lock) is `AdapterFailure`.
 fn map_sqlite_error(error: rusqlite::Error) -> JournalError {
-    if let rusqlite::Error::SqliteFailure(code, _) = &error {
-        if matches!(
+    if let rusqlite::Error::SqliteFailure(code, _) = &error
+        && matches!(
             code.code,
             rusqlite::ErrorCode::DatabaseCorrupt | rusqlite::ErrorCode::NotADatabase
-        ) {
-            return JournalError::Corruption {
-                message: format!("database operation failed: {error}"),
-            };
-        }
+        )
+    {
+        return JournalError::Corruption {
+            message: format!("database operation failed: {error}"),
+        };
+    }
+    // A stored value whose storage class does not match the journal schema
+    // (for example a payload stored as TEXT instead of a BLOB) is altered
+    // storage, not an adapter malfunction.
+    if matches!(error, rusqlite::Error::InvalidColumnType { .. }) {
+        return JournalError::Corruption {
+            message: format!("stored column type does not match the journal schema: {error}"),
+        };
     }
     sqlite_to_adapter(error)
 }
@@ -731,7 +767,12 @@ mod tests {
             u64::MAX,
         ] {
             let (hi, lo) = split_revision(value);
-            assert_eq!(compose_revision(i64::from(hi), i64::from(lo)).unwrap().value(), value);
+            assert_eq!(
+                compose_revision(i64::from(hi), i64::from(lo))
+                    .unwrap()
+                    .value(),
+                value
+            );
         }
     }
 
@@ -747,12 +788,27 @@ mod tests {
     fn checksum_covers_every_protected_value() {
         let session = SessionId::new("s1").expect("valid session ID");
         let base = content_checksum(1, 0, 1, session.as_str(), b"{\"x\":1}");
-        assert_ne!(base, content_checksum(2, 0, 1, session.as_str(), b"{\"x\":1}"));
-        assert_ne!(base, content_checksum(1, 1, 1, session.as_str(), b"{\"x\":1}"));
-        assert_ne!(base, content_checksum(1, 0, 2, session.as_str(), b"{\"x\":1}"));
+        assert_ne!(
+            base,
+            content_checksum(2, 0, 1, session.as_str(), b"{\"x\":1}")
+        );
+        assert_ne!(
+            base,
+            content_checksum(1, 1, 1, session.as_str(), b"{\"x\":1}")
+        );
+        assert_ne!(
+            base,
+            content_checksum(1, 0, 2, session.as_str(), b"{\"x\":1}")
+        );
         let other = SessionId::new("s2").expect("valid session ID");
-        assert_ne!(base, content_checksum(1, 0, 1, other.as_str(), b"{\"x\":1}"));
-        assert_ne!(base, content_checksum(1, 0, 1, session.as_str(), b"{\"x\":2}"));
+        assert_ne!(
+            base,
+            content_checksum(1, 0, 1, other.as_str(), b"{\"x\":1}")
+        );
+        assert_ne!(
+            base,
+            content_checksum(1, 0, 1, session.as_str(), b"{\"x\":2}")
+        );
         // The session length prefix keeps the input unambiguous.
         assert_ne!(
             content_checksum(1, 0, 1, "ab", b"c"),
