@@ -30,8 +30,8 @@
 //! | `item.completed` with `item.type=agent_message` and a string `text` | [`ExecutionObservation::OutputObserved`] with the message's character count |
 //! | other `item.started` / `item.updated` / `item.completed` kinds | none; not output text at the host-controlled boundary |
 //! | `turn.completed` (field `usage`) | token totals kept adapter-side ([`CodexTokenUsage`]); the port's usage fields carry no tokens |
-//! | `turn.failed` (fields undocumented) | failure signal; termination is classified `failed` with class `codex-turn-failed` once exit is observed |
-//! | `error` (fields undocumented) | failure signal; class `codex-error-event`; a string `message` field, when present, is kept as the failure detail |
+//! | `turn.failed` (fields undocumented) | failure signal; class `codex-turn-failed` once exit is observed; free-form fields are counted and dropped |
+//! | `error` (fields undocumented) | failure signal; class `codex-error-event`; only an allowlisted protocol code survives (see [`allowlisted_error_code`]), free-form fields are counted and dropped |
 //! | process exit observed, code 0, no failure signal | [`Termination::Completed`] plus [`ExecutionObservation::WritesEnded`] |
 //! | process exit observed, non-zero code | [`Termination::Failed`] with class `codex-nonzero-exit` (or the earlier signal's class) plus `WritesEnded` |
 //! | exit by signal without a cancellation request | [`Termination::Failed`] with class `codex-signal-terminated` |
@@ -44,6 +44,10 @@
 //!   optional admitted `model` setting passed through to `-m`; any other sent
 //!   setting key is refused at start with a typed confirmed never-started
 //!   failure rather than silently dropped;
+//! - free-form provider text never becomes a persisted diagnosis: a failure
+//!   event keeps only an allowlisted protocol code (or the stable generic
+//!   marker) adapter-side, and the child's stderr is drained to a sink and
+//!   discarded, because SDK diagnostics may contain credentials;
 //! - no session resume: each invocation is a fresh `codex exec`;
 //! - the port's [`Receipt`] carries no settings report because the verified
 //!   event kinds include none: `reported` settings stay unknown;
@@ -82,8 +86,40 @@ const PROBE_TIMEOUT: Duration = Duration::from_secs(5);
 /// Default grace between SIGTERM and SIGKILL during cancellation.
 const DEFAULT_CANCEL_GRACE: Duration = Duration::from_secs(3);
 
-/// Upper bound of child stderr kept adapter-side for failure detail.
-const STDERR_TAIL_BYTES: usize = 8 * 1024;
+/// Protocol-defined error codes a failure event may carry in its
+/// `codexErrorInfo` as a string naming the failure mode, enumerated from the
+/// Codex CLI protocol's error types. Membership test only: these are the only
+/// provider-side failure codes this adapter ever preserves.
+const PROTOCOL_ERROR_CODE_STRINGS: &[&str] = &[
+    "contextWindowExceeded",
+    "sessionBudgetExceeded",
+    "usageLimitExceeded",
+    "rateLimitExceeded",
+    "serverOverloaded",
+    "cyberPolicy",
+    "misalignmentPolicyViolation",
+    "internalServerError",
+    "unauthorized",
+    "badRequest",
+    "threadRollbackFailed",
+    "sandboxError",
+    "other",
+];
+
+/// Protocol-defined error codes a failure event may carry in its
+/// `codexErrorInfo` as an object whose key names the failure mode; the nested
+/// payload is never read. Membership test only, like the string codes.
+const PROTOCOL_ERROR_CODE_OBJECT_KEYS: &[&str] = &[
+    "httpConnectionFailed",
+    "responseStreamConnectionFailed",
+    "responseStreamDisconnected",
+    "responseTooManyFailedAttempts",
+    "activeTurnNotSteerable",
+];
+
+/// Stable generic marker kept when a failure event carries no allowlisted
+/// protocol code; a code states a code, never a cause.
+const FAILURE_CODE_UNSPECIFIED: &str = "codex-failure-unspecified";
 
 /// The one sent-setting key this adapter can pass through to the CLI.
 const MODEL_SETTING_KEY: &str = "model";
@@ -307,6 +343,10 @@ pub struct CodexStreamStats {
     pub unmapped_lines: u64,
     /// Lines that were not valid JSON at all.
     pub malformed_lines: u64,
+    /// Free-form failure texts (an `error` or `turn.failed` message) that
+    /// were observed and dropped: counted here, never stored or surfaced,
+    /// because SDK diagnostics may contain credentials.
+    pub dropped_failure_details: u64,
 }
 
 /// The live record of one invocation, shared with the reader threads.
@@ -324,8 +364,9 @@ struct CodexRun {
     thread_id: Option<String>,
     token_totals: Option<CodexTokenUsage>,
     failure_signal: Option<ErrorClass>,
-    failure_detail: Option<String>,
-    stderr_tail: Vec<u8>,
+    /// An allowlisted protocol code or the stable generic marker; free-form
+    /// provider text is never stored here or anywhere else.
+    failure_code: Option<String>,
     stats: CodexStreamStats,
     exit_observed: bool,
 }
@@ -346,8 +387,7 @@ impl CodexRun {
             thread_id: None,
             token_totals: None,
             failure_signal: None,
-            failure_detail: None,
-            stderr_tail: Vec::new(),
+            failure_code: None,
             stats: CodexStreamStats::default(),
             exit_observed: false,
         }
@@ -448,30 +488,70 @@ impl CodexRun {
                 if self.failure_signal.is_none() {
                     self.failure_signal =
                         Some(ErrorClass::new(CLASS_TURN_FAILED).expect("valid error class"));
-                    self.failure_detail = Some(truncated(line));
+                    self.failure_code = Some(
+                        allowlisted_error_code(&value)
+                            .unwrap_or(FAILURE_CODE_UNSPECIFIED)
+                            .to_owned(),
+                    );
                 }
+                self.count_dropped_failure_detail(&value);
             }
             "error" => {
                 if self.failure_signal.is_none() {
                     self.failure_signal =
                         Some(ErrorClass::new(CLASS_ERROR_EVENT).expect("valid error class"));
-                    let message = value.get("message").and_then(Value::as_str);
-                    self.failure_detail = Some(message.map_or_else(|| truncated(line), truncated));
+                    self.failure_code = Some(
+                        allowlisted_error_code(&value)
+                            .unwrap_or(FAILURE_CODE_UNSPECIFIED)
+                            .to_owned(),
+                    );
                 }
+                self.count_dropped_failure_detail(&value);
             }
             _ => {
                 self.stats.unmapped_lines += 1;
             }
         }
     }
+
+    /// Counts the free-form failure text a failure event carried beyond any
+    /// allowlisted code: observable as a number in [`CodexStreamStats`],
+    /// never as text. SDK diagnostics may contain credentials, so the text
+    /// itself is neither stored nor surfaced.
+    fn count_dropped_failure_detail(&mut self, value: &Value) {
+        let carries_free_form_text = value.get("message").is_some()
+            || value
+                .get("error")
+                .is_some_and(|error| error.get("message").is_some());
+        if carries_free_form_text {
+            self.stats.dropped_failure_details += 1;
+        }
+    }
 }
 
-fn truncated(text: &str) -> String {
-    let mut truncated: String = text.chars().take(500).collect();
-    if truncated.chars().count() < text.chars().count() {
-        truncated.push('…');
+/// The allowlisted protocol error code a failure event carried, if any.
+///
+/// Membership test only: `codexErrorInfo` (directly on the event or nested
+/// in its `error` object) is read either as the string naming the failure
+/// mode or as an object whose key names it, and only codes in the fixed
+/// [`PROTOCOL_ERROR_CODE_STRINGS`] / [`PROTOCOL_ERROR_CODE_OBJECT_KEYS`]
+/// lists survive. Messages, nested payloads and every other free-form field
+/// are dropped: they are never returned, stored or surfaced, because SDK
+/// diagnostics may contain credentials.
+fn allowlisted_error_code(value: &Value) -> Option<&'static str> {
+    let info = value
+        .get("codexErrorInfo")
+        .or_else(|| value.pointer("/error/codexErrorInfo"))?;
+    if let Some(reported) = info.as_str() {
+        return PROTOCOL_ERROR_CODE_STRINGS
+            .iter()
+            .find(|code| **code == reported)
+            .copied();
     }
-    truncated
+    PROTOCOL_ERROR_CODE_OBJECT_KEYS
+        .iter()
+        .find(|code| info.get(*code).is_some())
+        .copied()
 }
 
 /// The Codex CLI [`ExecutionBackend`]: spawn, stream-parse, cancel.
@@ -542,21 +622,15 @@ impl CodexBackend {
             .and_then(|run| run.thread_id.clone())
     }
 
-    /// The provider-side failure detail (an `error` or `turn.failed` message)
-    /// preserved as evidence; a class states a class, not a cause.
-    pub fn failure_detail(&self, invocation: &InvocationId) -> Option<String> {
+    /// The typed failure code preserved from a failure event: an allowlisted
+    /// protocol code, or the stable generic marker when the event carried
+    /// none. Free-form provider text is never stored or surfaced; its drop is
+    /// counted in [`CodexStreamStats`].
+    pub fn failure_code(&self, invocation: &InvocationId) -> Option<String> {
         self.runs
             .get(invocation)
             .and_then(|run| run.lock().ok())
-            .and_then(|run| run.failure_detail.clone())
-    }
-
-    /// The last bounded slice of the child's stderr, kept for diagnosis.
-    pub fn stderr_tail(&self, invocation: &InvocationId) -> Option<String> {
-        self.runs
-            .get(invocation)
-            .and_then(|run| run.lock().ok())
-            .map(|run| String::from_utf8_lossy(&run.stderr_tail).into_owned())
+            .and_then(|run| run.failure_code.clone())
     }
 
     /// Conservative stream-parse statistics for one invocation.
@@ -656,9 +730,9 @@ impl CodexBackend {
         Ok(())
     }
 
-    /// Starts the stdout parser and the stderr drainer. Both threads hold
-    /// the run lock only in short sections, so cancellation never blocks on
-    /// them.
+    /// Starts the stdout parser and the stderr drainer. The stdout parser
+    /// holds the run lock only in short sections, so cancellation never
+    /// blocks on it; the stderr drainer touches no run state at all.
     fn spawn_readers(&self, run: &Arc<Mutex<CodexRun>>) {
         let mut guard = match run.lock() {
             Ok(guard) => guard,
@@ -707,24 +781,12 @@ impl CodexBackend {
         }
 
         if let Some(mut stderr) = stderr {
-            let run = Arc::clone(run);
             thread::spawn(move || {
-                let mut buffer = [0u8; 4096];
-                loop {
-                    match stderr.read(&mut buffer) {
-                        Ok(0) | Err(_) => return,
-                        Ok(read) => {
-                            if let Ok(mut guard) = run.lock() {
-                                guard.stderr_tail.extend_from_slice(&buffer[..read]);
-                                let excess =
-                                    guard.stderr_tail.len().saturating_sub(STDERR_TAIL_BYTES);
-                                if excess > 0 {
-                                    guard.stderr_tail.drain(0..excess);
-                                }
-                            }
-                        }
-                    }
-                }
+                // Drain stderr fully to a sink, retaining nothing: provider
+                // diagnostics may contain credentials, so no byte of stderr
+                // is stored, surfaced or persisted. The drain exists only so
+                // the child cannot block on a full pipe.
+                let _ = std::io::copy(&mut stderr, &mut std::io::sink());
             });
         }
     }

@@ -349,11 +349,20 @@ fn codex_backend_maps_error_event_to_failed_class() {
         termination: failed.clone(),
     }));
     assert_eq!(receipt.termination(), &failed);
-    // The meaningful cause is preserved as evidence, not stuffed into the
-    // class.
+    // The class states the class. The free-form `message` is never kept:
+    // without an allowlisted protocol code the adapter-side code is the
+    // stable generic marker, and the dropped text is only counted.
     assert_eq!(
-        backend.failure_detail(&invocation()).as_deref(),
-        Some("usage limit reached")
+        backend.failure_code(&invocation()).as_deref(),
+        Some("codex-failure-unspecified")
+    );
+    assert_eq!(
+        backend.stream_stats(&invocation()),
+        Some(CodexStreamStats {
+            unmapped_lines: 0,
+            malformed_lines: 0,
+            dropped_failure_details: 1,
+        })
     );
 }
 
@@ -379,12 +388,122 @@ fn codex_backend_maps_turn_failed_event_to_failed_class() {
             class: ErrorClass::new("codex-turn-failed").expect("valid error class"),
         }
     );
+    // No allowlisted code and no free-form text in this bare event: the
+    // generic marker, and nothing dropped to count.
+    assert_eq!(
+        backend.failure_code(&invocation()).as_deref(),
+        Some("codex-failure-unspecified")
+    );
+    assert_eq!(
+        backend.stream_stats(&invocation()),
+        Some(CodexStreamStats {
+            unmapped_lines: 0,
+            malformed_lines: 0,
+            dropped_failure_details: 0,
+        })
+    );
+}
+
+#[test]
+fn codex_backend_error_event_with_allowlisted_code_never_persists_raw_text() {
+    let dir = FixtureDir::new("backend-leak");
+    let codex = dir.executable(
+        "codex",
+        "#!/bin/sh\n\
+         printf '%s\\n' '{\"type\":\"error\",\"message\":\"request failed for key sk-LEAK-0000000000000000\",\"codexErrorInfo\":\"usageLimitExceeded\"}'\n\
+         printf 'stderr diagnostic sk-LEAK-STDERR\\n' >&2\n\
+         exit 1\n",
+    );
+    let mut backend = backend_for(&codex);
+
+    backend
+        .start(&backend_invocation(&dir, Settings::new()))
+        .expect("the invocation starts");
+
+    let (observations, receipt) = wait_for_observations(&mut backend, Duration::from_secs(5));
+    let receipt = receipt.expect("the receipt arrives after exit");
+
+    // The allowlisted protocol code survives; the class states the class.
+    assert_eq!(
+        receipt.termination(),
+        &Termination::Failed {
+            class: ErrorClass::new("codex-error-event").expect("valid error class"),
+        }
+    );
+    assert_eq!(
+        backend.failure_code(&invocation()).as_deref(),
+        Some("usageLimitExceeded")
+    );
+    // The free-form message was seen and dropped: counted, never stored.
+    assert_eq!(
+        backend.stream_stats(&invocation()),
+        Some(CodexStreamStats {
+            unmapped_lines: 0,
+            malformed_lines: 0,
+            dropped_failure_details: 1,
+        })
+    );
+    // The fake secret marker appears nowhere: not in the receipt, the
+    // termination, any observation or any adapter-side evidence field.
+    let mut surfaced = format!("{receipt:?}{observations:?}");
+    surfaced.push_str(&backend.failure_code(&invocation()).unwrap_or_default());
+    if let Some(thread) = backend.thread_id(&invocation()) {
+        surfaced.push_str(&thread);
+    }
+    if let Some(stats) = backend.stream_stats(&invocation()) {
+        surfaced.push_str(&format!("{stats:?}"));
+    }
+    assert!(
+        !surfaced.contains("sk-LEAK"),
+        "raw provider text must never reach a receipt, termination or diagnostic: {surfaced}"
+    );
+}
+
+#[test]
+fn codex_backend_object_form_error_code_maps_to_allowlisted_key() {
+    let dir = FixtureDir::new("backend-object-code");
+    let codex = dir.executable(
+        "codex",
+        "#!/bin/sh\n\
+         printf '%s\\n' '{\"type\":\"error\",\"message\":\"stream broke after sk-LEAK-MESSAGE\",\"codexErrorInfo\":{\"responseStreamDisconnected\":{\"httpStatusCode\":503,\"diagnostic\":\"sk-LEAK-PAYLOAD\"}}}'\n\
+         exit 1\n",
+    );
+    let mut backend = backend_for(&codex);
+
+    backend
+        .start(&backend_invocation(&dir, Settings::new()))
+        .expect("the invocation starts");
+
+    let (observations, receipt) = wait_for_observations(&mut backend, Duration::from_secs(5));
+    let receipt = receipt.expect("the receipt arrives after exit");
+
+    // An object-form `codexErrorInfo` keeps only its allowlisted key; the
+    // nested payload and the message are dropped.
+    assert_eq!(
+        receipt.termination(),
+        &Termination::Failed {
+            class: ErrorClass::new("codex-error-event").expect("valid error class"),
+        }
+    );
+    assert_eq!(
+        backend.failure_code(&invocation()).as_deref(),
+        Some("responseStreamDisconnected")
+    );
+    let mut surfaced = format!("{receipt:?}{observations:?}");
+    surfaced.push_str(&backend.failure_code(&invocation()).unwrap_or_default());
+    assert!(
+        !surfaced.contains("sk-LEAK"),
+        "neither the message nor the nested payload may be surfaced: {surfaced}"
+    );
 }
 
 #[test]
 fn codex_backend_maps_nonzero_exit_without_error_event() {
     let dir = FixtureDir::new("backend-nonzero");
-    let codex = dir.executable("codex", "#!/bin/sh\nprintf 'fatal\\n' >&2\nexit 3\n");
+    let codex = dir.executable(
+        "codex",
+        "#!/bin/sh\nprintf 'fatal sk-LEAK-STDERR diagnostic\\n' >&2\nexit 3\n",
+    );
     let mut backend = backend_for(&codex);
 
     backend
@@ -400,9 +519,17 @@ fn codex_backend_maps_nonzero_exit_without_error_event() {
             class: ErrorClass::new("codex-nonzero-exit").expect("valid error class"),
         }
     );
-    assert_eq!(
-        backend.stderr_tail(&invocation()).as_deref(),
-        Some("fatal\n")
+    // No failure event was seen, so there is no failure code; and stderr is
+    // drained to a sink, never retained, so the child's stderr text must
+    // not exist anywhere on the backend.
+    assert_eq!(backend.failure_code(&invocation()), None);
+    let mut surfaced = format!("{receipt:?}");
+    if let Some(stats) = backend.stream_stats(&invocation()) {
+        surfaced.push_str(&format!("{stats:?}"));
+    }
+    assert!(
+        !surfaced.contains("sk-LEAK-STDERR"),
+        "no stderr text may appear in any receipt or statistic: {surfaced}"
     );
 }
 
@@ -437,6 +564,7 @@ fn codex_backend_counts_unmapped_and_malformed_lines() {
         Some(CodexStreamStats {
             unmapped_lines: 2,
             malformed_lines: 1,
+            dropped_failure_details: 0,
         })
     );
 }
@@ -752,10 +880,10 @@ fn codex_real_invocation_completes_with_output() {
         assert!(
             Instant::now() < deadline,
             "the real invocation did not report a receipt in time; observations so far: \
-             {observations:?}; thread {:?}; tokens {:?}; stderr {:?}",
+             {observations:?}; thread {:?}; tokens {:?}; failure code {:?}",
             backend.thread_id(real_invocation.invocation()),
             backend.token_totals(real_invocation.invocation()),
-            backend.stderr_tail(real_invocation.invocation()),
+            backend.failure_code(real_invocation.invocation()),
         );
         std::thread::sleep(Duration::from_millis(100));
     };
