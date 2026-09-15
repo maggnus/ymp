@@ -1,26 +1,47 @@
 //! Strict payload codec for the durable journal's version-1 entry payloads.
 //!
-//! The two payload forms are fixed by the durable Journal contract:
+//! The payload forms are fixed by the durable Journal contract. Version 1
+//! originally defined the two session-lifecycle forms; the bounded
+//! execution slice added the six execution forms additively within the same
+//! version, preserving the original two byte-for-byte:
 //!
 //! ```json
 //! {"type":"session_opened","session_id":S,"task":{"id":T,"goal":{"request":G},"acceptance_contract":{"criteria":[{"id":C,"description":D}]},"constraints":{"conditions":[K]}}}
-//! ```
-//!
-//! ```json
 //! {"type":"session_cancelled","session_id":S}
+//! {"type":"assignment_admitted","session_id":S,"invocation":I,"assignment":{"invocation":I,"agent":A,"role":R,"requested_settings":[{"key":K,"value":V}],"sent_settings":[{"key":K,"value":V}],"allowance":{"reservation":N,"limits":{"max_turns":N,"max_output_chars":N,"max_wall_clock_ms":N}},"grant":{"id":G,"invocation":I,"reservation":N},"workspace":W}}
+//! {"type":"invocation_started","session_id":S,"invocation":I}
+//! {"type":"invocation_cancellation_requested","session_id":S,"invocation":I}
+//! {"type":"invocation_observed","session_id":S,"invocation":I,"termination":{"outcome":"completed"|"failed"|"cancelled"|"timed_out"[,"error_class":C]},"reported_settings":[...]|null,"usage":{"turns":N|null,"output_chars":N|null,"wall_clock_ms":N|null}}
+//! {"type":"invocation_uncertain","session_id":S,"invocation":I,"cause":"bounded_wait_expired"|"start_outcome_unknown"}
+//! {"type":"invocation_failed_at_start","session_id":S,"invocation":I,"error_class":C}
+//! {"type":"effect_evidence_recorded","session_id":S,"invocation":I}
+//! {"type":"invocation_accounted","session_id":S,"invocation":I,"usage":{...},"reservation":N}
 //! ```
 //!
 //! The codec is a private DTO layer: every field is required for its type,
-//! unknown fields, duplicate fields and an unknown `type` are rejected, and a
-//! `task` on `session_cancelled` is rejected. Key order is insignificant on
-//! decode; the encoder produces one byte-stable form. Strings are restored
-//! exactly, with no normalization, and domain constructors revalidate every
-//! restored value.
+//! unknown fields, duplicate fields and an unknown `type` are rejected, and
+//! a field of one type appearing on another type is rejected. Key order is
+//! insignificant on decode; the encoder produces one byte-stable form.
+//! Strings are restored exactly, with no normalization, and domain
+//! constructors revalidate every restored value. A `null` is meaningful
+//! only where the form states it (unreported usage components and
+//! unreported settings); elsewhere it is rejected.
+//!
+//! Wall-clock durations are transported as whole milliseconds: the values
+//! are host-side limits and observations, and sub-millisecond precision is
+//! not representable in this form.
+
+use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
 
 use ymp_domain::{
     AcceptanceContract, Constraints, Criterion, CriterionId, Goal, SessionId, Task, TaskId,
+};
+use ymp_kernel::execution::{
+    AgentId, Allowance, Assignment, ErrorClass, Grant, GrantId, InvocationId, InvocationLimits,
+    ObservedUsage, ResourceAmount, Role, SettingKey, SettingValue, Settings, Termination,
+    UncertaintyCause, WorkspaceScope,
 };
 use ymp_kernel::{JournalError, SessionEvent};
 
@@ -32,17 +53,44 @@ pub(super) const MAX_STRING_BYTES: usize = 1 << 20;
 /// A record payload is at most 2^20 bytes.
 pub(super) const MAX_PAYLOAD_BYTES: usize = 1 << 20;
 
-/// Root DTO of both payload forms. `task` distinguishes an absent key from an
-/// explicit `null` through the nested `Option`, so a `task` key in any form on
-/// `session_cancelled` is detectable.
+// ---------------------------------------------------------------------------
+// DTOs
+// ---------------------------------------------------------------------------
+
+type SettingPairs<'a> = Vec<SettingPairDto<&'a str>>;
+
+/// Encode DTO: one flat struct whose per-type field presence produces the
+/// byte-stable forms. `reported_settings` uses the nested option so an
+/// unknown report serializes as an explicit `null`, not an omitted key.
 #[derive(Serialize)]
 struct PayloadDto<'a> {
     r#type: &'a str,
     session_id: &'a str,
     #[serde(skip_serializing_if = "Option::is_none")]
     task: Option<TaskDto<'a>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    invocation: Option<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    assignment: Option<AssignmentDto<'a>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    sent_settings: Option<SettingPairs<'a>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    termination: Option<TerminationDto<'a>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    reported_settings: Option<Option<SettingPairs<'a>>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    usage: Option<UsageDto>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    cause: Option<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    error_class: Option<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    reservation: Option<u64>,
 }
 
+/// Decode DTO: every non-envelope field is presence-tracked so that
+/// `decode_payload` can require exactly the fields of the declared type and
+/// reject absent, null and foreign fields precisely.
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct PayloadDtoOwned {
@@ -50,6 +98,24 @@ struct PayloadDtoOwned {
     session_id: String,
     #[serde(default, deserialize_with = "present_field")]
     task: Option<Option<TaskDtoOwned<String>>>,
+    #[serde(default, deserialize_with = "present_field")]
+    invocation: Option<Option<String>>,
+    #[serde(default, deserialize_with = "present_field")]
+    assignment: Option<Option<AssignmentDtoOwned<String>>>,
+    #[serde(default, deserialize_with = "present_field")]
+    sent_settings: Option<Option<Vec<SettingPairDto<String>>>>,
+    #[serde(default, deserialize_with = "present_field")]
+    termination: Option<Option<TerminationDtoOwned<String>>>,
+    #[serde(default, deserialize_with = "present_field")]
+    reported_settings: Option<Option<Vec<SettingPairDto<String>>>>,
+    #[serde(default, deserialize_with = "present_field")]
+    usage: Option<Option<UsageDto>>,
+    #[serde(default, deserialize_with = "present_field")]
+    cause: Option<Option<String>>,
+    #[serde(default, deserialize_with = "present_field")]
+    error_class: Option<Option<String>>,
+    #[serde(default, deserialize_with = "present_field")]
+    reservation: Option<Option<u64>>,
 }
 
 /// Distinguishes an absent key (`None`) from an explicit `null`
@@ -60,6 +126,13 @@ where
     T: Deserialize<'de>,
 {
     Ok(Some(Option::<T>::deserialize(deserializer)?))
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct SettingPairDto<T> {
+    key: T,
+    value: T,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -98,6 +171,293 @@ struct ConstraintsDto<T> {
     conditions: Vec<T>,
 }
 
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct InvocationLimitsDto {
+    max_turns: u32,
+    max_output_chars: u64,
+    max_wall_clock_ms: u64,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct AllowanceDto {
+    reservation: u64,
+    limits: InvocationLimitsDto,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct GrantDto<T> {
+    id: T,
+    invocation: T,
+    reservation: u64,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct AssignmentDtoOwned<T> {
+    invocation: T,
+    agent: T,
+    role: T,
+    requested_settings: Vec<SettingPairDto<T>>,
+    sent_settings: Vec<SettingPairDto<T>>,
+    allowance: AllowanceDto,
+    grant: GrantDto<T>,
+    workspace: T,
+}
+
+type AssignmentDto<'a> = AssignmentDtoOwned<&'a str>;
+
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct TerminationDtoOwned<T> {
+    outcome: T,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    error_class: Option<T>,
+}
+
+type TerminationDto<'a> = TerminationDtoOwned<&'a str>;
+
+/// Usage components are presence-tracked: every key is required, and an
+/// explicit `null` is the meaningful unknown.
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct UsageDto {
+    #[serde(default, deserialize_with = "present_field")]
+    turns: Option<Option<u64>>,
+    #[serde(default, deserialize_with = "present_field")]
+    output_chars: Option<Option<u64>>,
+    #[serde(default, deserialize_with = "present_field")]
+    wall_clock_ms: Option<Option<u64>>,
+}
+
+// ---------------------------------------------------------------------------
+// Decode field checks
+// ---------------------------------------------------------------------------
+
+/// A present field carrying a value.
+fn required<'a, T>(field: &'a Option<Option<T>>, name: &str) -> Result<&'a T, String> {
+    match field {
+        Some(Some(value)) => Ok(value),
+        Some(None) => Err(format!("field '{name}' must not be null")),
+        None => Err(format!("missing required field '{name}'")),
+    }
+}
+
+/// A present field whose explicit `null` is a meaningful unknown.
+fn required_nullable<'a, T>(
+    field: &'a Option<Option<T>>,
+    name: &str,
+) -> Result<&'a Option<T>, String> {
+    match field {
+        Some(value) => Ok(value),
+        None => Err(format!("missing required field '{name}'")),
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Kernel <-> DTO conversions
+// ---------------------------------------------------------------------------
+
+fn identifier<T: AsRef<str> + Into<String>>(value: T, name: &str) -> Result<String, String> {
+    if value.as_ref().trim().is_empty() {
+        Err(format!("field '{name}' must not be blank"))
+    } else {
+        Ok(value.into())
+    }
+}
+
+fn settings_pairs(settings: &Settings) -> Vec<SettingPairDto<&str>> {
+    settings
+        .iter()
+        .map(|(key, value)| SettingPairDto {
+            key: key.as_str(),
+            value: value.as_str(),
+        })
+        .collect()
+}
+
+fn build_settings(pairs: &[SettingPairDto<String>]) -> Result<Settings, String> {
+    let mut settings = Settings::new();
+    for pair in pairs {
+        let key = SettingKey::new(identifier(pair.key.clone(), "setting key")?)
+            .map_err(|error| format!("setting key is not valid: {error}"))?;
+        let value = SettingValue::new(identifier(pair.value.clone(), "setting value")?)
+            .map_err(|error| format!("setting value is not valid: {error}"))?;
+        if settings.contains_key(&key) {
+            return Err(format!("duplicate setting key '{}'", key.as_str()));
+        }
+        settings.insert(key, value);
+    }
+    Ok(settings)
+}
+
+fn millis(duration: Duration) -> u64 {
+    u64::try_from(duration.as_millis()).unwrap_or(u64::MAX)
+}
+
+fn limits_dto(limits: &InvocationLimits) -> InvocationLimitsDto {
+    InvocationLimitsDto {
+        max_turns: limits.max_turns(),
+        max_output_chars: limits.max_output_chars(),
+        max_wall_clock_ms: millis(limits.max_wall_clock()),
+    }
+}
+
+fn build_limits(dto: &InvocationLimitsDto) -> Result<InvocationLimits, String> {
+    InvocationLimits::new(
+        dto.max_turns,
+        dto.max_output_chars,
+        Duration::from_millis(dto.max_wall_clock_ms),
+    )
+    .map_err(|error| format!("allowance limits are not valid: {error}"))
+}
+
+fn allowance_dto(allowance: &Allowance) -> AllowanceDto {
+    AllowanceDto {
+        reservation: allowance.reservation().value(),
+        limits: limits_dto(allowance.limits()),
+    }
+}
+
+fn build_allowance(dto: &AllowanceDto) -> Result<Allowance, String> {
+    Allowance::new(
+        ResourceAmount::new(dto.reservation),
+        build_limits(&dto.limits)?,
+    )
+    .map_err(|error| format!("allowance is not valid: {error}"))
+}
+
+fn assignment_dto(assignment: &Assignment) -> AssignmentDto<'_> {
+    AssignmentDtoOwned {
+        invocation: assignment.invocation().as_str(),
+        agent: assignment.agent().as_str(),
+        role: assignment.role().as_str(),
+        requested_settings: settings_pairs(assignment.requested_settings()),
+        sent_settings: settings_pairs(assignment.sent_settings()),
+        allowance: allowance_dto(assignment.allowance()),
+        grant: GrantDto {
+            id: assignment.grant().id().as_str(),
+            invocation: assignment.grant().invocation().as_str(),
+            reservation: assignment.grant().reservation().value(),
+        },
+        workspace: assignment.workspace().as_str(),
+    }
+}
+
+fn build_assignment(dto: &AssignmentDtoOwned<String>) -> Result<Assignment, String> {
+    let invocation = InvocationId::new(identifier(dto.invocation.clone(), "invocation")?)
+        .map_err(|error| format!("invocation ID is not valid: {error}"))?;
+    let grant_invocation = InvocationId::new(identifier(
+        dto.grant.invocation.clone(),
+        "grant invocation",
+    )?)
+    .map_err(|error| format!("grant invocation ID is not valid: {error}"))?;
+    if grant_invocation != invocation {
+        return Err("grant invocation does not match the assignment invocation".to_owned());
+    }
+    Ok(Assignment::new(
+        invocation,
+        AgentId::new(identifier(dto.agent.clone(), "agent")?)
+            .map_err(|error| format!("agent ID is not valid: {error}"))?,
+        Role::new(identifier(dto.role.clone(), "role")?)
+            .map_err(|error| format!("role is not valid: {error}"))?,
+        build_settings(&dto.requested_settings)?,
+        build_settings(&dto.sent_settings)?,
+        build_allowance(&dto.allowance)?,
+        Grant::new(
+            GrantId::new(identifier(dto.grant.id.clone(), "grant ID")?)
+                .map_err(|error| format!("grant ID is not valid: {error}"))?,
+            grant_invocation,
+            ResourceAmount::new(dto.grant.reservation),
+        ),
+        WorkspaceScope::new(identifier(dto.workspace.clone(), "workspace")?)
+            .map_err(|error| format!("workspace scope is not valid: {error}"))?,
+    ))
+}
+
+fn cause_name(cause: &UncertaintyCause) -> &'static str {
+    match cause {
+        UncertaintyCause::BoundedWaitExpired => "bounded_wait_expired",
+        UncertaintyCause::StartOutcomeUnknown => "start_outcome_unknown",
+    }
+}
+
+fn build_cause(name: &str) -> Result<UncertaintyCause, String> {
+    match name {
+        "bounded_wait_expired" => Ok(UncertaintyCause::BoundedWaitExpired),
+        "start_outcome_unknown" => Ok(UncertaintyCause::StartOutcomeUnknown),
+        other => Err(format!("unknown uncertainty cause '{other}'")),
+    }
+}
+
+fn termination_dto(termination: &Termination) -> TerminationDto<'_> {
+    match termination {
+        Termination::Completed => TerminationDtoOwned {
+            outcome: "completed",
+            error_class: None,
+        },
+        Termination::Failed { class } => TerminationDtoOwned {
+            outcome: "failed",
+            error_class: Some(class.as_str()),
+        },
+        Termination::Cancelled => TerminationDtoOwned {
+            outcome: "cancelled",
+            error_class: None,
+        },
+        Termination::TimedOut => TerminationDtoOwned {
+            outcome: "timed_out",
+            error_class: None,
+        },
+    }
+}
+
+fn build_termination(dto: &TerminationDtoOwned<String>) -> Result<Termination, String> {
+    match dto.outcome.as_str() {
+        "completed" => Ok(Termination::Completed),
+        "cancelled" => Ok(Termination::Cancelled),
+        "timed_out" => Ok(Termination::TimedOut),
+        "failed" => {
+            let class = dto
+                .error_class
+                .clone()
+                .ok_or_else(|| "missing required field 'termination.error_class'".to_owned())?;
+            Ok(Termination::Failed {
+                class: ErrorClass::new(identifier(class, "termination.error_class")?)
+                    .map_err(|error| format!("error class is not valid: {error}"))?,
+            })
+        }
+        other => Err(format!("unknown termination outcome '{other}'")),
+    }
+}
+
+fn usage_dto(usage: &ObservedUsage) -> UsageDto {
+    UsageDto {
+        turns: usage.turns().map(Some),
+        output_chars: usage.output_chars().map(Some),
+        wall_clock_ms: usage.wall_clock().map(millis).map(Some),
+    }
+}
+
+fn build_usage(dto: &UsageDto) -> Result<ObservedUsage, String> {
+    let mut usage = ObservedUsage::unknown();
+    if let Some(turns) = *required_nullable(&dto.turns, "usage.turns")? {
+        usage = usage.with_turns(turns);
+    }
+    if let Some(output_chars) = *required_nullable(&dto.output_chars, "usage.output_chars")? {
+        usage = usage.with_output_chars(output_chars);
+    }
+    if let Some(wall_clock_ms) = *required_nullable(&dto.wall_clock_ms, "usage.wall_clock_ms")? {
+        usage = usage.with_wall_clock(Duration::from_millis(wall_clock_ms));
+    }
+    Ok(usage)
+}
+
+// ---------------------------------------------------------------------------
+// Encode / decode
+// ---------------------------------------------------------------------------
+
 /// Encodes one event into its exact version-1 payload form. Input limits are
 /// validated before serialization; a violation is an input-limit failure
 /// (`AdapterFailure`) raised before any storage access.
@@ -112,6 +472,30 @@ pub(super) fn encode_event(event: &SessionEvent) -> Result<Vec<u8>, JournalError
             Ok(())
         }
     };
+    let require_settings_limit = |settings: &Settings| {
+        for (key, value) in settings.iter() {
+            require_limit(key.as_str())?;
+            require_limit(value.as_str())?;
+        }
+        Ok(())
+    };
+
+    fn base<'a>(kind: &'a str, session_id: &'a str) -> PayloadDto<'a> {
+        PayloadDto {
+            r#type: kind,
+            session_id,
+            task: None,
+            invocation: None,
+            assignment: None,
+            sent_settings: None,
+            termination: None,
+            reported_settings: None,
+            usage: None,
+            cause: None,
+            error_class: None,
+            reservation: None,
+        }
+    }
 
     match event {
         SessionEvent::SessionOpened { session_id, task } => {
@@ -125,44 +509,147 @@ pub(super) fn encode_event(event: &SessionEvent) -> Result<Vec<u8>, JournalError
             for condition in task.constraints().conditions() {
                 require_limit(condition)?;
             }
-            let dto = PayloadDto {
-                r#type: "session_opened",
-                session_id: session_id.as_str(),
-                task: Some(TaskDto {
-                    id: task.id().as_str(),
-                    goal: GoalDto {
-                        request: task.goal().request(),
-                    },
-                    acceptance_contract: AcceptanceContractDto {
-                        criteria: task
-                            .acceptance_contract()
-                            .criteria()
-                            .iter()
-                            .map(|criterion| CriterionDto {
-                                id: criterion.id().as_str(),
-                                description: criterion.description(),
-                            })
-                            .collect(),
-                    },
-                    constraints: ConstraintsDto {
-                        conditions: task
-                            .constraints()
-                            .conditions()
-                            .iter()
-                            .map(String::as_str)
-                            .collect(),
-                    },
-                }),
-            };
+            let mut dto = base("session_opened", session_id.as_str());
+            dto.task = Some(TaskDto {
+                id: task.id().as_str(),
+                goal: GoalDto {
+                    request: task.goal().request(),
+                },
+                acceptance_contract: AcceptanceContractDto {
+                    criteria: task
+                        .acceptance_contract()
+                        .criteria()
+                        .iter()
+                        .map(|criterion| CriterionDto {
+                            id: criterion.id().as_str(),
+                            description: criterion.description(),
+                        })
+                        .collect(),
+                },
+                constraints: ConstraintsDto {
+                    conditions: task
+                        .constraints()
+                        .conditions()
+                        .iter()
+                        .map(String::as_str)
+                        .collect(),
+                },
+            });
             serialize(dto)
         }
         SessionEvent::SessionCancelled { session_id } => {
             require_limit(session_id.as_str())?;
-            let dto = PayloadDto {
-                r#type: "session_cancelled",
-                session_id: session_id.as_str(),
-                task: None,
-            };
+            serialize(base("session_cancelled", session_id.as_str()))
+        }
+        SessionEvent::AssignmentAdmitted {
+            session_id,
+            invocation,
+            assignment,
+        } => {
+            require_limit(session_id.as_str())?;
+            require_limit(invocation.as_str())?;
+            require_limit(assignment.invocation().as_str())?;
+            require_limit(assignment.agent().as_str())?;
+            require_limit(assignment.role().as_str())?;
+            require_limit(assignment.grant().id().as_str())?;
+            require_limit(assignment.grant().invocation().as_str())?;
+            require_limit(assignment.workspace().as_str())?;
+            require_settings_limit(assignment.requested_settings())?;
+            require_settings_limit(assignment.sent_settings())?;
+            let mut dto = base("assignment_admitted", session_id.as_str());
+            dto.invocation = Some(invocation.as_str());
+            dto.assignment = Some(assignment_dto(assignment));
+            serialize(dto)
+        }
+        SessionEvent::InvocationStarted {
+            session_id,
+            invocation,
+        } => {
+            require_limit(session_id.as_str())?;
+            require_limit(invocation.as_str())?;
+            let mut dto = base("invocation_started", session_id.as_str());
+            dto.invocation = Some(invocation.as_str());
+            serialize(dto)
+        }
+        SessionEvent::InvocationUncertain {
+            session_id,
+            invocation,
+            cause,
+        } => {
+            require_limit(session_id.as_str())?;
+            require_limit(invocation.as_str())?;
+            let mut dto = base("invocation_uncertain", session_id.as_str());
+            dto.invocation = Some(invocation.as_str());
+            dto.cause = Some(cause_name(cause));
+            serialize(dto)
+        }
+        SessionEvent::InvocationFailedAtStart {
+            session_id,
+            invocation,
+            class,
+        } => {
+            require_limit(session_id.as_str())?;
+            require_limit(invocation.as_str())?;
+            require_limit(class.as_str())?;
+            let mut dto = base("invocation_failed_at_start", session_id.as_str());
+            dto.invocation = Some(invocation.as_str());
+            dto.error_class = Some(class.as_str());
+            serialize(dto)
+        }
+        SessionEvent::EffectEvidenceRecorded {
+            session_id,
+            invocation,
+        } => {
+            require_limit(session_id.as_str())?;
+            require_limit(invocation.as_str())?;
+            let mut dto = base("effect_evidence_recorded", session_id.as_str());
+            dto.invocation = Some(invocation.as_str());
+            serialize(dto)
+        }
+        SessionEvent::InvocationCancellationRequested {
+            session_id,
+            invocation,
+        } => {
+            require_limit(session_id.as_str())?;
+            require_limit(invocation.as_str())?;
+            let mut dto = base("invocation_cancellation_requested", session_id.as_str());
+            dto.invocation = Some(invocation.as_str());
+            serialize(dto)
+        }
+        SessionEvent::InvocationObserved {
+            session_id,
+            invocation,
+            termination,
+            reported_settings,
+            usage,
+        } => {
+            require_limit(session_id.as_str())?;
+            require_limit(invocation.as_str())?;
+            if let Termination::Failed { class } = termination {
+                require_limit(class.as_str())?;
+            }
+            if let Some(reported) = reported_settings.as_ref() {
+                require_settings_limit(reported)?;
+            }
+            let mut dto = base("invocation_observed", session_id.as_str());
+            dto.invocation = Some(invocation.as_str());
+            dto.termination = Some(termination_dto(termination));
+            dto.reported_settings = Some(reported_settings.as_ref().map(settings_pairs));
+            dto.usage = Some(usage_dto(usage));
+            serialize(dto)
+        }
+        SessionEvent::InvocationAccounted {
+            session_id,
+            invocation,
+            usage,
+            reservation,
+        } => {
+            require_limit(session_id.as_str())?;
+            require_limit(invocation.as_str())?;
+            let mut dto = base("invocation_accounted", session_id.as_str());
+            dto.invocation = Some(invocation.as_str());
+            dto.usage = Some(usage_dto(usage));
+            dto.reservation = Some(reservation.value());
             serialize(dto)
         }
     }
@@ -181,10 +668,10 @@ fn serialize<T: Serialize>(dto: T) -> Result<Vec<u8>, JournalError> {
 }
 
 /// Decodes one version-1 payload. Every violation of the fixed forms —
-/// malformed JSON, unknown or duplicate fields, an unknown type, a `task` on
-/// `session_cancelled`, a limit violation, or a value the domain constructors
-/// reject — is returned as a human-readable reason the caller maps to
-/// `Corruption`.
+/// malformed JSON, unknown or duplicate fields, an unknown type, a field of
+/// one type appearing on another, a limit violation, or a value the domain
+/// constructors reject — is returned as a human-readable reason the caller
+/// maps to `Corruption`.
 pub(super) fn decode_payload(bytes: &[u8]) -> Result<SessionEvent, String> {
     if bytes.len() > MAX_PAYLOAD_BYTES {
         return Err(format!(
@@ -194,10 +681,24 @@ pub(super) fn decode_payload(bytes: &[u8]) -> Result<SessionEvent, String> {
     let dto: PayloadDtoOwned = serde_json::from_slice(bytes)
         .map_err(|error| format!("stored payload is not a valid version-1 payload: {error}"))?;
     require_stored_limit(&dto.session_id)?;
-    let session_id =
-        SessionId::new(dto.session_id).map_err(|error| domain_error("session_id", &error))?;
+    let session_id = SessionId::new(dto.session_id.clone())
+        .map_err(|error| domain_error("session_id", &error))?;
     match dto.r#type.as_str() {
         "session_opened" => {
+            forbid_all(
+                &dto,
+                &[
+                    "invocation",
+                    "assignment",
+                    "sent_settings",
+                    "termination",
+                    "reported_settings",
+                    "usage",
+                    "cause",
+                    "error_class",
+                    "reservation",
+                ],
+            )?;
             let task = match dto.task {
                 Some(Some(task)) => task,
                 Some(None) => return Err("field 'task' must not be null".to_owned()),
@@ -209,13 +710,227 @@ pub(super) fn decode_payload(bytes: &[u8]) -> Result<SessionEvent, String> {
             })
         }
         "session_cancelled" => {
-            if dto.task.is_some() {
-                return Err("unknown field 'task' for type 'session_cancelled'".to_owned());
-            }
+            forbid_all(
+                &dto,
+                &[
+                    "task",
+                    "invocation",
+                    "assignment",
+                    "sent_settings",
+                    "termination",
+                    "reported_settings",
+                    "usage",
+                    "cause",
+                    "error_class",
+                    "reservation",
+                ],
+            )?;
             Ok(SessionEvent::SessionCancelled { session_id })
+        }
+        "assignment_admitted" => {
+            forbid_all(
+                &dto,
+                &[
+                    "task",
+                    "sent_settings",
+                    "termination",
+                    "reported_settings",
+                    "usage",
+                    "cause",
+                    "error_class",
+                    "reservation",
+                ],
+            )?;
+            let invocation = build_invocation(&dto.invocation)?;
+            let assignment = build_assignment(required(&dto.assignment, "assignment")?)?;
+            if assignment.invocation() != &invocation {
+                return Err("assignment invocation does not match the event invocation".to_owned());
+            }
+            Ok(SessionEvent::AssignmentAdmitted {
+                session_id,
+                invocation,
+                assignment,
+            })
+        }
+        "invocation_started" => {
+            forbid_all(
+                &dto,
+                &[
+                    "task",
+                    "assignment",
+                    "sent_settings",
+                    "termination",
+                    "reported_settings",
+                    "usage",
+                    "cause",
+                    "reservation",
+                ],
+            )?;
+            Ok(SessionEvent::InvocationStarted {
+                session_id,
+                invocation: build_invocation(&dto.invocation)?,
+            })
+        }
+        "invocation_uncertain" => {
+            forbid_all(
+                &dto,
+                &[
+                    "task",
+                    "assignment",
+                    "sent_settings",
+                    "termination",
+                    "reported_settings",
+                    "usage",
+                    "error_class",
+                    "reservation",
+                ],
+            )?;
+            Ok(SessionEvent::InvocationUncertain {
+                session_id,
+                invocation: build_invocation(&dto.invocation)?,
+                cause: build_cause(required(&dto.cause, "cause")?)?,
+            })
+        }
+        "invocation_failed_at_start" => {
+            forbid_all(
+                &dto,
+                &[
+                    "task",
+                    "assignment",
+                    "sent_settings",
+                    "termination",
+                    "reported_settings",
+                    "usage",
+                    "cause",
+                    "reservation",
+                ],
+            )?;
+            Ok(SessionEvent::InvocationFailedAtStart {
+                session_id,
+                invocation: build_invocation(&dto.invocation)?,
+                class: ErrorClass::new(identifier(
+                    required(&dto.error_class, "error_class")?.clone(),
+                    "error_class",
+                )?)
+                .map_err(|error| format!("error class is not valid: {error}"))?,
+            })
+        }
+        "effect_evidence_recorded" => {
+            forbid_all(
+                &dto,
+                &[
+                    "task",
+                    "assignment",
+                    "sent_settings",
+                    "termination",
+                    "reported_settings",
+                    "usage",
+                    "cause",
+                    "error_class",
+                    "reservation",
+                ],
+            )?;
+            Ok(SessionEvent::EffectEvidenceRecorded {
+                session_id,
+                invocation: build_invocation(&dto.invocation)?,
+            })
+        }
+        "invocation_cancellation_requested" => {
+            forbid_all(
+                &dto,
+                &[
+                    "task",
+                    "assignment",
+                    "sent_settings",
+                    "termination",
+                    "reported_settings",
+                    "usage",
+                    "cause",
+                    "reservation",
+                ],
+            )?;
+            Ok(SessionEvent::InvocationCancellationRequested {
+                session_id,
+                invocation: build_invocation(&dto.invocation)?,
+            })
+        }
+        "invocation_observed" => {
+            forbid_all(
+                &dto,
+                &[
+                    "task",
+                    "assignment",
+                    "sent_settings",
+                    "cause",
+                    "error_class",
+                    "reservation",
+                ],
+            )?;
+            let reported = match required_nullable(&dto.reported_settings, "reported_settings")? {
+                None => None,
+                Some(pairs) => Some(build_settings(pairs)?),
+            };
+            Ok(SessionEvent::InvocationObserved {
+                session_id,
+                invocation: build_invocation(&dto.invocation)?,
+                termination: build_termination(required(&dto.termination, "termination")?)?,
+                reported_settings: reported,
+                usage: build_usage(required(&dto.usage, "usage")?)?,
+            })
+        }
+        "invocation_accounted" => {
+            forbid_all(
+                &dto,
+                &[
+                    "task",
+                    "assignment",
+                    "sent_settings",
+                    "termination",
+                    "reported_settings",
+                    "cause",
+                    "error_class",
+                ],
+            )?;
+            Ok(SessionEvent::InvocationAccounted {
+                session_id,
+                invocation: build_invocation(&dto.invocation)?,
+                usage: build_usage(required(&dto.usage, "usage")?)?,
+                reservation: ResourceAmount::new(*required(&dto.reservation, "reservation")?),
+            })
         }
         other => Err(format!("unknown payload type '{other}'")),
     }
+}
+
+/// Rejects every named field that is present for this payload type.
+fn forbid_all(dto: &PayloadDtoOwned, names: &[&str]) -> Result<(), String> {
+    for name in names {
+        let present = match *name {
+            "task" => dto.task.is_some(),
+            "invocation" => dto.invocation.is_some(),
+            "assignment" => dto.assignment.is_some(),
+            "cause" => dto.cause.is_some(),
+            "error_class" => dto.error_class.is_some(),
+            "sent_settings" => dto.sent_settings.is_some(),
+            "termination" => dto.termination.is_some(),
+            "reported_settings" => dto.reported_settings.is_some(),
+            "usage" => dto.usage.is_some(),
+            "reservation" => dto.reservation.is_some(),
+            _ => false,
+        };
+        if present {
+            return Err(format!("unknown field '{name}' for this payload type"));
+        }
+    }
+    Ok(())
+}
+
+fn build_invocation(field: &Option<Option<String>>) -> Result<InvocationId, String> {
+    InvocationId::new(identifier(
+        required(field, "invocation")?.clone(),
+        "invocation",
+    )?)
+    .map_err(|error| format!("invocation ID is not valid: {error}"))
 }
 
 fn require_stored_limit(value: &str) -> Result<(), String> {
@@ -292,14 +1007,109 @@ mod tests {
         }
     }
 
+    fn key(name: &str) -> SettingKey {
+        SettingKey::new(name).expect("valid setting key")
+    }
+
+    fn value(name: &str) -> SettingValue {
+        SettingValue::new(name).expect("valid setting value")
+    }
+
+    fn settings(pairs: &[(&str, &str)]) -> Settings {
+        Settings::from_pairs(pairs.iter().map(|(k, v)| (key(k), value(v)))).expect("valid settings")
+    }
+
+    fn limits() -> InvocationLimits {
+        InvocationLimits::new(12, 4096, Duration::from_millis(90_000)).expect("valid limits")
+    }
+
+    fn allowance() -> Allowance {
+        Allowance::new(ResourceAmount::new(5), limits()).expect("valid allowance")
+    }
+
+    fn assignment() -> Assignment {
+        let invocation = InvocationId::new("invocation-1").expect("valid invocation ID");
+        Assignment::new(
+            invocation.clone(),
+            AgentId::new("claude-opus-5").expect("valid agent ID"),
+            Role::new("implementer").expect("valid role"),
+            settings(&[("effort", "high"), ("thinking", "on")]),
+            settings(&[("effort", "high")]),
+            allowance(),
+            Grant::new(
+                GrantId::new("grant-1").expect("valid grant ID"),
+                invocation,
+                ResourceAmount::new(5),
+            ),
+            WorkspaceScope::new("session-primary").expect("valid scope"),
+        )
+    }
+
     #[test]
     fn encode_decode_round_trips_exactly() {
-        for event in [
+        let events = vec![
             opened_event(),
             SessionEvent::SessionCancelled {
                 session_id: SessionId::new("cancel-me").expect("valid session ID"),
             },
-        ] {
+            SessionEvent::AssignmentAdmitted {
+                session_id: SessionId::new("s1").expect("valid session ID"),
+                invocation: InvocationId::new("invocation-1").expect("valid invocation ID"),
+                assignment: assignment(),
+            },
+            SessionEvent::InvocationStarted {
+                session_id: SessionId::new("s1").expect("valid session ID"),
+                invocation: InvocationId::new("invocation-1").expect("valid invocation ID"),
+            },
+            SessionEvent::InvocationUncertain {
+                session_id: SessionId::new("s1").expect("valid session ID"),
+                invocation: InvocationId::new("invocation-2").expect("valid invocation ID"),
+                cause: UncertaintyCause::BoundedWaitExpired,
+            },
+            SessionEvent::InvocationUncertain {
+                session_id: SessionId::new("s1").expect("valid session ID"),
+                invocation: InvocationId::new("invocation-3").expect("valid invocation ID"),
+                cause: UncertaintyCause::StartOutcomeUnknown,
+            },
+            SessionEvent::InvocationFailedAtStart {
+                session_id: SessionId::new("s1").expect("valid session ID"),
+                invocation: InvocationId::new("invocation-4").expect("valid invocation ID"),
+                class: ErrorClass::new("adapter_unavailable").expect("valid error class"),
+            },
+            SessionEvent::EffectEvidenceRecorded {
+                session_id: SessionId::new("s1").expect("valid session ID"),
+                invocation: InvocationId::new("invocation-5").expect("valid invocation ID"),
+            },
+            SessionEvent::InvocationCancellationRequested {
+                session_id: SessionId::new("s1").expect("valid session ID"),
+                invocation: InvocationId::new("invocation-1").expect("valid invocation ID"),
+            },
+            SessionEvent::InvocationObserved {
+                session_id: SessionId::new("s1").expect("valid session ID"),
+                invocation: InvocationId::new("invocation-1").expect("valid invocation ID"),
+                termination: Termination::Failed {
+                    class: ErrorClass::new("provider_overloaded").expect("valid error class"),
+                },
+                reported_settings: Some(settings(&[("effort", "low")])),
+                usage: ObservedUsage::unknown()
+                    .with_turns(3)
+                    .with_wall_clock(Duration::from_millis(1200)),
+            },
+            SessionEvent::InvocationObserved {
+                session_id: SessionId::new("s1").expect("valid session ID"),
+                invocation: InvocationId::new("invocation-2").expect("valid invocation ID"),
+                termination: Termination::TimedOut,
+                reported_settings: None,
+                usage: ObservedUsage::unknown(),
+            },
+            SessionEvent::InvocationAccounted {
+                session_id: SessionId::new("s1").expect("valid session ID"),
+                invocation: InvocationId::new("invocation-1").expect("valid invocation ID"),
+                usage: ObservedUsage::unknown().with_turns(3),
+                reservation: ResourceAmount::new(5),
+            },
+        ];
+        for event in events {
             let payload = encode_event(&event).expect("payload encodes");
             assert_eq!(decode_payload(&payload).expect("payload decodes"), event);
         }
@@ -320,6 +1130,32 @@ mod tests {
         })
         .expect("payload encodes");
         assert_eq!(payload, again);
+
+        let observed = encode_event(&SessionEvent::InvocationObserved {
+            session_id: SessionId::new("s1").expect("valid session ID"),
+            invocation: InvocationId::new("invocation-2").expect("valid invocation ID"),
+            termination: Termination::TimedOut,
+            reported_settings: None,
+            usage: ObservedUsage::unknown(),
+        })
+        .expect("payload encodes");
+        assert_eq!(
+            observed,
+            br#"{"type":"invocation_observed","session_id":"s1","invocation":"invocation-2","termination":{"outcome":"timed_out"},"reported_settings":null,"usage":{"turns":null,"output_chars":null,"wall_clock_ms":null}}"#
+        );
+        // The unknown report is an explicit null, not an omitted key.
+        assert!(String::from_utf8_lossy(&observed).contains("\"reported_settings\":null"));
+
+        let uncertain = encode_event(&SessionEvent::InvocationUncertain {
+            session_id: SessionId::new("s1").expect("valid session ID"),
+            invocation: InvocationId::new("invocation-2").expect("valid invocation ID"),
+            cause: UncertaintyCause::StartOutcomeUnknown,
+        })
+        .expect("payload encodes");
+        assert_eq!(
+            uncertain,
+            br#"{"type":"invocation_uncertain","session_id":"s1","invocation":"invocation-2","cause":"start_outcome_unknown"}"#
+        );
     }
 
     #[test]
@@ -378,6 +1214,63 @@ mod tests {
             (
                 "empty acceptance contract",
                 br#"{"type":"session_opened","session_id":"s1","task":{"id":"t","goal":{"request":"g"},"acceptance_contract":{"criteria":[]},"constraints":{"conditions":[]}}}"#.to_vec(),
+            ),
+            // Execution forms.
+            (
+                "invocation field on cancelled",
+                br#"{"type":"session_cancelled","session_id":"s1","invocation":"invocation-1"}"#.to_vec(),
+            ),
+            (
+                "missing assignment on admitted",
+                br#"{"type":"assignment_admitted","session_id":"s1","invocation":"invocation-1"}"#.to_vec(),
+            ),
+            (
+                "missing sent settings in assignment",
+                br#"{"type":"assignment_admitted","session_id":"s1","invocation":"invocation-1","assignment":{"invocation":"invocation-1","agent":"a","role":"r","requested_settings":[],"allowance":{"reservation":1,"limits":{"max_turns":1,"max_output_chars":1,"max_wall_clock_ms":1}},"grant":{"id":"grant-1","invocation":"invocation-1","reservation":1},"workspace":"w"}}"#.to_vec(),
+            ),
+            (
+                "null usage on observed",
+                br#"{"type":"invocation_observed","session_id":"s1","invocation":"invocation-1","termination":{"outcome":"completed"},"reported_settings":null,"usage":null}"#.to_vec(),
+            ),
+            (
+                "absent reported settings on observed",
+                br#"{"type":"invocation_observed","session_id":"s1","invocation":"invocation-1","termination":{"outcome":"completed"},"usage":{"turns":null,"output_chars":null,"wall_clock_ms":null}}"#.to_vec(),
+            ),
+            (
+                "unknown termination outcome",
+                br#"{"type":"invocation_observed","session_id":"s1","invocation":"invocation-1","termination":{"outcome":"vanished"},"reported_settings":null,"usage":{"turns":null,"output_chars":null,"wall_clock_ms":null}}"#.to_vec(),
+            ),
+            (
+                "failed without error class",
+                br#"{"type":"invocation_observed","session_id":"s1","invocation":"invocation-1","termination":{"outcome":"failed"},"reported_settings":null,"usage":{"turns":null,"output_chars":null,"wall_clock_ms":null}}"#.to_vec(),
+            ),
+            (
+                "usage missing component",
+                br#"{"type":"invocation_accounted","session_id":"s1","invocation":"invocation-1","usage":{"turns":1,"output_chars":2},"reservation":5}"#.to_vec(),
+            ),
+            (
+                "reservation on started",
+                br#"{"type":"invocation_started","session_id":"s1","invocation":"invocation-1","reservation":5}"#.to_vec(),
+            ),
+            (
+                "unknown uncertainty cause",
+                br#"{"type":"invocation_uncertain","session_id":"s1","invocation":"invocation-1","cause":"mood_based"}"#.to_vec(),
+            ),
+            (
+                "missing uncertainty cause",
+                br#"{"type":"invocation_uncertain","session_id":"s1","invocation":"invocation-1"}"#.to_vec(),
+            ),
+            (
+                "zero allowance reservation",
+                br#"{"type":"assignment_admitted","session_id":"s1","invocation":"invocation-1","assignment":{"invocation":"invocation-1","agent":"a","role":"r","requested_settings":[],"sent_settings":[],"allowance":{"reservation":0,"limits":{"max_turns":1,"max_output_chars":1,"max_wall_clock_ms":1}},"grant":{"id":"grant-1","invocation":"invocation-1","reservation":1},"workspace":"w"}}"#.to_vec(),
+            ),
+            (
+                "duplicate setting key",
+                br#"{"type":"assignment_admitted","session_id":"s1","invocation":"invocation-1","assignment":{"invocation":"invocation-1","agent":"a","role":"r","requested_settings":[{"key":"effort","value":"high"},{"key":"effort","value":"low"}],"sent_settings":[],"allowance":{"reservation":1,"limits":{"max_turns":1,"max_output_chars":1,"max_wall_clock_ms":1}},"grant":{"id":"grant-1","invocation":"invocation-1","reservation":1},"workspace":"w"}}"#.to_vec(),
+            ),
+            (
+                "grant invocation mismatch",
+                br#"{"type":"assignment_admitted","session_id":"s1","invocation":"invocation-1","assignment":{"invocation":"invocation-1","agent":"a","role":"r","requested_settings":[],"allowance":{"reservation":1,"limits":{"max_turns":1,"max_output_chars":1,"max_wall_clock_ms":1}},"grant":{"id":"grant-1","invocation":"invocation-9","reservation":1},"workspace":"w"}}"#.to_vec(),
             ),
         ];
         for (name, payload) in cases {

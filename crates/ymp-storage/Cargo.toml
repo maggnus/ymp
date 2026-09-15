@@ -24,6 +24,10 @@ fault-injection = []
 # dependency enables the feature for test targets only, never for downstream
 # or production builds.
 ymp-storage = { path = ".", features = ["fault-injection"] }
+# Test-only assembly of the admitted execution scenario over the SQLite
+# journal; ymp-runtime depends only on ymp-domain and ymp-kernel, so this
+# dev-dependency creates no build cycle.
+ymp-runtime = { path = "../ymp-runtime" }
 
 [lints]
 workspace = true
