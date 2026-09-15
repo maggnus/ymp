@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "id": "DEV-0015",
+  "area": "execution",
+  "title": "First user run and show commands",
+  "type": "implementation",
+  "priority": 58,
+  "status": "in_progress",
+  "depends_on": [
+    "DEV-0013"
+  ],
+  "owner": "codex",
+  "goal": "Expose one durable admitted Codex execution and its persisted history through the ymp command-line interface.",
+  "scope": [
+    "Implement ymp run with a task argument, documented durable data directory, one admitted Codex invocation, bounded observation, settlement, and an honest terminal report.",
+    "Implement ymp show for a persisted session and its invocation history.",
+    "Keep unattended tests on ScriptedBackend and retain real provider execution only in an ignored test.",
+    "Add only the minimal runtime facade required to assemble Registry, ExecutionBackend, and SqliteJournal without moving authority into the CLI."
+  ],
+  "acceptance": [
+    "run constructs the canonical Task values, persists the session, executes exactly one admitted scenario, and reports the observed outcome, usage, workspace, and session ID.",
+    "The default ./.ymp/sessions location, file lifetime, and default execution limits are documented in help, and a missing codex executable produces a typed readable error.",
+    "show reopens the durable journal and prints the session status and invocation history.",
+    "Unattended tests cover completed, failed, not-ready registry, and reopen persistence; real Codex execution remains ignored.",
+    "Workspace build, formatting, Clippy, tests, task-record validation, and independent review succeed before the result is committed to main."
+  ],
+  "evidence": [],
+  "context": [
+    "Requested directly against main after DEV-0013; no push is authorized."
+  ],
+  "revision": 2,
+  "history": [
+    {
+      "revision": 1,
+      "at": "2026-09-15T07:30:57.764986Z",
+      "actor": "manage.py",
+      "status": "planned",
+      "note": "Task created."
+    },
+    {
+      "revision": 2,
+      "at": "2026-09-15T07:30:57.808650Z",
+      "actor": "codex",
+      "status": "in_progress",
+      "note": "Claimed by codex."
+    }
+  ]
+}
