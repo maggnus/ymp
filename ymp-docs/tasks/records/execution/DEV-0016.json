@@ -4,7 +4,7 @@
   "title": "ymp run — first user command (MVP surface)",
   "type": "implementation",
   "priority": 58,
-  "status": "planned",
+  "status": "rejected",
   "depends_on": [
     "DEV-0013"
   ],
@@ -24,7 +24,7 @@
   ],
   "id": "DEV-0016",
   "owner": null,
-  "revision": 1,
+  "revision": 2,
   "history": [
     {
       "revision": 1,
@@ -32,6 +32,13 @@
       "actor": "manage.py",
       "status": "planned",
       "note": "Task created."
+    },
+    {
+      "revision": 2,
+      "at": "2026-09-15T07:34:23.481307Z",
+      "actor": "maintainer",
+      "status": "rejected",
+      "note": "Duplicate of DEV-0015 (the executing agent registered its own task first). No work was done under this record."
     }
   ]
 }
