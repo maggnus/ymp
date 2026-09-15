@@ -3,8 +3,9 @@
 ## Purpose
 
 YMP helps a user obtain a checked result from a task that benefits from reasoning,
-tools and cooperation between AI agents. It provides a terminal interface for
-stating the goal, observing progress and resolving decisions that require the user.
+tools and cooperation between AI agents. It must provide an interactive terminal
+user interface (TUI) as its primary human-facing interface for stating the goal,
+observing progress and resolving decisions that require the user.
 
 The user should not need to supervise individual agent turns or manually carry
 information between participants. YMP must make its actions and limitations
@@ -22,6 +23,22 @@ These are product objectives to evaluate. Agent count, message volume and a
 successful process exit do not establish that any objective has been achieved.
 
 ## Product principles
+
+### A complete interactive terminal experience
+
+The TUI is part of the intended product scope. It must support the complete user
+journey: define and refine a task, observe its progress, answer clarifications,
+interrupt ongoing work, resume recoverable work, and inspect the resulting
+artifacts, checks and report.
+
+The user's goal and current result must remain easy to follow. Team activity,
+assignments, resource use, acceptance criteria and decisions must be accessible
+without requiring the user to supervise individual agent turns or reconstruct the
+session from logs.
+
+The TUI must display recorded session state, unmet criteria and uncertainty
+truthfully. Its controls use the same kernel authority as other application
+interfaces; presentation cannot grant permissions or declare a result accepted.
 
 ### One user task, one accountable session
 
