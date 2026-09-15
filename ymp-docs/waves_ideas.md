@@ -237,8 +237,9 @@ kinds required by this wave without changing their later meaning.
 
 ### Dependencies
 
-No prior code is present in the working tree; the previous iteration is reachable
-only at git tag `legacy-foundation` and may be consulted for implementation facts.
+Only the empty placeholder skeleton of `project-worktree.md` is present in the
+working tree; the previous iteration is reachable only at git tag
+`legacy-foundation` and may be consulted for implementation facts.
 W1 has no dependency on another product wave.
 
 ### Testable completion conditions

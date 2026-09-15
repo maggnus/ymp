@@ -56,8 +56,8 @@ UI polish is not required to establish a kernel mechanism.
 
 Only the approved documents and development-task tool are available as a planning
 basis. No application code, API, fixture, previous result or runtime behavior is
-credited as delivered. All paths below are **proposed target modules**, not claims
-that the new implementation exists. W1-0001 owns the initial Rust mapping;
+credited as delivered. All paths below exist as **empty placeholder modules** by owner decision
+(2026-09-16, see [project-worktree.md](project-worktree.md)); none contains behavior. W1-0001 owns the initial Rust mapping;
 additional crates appear only when their concrete capability is built. No product
 files are changed by this decomposition.
 
@@ -81,7 +81,8 @@ files are changed by this decomposition.
 Compatibility applies as this new implementation evolves. No migration from a
 previous product, prior journal/API, or historical test suite is an implicit task.
 Each feature includes its concrete schema/projection/consumer integration; the
-initial layout does not create empty crates for future capabilities.
+placeholder skeleton is the one sanctioned exception to the no-placeholder rule
+and adds no behavior.
 
 ## Domain structures and exact variants
 

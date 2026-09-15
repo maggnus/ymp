@@ -10,6 +10,8 @@ An evolving terminal interface exposes this behavior.
 
 This iteration starts with a new implementation. The architecture and development
 task tooling are available; no application functionality is credited as delivered.
+An empty placeholder skeleton of the crates exists by owner decision (see
+[the proposed layout](ymp-docs/project-worktree.md)); it contains no behavior.
 Earlier source material and implementation notes are historical references, not a
 baseline to extend or a reason to omit planned work. The previous iteration's code
 was removed from the working tree and is reachable only at git tag `legacy-foundation`.
@@ -20,6 +22,7 @@ was removed from the working tree and is reachable only at git tag `legacy-found
 - [Self-organizing team domain model](ymp-docs/self-organizing-team-domain-model.md) is the owner-approved, single authoritative architecture and product scope.
 - [Product waves](ymp-docs/waves_ideas.md) describe the proposed product increments.
 - [Domain notes](ymp-docs/domain.md) explain terminology and historical API names.
+- [Proposed crate and module layout](ymp-docs/project-worktree.md) maps model sections to target crates, modules and owning tasks.
 - [Historical implementation notes](ymp-docs/architecture.md) and [foundation contract](ymp-docs/foundation.md) do not establish current functionality.
 - [Historical amendments](ymp-docs/domain-model-amendments.md) have no normative authority.
 

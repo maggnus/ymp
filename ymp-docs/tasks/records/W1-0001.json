@@ -10,7 +10,7 @@
   "owner": null,
   "goal": "Establish the new implementation’s concrete boundaries and a working Journal consumer that reconstructs attributed decisions from immutable events.",
   "scope": [
-    "Create the initial Rust workspace and only the crates with concrete behavior in this task: pure model values/validation in ymp-domain, trusted operations/port contracts in ymp-kernel, and MemoryJournal/runtime composition in ymp-runtime. Later owners add durable storage and CLI/TUI crates when their capabilities are implemented; no placeholder crates or generic service container.",
+    "The Cargo workspace and the empty placeholder skeleton of ymp-docs/project-worktree.md exist by owner decision (2026-09-16). Give behavior to the W1-0001 files: pure model values/validation in ymp-domain, trusted operations/port contracts in ymp-kernel, and MemoryJournal/runtime composition in ymp-runtime. Other placeholders stay empty until their owning task; add no further placeholder crates or a generic service container. This task may rename or move placeholders when the concrete Rust mapping requires it.",
     "Implement validated Id/Ref, SHA-256 Digest, PolicyRef, Proposal<T>, Denial and common Envelope. A decision stores implementation/version, recoverable effective parameter values and digest, input-view digest, rationale, basis, proposal and kernel outcome. Implement atomic ordered append with expected-revision handling and deterministic read-only *View replay through MemoryJournal.",
     "Define a concrete first kernel event/decision consumer and an extensible typed payload/versioning mechanism. New event families preserve records produced earlier in this new implementation; missing/mismatched versioned refs are denied. Durable storage, crash behavior and content retention are W1-0016, not implied by an in-memory journal.",
     "Record explicit per-run strategy/parameter selections and authorized changes at work boundaries. Strategies receive projections and cannot write Store/Journal; earlier decision/reputation history stays tied to its original recoverable values. This task establishes the mechanism; feature owners add their policy types and consumers."
@@ -27,9 +27,9 @@
     "Proposed layout: crates/ymp-domain/src/{lib,journal}.rs for pure values; crates/ymp-kernel/src/{lib,journal}.rs for Journal/Envelope/replay and trusted validation; crates/ymp-runtime/src/{lib,memory_journal}.rs for the reference in-memory adapter and a working application consumer. Cargo.toml uses repository-relative workspace dependencies and the executable name will be ymp.",
     "W1-0002 adds actual Task/intake payloads; W1-0016 creates crates/ymp-storage for durable Journal/content; W1-0015 creates crates/ymp-cli for the real terminal consumer. Document this proposed Rust mapping as part of the implementation, without changing model service ownership.",
     "Choose concrete dependencies only for needed serialization/digest/synchronization capabilities. Time, random decision inputs and effective policy parameters must be recoverable; replay reconstructs the stored model proposal, not an identical fresh stochastic model response.",
-    "Working tree at task start: the previous iteration's crates, Cargo.toml and Cargo.lock were removed from the repository and remain reachable only at git tag legacy-foundation (commit f95d8df). Create the Cargo workspace and crates from scratch; the retained rust-toolchain.toml (1.89.0) applies. Consult the tag only for implementation facts, never as code to extend."
+    "Working tree at task start: the previous iteration's code is reachable only at git tag legacy-foundation (commit f95d8df); the workspace exists as the placeholder skeleton described in ymp-docs/project-worktree.md, which builds and passes the four required checks with zero tests. The first commit of this task adds behavior and the external dependencies it needs (sha2, serde, serde_json); the retained rust-toolchain.toml (1.89.0) applies. Consult the tag only for implementation facts, never as code to extend."
   ],
-  "revision": 4,
+  "revision": 5,
   "history": [
     {
       "revision": 1,
@@ -58,6 +58,13 @@
       "actor": "owner",
       "status": "planned",
       "note": "Start decision 2026-09-16: W1 scheduled; readiness follows dependencies."
+    },
+    {
+      "revision": 5,
+      "at": "2026-09-15T18:00:47.253659Z",
+      "actor": "manage.py",
+      "status": "planned",
+      "note": "Owner decision 2026-09-16: the placeholder module skeleton of ymp-docs/project-worktree.md is checked in; 'create' now means 'give the placeholder its behavior'."
     }
   ]
 }

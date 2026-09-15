@@ -28,7 +28,12 @@ publication or real user-data mutation is implied by a local build or test.
 
 Use existing dependencies for shared responsibilities. Add dependencies only for
 an actual capability need. Avoid placeholder crates, generic service containers,
-empty plugin systems and speculative configuration fields.
+empty plugin systems and speculative configuration fields. One exception exists by
+owner decision (2026-09-16): the module skeleton described in
+`ymp-docs/project-worktree.md` is checked in as empty placeholder files. A
+placeholder has no behavior and is never counted as delivered; only its owning
+task fills it, and "create" in a task record means "give the placeholder its
+behavior". Do not add further placeholders.
 
 Verification should answer the changed behavior's actual questions. There is no
 required test count. Test maintenance is a means to useful evidence, not a product

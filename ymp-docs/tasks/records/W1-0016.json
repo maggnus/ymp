@@ -19,7 +19,7 @@
   ],
   "context": [
     "Authority: approved model sections 0/2/4/5.8/9, D-1–D-5 and R-1/R-17/R-19/R-20; greenfield baseline 0c61ff1.",
-    "Proposed new crate: crates/ymp-storage with src/{lib,journal,content}.rs and focused storage integration tests. W1-0001 owns Journal/Envelope/MemoryJournal/type boundaries; W1-0002 and later features supply their concrete payloads through the same contract. Add storage dependencies only for this implemented capability.",
+    "The placeholder crate crates/ymp-storage with src/{lib,journal,content}.rs and empty test targets exists; give it durable behavior and focused storage integration tests here. W1-0001 owns Journal/Envelope/MemoryJournal/type boundaries; W1-0002 and later features supply their concrete payloads through the same contract. Add storage dependencies only for this implemented capability.",
     "This task owns durable transaction/content behavior; later features own their payload schemas and use the same Journal contract. No prior SQLite implementation, API, migration or fixture is assumed."
   ],
   "acceptance": [
@@ -28,7 +28,7 @@
     "Restart preserves original effective parameter values after later configuration changes. The implementation documents what its actual durability test establishes, without claiming prior-iteration compatibility or inaccessible native effects."
   ],
   "evidence": [],
-  "revision": 3,
+  "revision": 4,
   "history": [
     {
       "revision": 1,
@@ -50,6 +50,13 @@
       "actor": "owner",
       "status": "planned",
       "note": "Start decision 2026-09-16: W1 scheduled; readiness follows dependencies."
+    },
+    {
+      "revision": 4,
+      "at": "2026-09-15T18:00:47.306373Z",
+      "actor": "manage.py",
+      "status": "planned",
+      "note": "Owner decision 2026-09-16: the placeholder module skeleton of ymp-docs/project-worktree.md is checked in; 'create' now means 'give the placeholder its behavior'."
     }
   ]
 }

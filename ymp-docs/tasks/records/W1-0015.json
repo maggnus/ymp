@@ -26,11 +26,11 @@
   "context": [
     "Authority: ymp-docs/self-organizing-team-domain-model.md, intent.md (complete interactive terminal experience), model sections 2/4/9 and the user’s flexible TUI direction. Use the approved model with 811a872 semantics and the greenfield baseline in 0c61ff1 and §5.8 for experimental strategy boundaries. Other documents and existing names explain implementation facts only.",
     "Greenfield: create this behavior in the new implementation. Paths below are PROPOSED target modules under the layout owned by W1-0001; only completed prerequisite tasks supply implementation. Prior source, APIs, fixtures and delivery claims are not a baseline.",
-    "Create proposed crates/ymp-cli/src/{main,lib,tui}.rs and its Cargo manifest when delivering the actual ymp executable. W1-0014 supplies working Application operations and projections. Ratatui is a justified concrete dependency for a usable interactive terminal, not a placeholder frontend crate.",
+    "The placeholder crate crates/ymp-cli with src/{main,lib,tui/mod}.rs, an empty main and its Cargo manifest exists; deliver the actual ymp executable in it. W1-0014 supplies working Application operations and projections. Ratatui is a justified concrete dependency for a usable interactive terminal, not a placeholder frontend crate.",
     "Preserve broad chat/commands/information-panel direction while leaving layout and command spelling open. The TUI is one evolving consumer of actual state/authority, not a domain store, strategy or fixed inventory of per-wave screens.",
     "User intake/clarification, interrupt/recover and inspection use kernel-backed application operations. Agent text cannot impersonate continuation authority. A report after stop uses recorded facts with no further inference; terminal restoration/responsiveness are part of this task."
   ],
-  "revision": 3,
+  "revision": 4,
   "history": [
     {
       "revision": 1,
@@ -52,6 +52,13 @@
       "actor": "owner",
       "status": "planned",
       "note": "Start decision 2026-09-16: W1 scheduled; readiness follows dependencies."
+    },
+    {
+      "revision": 4,
+      "at": "2026-09-15T18:00:47.359048Z",
+      "actor": "manage.py",
+      "status": "planned",
+      "note": "Owner decision 2026-09-16: the placeholder module skeleton of ymp-docs/project-worktree.md is checked in; 'create' now means 'give the placeholder its behavior'."
     }
   ]
 }
