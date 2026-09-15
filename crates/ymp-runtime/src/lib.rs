@@ -28,11 +28,11 @@ pub use ymp_kernel::execution::{
     CancellationOutcome, EmptyPoolReason, ErrorClass, EvidenceOutcome, ExclusionReason,
     ExecutionBackend, ExecutionError, ExecutionObservation, ExecutionProfile, Grant, GrantId,
     HostEnforcement, IndependenceConflict, InvocationId, InvocationLimits, InvocationStatus,
-    InvocationView, LedgerTreasury, LiveAssignment, ModelOffering, ObservationOutcome,
-    ObservedUsage, OfferingId, PolicyGatekeeper, Pool, PoolEligibility, PoolEntry, Receipt,
-    Registry, RegistryFailure, ReserveRefused, ResourceAmount, Role, SessionAccounting,
-    SessionExecutionView, SettingKey, SettingValue, Settings, SettleRefused, StartOutcome,
-    SupportedControl, Termination, TrackedWorkspaceGuard, Treasury, UncertaintyCause,
+    InvocationView, LedgerTreasury, LiveAssignment, ModelOffering, ObservationAccumulation,
+    ObservationOutcome, ObservedUsage, OfferingId, PolicyGatekeeper, Pool, PoolEligibility,
+    PoolEntry, Receipt, Registry, RegistryFailure, ReserveRefused, ResourceAmount, Role,
+    SessionAccounting, SessionExecutionView, SettingKey, SettingValue, Settings, SettleRefused,
+    StartOutcome, SupportedControl, Termination, TrackedWorkspaceGuard, Treasury, UncertaintyCause,
     UsageAggregate, WorkspaceAccessRefusal, WorkspaceGuard, WorkspaceHoldConflict, WorkspaceScope,
 };
 

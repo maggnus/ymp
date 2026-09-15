@@ -655,6 +655,55 @@ pub struct HostEnforcement {
     pub turns_capped: bool,
 }
 
+/// The host's per-invocation accumulation across observation attempts.
+///
+/// Turn and output bounds are enforced against the totals accumulated over
+/// every attempt, not per attempt: the caller carries the accumulation
+/// returned by one [`ObservationOutcome::WaitingForTermination`] into the
+/// next attempt's [`ObservationContext::prior`], so no sequence of observe
+/// calls can accept output past the size bound or issue observations past
+/// the turn bound. The accumulation is host-side projection state, not a
+/// journal fact: after a restart it begins empty, and the durable usage
+/// record of an invocation is its termination observation.
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct ObservationAccumulation {
+    /// Output characters accepted at the host boundary so far.
+    accepted_output_chars: u64,
+    /// Usage merged from every accepted observation so far.
+    usage: ObservedUsage,
+    /// Settings the backend reported so far, if any.
+    reported_settings: Option<Settings>,
+    /// Whether output was ever refused at the boundary; sticky.
+    output_refused: bool,
+    /// Whether the reported turns ever reached the turn bound; sticky.
+    turns_capped: bool,
+}
+
+impl ObservationAccumulation {
+    /// The usage accumulated so far; unknown components stay unknown.
+    pub fn usage(&self) -> ObservedUsage {
+        self.usage
+    }
+
+    /// The settings reported so far, if the backend reported any.
+    pub fn reported_settings(&self) -> Option<&Settings> {
+        self.reported_settings.as_ref()
+    }
+
+    /// The output characters accepted so far.
+    pub fn accepted_output_chars(&self) -> u64 {
+        self.accepted_output_chars
+    }
+
+    /// What the host enforced so far.
+    pub fn enforcement(&self) -> HostEnforcement {
+        HostEnforcement {
+            output_refused: self.output_refused,
+            turns_capped: self.turns_capped,
+        }
+    }
+}
+
 /// Everything one termination observation needs.
 pub struct ObservationContext<'a, J, B, T, W>
 where
@@ -668,6 +717,9 @@ where
     pub session_id: &'a SessionId,
     pub expected_revision: Revision,
     pub invocation: &'a InvocationId,
+    /// The accumulation carried from every previous attempt of this
+    /// invocation; bounds apply against its totals.
+    pub prior: ObservationAccumulation,
     /// Logical elapsed time when the invocation started.
     pub started_at: Duration,
     /// Logical elapsed time now.
@@ -689,9 +741,11 @@ pub enum ObservationOutcome {
         enforcement: HostEnforcement,
     },
     /// No termination observation exists and the bounded deadline has not
-    /// passed: the invocation keeps waiting.
+    /// passed: the invocation keeps waiting, and the caller carries the
+    /// returned accumulation into the next attempt so the bounds hold
+    /// across attempts.
     WaitingForTermination {
-        partial_usage: ObservedUsage,
+        accumulation: ObservationAccumulation,
         enforcement: HostEnforcement,
     },
     /// The bounded deadline passed without a termination observation: the
@@ -728,6 +782,7 @@ where
         session_id,
         expected_revision,
         invocation,
+        prior,
         started_at,
         now,
         treasury: _,
@@ -751,14 +806,13 @@ where
     }
     let limits = *invocation_view.assignment().allowance().limits();
 
-    let mut partial_usage = ObservedUsage::unknown();
-    let mut partial_reported: Option<Settings> = None;
-    let mut accepted_output: u64 = 0;
-    let mut enforcement = HostEnforcement::default();
+    // Bounds apply against the totals accumulated across every attempt,
+    // carried in by the caller; the counters never reset per attempt.
+    let mut accumulation = prior;
     let mut termination: Option<Termination> = None;
 
     loop {
-        if enforcement.turns_capped {
+        if accumulation.turns_capped {
             // No further turns are issued past the turn bound.
             break;
         }
@@ -773,24 +827,32 @@ where
         }
         match observation {
             ExecutionObservation::OutputObserved { chars } => {
-                let remaining = limits.max_output_chars().saturating_sub(accepted_output);
+                let remaining = limits
+                    .max_output_chars()
+                    .saturating_sub(accumulation.accepted_output_chars);
                 let accepted = chars.min(remaining);
-                accepted_output += accepted;
+                accumulation.accepted_output_chars += accepted;
                 if accepted < chars {
-                    enforcement.output_refused = true;
+                    accumulation.output_refused = true;
                 }
-                partial_usage = partial_usage.with_output_chars(accepted_output);
+                accumulation.usage = accumulation.usage.with_output_chars(
+                    // The accepted total is the host's own usage report for
+                    // output: what was refused at the boundary was never
+                    // accepted, so it is not counted as observed output.
+                    accumulation.accepted_output_chars,
+                );
             }
             ExecutionObservation::SettingsReported { settings } => {
-                partial_reported = Some(settings);
+                accumulation.reported_settings = Some(settings);
             }
             ExecutionObservation::UsageObserved { usage } => {
-                partial_usage = partial_usage.merge_later(usage);
-                if partial_usage
+                accumulation.usage = accumulation.usage.merge_later(usage);
+                if accumulation
+                    .usage
                     .turns()
                     .is_some_and(|turns| turns >= u64::from(limits.max_turns()))
                 {
-                    enforcement.turns_capped = true;
+                    accumulation.turns_capped = true;
                 }
             }
             ExecutionObservation::Terminated {
@@ -804,14 +866,16 @@ where
         }
     }
 
-    let mut reported_settings = partial_reported;
+    let mut reported_settings = accumulation.reported_settings.clone();
     if termination.is_none()
         && let Some(receipt) = backend.receipt(invocation)
     {
         termination = Some(receipt.termination().clone());
         reported_settings = receipt.reported_settings().cloned().or(reported_settings);
-        partial_usage = partial_usage.merge_later(*receipt.usage());
+        accumulation.usage = accumulation.usage.merge_later(*receipt.usage());
     }
+    let partial_usage = accumulation.usage;
+    let enforcement = accumulation.enforcement();
 
     match termination {
         Some(termination) => {
@@ -859,10 +923,11 @@ where
             } else {
                 // No termination observation exists and the deadline has
                 // not passed: the partial facts are delivered to the
-                // caller, which resolves their consumption.
+                // caller, which resolves their consumption and carries the
+                // accumulation into the next attempt.
                 backend.commit_scan(invocation);
                 Ok(ObservationOutcome::WaitingForTermination {
-                    partial_usage,
+                    accumulation,
                     enforcement,
                 })
             }

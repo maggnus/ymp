@@ -28,12 +28,14 @@
 //! # Honest limits
 //!
 //! Wall-clock timeout enforcement compares a caller-supplied elapsed time
-//! against the allowance limit; the slice issues no further turns and no
-//! output-boundary refusal beyond carrying the limits, because it runs single
-//! invocations without a turn loop. Turn and output-size bounds are recorded
-//! and transported, not exercised. Workspace rules rest on the backend's
-//! honest statement of its effective access, which is test fidelity, not
-//! evidence about real providers.
+//! against the allowance limit. Turn and output-size bounds are enforced by
+//! the host while it scans the observation stream, one observation at a
+//! time, against the totals accumulated across every observation attempt of
+//! the invocation; that accumulation is host-side projection state, so
+//! after a restart it begins empty and the durable usage record of an
+//! invocation is its termination observation. Workspace rules rest on the
+//! backend's honest statement of its effective access, which is test
+//! fidelity, not evidence about real providers.
 
 mod accounting;
 mod orchestration;
@@ -44,10 +46,10 @@ mod view;
 pub use accounting::{LedgerTreasury, SessionAccounting, UsageAggregate};
 pub use orchestration::{
     AdmissionContext, AdmissionFailure, CancellationContext, CancellationOutcome, EvidenceContext,
-    EvidenceOutcome, ExecutionError, HostEnforcement, ObservationContext, ObservationOutcome,
-    SettlementContext, StartContext, StartOutcome, admit_assignment, observe_invocation,
-    read_execution, record_effect_evidence, request_invocation_cancellation, resolve_sent_settings,
-    scan_registry, settle_invocation, start_invocation,
+    EvidenceOutcome, ExecutionError, HostEnforcement, ObservationAccumulation, ObservationContext,
+    ObservationOutcome, SettlementContext, StartContext, StartOutcome, admit_assignment,
+    observe_invocation, read_execution, record_effect_evidence, request_invocation_cancellation,
+    resolve_sent_settings, scan_registry, settle_invocation, start_invocation,
 };
 pub use ports::{
     AdmissionSnapshot, BackendCancelRefused, BackendInvocation, BackendStartFailure,

@@ -19,11 +19,12 @@ use ymp_domain::{SessionId, Task};
 use ymp_kernel::execution::{
     self, AdmissionContext, AdmissionFailure, Assignment, AssignmentRequest, CancellationContext,
     CancellationOutcome, EvidenceContext, EvidenceOutcome, ExecutionBackend, ExecutionError,
-    InvocationId, LedgerTreasury, ObservationContext, ObservationOutcome, PolicyGatekeeper, Pool,
-    Registry, RegistryFailure, ResourceAmount, SessionAccounting, SessionExecutionView,
-    SettlementContext, StartContext, StartOutcome, TrackedWorkspaceGuard, Treasury, WorkspaceGuard,
-    WorkspaceScope, observe_invocation, read_execution, record_effect_evidence,
-    request_invocation_cancellation, scan_registry, settle_invocation, start_invocation,
+    InvocationId, LedgerTreasury, ObservationAccumulation, ObservationContext, ObservationOutcome,
+    PolicyGatekeeper, Pool, Registry, RegistryFailure, ResourceAmount, SessionAccounting,
+    SessionExecutionView, SettlementContext, StartContext, StartOutcome, TrackedWorkspaceGuard,
+    Treasury, WorkspaceGuard, WorkspaceScope, observe_invocation, read_execution,
+    record_effect_evidence, request_invocation_cancellation, scan_registry, settle_invocation,
+    start_invocation,
 };
 use ymp_kernel::{DispatchError, Dispatcher, Journal, Revision, SessionView};
 
@@ -50,6 +51,10 @@ where
     gatekeeper: PolicyGatekeeper,
     clock: Arc<dyn Clock + Send + Sync>,
     started_at: Mutex<BTreeMap<InvocationId, std::time::Duration>>,
+    /// Host-enforced limit accumulation per in-flight invocation, carried
+    /// across observe attempts so turn and output bounds hold over the
+    /// invocation's whole observation history, not per attempt.
+    observations: Mutex<BTreeMap<InvocationId, ObservationAccumulation>>,
 }
 
 impl<J, B> ExecutionScenario<J, B>
@@ -76,6 +81,7 @@ where
             gatekeeper: PolicyGatekeeper,
             clock,
             started_at: Mutex::new(BTreeMap::new()),
+            observations: Mutex::new(BTreeMap::new()),
         }
     }
 
@@ -182,7 +188,8 @@ where
     }
 
     /// Observes one in-flight invocation, applying host-enforced wall-clock
-    /// timeouts against the scenario clock.
+    /// timeouts against the scenario clock and turn/output bounds against
+    /// the accumulation carried across every attempt.
     pub fn observe(
         &self,
         session_id: &SessionId,
@@ -197,6 +204,13 @@ where
             .ok_or_else(|| ExecutionError::InvocationNotStarted {
                 invocation: invocation.clone(),
             })?;
+        let prior = self
+            .observations
+            .lock()
+            .expect("observation lock is available")
+            .get(invocation)
+            .cloned()
+            .unwrap_or_default();
         let now = self.clock.elapsed();
 
         let mut backend = self.backend.lock().expect("backend lock is available");
@@ -208,17 +222,29 @@ where
             session_id,
             expected_revision,
             invocation,
+            prior,
             started_at,
             now,
             treasury: &mut *treasury,
             workspace: &mut *workspace,
         };
         let outcome = observe_invocation(context)?;
-        if matches!(outcome, ObservationOutcome::Terminated { .. }) {
-            self.started_at
-                .lock()
-                .expect("start-time lock is available")
-                .remove(invocation);
+        let mut observations = self
+            .observations
+            .lock()
+            .expect("observation lock is available");
+        match &outcome {
+            ObservationOutcome::WaitingForTermination { accumulation, .. } => {
+                observations.insert(invocation.clone(), accumulation.clone());
+            }
+            ObservationOutcome::Terminated { .. }
+            | ObservationOutcome::UncertainAfterDeadline { .. } => {
+                self.started_at
+                    .lock()
+                    .expect("start-time lock is available")
+                    .remove(invocation);
+                observations.remove(invocation);
+            }
         }
         Ok(outcome)
     }

@@ -1171,8 +1171,8 @@ fn effect_evidence_preserves_other_observation_kinds() {
         .observe(&id, assignment.invocation(), Revision::new(4))
         .expect("observation resolves")
     {
-        ObservationOutcome::WaitingForTermination { partial_usage, .. } => {
-            assert_eq!(partial_usage.output_chars(), Some(60));
+        ObservationOutcome::WaitingForTermination { accumulation, .. } => {
+            assert_eq!(accumulation.usage().output_chars(), Some(60));
         }
         other => panic!("expected a waiting observation, got {other:?}"),
     }
@@ -1233,14 +1233,14 @@ fn host_enforced_limits_bound_output_turns_and_deadline() {
         .expect("observation resolves")
     {
         ObservationOutcome::WaitingForTermination {
-            partial_usage,
+            accumulation,
             enforcement,
         } => {
             assert!(enforcement.output_refused);
             assert!(!enforcement.turns_capped);
             // 120 observed against a 100 bound: 100 accepted, the rest
             // refused at the host boundary.
-            assert_eq!(partial_usage.output_chars(), Some(100));
+            assert_eq!(accumulation.usage().output_chars(), Some(100));
         }
         other => panic!("expected a waiting observation, got {other:?}"),
     }
@@ -1299,15 +1299,176 @@ fn host_enforced_limits_bound_output_turns_and_deadline() {
         .expect("observation resolves")
     {
         ObservationOutcome::WaitingForTermination {
-            partial_usage,
+            accumulation,
             enforcement,
         } => {
             assert!(enforcement.turns_capped);
             assert!(!enforcement.output_refused);
-            assert_eq!(partial_usage.turns(), Some(3));
+            assert_eq!(accumulation.usage().turns(), Some(3));
             // The observations after the turn bound were never issued, so
             // the output stays unknown rather than becoming zero.
-            assert_eq!(partial_usage.output_chars(), None);
+            assert_eq!(accumulation.usage().output_chars(), None);
+        }
+        other => panic!("expected a waiting observation, got {other:?}"),
+    }
+}
+
+/// The host-enforced bounds hold across observe attempts, not per attempt:
+/// output acceptance and turn issuance accumulate over every attempt of the
+/// invocation, so repeated observe calls cannot accept output past the size
+/// bound or issue observations past the turn bound.
+#[test]
+fn host_limit_accumulation_spans_multiple_observe_attempts() {
+    // Output bound across attempts: 60 + 40 accepted of 180 observed
+    // against a 100 bound, then nothing further is accepted.
+    let clock = ManualClock::new();
+    let (journal, scenario) = scenario_with(clock.clone());
+    let id = session("multi-observe-output");
+    scenario
+        .open_session(id.clone(), task())
+        .expect("session opens");
+    scenario.scan().expect("scan succeeds");
+    scenario.script_outcome(ScriptedOutcome::never_reports_with(vec![
+        ExecutionObservation::OutputObserved { chars: 60 },
+    ]));
+    let request = AssignmentRequest::new(
+        agent(),
+        Role::new("implementer").expect("valid role"),
+        default_settings(),
+        tight_allowance(),
+        scope(),
+    );
+    let assignment = scenario
+        .admit(&id, request, Revision::new(1))
+        .expect("admission commits");
+    scenario
+        .invoke(&id, assignment.invocation(), Revision::new(2))
+        .expect("invocation starts");
+
+    // First attempt: 60 of 100 accepted, nothing refused yet.
+    match scenario
+        .observe(&id, assignment.invocation(), Revision::new(4))
+        .expect("first observation resolves")
+    {
+        ObservationOutcome::WaitingForTermination {
+            accumulation,
+            enforcement,
+        } => {
+            assert_eq!(accumulation.usage().output_chars(), Some(60));
+            assert!(!enforcement.output_refused);
+        }
+        other => panic!("expected a waiting observation, got {other:?}"),
+    }
+
+    // Second attempt: 40 more accepted, the remaining 20 refused.
+    scenario.with_backend_mut(|backend| {
+        backend.deliver_observation(
+            assignment.invocation(),
+            ExecutionObservation::OutputObserved { chars: 60 },
+        );
+    });
+    match scenario
+        .observe(&id, assignment.invocation(), Revision::new(4))
+        .expect("second observation resolves")
+    {
+        ObservationOutcome::WaitingForTermination {
+            accumulation,
+            enforcement,
+        } => {
+            assert_eq!(accumulation.usage().output_chars(), Some(100));
+            assert!(enforcement.output_refused);
+        }
+        other => panic!("expected a waiting observation, got {other:?}"),
+    }
+
+    // Third attempt: the bound was reached; nothing further is accepted.
+    scenario.with_backend_mut(|backend| {
+        backend.deliver_observation(
+            assignment.invocation(),
+            ExecutionObservation::OutputObserved { chars: 60 },
+        );
+    });
+    match scenario
+        .observe(&id, assignment.invocation(), Revision::new(4))
+        .expect("third observation resolves")
+    {
+        ObservationOutcome::WaitingForTermination {
+            accumulation,
+            enforcement,
+        } => {
+            assert_eq!(accumulation.usage().output_chars(), Some(100));
+            assert!(enforcement.output_refused);
+        }
+        other => panic!("expected a waiting observation, got {other:?}"),
+    }
+    // Only the session, admission, attempt and start facts exist so far.
+    assert_eq!(journal.read(&id).expect("history reads").len(), 4);
+
+    // Turn bound across attempts: the cap reached in one attempt stops
+    // issuance in every later attempt.
+    let (_, scenario, id) = prepared(ManualClock::new());
+    scenario.script_outcome(ScriptedOutcome::never_reports());
+    let request = AssignmentRequest::new(
+        agent(),
+        Role::new("implementer").expect("valid role"),
+        default_settings(),
+        tight_allowance(),
+        scope(),
+    );
+    let assignment = scenario
+        .admit(&id, request, Revision::new(1))
+        .expect("admission commits");
+    scenario
+        .invoke(&id, assignment.invocation(), Revision::new(2))
+        .expect("invocation starts");
+
+    // First attempt reports nothing; the turns stay unknown.
+    assert!(matches!(
+        scenario
+            .observe(&id, assignment.invocation(), Revision::new(4))
+            .expect("first observation resolves"),
+        ObservationOutcome::WaitingForTermination { .. }
+    ));
+    // Second attempt reports 3 turns of a 3-turn bound: capped.
+    scenario.with_backend_mut(|backend| {
+        backend.deliver_observation(
+            assignment.invocation(),
+            ExecutionObservation::UsageObserved {
+                usage: ObservedUsage::unknown().with_turns(3),
+            },
+        );
+    });
+    match scenario
+        .observe(&id, assignment.invocation(), Revision::new(4))
+        .expect("second observation resolves")
+    {
+        ObservationOutcome::WaitingForTermination {
+            accumulation,
+            enforcement,
+        } => {
+            assert_eq!(accumulation.usage().turns(), Some(3));
+            assert!(enforcement.turns_capped);
+        }
+        other => panic!("expected a waiting observation, got {other:?}"),
+    }
+    // Third attempt: no observations are issued past the turn bound, so
+    // later output is never accepted and stays unknown.
+    scenario.with_backend_mut(|backend| {
+        backend.deliver_observation(
+            assignment.invocation(),
+            ExecutionObservation::OutputObserved { chars: 50 },
+        );
+    });
+    match scenario
+        .observe(&id, assignment.invocation(), Revision::new(4))
+        .expect("third observation resolves")
+    {
+        ObservationOutcome::WaitingForTermination {
+            accumulation,
+            enforcement,
+        } => {
+            assert!(enforcement.turns_capped);
+            assert_eq!(accumulation.usage().output_chars(), None);
         }
         other => panic!("expected a waiting observation, got {other:?}"),
     }
