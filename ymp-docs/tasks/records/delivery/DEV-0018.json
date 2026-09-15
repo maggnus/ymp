@@ -4,7 +4,7 @@
   "title": "Minimal checked delivery — evaluate acceptance on run",
   "type": "implementation",
   "priority": 60,
-  "status": "in_progress",
+  "status": "done",
   "depends_on": [
     "DEV-0015"
   ],
@@ -19,13 +19,15 @@
     "Unattended tests: satisfied, failed, unevaluated paths; evaluation survives restart via show; check command cannot mutate the journal (read-only or separate context).",
     "A real run with --check 'echo ok' reports satisfied with evidence."
   ],
-  "evidence": [],
+  "evidence": [
+    "commit:d9e27d6"
+  ],
   "context": [
     "Mechanical parts ported from the prior implementation per owner directive; unique logic is the evaluation wiring into observations/journal/report."
   ],
   "id": "DEV-0018",
   "owner": "maintainer",
-  "revision": 2,
+  "revision": 3,
   "history": [
     {
       "revision": 1,
@@ -40,6 +42,13 @@
       "actor": "maintainer",
       "status": "in_progress",
       "note": "Claimed by maintainer."
+    },
+    {
+      "revision": 3,
+      "at": "2026-09-15T09:56:50.908960Z",
+      "actor": "codex",
+      "status": "done",
+      "note": "Implemented checked run evaluation, durable criterion evidence, protected command execution, persisted show output, and unattended coverage; independent review accepted commit d9e27d6."
     }
   ]
 }
