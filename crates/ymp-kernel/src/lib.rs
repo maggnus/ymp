@@ -725,13 +725,7 @@ pub fn replay_session(
                         event: LifecycleEventKind::EffectEvidence,
                     });
                 }
-                if !matches!(
-                    track.phase(),
-                    InvocationReplayPhase::Started
-                        | InvocationReplayPhase::Cancelling
-                        | InvocationReplayPhase::Uncertain
-                ) || !track.started
-                {
+                if track.phase() != InvocationReplayPhase::Uncertain {
                     return Err(HistoryError::LifecycleOutOfOrder {
                         revision: entry.revision,
                         invocation: invocation.clone(),
@@ -856,10 +850,10 @@ struct InvocationTrack {
 
 /// The mutually exclusive lifecycle phase derived from the recorded facts.
 ///
-/// Effect evidence is orthogonal to this phase: it releases the workspace
-/// hold without changing whether the invocation is started, cancelling or
-/// uncertain. Every lifecycle event above checks its permitted source phase
-/// against this table before adding another fact.
+/// Effect evidence is orthogonal to this phase: from `uncertain` it releases
+/// the workspace hold without changing the invocation phase. Every lifecycle
+/// event above checks its permitted source phase against this table before
+/// adding another fact.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum InvocationReplayPhase {
     Admitted,

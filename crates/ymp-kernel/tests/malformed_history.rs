@@ -356,6 +356,39 @@ fn replay_rejects_invalid_execution_transitions_from_an_alternate_journal() {
         },
     );
 
+    // Effect evidence before the invocation becomes uncertain.
+    reject(
+        &id,
+        vec![
+            opened(&id, 1),
+            admitted(&id, 2, &assignment),
+            start_attempted(&id, &first, 3),
+            started(&id, &first, 4),
+            effect_evidence(&id, &first, 5),
+        ],
+        HistoryError::LifecycleOutOfOrder {
+            revision: Revision::new(5),
+            invocation: first.clone(),
+        },
+    );
+
+    // A cancellation request alone does not permit effect evidence.
+    reject(
+        &id,
+        vec![
+            opened(&id, 1),
+            admitted(&id, 2, &assignment),
+            start_attempted(&id, &first, 3),
+            started(&id, &first, 4),
+            cancellation_requested(&id, &first, 5),
+            effect_evidence(&id, &first, 6),
+        ],
+        HistoryError::LifecycleOutOfOrder {
+            revision: Revision::new(6),
+            invocation: first.clone(),
+        },
+    );
+
     // A start after a recorded never-started failure.
     reject(
         &id,

@@ -21,13 +21,18 @@
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 
 use ymp_runtime::{
-    BackendInvocation, CodexBackend, CodexProbe, CodexRegistry, CodexStreamStats, CodexTokenUsage,
-    EmptyPoolReason, ErrorClass, ExecutionBackend, ExecutionObservation, InvocationId,
-    InvocationLimits, ManualClock, ModelOffering, OfferingId, PoolEligibility, Registry, Settings,
-    Termination, WorkspaceAccess, WorkspaceOperation, WorkspaceScope,
+    AcceptanceContract, Allowance, AssignmentRequest, BackendInvocation, CodexBackend, CodexProbe,
+    CodexRegistry, CodexStreamStats, CodexTokenUsage, Constraints, Criterion, CriterionId,
+    EmptyPoolReason, ErrorClass, ExecutionBackend, ExecutionError, ExecutionObservation,
+    ExecutionScenario, Goal, InvocationId, InvocationLimits, Journal, JournalEntry, JournalError,
+    ManualClock, MemoryJournal, ModelOffering, OfferingId, PoolEligibility, Registry,
+    ReservationPurpose, ResourceAmount, Revision, Role, ScriptedProvider, ScriptedRegistry,
+    SessionEvent, SessionId, Settings, StartOutcome, Task, TaskId, Termination, WorkspaceAccess,
+    WorkspaceOperation, WorkspaceScope,
 };
 
 // ---------------------------------------------------------------- fixtures
@@ -68,6 +73,46 @@ impl FixtureDir {
 impl Drop for FixtureDir {
     fn drop(&mut self) {
         let _ = std::fs::remove_dir_all(&self.path);
+    }
+}
+
+/// A journal that rejects the first `InvocationStarted` append after
+/// retaining every earlier event.
+#[derive(Clone)]
+struct FailStartedOnceJournal {
+    inner: MemoryJournal,
+    fired: Arc<AtomicBool>,
+}
+
+impl FailStartedOnceJournal {
+    fn new() -> Self {
+        Self {
+            inner: MemoryJournal::new(),
+            fired: Arc::new(AtomicBool::new(false)),
+        }
+    }
+}
+
+impl Journal for FailStartedOnceJournal {
+    fn read(&self, session_id: &SessionId) -> Result<Vec<JournalEntry>, JournalError> {
+        self.inner.read(session_id)
+    }
+
+    fn append(
+        &self,
+        session_id: &SessionId,
+        expected_revision: Revision,
+        events: Vec<SessionEvent>,
+    ) -> Result<Revision, JournalError> {
+        let contains_started = events
+            .iter()
+            .any(|event| matches!(event, SessionEvent::InvocationStarted { .. }));
+        if contains_started && !self.fired.swap(true, Ordering::SeqCst) {
+            return Err(JournalError::AdapterFailure {
+                message: "injected InvocationStarted append failure".to_owned(),
+            });
+        }
+        self.inner.append(session_id, expected_revision, events)
     }
 }
 
@@ -160,6 +205,22 @@ fn backend_invocation(dir: &FixtureDir, sent_settings: Settings) -> BackendInvoc
     )
 }
 
+fn execution_task() -> Task {
+    Task::new(
+        TaskId::new("task-codex-start-retry").expect("valid task ID"),
+        Goal::new("Verify an idempotent Codex start retry").expect("valid goal"),
+        AcceptanceContract::new(vec![
+            Criterion::new(
+                CriterionId::new("idempotent-start").expect("valid criterion ID"),
+                "The retry returns the first start outcome.",
+            )
+            .expect("valid criterion"),
+        ])
+        .expect("valid acceptance contract"),
+        Constraints::new(Vec::new()).expect("valid constraints"),
+    )
+}
+
 fn backend_for(executable: &Path) -> CodexBackend {
     CodexBackend::new(
         executable.to_string_lossy().into_owned(),
@@ -208,7 +269,11 @@ fn codex_registry_scan_reports_ready_agent_with_configured_offering() {
         "codex",
         "#!/bin/sh\nprintf 'codex-cli 0.154.0\\n'\nexit 0\n",
     );
-    let mut registry = CodexRegistry::new(agent_id(), offering(), codex.to_string_lossy().as_ref());
+    // Pool composition is the property under test. Give process scheduling
+    // its own generous allowance; the short-deadline behavior is covered by
+    // the dedicated timeout test below.
+    let mut registry = CodexRegistry::new(agent_id(), offering(), codex.to_string_lossy().as_ref())
+        .with_probe_timeout(Duration::from_secs(30));
 
     let pool = registry.scan().expect("the scan runs");
 
@@ -693,7 +758,7 @@ fn codex_backend_start_fails_typed_when_workspace_missing() {
         invocation(),
         agent_id(),
         Settings::new(),
-        workspace_accesses(missing),
+        workspace_accesses(missing.clone()),
         limits(),
     );
 
@@ -706,6 +771,13 @@ fn codex_backend_start_fails_typed_when_workspace_missing() {
         failure.class(),
         &ErrorClass::new("workspace-dir-missing").expect("valid error class")
     );
+
+    std::fs::create_dir_all(missing.as_str()).expect("the missing workspace is created");
+    let retry = backend
+        .start(&invocation)
+        .expect_err("the retry returns the first start failure");
+    assert_eq!(retry, failure);
+    assert!(backend.receipt(invocation.invocation()).is_none());
 }
 
 #[test]
@@ -729,7 +801,7 @@ fn codex_backend_start_fails_typed_without_prompt() {
 }
 
 #[test]
-fn codex_backend_refuses_duplicate_start() {
+fn codex_backend_replays_successful_start_for_duplicate_invocation() {
     let dir = FixtureDir::new("backend-duplicate");
     let codex = dir.executable(
         "codex",
@@ -740,18 +812,88 @@ fn codex_backend_refuses_duplicate_start() {
     backend
         .start(&backend_invocation(&dir, Settings::new()))
         .expect("the first start succeeds");
-    let failure = backend
+    backend
         .start(&backend_invocation(&dir, Settings::new()))
-        .expect_err("a second start of the same invocation is refused");
-
-    assert!(failure.confirmed_never_started());
-    assert_eq!(
-        failure.class(),
-        &ErrorClass::new("duplicate-invocation").expect("valid error class")
-    );
+        .expect("a second start returns the first successful outcome");
 
     backend.cancel(&invocation()).expect("cleanup cancels");
     let _ = wait_for_observations(&mut backend, Duration::from_secs(5));
+}
+
+#[test]
+fn codex_scenario_retries_after_invocation_started_append_failure() {
+    let dir = FixtureDir::new("scenario-started-append-retry");
+    let codex = happy_codex(&dir);
+    let clock = ManualClock::new();
+    let backend = backend_for(&codex);
+    let workspace = WorkspaceScope::new(dir.path().to_string_lossy().into_owned())
+        .expect("valid workspace scope");
+    let access = WorkspaceAccess::new(workspace.clone(), [WorkspaceOperation::Write])
+        .expect("valid workspace access");
+    let provider = ScriptedProvider::new(agent_id(), offering())
+        .with_effective_workspace_accesses([access.clone()]);
+    let journal = FailStartedOnceJournal::new();
+    let scenario = ExecutionScenario::over(
+        journal.clone(),
+        backend,
+        [access.clone()],
+        ScriptedRegistry::new([provider]),
+        ResourceAmount::new(1),
+        Arc::new(clock),
+    );
+    let session_id = SessionId::new("codex-started-append-retry").expect("valid session ID");
+    scenario
+        .open_session(session_id.clone(), execution_task())
+        .expect("session opens");
+    scenario.scan().expect("registry scan succeeds");
+    let request = AssignmentRequest::new(
+        agent_id(),
+        Role::new("implementer").expect("valid role"),
+        Settings::new(),
+        Allowance::new(
+            ResourceAmount::new(1),
+            ReservationPurpose::Production,
+            limits(),
+        )
+        .expect("valid allowance"),
+        vec![access],
+    )
+    .expect("valid assignment request");
+    let assignment = scenario
+        .admit(&session_id, request, Revision::new(1))
+        .expect("admission commits");
+
+    assert!(matches!(
+        scenario
+            .invoke(&session_id, assignment.invocation(), Revision::new(2))
+            .expect_err("the first InvocationStarted append fails"),
+        ExecutionError::Journal(JournalError::AdapterFailure { .. })
+    ));
+    assert!(matches!(
+        journal
+            .read(&session_id)
+            .expect("history reads")
+            .last()
+            .expect("the start attempt exists")
+            .event(),
+        SessionEvent::InvocationStartAttempted { .. }
+    ));
+
+    assert_eq!(
+        scenario
+            .invoke(&session_id, assignment.invocation(), Revision::new(3))
+            .expect("the retry returns the original successful start"),
+        StartOutcome::Started
+    );
+    assert_eq!(
+        journal
+            .read(&session_id)
+            .expect("history reads")
+            .iter()
+            .filter(|entry| matches!(entry.event(), SessionEvent::InvocationStarted { .. }))
+            .count(),
+        1
+    );
 }
 
 // ---------------------------------------------------------------- cancel

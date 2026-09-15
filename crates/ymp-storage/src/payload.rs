@@ -882,6 +882,7 @@ pub(super) fn decode_payload(bytes: &[u8]) -> Result<SessionEvent, String> {
                     "reported_settings",
                     "usage",
                     "cause",
+                    "error_class",
                     "reservation",
                 ],
             )?;
@@ -965,6 +966,7 @@ pub(super) fn decode_payload(bytes: &[u8]) -> Result<SessionEvent, String> {
                     "reported_settings",
                     "usage",
                     "cause",
+                    "error_class",
                     "reservation",
                 ],
             )?;
@@ -1421,6 +1423,19 @@ mod tests {
             &failed_without_error_class,
             &["termination.error_class", "must not be null"],
         );
+    }
+
+    #[test]
+    fn decode_rejects_top_level_error_class_on_non_failure_execution_forms() {
+        for event_type in ["invocation_started", "invocation_cancellation_requested"] {
+            let payload = json!({
+                "type": event_type,
+                "session_id": "s1",
+                "invocation": "invocation-1",
+                "error_class": "provider_error"
+            });
+            assert_json_payload_error(&payload, &["unknown field 'error_class'", "payload type"]);
+        }
     }
 
     #[test]

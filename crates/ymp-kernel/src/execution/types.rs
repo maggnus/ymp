@@ -986,15 +986,20 @@ impl ObservedUsage {
         self.wall_clock
     }
 
-    /// Merges a later observation into this one: a component already known
-    /// stays as observed; an unreported one may be filled by a later report.
+    /// Merges a later observation into this one. Cumulative counters advance
+    /// monotonically to the greatest reported value; an unreported component
+    /// stays unknown until a report supplies it.
     pub const fn merge_later(mut self, later: Self) -> Self {
-        if self.turns.is_none() {
-            self.turns = later.turns;
-        }
-        if self.output_chars.is_none() {
-            self.output_chars = later.output_chars;
-        }
+        self.turns = match (self.turns, later.turns) {
+            (Some(earlier), Some(later)) => Some(if earlier > later { earlier } else { later }),
+            (known @ Some(_), None) | (None, known @ Some(_)) => known,
+            (None, None) => None,
+        };
+        self.output_chars = match (self.output_chars, later.output_chars) {
+            (Some(earlier), Some(later)) => Some(if earlier > later { earlier } else { later }),
+            (known @ Some(_), None) | (None, known @ Some(_)) => known,
+            (None, None) => None,
+        };
         if self.wall_clock.is_none() {
             self.wall_clock = later.wall_clock;
         }

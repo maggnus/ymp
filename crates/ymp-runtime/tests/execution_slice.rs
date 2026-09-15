@@ -12,20 +12,20 @@
 #![forbid(unsafe_code)]
 
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Barrier, Mutex};
+use std::sync::{Arc, Barrier, Condvar, Mutex};
 use std::thread;
 use std::time::Duration;
 
 use ymp_runtime::{
     AcceptanceContract, AdmissionDenial, AdmissionFailure, AgentId, AgentIneligibility, Allowance,
-    AssignmentRequest, Constraints, Criterion, CriterionId, EmptyPoolReason, ExecutionError,
+    AssignmentRequest, Clock, Constraints, Criterion, CriterionId, EmptyPoolReason, ExecutionError,
     ExecutionObservation, ExecutionScenario, Goal, IndependenceConflict, InvocationLimits,
     InvocationStatus, Journal, JournalError, ManualClock, MemoryJournal, ModelOffering,
     ObservationOutcome, ObservedUsage, OfferingId, ReservationPurpose, ResourceAmount, Revision,
-    Role, ScriptedBackend, ScriptedOutcome, ScriptedProvider, ScriptedRegistry, SessionEvent,
-    SessionId, SessionStatus, SettingKey, SettingValue, Settings, StartOutcome, SupportedControl,
-    Task, TaskId, Termination, UncertaintyCause, WorkspaceAccess, WorkspaceAccessRefusal,
-    WorkspaceOperation, WorkspaceScope,
+    Role, ScriptedBackend, ScriptedOutcome, ScriptedProvider, ScriptedReceiptSpec,
+    ScriptedRegistry, SessionEvent, SessionId, SessionStatus, SettingKey, SettingValue, Settings,
+    StartOutcome, SupportedControl, Task, TaskId, Termination, UncertaintyCause, WorkspaceAccess,
+    WorkspaceAccessRefusal, WorkspaceOperation, WorkspaceScope,
 };
 
 const AGENT: &str = "claude-opus-5";
@@ -247,6 +247,52 @@ fn prepared(clock: ManualClock) -> (MemoryJournal, ExecutionScenario<MemoryJourn
     assert_eq!(opened.revision(), Revision::new(1));
     scenario.scan().expect("scripted scan succeeds");
     (journal, scenario, id)
+}
+
+#[derive(Clone, Default)]
+struct ConcurrentObserveClock {
+    rendezvous: Arc<(Mutex<ConcurrentObserveState>, Condvar)>,
+}
+
+#[derive(Default)]
+struct ConcurrentObserveState {
+    armed: bool,
+    arrivals: u8,
+}
+
+impl ConcurrentObserveClock {
+    fn arm(&self) {
+        let (lock, _) = &*self.rendezvous;
+        let mut state = lock.lock().expect("clock rendezvous lock is available");
+        state.armed = true;
+        state.arrivals = 0;
+    }
+}
+
+impl Clock for ConcurrentObserveClock {
+    fn elapsed(&self) -> Duration {
+        let (lock, ready) = &*self.rendezvous;
+        let mut state = lock.lock().expect("clock rendezvous lock is available");
+        if !state.armed {
+            return Duration::ZERO;
+        }
+        state.arrivals += 1;
+        if state.arrivals >= 2 {
+            state.armed = false;
+            ready.notify_all();
+            return Duration::ZERO;
+        }
+        let (mut state, _) = ready
+            .wait_timeout_while(state, Duration::from_millis(250), |state| state.armed)
+            .expect("clock rendezvous wait succeeds");
+        if state.armed {
+            // With correct serialization, the second observer cannot reach
+            // the clock until the first completes the accumulation cycle.
+            state.armed = false;
+            ready.notify_all();
+        }
+        Duration::ZERO
+    }
 }
 
 #[test]
@@ -1265,7 +1311,8 @@ fn failed_observation_append_preserves_stream_and_receipt_observations() {
 /// pending for the observation step, whatever the append outcome.
 #[test]
 fn effect_evidence_preserves_other_observation_kinds() {
-    let (_, scenario, id) = prepared(ManualClock::new());
+    let clock = ManualClock::new();
+    let (_, scenario, id) = prepared(clock.clone());
     scenario.script_outcome(ScriptedOutcome::never_reports_with(vec![
         ExecutionObservation::OutputObserved { chars: 60 },
         ExecutionObservation::WritesEnded,
@@ -1277,27 +1324,33 @@ fn effect_evidence_preserves_other_observation_kinds() {
         .invoke(&id, assignment.invocation(), Revision::new(2))
         .expect("starts");
 
-    // The stream head is output, not evidence: nothing is consumed.
-    assert_eq!(
+    // Effect evidence is not a valid transition before uncertainty, and the
+    // rejected attempt consumes nothing from the stream.
+    assert!(matches!(
         scenario
             .evidence(&id, assignment.invocation(), Revision::new(4))
-            .expect("evidence step resolves"),
-        ymp_runtime::EvidenceOutcome::NotObserved
-    );
-    // The observation step still sees the output the evidence step left.
+            .expect_err("evidence from started is rejected"),
+        ExecutionError::WrongPhase {
+            actual: InvocationStatus::Started,
+            ..
+        }
+    ));
+    // At the deadline the observation step still sees the output, leaves
+    // writes-ended pending, and records uncertainty.
+    clock.advance(Duration::from_millis(60_000));
     match scenario
         .observe(&id, assignment.invocation(), Revision::new(4))
         .expect("observation resolves")
     {
-        ObservationOutcome::WaitingForTermination { accumulation, .. } => {
-            assert_eq!(accumulation.usage().output_chars(), Some(60));
+        ObservationOutcome::UncertainAfterDeadline { partial_usage } => {
+            assert_eq!(partial_usage.output_chars(), Some(60));
         }
-        other => panic!("expected a waiting observation, got {other:?}"),
+        other => panic!("expected uncertainty after the deadline, got {other:?}"),
     }
     // The writes-ended observation is now at the head and records.
     assert_eq!(
         scenario
-            .evidence(&id, assignment.invocation(), Revision::new(4))
+            .evidence(&id, assignment.invocation(), Revision::new(5))
             .expect("evidence records"),
         ymp_runtime::EvidenceOutcome::Recorded
     );
@@ -1305,7 +1358,7 @@ fn effect_evidence_preserves_other_observation_kinds() {
     let invocation = view
         .invocation(assignment.invocation())
         .expect("invocation");
-    assert_eq!(invocation.status(), InvocationStatus::Started);
+    assert_eq!(invocation.status(), InvocationStatus::Uncertain);
     assert!(invocation.effect_evidence_recorded());
     assert!(
         scenario
@@ -1352,7 +1405,7 @@ fn reattach_keeps_only_the_reservation_after_termination() {
 #[test]
 fn reattach_keeps_only_the_reservation_after_effect_evidence() {
     let clock = ManualClock::new();
-    let (journal, scenario, id) = prepared(clock);
+    let (journal, scenario, id) = prepared(clock.clone());
     scenario.script_outcome(ScriptedOutcome::never_reports_with(vec![
         ExecutionObservation::WritesEnded,
     ]));
@@ -1362,9 +1415,16 @@ fn reattach_keeps_only_the_reservation_after_effect_evidence() {
     scenario
         .invoke(&id, assignment.invocation(), Revision::new(2))
         .expect("invocation starts");
+    clock.advance(Duration::from_millis(60_000));
+    assert!(matches!(
+        scenario
+            .observe(&id, assignment.invocation(), Revision::new(4))
+            .expect("deadline records uncertainty"),
+        ObservationOutcome::UncertainAfterDeadline { .. }
+    ));
     assert_eq!(
         scenario
-            .evidence(&id, assignment.invocation(), Revision::new(4))
+            .evidence(&id, assignment.invocation(), Revision::new(5))
             .expect("effect evidence records"),
         ymp_runtime::EvidenceOutcome::Recorded
     );
@@ -1726,6 +1786,136 @@ fn host_limit_accumulation_spans_multiple_observe_attempts() {
     }
 }
 
+/// Cumulative usage reports advance monotonically across separate observe
+/// attempts, so later turn totals reach the host limit and later output totals
+/// are not understated.
+#[test]
+fn cumulative_usage_advances_across_observe_attempts() {
+    let (_, scenario, id) = prepared(ManualClock::new());
+    scenario.script_outcome(ScriptedOutcome::never_reports());
+    let request = AssignmentRequest::new(
+        agent(),
+        Role::new("implementer").expect("valid role"),
+        default_settings(),
+        tight_allowance(),
+        vec![workspace_access(scope())],
+    )
+    .expect("valid assignment request");
+    let assignment = scenario
+        .admit(&id, request, Revision::new(1))
+        .expect("admission commits");
+    scenario
+        .invoke(&id, assignment.invocation(), Revision::new(2))
+        .expect("invocation starts");
+
+    for (turns, output_chars) in [(1, 20), (2, 40)] {
+        scenario.with_backend_mut(|backend| {
+            backend.deliver_observation(
+                assignment.invocation(),
+                ExecutionObservation::UsageObserved {
+                    usage: ObservedUsage::unknown()
+                        .with_turns(turns)
+                        .with_output_chars(output_chars),
+                },
+            );
+        });
+        match scenario
+            .observe(&id, assignment.invocation(), Revision::new(4))
+            .expect("cumulative usage observation resolves")
+        {
+            ObservationOutcome::WaitingForTermination {
+                accumulation,
+                enforcement,
+            } => {
+                assert_eq!(accumulation.usage().turns(), Some(turns));
+                assert_eq!(accumulation.usage().output_chars(), Some(output_chars));
+                assert!(!enforcement.turns_capped);
+            }
+            other => panic!("expected a waiting observation, got {other:?}"),
+        }
+    }
+
+    scenario.with_backend_mut(|backend| {
+        backend.deliver_observation(
+            assignment.invocation(),
+            ExecutionObservation::UsageObserved {
+                usage: ObservedUsage::unknown().with_turns(3).with_output_chars(60),
+            },
+        );
+    });
+    match scenario
+        .observe(&id, assignment.invocation(), Revision::new(4))
+        .expect("the limit-reaching observation resolves")
+    {
+        ObservationOutcome::WaitingForTermination {
+            accumulation,
+            enforcement,
+        } => {
+            assert_eq!(accumulation.usage().turns(), Some(3));
+            assert_eq!(accumulation.usage().output_chars(), Some(60));
+            assert!(enforcement.turns_capped);
+        }
+        other => panic!("expected a waiting observation, got {other:?}"),
+    }
+}
+
+/// Concurrent observers serialize the complete accumulation cycle for one
+/// invocation, so a caller that observes no new event retains output accepted
+/// by the concurrent caller instead of replacing it with stale state.
+#[test]
+fn concurrent_observe_calls_preserve_one_invocation_accumulation() {
+    let journal = MemoryJournal::new();
+    let clock = ConcurrentObserveClock::default();
+    let providers = providers();
+    let backend = ScriptedBackend::for_provider(&providers[0]);
+    let scenario = Arc::new(ExecutionScenario::over(
+        journal,
+        backend,
+        effective_workspace_accesses(),
+        ScriptedRegistry::new(providers),
+        ResourceAmount::new(10),
+        Arc::new(clock.clone()),
+    ));
+    let id = session("concurrent-observe-accumulation");
+    scenario
+        .open_session(id.clone(), task())
+        .expect("session opens");
+    scenario.scan().expect("scan succeeds");
+    scenario.script_outcome(ScriptedOutcome::never_reports_with(vec![
+        ExecutionObservation::OutputObserved { chars: 60 },
+    ]));
+    let assignment = scenario
+        .admit(&id, default_request(), Revision::new(1))
+        .expect("admission commits");
+    scenario
+        .invoke(&id, assignment.invocation(), Revision::new(2))
+        .expect("invocation starts");
+    clock.arm();
+
+    let handles = (0..2)
+        .map(|_| {
+            let scenario = Arc::clone(&scenario);
+            let id = id.clone();
+            let invocation = assignment.invocation().clone();
+            thread::spawn(move || {
+                scenario
+                    .observe(&id, &invocation, Revision::new(4))
+                    .expect("concurrent observation resolves")
+            })
+        })
+        .collect::<Vec<_>>();
+
+    for handle in handles {
+        match handle.join().expect("observer thread joins") {
+            ObservationOutcome::WaitingForTermination { accumulation, .. } => {
+                assert_eq!(accumulation.accepted_output_chars(), 60);
+                assert_eq!(accumulation.usage().output_chars(), Some(60));
+            }
+            other => panic!("expected a waiting observation, got {other:?}"),
+        }
+    }
+}
+
 /// "Bounded cancellation: once the bounded wait deadline passes without a
 /// termination observation the state is recorded as `uncertain` with
 /// reservation and workspace hold intact, and the conflicting successor is
@@ -1853,13 +2043,12 @@ fn bounded_cancellation_records_uncertainty_and_waits() {
         .expect("the successor is admitted after the effect evidence");
     assert_eq!(successor_assignment.invocation().as_str(), "invocation-2");
 
-    // The same effect observation may arrive in the final receipt rather
-    // than the stream; it releases every held workspace area through the
-    // same journal event.
-    let (_, scenario, id) = prepared(ManualClock::new());
-    scenario.script_outcome(
-        ScriptedOutcome::completes(None, ObservedUsage::unknown()).with_receipt_effect_evidence(),
-    );
+    // The same effect observation may arrive in a late final receipt rather
+    // than the stream. The receipt is delivered only after uncertainty, then
+    // releases every held workspace area through the same journal event.
+    let clock = ManualClock::new();
+    let (_, scenario, id) = prepared(clock.clone());
+    scenario.script_outcome(ScriptedOutcome::never_reports());
     let receipt_request = AssignmentRequest::new(
         agent(),
         Role::new("implementer").expect("valid role"),
@@ -1874,10 +2063,32 @@ fn bounded_cancellation_records_uncertainty_and_waits() {
     scenario
         .invoke(&id, receipt_assignment.invocation(), Revision::new(2))
         .expect("starts");
-    assert_eq!(
+    assert!(matches!(
         scenario
             .evidence(&id, receipt_assignment.invocation(), Revision::new(4))
-            .expect("receipt evidence records"),
+            .expect_err("evidence from started is rejected"),
+        ExecutionError::WrongPhase {
+            actual: InvocationStatus::Started,
+            ..
+        }
+    ));
+    clock.advance(Duration::from_millis(60_000));
+    assert!(matches!(
+        scenario
+            .observe(&id, receipt_assignment.invocation(), Revision::new(4))
+            .expect("deadline records uncertainty"),
+        ObservationOutcome::UncertainAfterDeadline { .. }
+    ));
+    scenario.with_backend_mut(|backend| {
+        backend.deliver_receipt(
+            receipt_assignment.invocation(),
+            ScriptedReceiptSpec::completes(None, ObservedUsage::unknown()).with_effect_evidence(),
+        );
+    });
+    assert_eq!(
+        scenario
+            .evidence(&id, receipt_assignment.invocation(), Revision::new(5))
+            .expect("late receipt evidence records"),
         ymp_runtime::EvidenceOutcome::Recorded
     );
     assert!(
@@ -1886,6 +2097,15 @@ fn bounded_cancellation_records_uncertainty_and_waits() {
             .is_empty()
     );
     assert_eq!(scenario.treasury_held().value(), 2);
+    assert_eq!(
+        scenario
+            .execution_view(&id)
+            .expect("view replays")
+            .invocation(receipt_assignment.invocation())
+            .expect("invocation")
+            .status(),
+        InvocationStatus::Uncertain
+    );
 
     // Contrast: with a termination observation the successor is admitted
     // after the settlement.
