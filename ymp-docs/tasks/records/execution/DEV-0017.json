@@ -4,7 +4,7 @@
   "title": "Close execution-slice R2 review findings",
   "type": "implementation",
   "priority": 59,
-  "status": "in_progress",
+  "status": "done",
   "depends_on": [
     "DEV-0012"
   ],
@@ -20,13 +20,15 @@
     "All five findings closed with named tests; flaky registry scan test stabilized.",
     "Gates green offline; no new contract violations."
   ],
-  "evidence": [],
+  "evidence": [
+    "Merge d3954e1 on main; 117/0 offline post-merge"
+  ],
   "context": [
     "One review round, one package; fixes land in worktree ymp-wt-execfix2 and merge after gates."
   ],
   "id": "DEV-0017",
   "owner": "maintainer",
-  "revision": 2,
+  "revision": 3,
   "history": [
     {
       "revision": 1,
@@ -41,6 +43,13 @@
       "actor": "maintainer",
       "status": "in_progress",
       "note": "Claimed by maintainer."
+    },
+    {
+      "revision": 3,
+      "at": "2026-09-15T08:08:12.251186Z",
+      "actor": "maintainer",
+      "status": "done",
+      "note": "All five R2 findings closed on branch dev-execfix2 and integrated as merge d3954e1: idempotent Codex starts (54b3676), cumulative observed usage (58c90ac), serialized observation accumulation (6239005), stray error classes rejected in payload forms (82b5f79), effect evidence only from uncertain (9f3f244), plus registry timing flake decoupled (97a5efb). 117 tests green offline post-merge; fmt and clippy clean."
     }
   ]
 }
