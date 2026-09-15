@@ -2,13 +2,22 @@
 
 The approved [self-organizing team architecture](ymp-docs/self-organizing-team-domain-model.md)
 is the single source of architectural scope and domain rules. This document
-explains its product purpose and user experience; it does not define a competing
-architecture or imply that the complete target is already implemented.
+explains the product purpose and user expectations. A gap between these and the
+model is a reason to discuss a model revision, not to silently discard the
+expectation or invent a competing architecture. Neither document's approval
+implies that the complete target is already implemented.
 
 ## Purpose
 
-YMP helps a user obtain a checked result from a task that benefits from reasoning,
-tools and cooperation between AI agents. It must provide an interactive terminal
+YMP is an innovative product for exploring and enabling useful self-organization
+among AI agents. Participants can initiate contributions, take and transfer
+commitments, exchange context, raise objections, and adapt their team and plan
+within kernel-enforced authority and resource limits. User tasks provide an
+observable setting for discovering when these mechanisms help, when they fail,
+and what they cost. A fixed task-solving workflow alone does not fulfill this purpose.
+
+The product must also help users obtain checked results from that cooperation.
+It must provide an interactive terminal
 user interface (TUI) as its primary human-facing interface for stating the goal,
 observing progress and resolving decisions that require the user.
 
@@ -26,6 +35,8 @@ understandable while preserving the user's authority over scope and resources.
 
 These are product objectives to evaluate. Agent count, message volume and a
 successful process exit do not establish that any objective has been achieved.
+Experiments must reveal the conditions and limits of useful self-organization;
+negative or inconclusive findings remain valid outcomes rather than hidden failures.
 
 ## Product principles
 
@@ -67,9 +78,9 @@ An agent's claim does not grant permission or establish that a criterion is met.
 ### Work follows need
 
 Choose the method and team for the task. Start with bounded useful work and
-protect separate capacity for verification and reporting, including a bounded
-report correction. If model-assisted reporting cannot finish, deliver a truthful
-deterministic report from recorded state. Add work only for an unfinished
+preserve capacity for verification and a bounded explanation of the outcome.
+If model-assisted reporting cannot finish, deliver a truthful report from
+recorded facts without another model call. Add work only for an unfinished
 requirement, missing evidence or a justified alternative. Parallelism is useful
 when dependencies and effective workspace permissions permit it.
 
@@ -77,17 +88,26 @@ The user may constrain participants, models, supported reasoning settings and
 resource limits. The system must preserve these choices or state why execution
 cannot continue. Unknown native metadata remains unknown.
 
+### Key mechanisms are replaceable for experiments
+
+Experiments can replace the implementations of key decision mechanisms through
+explicit interfaces, including assessment, contribution selection, team formation,
+resource allocation, reputation and knowledge use. Adjusting a coefficient is
+only one form of experimentation; a different algorithm must be connectable to
+the same consumer. Record the implementation, version, effective parameters and
+basis so observed differences can be explained. Preserve kernel authority and
+earlier history when policies change.
+
 ### Acceptance has a recorded basis
 
 Results are versioned and independently reviewed against the task's criteria.
 Criterion satisfaction, acceptance and confirmation grade are separate decisions.
-The kernel computes satisfaction using A8's belief threshold and applicable
-evidence-class coverage. A forecast alone cannot satisfy a criterion; unrelated
-or superseded evidence does not count. A7 separately requires independent approval
-and assigns `Unconfirmed`, `Discriminated` or `Confirmed` from the actual evidence;
-later consequences may produce `Refuted`. Agent agreement and self-assessment do
-not create confirmation or competence credit. The default credit policy admits
-positive observations only for `Confirmed(*)` outcomes.
+The kernel assesses criteria using the model's belief and evidence rules, requires
+independent approval for acceptance, and records the strength of the actual basis.
+A forecast alone cannot satisfy a criterion, and unrelated or superseded evidence
+does not count. Agent agreement and self-assessment do not create confirmation or
+competence credit. Experiments may select different CreditPolicy implementations
+within the model's rules; their observations must remain attributable to that choice.
 
 Evidence identifies the result, criteria, check source and environment it covers.
 A changed result requires an appropriate new check. Statements about execution,
@@ -99,11 +119,10 @@ Diagnose failed execution, unsuitable capabilities, defective checks and incorre
 results separately. Retry only when the next attempt has a stated purpose.
 Retain completed work, consumed resources and uncertainty about side effects.
 Cancellation does not imply that every external effect has been reversed.
-Revoking authority does not prove that an invocation stopped writing. Conflicting
-workspace access remains blocked until ended-effects or never-started evidence
-is validated; usage is settled independently and conservatively. Resuming a
-recoverable session preserves its task, results, budget, expenses and holds, and
-cannot duplicate an unresolved invocation or reactivate a revoked grant.
+Revoking authority does not prove that further writes are impossible. Conflicting
+access and financial reservations have separate release conditions. Recovery
+preserves work and accounting without duplicating unresolved execution or
+reviving revoked authority; concrete controls must explain their actual guarantees.
 
 ### Experience remains accountable
 
