@@ -433,6 +433,14 @@ pub enum StartOutcome {
 /// the invocation's journaled assignment: agent, sent settings, workspace and
 /// limits all come from the committed admission batch, never from caller
 /// state beside the invocation ID.
+///
+/// The start attempt is journaled before the external start action, so a
+/// competing write or journal error can never leave history at `admitted`
+/// while a process may already be running. If the attempt's outcome append
+/// fails, the invocation stands at a journaled unresolved attempt in its
+/// admitted phase; calling `start_invocation` again re-asks the backend's
+/// idempotent start — which returns the same outcome for the same invocation
+/// — and appends the outcome at the then-current revision.
 pub fn start_invocation<J, B, T, W>(
     context: StartContext<'_, J, B, T, W>,
 ) -> Result<StartOutcome, ExecutionError>
@@ -467,7 +475,21 @@ where
         });
     }
 
-    let assignment = invocation_view.assignment();
+    let assignment = invocation_view.assignment().clone();
+    let mut base_revision = expected_revision;
+    if !invocation_view.start_attempted() {
+        // The attempt is durable before the external action happens.
+        base_revision = append_events(
+            journal,
+            session_id,
+            expected_revision,
+            vec![SessionEvent::InvocationStartAttempted {
+                session_id: session_id.clone(),
+                invocation: invocation.clone(),
+            }],
+        )?;
+    }
+
     let backend_invocation = BackendInvocation::new(
         assignment.invocation().clone(),
         assignment.agent().clone(),
@@ -479,28 +501,26 @@ where
         Err(failure) if failure.confirmed_never_started() => {
             // Terminal failed without a termination observation: the
             // reservation and workspace hold are released and accounting
-            // is permitted.
+            // is permitted. The failure and its settlement land as one
+            // batch, so a competing commit cannot split them.
             let usage = ObservedUsage::unknown();
-            let failed_revision = append_events(
-                journal,
-                session_id,
-                expected_revision,
-                vec![SessionEvent::InvocationFailedAtStart {
-                    session_id: session_id.clone(),
-                    invocation: invocation.clone(),
-                    class: failure.class().clone(),
-                }],
-            )?;
             append_events(
                 journal,
                 session_id,
-                failed_revision,
-                vec![SessionEvent::InvocationAccounted {
-                    session_id: session_id.clone(),
-                    invocation: invocation.clone(),
-                    usage,
-                    reservation: assignment.grant().reservation(),
-                }],
+                base_revision,
+                vec![
+                    SessionEvent::InvocationFailedAtStart {
+                        session_id: session_id.clone(),
+                        invocation: invocation.clone(),
+                        class: failure.class().clone(),
+                    },
+                    SessionEvent::InvocationAccounted {
+                        session_id: session_id.clone(),
+                        invocation: invocation.clone(),
+                        usage,
+                        reservation: assignment.grant().reservation(),
+                    },
+                ],
             )?;
             workspace.release(invocation);
             settle_committed_invocation(treasury, session_id, invocation, &usage)?;
@@ -516,7 +536,7 @@ where
                 invocation: invocation.clone(),
                 cause: UncertaintyCause::StartOutcomeUnknown,
             };
-            append_events(journal, session_id, expected_revision, vec![event])?;
+            append_events(journal, session_id, base_revision, vec![event])?;
             Ok(StartOutcome::UncertainAtStart {
                 class: failure.class().clone(),
             })
@@ -526,7 +546,7 @@ where
                 session_id: session_id.clone(),
                 invocation: invocation.clone(),
             };
-            append_events(journal, session_id, expected_revision, vec![event])?;
+            append_events(journal, session_id, base_revision, vec![event])?;
             Ok(StartOutcome::Started)
         }
     }
@@ -682,11 +702,15 @@ pub enum ObservationOutcome {
 
 /// Observes one in-flight invocation.
 ///
-/// The event stream and the receipt are drained for one termination state;
-/// reported settings are recorded beside requested and sent. A lost stream
+/// The event stream is scanned one observation at a time and the receipt is
+/// asked for one termination state; reported settings are recorded beside
+/// requested and sent. Nothing the scan read is consumed until the append
+/// that records its facts resolves: on a competing write or journal error
+/// the scan is rewound, so the observations survive for the retry. Effect
+/// evidence on the stream is left pending for its own step. A lost stream
 /// or a receipt that never arrives is not a termination: after the bounded
 /// deadline the invocation is recorded `uncertain`, never `timed out`.
-/// Host-enforced limits apply while draining: output past the size bound is
+/// Host-enforced limits apply while scanning: output past the size bound is
 /// refused at the host-controlled boundary, and once reported turns reach
 /// the turn bound no further observations are issued.
 pub fn observe_invocation<J, B, T, W>(
@@ -733,9 +757,18 @@ where
     let mut enforcement = HostEnforcement::default();
     let mut termination: Option<Termination> = None;
 
-    for observation in backend.events(invocation) {
+    loop {
         if enforcement.turns_capped {
             // No further turns are issued past the turn bound.
+            break;
+        }
+        let Some(observation) = backend.next_event(invocation) else {
+            break;
+        };
+        if matches!(observation, ExecutionObservation::WritesEnded) {
+            // Effect evidence is recorded by its own step and stays
+            // pending on the stream.
+            backend.unread_last(invocation);
             break;
         }
         match observation {
@@ -767,8 +800,6 @@ where
                     termination = Some(observed);
                 }
             }
-            // Effect evidence is recorded by its own step; observing it
-            // here changes no accounting or termination fact.
             ExecutionObservation::WritesEnded => {}
         }
     }
@@ -791,7 +822,13 @@ where
                 reported_settings: reported_settings.clone(),
                 usage: partial_usage,
             };
-            append_events(journal, session_id, expected_revision, vec![event])?;
+            if let Err(error) = append_events(journal, session_id, expected_revision, vec![event]) {
+                // The append did not resolve: nothing the scan read is
+                // consumed, so the retry sees the same observations.
+                backend.reset_scan(invocation);
+                return Err(error);
+            }
+            backend.commit_scan(invocation);
             // The termination evidence releases the workspace hold; the
             // reservation is settled by its own append.
             workspace.release(invocation);
@@ -811,9 +848,19 @@ where
                     invocation: invocation.clone(),
                     cause: UncertaintyCause::BoundedWaitExpired,
                 };
-                append_events(journal, session_id, expected_revision, vec![event])?;
+                if let Err(error) =
+                    append_events(journal, session_id, expected_revision, vec![event])
+                {
+                    backend.reset_scan(invocation);
+                    return Err(error);
+                }
+                backend.commit_scan(invocation);
                 Ok(ObservationOutcome::UncertainAfterDeadline { partial_usage })
             } else {
+                // No termination observation exists and the deadline has
+                // not passed: the partial facts are delivered to the
+                // caller, which resolves their consumption.
+                backend.commit_scan(invocation);
                 Ok(ObservationOutcome::WaitingForTermination {
                     partial_usage,
                     enforcement,
@@ -929,6 +976,12 @@ pub enum EvidenceOutcome {
 /// evidence, releases the workspace hold and lifts the successor bar in
 /// one journal append. The report is the backend's observation, not kernel
 /// proof that a process stopped writing.
+///
+/// The stream is read at its head: a writes-ended observation behind
+/// pending observations waits until the observation step consumes those
+/// first, and the evidence observation itself is consumed only after the
+/// recording append resolves — a failed append leaves it pending, and no
+/// other observation kind is consumed by this step.
 pub fn record_effect_evidence<J, B, W>(
     context: EvidenceContext<'_, J, B, W>,
 ) -> Result<EvidenceOutcome, ExecutionError>
@@ -971,13 +1024,13 @@ where
         });
     }
 
-    let mut writes_ended = false;
-    for observation in backend.events(invocation) {
-        if matches!(observation, ExecutionObservation::WritesEnded) {
-            writes_ended = true;
-        }
-    }
-    if !writes_ended {
+    if !matches!(
+        backend.next_event(invocation),
+        Some(ExecutionObservation::WritesEnded)
+    ) {
+        // No writes-ended observation is pending at the stream head;
+        // everything the peek read stays pending.
+        backend.reset_scan(invocation);
         return Ok(EvidenceOutcome::NotObserved);
     }
 
@@ -985,9 +1038,17 @@ where
         session_id: session_id.clone(),
         invocation: invocation.clone(),
     };
-    append_events(journal, session_id, expected_revision, vec![event])?;
-    workspace.release(invocation);
-    Ok(EvidenceOutcome::Recorded)
+    match append_events(journal, session_id, expected_revision, vec![event]) {
+        Ok(_) => {
+            backend.commit_scan(invocation);
+            workspace.release(invocation);
+            Ok(EvidenceOutcome::Recorded)
+        }
+        Err(error) => {
+            backend.reset_scan(invocation);
+            Err(error)
+        }
+    }
 }
 
 /// Applies one committed settlement to the treasury. The journal append has

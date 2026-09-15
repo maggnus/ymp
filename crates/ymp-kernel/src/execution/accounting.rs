@@ -156,7 +156,8 @@ impl AccountingFold {
             SessionEvent::InvocationAccounted { usage, .. } => {
                 self.accounting.usage.fold_usage(usage);
             }
-            SessionEvent::InvocationStarted { .. }
+            SessionEvent::InvocationStartAttempted { .. }
+            | SessionEvent::InvocationStarted { .. }
             | SessionEvent::InvocationCancellationRequested { .. }
             | SessionEvent::EffectEvidenceRecorded { .. }
             | SessionEvent::SessionOpened { .. }

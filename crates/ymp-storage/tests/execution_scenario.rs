@@ -116,7 +116,7 @@ fn admitted_scenario_persists_and_replays_after_reopen() {
         StartOutcome::Started
     );
     match scenario
-        .observe(&sid, assignment.invocation(), Revision::new(3))
+        .observe(&sid, assignment.invocation(), Revision::new(4))
         .expect("termination observes")
     {
         ObservationOutcome::Terminated {
@@ -126,7 +126,7 @@ fn admitted_scenario_persists_and_replays_after_reopen() {
         other => panic!("expected a completed termination, got {other:?}"),
     }
     scenario
-        .settle(&sid, assignment.invocation(), Revision::new(4))
+        .settle(&sid, assignment.invocation(), Revision::new(5))
         .expect("settlement commits through the durable journal");
 
     let view_before = scenario.execution_view(&sid).expect("view replays");
@@ -145,7 +145,7 @@ fn admitted_scenario_persists_and_replays_after_reopen() {
         .expect("port state rebuilds from history");
 
     let read = scenario.read_session(&sid).expect("session reads");
-    assert_eq!(read.revision(), Revision::new(5));
+    assert_eq!(read.revision(), Revision::new(6));
     assert_eq!(read.status(), SessionStatus::Open);
 
     // The replayed execution view equals the pre-close view event for
@@ -176,7 +176,7 @@ fn admitted_scenario_persists_and_replays_after_reopen() {
         Some(&SettingValue::new("low").unwrap())
     );
 
-    assert_eq!(reopened.read(&sid).expect("history reads").len(), 5);
+    assert_eq!(reopened.read(&sid).expect("history reads").len(), 6);
 
     // The flow continues after the reopen: discovery is explicit and not
     // durable, so the pool is empty with its typed reason until a fresh
@@ -190,14 +190,14 @@ fn admitted_scenario_persists_and_replays_after_reopen() {
         ObservedUsage::unknown(),
     ));
     let second = scenario
-        .admit(&sid, request(), Revision::new(5))
+        .admit(&sid, request(), Revision::new(6))
         .expect("second admission commits after reopen");
     assert_eq!(second.invocation().as_str(), "invocation-2");
     scenario
-        .invoke(&sid, second.invocation(), Revision::new(6))
+        .invoke(&sid, second.invocation(), Revision::new(7))
         .expect("second invocation starts");
     match scenario
-        .observe(&sid, second.invocation(), Revision::new(7))
+        .observe(&sid, second.invocation(), Revision::new(9))
         .expect("second termination observes")
     {
         ObservationOutcome::Terminated {
@@ -207,7 +207,7 @@ fn admitted_scenario_persists_and_replays_after_reopen() {
         other => panic!("expected a failed termination, got {other:?}"),
     }
     scenario
-        .settle(&sid, second.invocation(), Revision::new(8))
+        .settle(&sid, second.invocation(), Revision::new(10))
         .expect("second settlement commits");
     let accounting = scenario.accounting(&sid).expect("accounting replays");
     assert_eq!(accounting.completed(), 1);

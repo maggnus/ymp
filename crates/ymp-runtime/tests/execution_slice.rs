@@ -256,7 +256,7 @@ fn scripted_backend_lifecycle_end_to_end() {
         StartOutcome::Started
     );
     match scenario
-        .observe(&id, assignment.invocation(), Revision::new(3))
+        .observe(&id, assignment.invocation(), Revision::new(4))
         .expect("observation succeeds")
     {
         ObservationOutcome::Terminated {
@@ -270,7 +270,7 @@ fn scripted_backend_lifecycle_end_to_end() {
         other => panic!("expected a completed termination, got {other:?}"),
     }
     scenario
-        .settle(&id, assignment.invocation(), Revision::new(4))
+        .settle(&id, assignment.invocation(), Revision::new(5))
         .expect("settlement commits");
 
     let view = scenario.execution_view(&id).expect("view replays");
@@ -304,7 +304,7 @@ fn scripted_backend_lifecycle_end_to_end() {
             .workspace_hold_of(assignment.invocation())
             .is_none()
     );
-    assert_eq!(journal.read(&id).expect("history reads").len(), 5);
+    assert_eq!(journal.read(&id).expect("history reads").len(), 6);
 
     // Failed with an error class, reported through the receipt.
     let (_, scenario, id) = prepared(ManualClock::new());
@@ -322,7 +322,7 @@ fn scripted_backend_lifecycle_end_to_end() {
         StartOutcome::Started
     );
     match scenario
-        .observe(&id, assignment.invocation(), Revision::new(3))
+        .observe(&id, assignment.invocation(), Revision::new(4))
         .expect("observation succeeds")
     {
         ObservationOutcome::Terminated {
@@ -332,7 +332,7 @@ fn scripted_backend_lifecycle_end_to_end() {
         other => panic!("expected a failed termination, got {other:?}"),
     }
     scenario
-        .settle(&id, assignment.invocation(), Revision::new(4))
+        .settle(&id, assignment.invocation(), Revision::new(5))
         .expect("settlement commits");
     assert_eq!(scenario.accounting(&id).expect("accounting").failed(), 1);
 
@@ -348,7 +348,7 @@ fn scripted_backend_lifecycle_end_to_end() {
         .invoke(&id, assignment.invocation(), Revision::new(2))
         .expect("invocation starts");
     let cancellation = scenario
-        .cancel(&id, assignment.invocation(), Revision::new(3))
+        .cancel(&id, assignment.invocation(), Revision::new(4))
         .expect("cancellation request records");
     assert!(cancellation.backend_acknowledged());
     assert_eq!(
@@ -356,7 +356,7 @@ fn scripted_backend_lifecycle_end_to_end() {
         InvocationStatus::Cancelling
     );
     match scenario
-        .observe(&id, assignment.invocation(), Revision::new(4))
+        .observe(&id, assignment.invocation(), Revision::new(5))
         .expect("observation succeeds")
     {
         ObservationOutcome::Terminated {
@@ -366,10 +366,10 @@ fn scripted_backend_lifecycle_end_to_end() {
         other => panic!("expected a cancelled termination, got {other:?}"),
     }
     scenario
-        .settle(&id, assignment.invocation(), Revision::new(5))
+        .settle(&id, assignment.invocation(), Revision::new(6))
         .expect("settlement commits");
     assert_eq!(scenario.accounting(&id).expect("accounting").cancelled(), 1);
-    assert_eq!(journal.read(&id).expect("history reads").len(), 6);
+    assert_eq!(journal.read(&id).expect("history reads").len(), 7);
 
     // Timed out: only a termination observation confirms the expiry.
     let (_, scenario, id) = prepared(ManualClock::new());
@@ -383,7 +383,7 @@ fn scripted_backend_lifecycle_end_to_end() {
         .invoke(&id, assignment.invocation(), Revision::new(2))
         .expect("invocation starts");
     match scenario
-        .observe(&id, assignment.invocation(), Revision::new(3))
+        .observe(&id, assignment.invocation(), Revision::new(4))
         .expect("observation succeeds")
     {
         ObservationOutcome::Terminated {
@@ -394,7 +394,7 @@ fn scripted_backend_lifecycle_end_to_end() {
         other => panic!("expected a timed-out termination, got {other:?}"),
     }
     scenario
-        .settle(&id, assignment.invocation(), Revision::new(4))
+        .settle(&id, assignment.invocation(), Revision::new(5))
         .expect("settlement commits");
     assert_eq!(scenario.accounting(&id).expect("accounting").timed_out(), 1);
 }
@@ -868,6 +868,10 @@ impl BackendAccess {
     fn last_started(backend: &ScriptedBackend) -> Option<ymp_runtime::BackendInvocation> {
         backend.last_started().cloned()
     }
+
+    fn pending_outcomes(backend: &ScriptedBackend) -> usize {
+        backend.pending_outcomes()
+    }
 }
 
 /// "Start failure branches: a confirmed never-started failure is accounted
@@ -949,13 +953,247 @@ fn start_failure_branches_confirmed_and_unknown() {
     let successor = request_for(other_agent(), "reviewer", scope(), 1, default_settings());
     assert!(matches!(
         scenario
-            .admit(&id, successor, Revision::new(3))
+            .admit(&id, successor, Revision::new(4))
             .unwrap_err(),
         AdmissionFailure::Denied(AdmissionDenial::WorkspaceNotEnforceable {
             refusal: WorkspaceAccessRefusal::HeldByPredecessor { held_by },
             ..
         }) if held_by == *assignment.invocation()
     ));
+}
+
+/// A journal wrapper that fails the first append of one event kind with a
+/// typed adapter failure, then passes through.
+#[derive(Clone)]
+struct FlakyEventJournal {
+    inner: MemoryJournal,
+    kind: FlakyEventKind,
+    fired: Arc<AtomicBool>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+enum FlakyEventKind {
+    Started,
+    Observed,
+}
+
+impl FlakyEventJournal {
+    fn new(kind: FlakyEventKind) -> Self {
+        Self {
+            inner: MemoryJournal::new(),
+            kind,
+            fired: Arc::new(AtomicBool::new(false)),
+        }
+    }
+}
+
+impl Journal for FlakyEventJournal {
+    fn read(&self, session_id: &SessionId) -> Result<Vec<ymp_runtime::JournalEntry>, JournalError> {
+        self.inner.read(session_id)
+    }
+
+    fn append(
+        &self,
+        session_id: &SessionId,
+        expected_revision: Revision,
+        events: Vec<SessionEvent>,
+    ) -> Result<Revision, JournalError> {
+        let selected = events.iter().any(|event| match self.kind {
+            FlakyEventKind::Started => {
+                matches!(event, SessionEvent::InvocationStarted { .. })
+            }
+            FlakyEventKind::Observed => {
+                matches!(event, SessionEvent::InvocationObserved { .. })
+            }
+        });
+        if selected && !self.fired.swap(true, Ordering::SeqCst) {
+            return Err(JournalError::AdapterFailure {
+                message: "injected append failure".to_owned(),
+            });
+        }
+        self.inner.append(session_id, expected_revision, events)
+    }
+}
+
+/// The start attempt is journaled before the backend starts the process:
+/// when the started-append fails the history already carries the attempt,
+/// and the retry resolves the same start idempotently instead of starting
+/// twice or consuming a second outcome.
+#[test]
+fn failed_started_append_leaves_a_journaled_attempt_and_resolves_idempotently() {
+    let journal = FlakyEventJournal::new(FlakyEventKind::Started);
+    let scenario = scenario_over(journal.clone(), ManualClock::new());
+    let id = session("start-attempt-retry");
+    scenario
+        .open_session(id.clone(), task())
+        .expect("session opens");
+    scenario.scan().expect("scan succeeds");
+    // Two outcomes queued: an idempotent retry must not consume the second.
+    scenario.script_outcome(ScriptedOutcome::completes(
+        None,
+        ObservedUsage::unknown().with_turns(1),
+    ));
+    scenario.script_outcome(ScriptedOutcome::never_reports());
+    let assignment = scenario
+        .admit(&id, default_request(), Revision::new(1))
+        .expect("admission commits");
+
+    // The started-append fails once; the attempt is already journaled.
+    assert!(matches!(
+        scenario
+            .invoke(&id, assignment.invocation(), Revision::new(2))
+            .unwrap_err(),
+        ExecutionError::Journal(JournalError::AdapterFailure { .. })
+    ));
+    let history = journal.read(&id).expect("history reads");
+    assert_eq!(history.len(), 3);
+    assert!(matches!(
+        history[2].event(),
+        SessionEvent::InvocationStartAttempted { .. }
+    ));
+    let view = scenario.execution_view(&id).expect("view replays");
+    let invocation = view
+        .invocation(assignment.invocation())
+        .expect("invocation");
+    assert_eq!(invocation.status(), InvocationStatus::Admitted);
+    assert!(invocation.start_attempted());
+
+    // The retry resolves the same start: no second outcome is consumed and
+    // the started fact lands at the revision the attempt left.
+    assert_eq!(
+        scenario
+            .invoke(&id, assignment.invocation(), Revision::new(3))
+            .expect("retry resolves the attempt"),
+        StartOutcome::Started
+    );
+    assert_eq!(scenario.with_backend(BackendAccess::pending_outcomes), 1);
+    match scenario
+        .observe(&id, assignment.invocation(), Revision::new(4))
+        .expect("observation succeeds")
+    {
+        ObservationOutcome::Terminated {
+            termination: Termination::Completed,
+            ..
+        } => {}
+        other => panic!("expected a completed termination, got {other:?}"),
+    }
+    scenario
+        .settle(&id, assignment.invocation(), Revision::new(5))
+        .expect("settles");
+}
+
+/// A failed termination-append consumes nothing from the observation
+/// stream: the retry re-reads the same observations once, so usage is
+/// merged exactly once and the termination still lands.
+#[test]
+fn failed_observation_append_preserves_stream_and_receipt_observations() {
+    let journal = FlakyEventJournal::new(FlakyEventKind::Observed);
+    let scenario = scenario_over(journal.clone(), ManualClock::new());
+    let id = session("observe-retry");
+    scenario
+        .open_session(id.clone(), task())
+        .expect("session opens");
+    scenario.scan().expect("scan succeeds");
+    scenario.script_outcome(ScriptedOutcome::completes_with_observations(
+        vec![ExecutionObservation::UsageObserved {
+            usage: ObservedUsage::unknown().with_turns(2),
+        }],
+        None,
+        ObservedUsage::unknown(),
+    ));
+    let assignment = scenario
+        .admit(&id, default_request(), Revision::new(1))
+        .expect("admission commits");
+    scenario
+        .invoke(&id, assignment.invocation(), Revision::new(2))
+        .expect("starts");
+
+    // The observed-append fails once; the stream observations it scanned
+    // are not consumed.
+    assert!(matches!(
+        scenario
+            .observe(&id, assignment.invocation(), Revision::new(4))
+            .unwrap_err(),
+        ExecutionError::Journal(JournalError::AdapterFailure { .. })
+    ));
+    assert_eq!(journal.read(&id).expect("history reads").len(), 4);
+
+    // The retry re-reads the same stream once and records the receipt's
+    // termination; turns merge once (2), never twice (4).
+    match scenario
+        .observe(&id, assignment.invocation(), Revision::new(4))
+        .expect("retry observes")
+    {
+        ObservationOutcome::Terminated {
+            termination: Termination::Completed,
+            usage,
+            ..
+        } => assert_eq!(usage.turns(), Some(2)),
+        other => panic!("expected a completed termination, got {other:?}"),
+    }
+    let view = scenario.execution_view(&id).expect("view replays");
+    assert_eq!(
+        view.invocation(assignment.invocation())
+            .expect("invocation")
+            .observed_usage()
+            .expect("usage recorded")
+            .turns(),
+        Some(2)
+    );
+}
+
+/// Effect evidence reads the stream at its head and consumes only the
+/// writes-ended observation it records: other observation kinds stay
+/// pending for the observation step, whatever the append outcome.
+#[test]
+fn effect_evidence_preserves_other_observation_kinds() {
+    let (_, scenario, id) = prepared(ManualClock::new());
+    scenario.script_outcome(ScriptedOutcome::never_reports_with(vec![
+        ExecutionObservation::OutputObserved { chars: 60 },
+        ExecutionObservation::WritesEnded,
+    ]));
+    let assignment = scenario
+        .admit(&id, default_request(), Revision::new(1))
+        .expect("admission commits");
+    scenario
+        .invoke(&id, assignment.invocation(), Revision::new(2))
+        .expect("starts");
+
+    // The stream head is output, not evidence: nothing is consumed.
+    assert_eq!(
+        scenario
+            .evidence(&id, assignment.invocation(), Revision::new(4))
+            .expect("evidence step resolves"),
+        ymp_runtime::EvidenceOutcome::NotObserved
+    );
+    // The observation step still sees the output the evidence step left.
+    match scenario
+        .observe(&id, assignment.invocation(), Revision::new(4))
+        .expect("observation resolves")
+    {
+        ObservationOutcome::WaitingForTermination { partial_usage, .. } => {
+            assert_eq!(partial_usage.output_chars(), Some(60));
+        }
+        other => panic!("expected a waiting observation, got {other:?}"),
+    }
+    // The writes-ended observation is now at the head and records.
+    assert_eq!(
+        scenario
+            .evidence(&id, assignment.invocation(), Revision::new(4))
+            .expect("evidence records"),
+        ymp_runtime::EvidenceOutcome::Recorded
+    );
+    let view = scenario.execution_view(&id).expect("view replays");
+    let invocation = view
+        .invocation(assignment.invocation())
+        .expect("invocation");
+    assert_eq!(invocation.status(), InvocationStatus::Started);
+    assert!(invocation.effect_evidence_recorded());
+    assert!(
+        scenario
+            .workspace_hold_of(assignment.invocation())
+            .is_none()
+    );
 }
 
 /// "Host-enforced limits: no turns are issued past the turn bound, output
@@ -991,7 +1229,7 @@ fn host_enforced_limits_bound_output_turns_and_deadline() {
         .invoke(&id, assignment.invocation(), Revision::new(2))
         .expect("invocation starts");
     match scenario
-        .observe(&id, assignment.invocation(), Revision::new(3))
+        .observe(&id, assignment.invocation(), Revision::new(4))
         .expect("observation resolves")
     {
         ObservationOutcome::WaitingForTermination {
@@ -1008,7 +1246,7 @@ fn host_enforced_limits_bound_output_turns_and_deadline() {
     }
     clock.advance(Duration::from_millis(60_000));
     match scenario
-        .observe(&id, assignment.invocation(), Revision::new(3))
+        .observe(&id, assignment.invocation(), Revision::new(4))
         .expect("deadline observation resolves")
     {
         ObservationOutcome::UncertainAfterDeadline { .. } => {}
@@ -1030,8 +1268,8 @@ fn host_enforced_limits_bound_output_turns_and_deadline() {
         scenario.workspace_hold_of(assignment.invocation()),
         Some(scope())
     );
-    // No termination was recorded: only the waiting and uncertain facts.
-    assert_eq!(journal.read(&id).expect("history reads").len(), 4);
+    // No termination was recorded: only the start and uncertain facts.
+    assert_eq!(journal.read(&id).expect("history reads").len(), 5);
 
     // No turns are issued past the turn bound: later observations are not
     // processed once the reported turns reach the bound.
@@ -1057,7 +1295,7 @@ fn host_enforced_limits_bound_output_turns_and_deadline() {
         .invoke(&id, assignment.invocation(), Revision::new(2))
         .expect("invocation starts");
     match scenario
-        .observe(&id, assignment.invocation(), Revision::new(3))
+        .observe(&id, assignment.invocation(), Revision::new(4))
         .expect("observation resolves")
     {
         ObservationOutcome::WaitingForTermination {
@@ -1097,7 +1335,7 @@ fn bounded_cancellation_records_uncertainty_and_waits() {
         .expect("starts");
 
     let cancellation = scenario
-        .cancel(&id, assignment.invocation(), Revision::new(3))
+        .cancel(&id, assignment.invocation(), Revision::new(4))
         .expect("cancellation request records");
     assert!(cancellation.backend_acknowledged());
     assert_eq!(
@@ -1117,7 +1355,7 @@ fn bounded_cancellation_records_uncertainty_and_waits() {
     // Within the deadline the invocation keeps waiting.
     assert!(matches!(
         scenario
-            .observe(&id, assignment.invocation(), Revision::new(4))
+            .observe(&id, assignment.invocation(), Revision::new(5))
             .expect("observation resolves"),
         ObservationOutcome::WaitingForTermination { .. }
     ));
@@ -1136,7 +1374,7 @@ fn bounded_cancellation_records_uncertainty_and_waits() {
     clock.advance(Duration::from_millis(60_000));
     assert!(matches!(
         scenario
-            .observe(&id, assignment.invocation(), Revision::new(4))
+            .observe(&id, assignment.invocation(), Revision::new(5))
             .expect("deadline observation resolves"),
         ObservationOutcome::UncertainAfterDeadline { .. }
     ));
@@ -1157,7 +1395,7 @@ fn bounded_cancellation_records_uncertainty_and_waits() {
     let successor = request_for(other_agent(), "reviewer", scope(), 1, default_settings());
     assert!(matches!(
         scenario
-            .admit(&id, successor.clone(), Revision::new(5))
+            .admit(&id, successor.clone(), Revision::new(6))
             .unwrap_err(),
         AdmissionFailure::Denied(AdmissionDenial::WorkspaceNotEnforceable {
             refusal: WorkspaceAccessRefusal::HeldByPredecessor { held_by },
@@ -1171,7 +1409,7 @@ fn bounded_cancellation_records_uncertainty_and_waits() {
     // the invocation itself remains uncertain with its reservation held.
     assert_eq!(
         scenario
-            .evidence(&id, assignment.invocation(), Revision::new(5))
+            .evidence(&id, assignment.invocation(), Revision::new(6))
             .expect("evidence step resolves"),
         ymp_runtime::EvidenceOutcome::NotObserved
     );
@@ -1180,7 +1418,7 @@ fn bounded_cancellation_records_uncertainty_and_waits() {
     });
     assert_eq!(
         scenario
-            .evidence(&id, assignment.invocation(), Revision::new(5))
+            .evidence(&id, assignment.invocation(), Revision::new(6))
             .expect("evidence records"),
         ymp_runtime::EvidenceOutcome::Recorded
     );
@@ -1198,7 +1436,7 @@ fn bounded_cancellation_records_uncertainty_and_waits() {
             .is_none()
     );
     let successor_assignment = scenario
-        .admit(&id, successor, Revision::new(6))
+        .admit(&id, successor, Revision::new(7))
         .expect("the successor is admitted after the effect evidence");
     assert_eq!(successor_assignment.invocation().as_str(), "invocation-2");
 
@@ -1215,10 +1453,10 @@ fn bounded_cancellation_records_uncertainty_and_waits() {
         .invoke(&id, predecessor.invocation(), Revision::new(2))
         .expect("starts");
     scenario
-        .cancel(&id, predecessor.invocation(), Revision::new(3))
+        .cancel(&id, predecessor.invocation(), Revision::new(4))
         .expect("cancels");
     match scenario
-        .observe(&id, predecessor.invocation(), Revision::new(4))
+        .observe(&id, predecessor.invocation(), Revision::new(5))
         .expect("terminates")
     {
         ObservationOutcome::Terminated {
@@ -1228,10 +1466,10 @@ fn bounded_cancellation_records_uncertainty_and_waits() {
         other => panic!("expected a cancelled termination, got {other:?}"),
     }
     scenario
-        .settle(&id, predecessor.invocation(), Revision::new(5))
+        .settle(&id, predecessor.invocation(), Revision::new(6))
         .expect("settles");
     let successor = scenario
-        .admit(&id, default_request(), Revision::new(6))
+        .admit(&id, default_request(), Revision::new(7))
         .expect("successor is admitted after termination evidence");
     assert_eq!(successor.invocation().as_str(), "invocation-2");
     assert_eq!(scenario.treasury_held().value(), 4);
@@ -1261,10 +1499,10 @@ fn accounting_totals_settlement_retry_and_unknown_usage() {
         .invoke(&id, completed.invocation(), Revision::new(2))
         .expect("starts");
     scenario
-        .observe(&id, completed.invocation(), Revision::new(3))
+        .observe(&id, completed.invocation(), Revision::new(4))
         .expect("terminates");
     scenario
-        .settle(&id, completed.invocation(), Revision::new(4))
+        .settle(&id, completed.invocation(), Revision::new(5))
         .expect("settles");
 
     // Failed with entirely unreported usage: still counted, still settled.
@@ -1273,16 +1511,16 @@ fn accounting_totals_settlement_retry_and_unknown_usage() {
         ObservedUsage::unknown(),
     ));
     let failed = scenario
-        .admit(&id, default_request(), Revision::new(5))
+        .admit(&id, default_request(), Revision::new(6))
         .expect("second admission commits");
     scenario
-        .invoke(&id, failed.invocation(), Revision::new(6))
+        .invoke(&id, failed.invocation(), Revision::new(7))
         .expect("starts");
     scenario
-        .observe(&id, failed.invocation(), Revision::new(7))
+        .observe(&id, failed.invocation(), Revision::new(9))
         .expect("terminates");
     scenario
-        .settle(&id, failed.invocation(), Revision::new(8))
+        .settle(&id, failed.invocation(), Revision::new(10))
         .expect("settles");
 
     // Cancelled with confirmation and partly reported usage.
@@ -1290,19 +1528,19 @@ fn accounting_totals_settlement_retry_and_unknown_usage() {
         ObservedUsage::unknown().with_turns(1),
     ));
     let cancelled = scenario
-        .admit(&id, default_request(), Revision::new(9))
+        .admit(&id, default_request(), Revision::new(11))
         .expect("third admission commits");
     scenario
-        .invoke(&id, cancelled.invocation(), Revision::new(10))
+        .invoke(&id, cancelled.invocation(), Revision::new(12))
         .expect("starts");
     scenario
-        .cancel(&id, cancelled.invocation(), Revision::new(11))
+        .cancel(&id, cancelled.invocation(), Revision::new(14))
         .expect("cancels");
     scenario
-        .observe(&id, cancelled.invocation(), Revision::new(12))
+        .observe(&id, cancelled.invocation(), Revision::new(15))
         .expect("terminates");
     scenario
-        .settle(&id, cancelled.invocation(), Revision::new(13))
+        .settle(&id, cancelled.invocation(), Revision::new(16))
         .expect("settles");
 
     let accounting = scenario.accounting(&id).expect("accounting replays");
@@ -1345,7 +1583,7 @@ fn accounting_totals_settlement_retry_and_unknown_usage() {
         .invoke(&id, assignment.invocation(), Revision::new(2))
         .expect("starts");
     match scenario
-        .observe(&id, assignment.invocation(), Revision::new(3))
+        .observe(&id, assignment.invocation(), Revision::new(4))
         .expect("terminates")
     {
         ObservationOutcome::Terminated {
@@ -1357,7 +1595,7 @@ fn accounting_totals_settlement_retry_and_unknown_usage() {
     // The settlement append fails once with a typed error.
     assert!(matches!(
         scenario
-            .settle(&id, assignment.invocation(), Revision::new(4))
+            .settle(&id, assignment.invocation(), Revision::new(5))
             .unwrap_err(),
         ExecutionError::Journal(JournalError::AdapterFailure { .. })
     ));
@@ -1380,7 +1618,7 @@ fn accounting_totals_settlement_retry_and_unknown_usage() {
     // The retry commits the settlement.
     assert_eq!(
         scenario
-            .settle(&id, assignment.invocation(), Revision::new(4))
+            .settle(&id, assignment.invocation(), Revision::new(5))
             .expect("settlement retry commits")
             .value(),
         4
@@ -1441,13 +1679,13 @@ fn no_real_provider_execution_implied_by_any_test() {
         .invoke(&id, assignment.invocation(), Revision::new(2))
         .expect("starts");
     scenario
-        .observe(&id, assignment.invocation(), Revision::new(3))
+        .observe(&id, assignment.invocation(), Revision::new(4))
         .expect("terminates");
     scenario
-        .settle(&id, assignment.invocation(), Revision::new(4))
+        .settle(&id, assignment.invocation(), Revision::new(5))
         .expect("settles");
     let history = journal.read(&id).expect("history reads");
-    assert_eq!(history.len(), 5);
+    assert_eq!(history.len(), 6);
     assert!(matches!(
         history[0].event(),
         SessionEvent::SessionOpened { .. }
@@ -1458,14 +1696,18 @@ fn no_real_provider_execution_implied_by_any_test() {
     ));
     assert!(matches!(
         history[2].event(),
-        SessionEvent::InvocationStarted { .. }
+        SessionEvent::InvocationStartAttempted { .. }
     ));
     assert!(matches!(
         history[3].event(),
-        SessionEvent::InvocationObserved { .. }
+        SessionEvent::InvocationStarted { .. }
     ));
     assert!(matches!(
         history[4].event(),
+        SessionEvent::InvocationObserved { .. }
+    ));
+    assert!(matches!(
+        history[5].event(),
         SessionEvent::InvocationAccounted { .. }
     ));
 }

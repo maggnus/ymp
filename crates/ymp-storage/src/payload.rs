@@ -2,13 +2,14 @@
 //!
 //! The payload forms are fixed by the durable Journal contract. Version 1
 //! originally defined the two session-lifecycle forms; the bounded
-//! execution slice added the six execution forms additively within the same
-//! version, preserving the original two byte-for-byte:
+//! execution slice added the seven execution forms additively within the
+//! same version, preserving the original two byte-for-byte:
 //!
 //! ```json
 //! {"type":"session_opened","session_id":S,"task":{"id":T,"goal":{"request":G},"acceptance_contract":{"criteria":[{"id":C,"description":D}]},"constraints":{"conditions":[K]}}}
 //! {"type":"session_cancelled","session_id":S}
 //! {"type":"assignment_admitted","session_id":S,"invocation":I,"assignment":{"invocation":I,"agent":A,"role":R,"requested_settings":[{"key":K,"value":V}],"sent_settings":[{"key":K,"value":V}],"allowance":{"reservation":N,"limits":{"max_turns":N,"max_output_chars":N,"max_wall_clock_ms":N}},"grant":{"id":G,"invocation":I,"reservation":N},"workspace":W}}
+//! {"type":"invocation_start_attempted","session_id":S,"invocation":I}
 //! {"type":"invocation_started","session_id":S,"invocation":I}
 //! {"type":"invocation_cancellation_requested","session_id":S,"invocation":I}
 //! {"type":"invocation_observed","session_id":S,"invocation":I,"termination":{"outcome":"completed"|"failed"|"cancelled"|"timed_out"[,"error_class":C]},"reported_settings":[...]|null,"usage":{"turns":N|null,"output_chars":N|null,"wall_clock_ms":N|null}}
@@ -561,6 +562,16 @@ pub(super) fn encode_event(event: &SessionEvent) -> Result<Vec<u8>, JournalError
             dto.assignment = Some(assignment_dto(assignment));
             serialize(dto)
         }
+        SessionEvent::InvocationStartAttempted {
+            session_id,
+            invocation,
+        } => {
+            require_limit(session_id.as_str())?;
+            require_limit(invocation.as_str())?;
+            let mut dto = base("invocation_start_attempted", session_id.as_str());
+            dto.invocation = Some(invocation.as_str());
+            serialize(dto)
+        }
         SessionEvent::InvocationStarted {
             session_id,
             invocation,
@@ -750,6 +761,26 @@ pub(super) fn decode_payload(bytes: &[u8]) -> Result<SessionEvent, String> {
                 session_id,
                 invocation,
                 assignment,
+            })
+        }
+        "invocation_start_attempted" => {
+            forbid_all(
+                &dto,
+                &[
+                    "task",
+                    "assignment",
+                    "sent_settings",
+                    "termination",
+                    "reported_settings",
+                    "usage",
+                    "cause",
+                    "error_class",
+                    "reservation",
+                ],
+            )?;
+            Ok(SessionEvent::InvocationStartAttempted {
+                session_id,
+                invocation: build_invocation(&dto.invocation)?,
             })
         }
         "invocation_started" => {
@@ -1057,6 +1088,10 @@ mod tests {
                 invocation: InvocationId::new("invocation-1").expect("valid invocation ID"),
                 assignment: assignment(),
             },
+            SessionEvent::InvocationStartAttempted {
+                session_id: SessionId::new("s1").expect("valid session ID"),
+                invocation: InvocationId::new("invocation-1").expect("valid invocation ID"),
+            },
             SessionEvent::InvocationStarted {
                 session_id: SessionId::new("s1").expect("valid session ID"),
                 invocation: InvocationId::new("invocation-1").expect("valid invocation ID"),
@@ -1219,6 +1254,10 @@ mod tests {
             (
                 "invocation field on cancelled",
                 br#"{"type":"session_cancelled","session_id":"s1","invocation":"invocation-1"}"#.to_vec(),
+            ),
+            (
+                "error class on start attempted",
+                br#"{"type":"invocation_start_attempted","session_id":"s1","invocation":"invocation-1","error_class":"c"}"#.to_vec(),
             ),
             (
                 "missing assignment on admitted",

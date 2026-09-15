@@ -55,6 +55,15 @@ pub enum SessionEvent {
         invocation: InvocationId,
         assignment: execution::Assignment,
     },
+    /// The host is about to call the backend's `start` for one admitted
+    /// invocation. This fact is appended before the external start action so
+    /// history never stays at `admitted` while a start may already be in
+    /// flight; a retry that finds the attempt unresolved re-asks the backend
+    /// idempotently instead of starting twice.
+    InvocationStartAttempted {
+        session_id: SessionId,
+        invocation: InvocationId,
+    },
     /// The host started one admitted invocation. The sent settings were
     /// resolved and recorded at admission; `start` passes exactly those.
     InvocationStarted {
@@ -273,6 +282,7 @@ pub enum HistoryError {
 /// The lifecycle events one invocation records, for error specificity.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum LifecycleEventKind {
+    StartAttempted,
     Started,
     CancellationRequested,
     Observed,
@@ -285,6 +295,7 @@ pub enum LifecycleEventKind {
 impl fmt::Display for LifecycleEventKind {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         let name = match self {
+            Self::StartAttempted => "start attempted",
             Self::Started => "started",
             Self::CancellationRequested => "cancellation requested",
             Self::Observed => "observed",
@@ -427,6 +438,34 @@ pub fn replay_session(
                 }
                 invocations.insert(invocation.clone(), InvocationTrack::default());
             }
+            SessionEvent::InvocationStartAttempted {
+                session_id,
+                invocation,
+            } => {
+                ensure_session_id(stream_id, session_id)?;
+                let track = invocation_track(&mut invocations, invocation, entry.revision)?;
+                if track.start_attempted {
+                    return Err(HistoryError::DuplicateLifecycleEvent {
+                        revision: entry.revision,
+                        invocation: invocation.clone(),
+                        event: LifecycleEventKind::StartAttempted,
+                    });
+                }
+                if track.started
+                    || track.cancel_requested
+                    || track.uncertain
+                    || track.failed_at_start
+                    || track.evidence
+                    || track.observed
+                    || track.accounted
+                {
+                    return Err(HistoryError::LifecycleOutOfOrder {
+                        revision: entry.revision,
+                        invocation: invocation.clone(),
+                    });
+                }
+                track.start_attempted = true;
+            }
             SessionEvent::InvocationStarted {
                 session_id,
                 invocation,
@@ -440,9 +479,15 @@ pub fn replay_session(
                         event: LifecycleEventKind::Started,
                     });
                 }
-                // Observed and accounted imply the invocation left the
-                // admitted phase through another path.
-                if track.observed || track.accounted || track.uncertain {
+                // A start is journaled as an attempt before the external
+                // action; observed, accounted, uncertain or a recorded
+                // never-started failure cannot follow or precede it.
+                if !track.start_attempted
+                    || track.uncertain
+                    || track.failed_at_start
+                    || track.observed
+                    || track.accounted
+                {
                     return Err(HistoryError::LifecycleOutOfOrder {
                         revision: entry.revision,
                         invocation: invocation.clone(),
@@ -598,10 +643,13 @@ pub fn replay_session(
 }
 
 /// The lifecycle facts one admitted invocation has recorded. `observed`
-/// without `started` is the confirmed never-started failure path;
-/// `uncertain` without `started` is a start error with an unknown outcome.
+/// without `started` is invalid: a termination observation concerns a started
+/// invocation, and the only never-started terminal path is
+/// `failed_at_start`. `uncertain` without `started` is a start error with an
+/// unknown outcome; every start is first journaled as an attempt.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 struct InvocationTrack {
+    start_attempted: bool,
     started: bool,
     cancel_requested: bool,
     uncertain: bool,

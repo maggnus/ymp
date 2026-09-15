@@ -694,18 +694,43 @@ impl Receipt {
 
 /// The provider-boundary port: four operations whose results are
 /// observations, never authority.
+///
+/// The event stream is read through a two-phase scan so no observation is
+/// lost to a failed journal append: [`ExecutionBackend::next_event`] reads
+/// the next pending observation one at a time without making it consumed;
+/// [`ExecutionBackend::unread_last`] un-reads the observation the current
+/// scan read last, so a scan can stop at an observation and leave it
+/// pending for the step that owns it;
+/// [`ExecutionBackend::reset_scan`] rewinds everything the current scan
+/// read, and [`ExecutionBackend::commit_scan`] makes it consumed only after
+/// the journal append that records the scan's facts has resolved. A start
+/// is idempotent per invocation: starting an invocation whose start already
+/// resolved returns the same outcome again instead of consuming a new one.
 pub trait ExecutionBackend: Send {
     /// Starts an admitted invocation with its sent settings and
-    /// per-invocation limits.
+    /// per-invocation limits. Idempotent per invocation: a repeated start
+    /// of the same invocation returns its first outcome again.
     fn start(&mut self, invocation: &BackendInvocation) -> Result<(), BackendStartFailure>;
 
     /// Cancels a started invocation. Cancellation does not prove
     /// termination.
     fn cancel(&mut self, invocation: &InvocationId) -> Result<(), BackendCancelRefused>;
 
-    /// Drains the event stream of execution observations for one in-flight
-    /// invocation.
-    fn events(&mut self, invocation: &InvocationId) -> Vec<ExecutionObservation>;
+    /// Reads the next pending observation from one in-flight invocation's
+    /// event stream, one at a time, without making it consumed.
+    fn next_event(&mut self, invocation: &InvocationId) -> Option<ExecutionObservation>;
+
+    /// Un-reads the observation the current scan read last, leaving it
+    /// pending on the stream.
+    fn unread_last(&mut self, invocation: &InvocationId);
+
+    /// Rewinds every observation the current scan read since the last
+    /// commit, so a failed append can be retried without losing them.
+    fn reset_scan(&mut self, invocation: &InvocationId);
+
+    /// Makes every observation the current scan read consumed, after the
+    /// journal append that records their facts has resolved.
+    fn commit_scan(&mut self, invocation: &InvocationId);
 
     /// The backend's final report for one invocation, if it has one.
     fn receipt(&mut self, invocation: &InvocationId) -> Option<Receipt>;
