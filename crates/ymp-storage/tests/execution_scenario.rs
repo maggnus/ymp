@@ -20,9 +20,10 @@ use ymp_kernel::Journal;
 use ymp_runtime::Pool;
 use ymp_runtime::{
     AgentId, Allowance, AssignmentRequest, ExecutionScenario, InvocationStatus, ModelOffering,
-    ObservationOutcome, ObservedUsage, OfferingId, ResourceAmount, Revision, Role, ScriptedOutcome,
-    ScriptedProvider, SessionStatus, SettingKey, SettingValue, Settings, StartOutcome,
-    SupportedControl, Termination, WorkspaceScope,
+    ObservationOutcome, ObservedUsage, OfferingId, ReservationPurpose, ResourceAmount, Revision,
+    Role, ScriptedOutcome, ScriptedProvider, SessionStatus, SettingKey, SettingValue, Settings,
+    StartOutcome, SupportedControl, Termination, WorkspaceAccess, WorkspaceOperation,
+    WorkspaceScope,
 };
 use ymp_storage::SqliteJournal;
 
@@ -51,7 +52,15 @@ fn provider() -> ScriptedProvider {
         AgentId::new("claude-opus-5").expect("valid agent ID"),
         offering(),
     )
-    .with_effective_workspaces([WorkspaceScope::new("session-primary").expect("valid scope")])
+    .with_effective_workspace_accesses([workspace_access()])
+}
+
+fn workspace_access() -> WorkspaceAccess {
+    WorkspaceAccess::new(
+        WorkspaceScope::new("session-primary").expect("valid scope"),
+        [WorkspaceOperation::Read, WorkspaceOperation::Write],
+    )
+    .expect("valid workspace access")
 }
 
 fn request() -> AssignmentRequest {
@@ -65,12 +74,14 @@ fn request() -> AssignmentRequest {
         .expect("valid settings"),
         Allowance::new(
             ResourceAmount::new(4),
+            ReservationPurpose::Production,
             ymp_runtime::InvocationLimits::new(6, 2048, Duration::from_millis(60_000))
                 .expect("valid limits"),
         )
         .expect("valid allowance"),
-        WorkspaceScope::new("session-primary").expect("valid scope"),
+        vec![workspace_access()],
     )
+    .expect("valid assignment request")
 }
 
 #[test]
@@ -111,12 +122,12 @@ fn admitted_scenario_persists_and_replays_after_reopen() {
         .expect("admission commits through the durable journal");
     assert_eq!(
         scenario
-            .invoke(&sid, &assignment, Revision::new(2))
+            .invoke(&sid, assignment.invocation(), Revision::new(2))
             .expect("invocation starts"),
         StartOutcome::Started
     );
     match scenario
-        .observe(&sid, assignment.invocation(), Revision::new(3))
+        .observe(&sid, assignment.invocation(), Revision::new(4))
         .expect("termination observes")
     {
         ObservationOutcome::Terminated {
@@ -126,7 +137,7 @@ fn admitted_scenario_persists_and_replays_after_reopen() {
         other => panic!("expected a completed termination, got {other:?}"),
     }
     scenario
-        .settle(&sid, assignment.invocation(), Revision::new(4))
+        .settle(&sid, assignment.invocation(), Revision::new(5))
         .expect("settlement commits through the durable journal");
 
     let view_before = scenario.execution_view(&sid).expect("view replays");
@@ -145,7 +156,7 @@ fn admitted_scenario_persists_and_replays_after_reopen() {
         .expect("port state rebuilds from history");
 
     let read = scenario.read_session(&sid).expect("session reads");
-    assert_eq!(read.revision(), Revision::new(5));
+    assert_eq!(read.revision(), Revision::new(6));
     assert_eq!(read.status(), SessionStatus::Open);
 
     // The replayed execution view equals the pre-close view event for
@@ -176,7 +187,7 @@ fn admitted_scenario_persists_and_replays_after_reopen() {
         Some(&SettingValue::new("low").unwrap())
     );
 
-    assert_eq!(reopened.read(&sid).expect("history reads").len(), 5);
+    assert_eq!(reopened.read(&sid).expect("history reads").len(), 6);
 
     // The flow continues after the reopen: discovery is explicit and not
     // durable, so the pool is empty with its typed reason until a fresh
@@ -190,14 +201,14 @@ fn admitted_scenario_persists_and_replays_after_reopen() {
         ObservedUsage::unknown(),
     ));
     let second = scenario
-        .admit(&sid, request(), Revision::new(5))
+        .admit(&sid, request(), Revision::new(6))
         .expect("second admission commits after reopen");
     assert_eq!(second.invocation().as_str(), "invocation-2");
     scenario
-        .invoke(&sid, &second, Revision::new(6))
+        .invoke(&sid, second.invocation(), Revision::new(7))
         .expect("second invocation starts");
     match scenario
-        .observe(&sid, second.invocation(), Revision::new(7))
+        .observe(&sid, second.invocation(), Revision::new(9))
         .expect("second termination observes")
     {
         ObservationOutcome::Terminated {
@@ -207,7 +218,7 @@ fn admitted_scenario_persists_and_replays_after_reopen() {
         other => panic!("expected a failed termination, got {other:?}"),
     }
     scenario
-        .settle(&sid, second.invocation(), Revision::new(8))
+        .settle(&sid, second.invocation(), Revision::new(10))
         .expect("second settlement commits");
     let accounting = scenario.accounting(&sid).expect("accounting replays");
     assert_eq!(accounting.completed(), 1);

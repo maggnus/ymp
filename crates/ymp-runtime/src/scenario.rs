@@ -19,11 +19,12 @@ use ymp_domain::{SessionId, Task};
 use ymp_kernel::execution::{
     self, AdmissionContext, AdmissionFailure, Assignment, AssignmentRequest, CancellationContext,
     CancellationOutcome, EvidenceContext, EvidenceOutcome, ExecutionBackend, ExecutionError,
-    InvocationId, LedgerTreasury, ObservationContext, ObservationOutcome, PolicyGatekeeper, Pool,
-    Registry, RegistryFailure, ResourceAmount, SessionAccounting, SessionExecutionView,
-    SettlementContext, StartContext, StartOutcome, TrackedWorkspaceGuard, Treasury, WorkspaceGuard,
-    WorkspaceScope, observe_invocation, read_execution, record_effect_evidence,
-    request_invocation_cancellation, scan_registry, settle_invocation, start_invocation,
+    InvocationId, LedgerTreasury, ObservationAccumulation, ObservationContext, ObservationOutcome,
+    PolicyGatekeeper, Pool, Registry, RegistryFailure, ResourceAmount, SessionAccounting,
+    SessionExecutionView, SettlementContext, StartContext, StartOutcome, TrackedWorkspaceGuard,
+    Treasury, WorkspaceAccess, WorkspaceGuard, observe_invocation, read_execution,
+    record_effect_evidence, request_invocation_cancellation, scan_registry, settle_invocation,
+    start_invocation,
 };
 use ymp_kernel::{DispatchError, Dispatcher, Journal, Revision, SessionView};
 
@@ -50,6 +51,10 @@ where
     gatekeeper: PolicyGatekeeper,
     clock: Arc<dyn Clock + Send + Sync>,
     started_at: Mutex<BTreeMap<InvocationId, std::time::Duration>>,
+    /// Host-enforced limit accumulation per in-flight invocation, carried
+    /// across observe attempts so turn and output bounds hold over the
+    /// invocation's whole observation history, not per attempt.
+    observations: Mutex<BTreeMap<InvocationId, ObservationAccumulation>>,
 }
 
 impl<J, B> ExecutionScenario<J, B>
@@ -61,7 +66,7 @@ where
     pub fn over(
         journal: J,
         backend: B,
-        enforceable_scopes: impl IntoIterator<Item = WorkspaceScope>,
+        enforceable_accesses: impl IntoIterator<Item = WorkspaceAccess>,
         registry: ScriptedRegistry,
         capacity: ResourceAmount,
         clock: Arc<dyn Clock + Send + Sync>,
@@ -71,11 +76,12 @@ where
             journal,
             registry: Mutex::new(registry),
             treasury: Mutex::new(LedgerTreasury::new(capacity)),
-            workspace: Mutex::new(TrackedWorkspaceGuard::new(enforceable_scopes)),
+            workspace: Mutex::new(TrackedWorkspaceGuard::new(enforceable_accesses)),
             backend: Mutex::new(backend),
             gatekeeper: PolicyGatekeeper,
             clock,
             started_at: Mutex::new(BTreeMap::new()),
+            observations: Mutex::new(BTreeMap::new()),
         }
     }
 
@@ -133,11 +139,12 @@ where
     }
 
     /// Starts one admitted invocation with the settings recorded in the
-    /// admission batch.
+    /// admission batch. Only the invocation ID is the input; every executed
+    /// parameter comes from the journaled assignment.
     pub fn invoke(
         &self,
         session_id: &SessionId,
-        assignment: &Assignment,
+        invocation: &InvocationId,
         expected_revision: Revision,
     ) -> Result<StartOutcome, ExecutionError> {
         let mut backend = self.backend.lock().expect("backend lock is available");
@@ -148,7 +155,7 @@ where
             backend: &mut *backend,
             session_id,
             expected_revision,
-            assignment,
+            invocation,
             treasury: &mut *treasury,
             workspace: &mut *workspace,
         };
@@ -157,7 +164,7 @@ where
             self.started_at
                 .lock()
                 .expect("start-time lock is available")
-                .insert(assignment.invocation().clone(), self.clock.elapsed());
+                .insert(invocation.clone(), self.clock.elapsed());
         }
         Ok(outcome)
     }
@@ -181,7 +188,8 @@ where
     }
 
     /// Observes one in-flight invocation, applying host-enforced wall-clock
-    /// timeouts against the scenario clock.
+    /// timeouts against the scenario clock and turn/output bounds against
+    /// the accumulation carried across every attempt.
     pub fn observe(
         &self,
         session_id: &SessionId,
@@ -196,6 +204,13 @@ where
             .ok_or_else(|| ExecutionError::InvocationNotStarted {
                 invocation: invocation.clone(),
             })?;
+        let prior = self
+            .observations
+            .lock()
+            .expect("observation lock is available")
+            .get(invocation)
+            .cloned()
+            .unwrap_or_default();
         let now = self.clock.elapsed();
 
         let mut backend = self.backend.lock().expect("backend lock is available");
@@ -207,17 +222,29 @@ where
             session_id,
             expected_revision,
             invocation,
+            prior,
             started_at,
             now,
             treasury: &mut *treasury,
             workspace: &mut *workspace,
         };
         let outcome = observe_invocation(context)?;
-        if matches!(outcome, ObservationOutcome::Terminated { .. }) {
-            self.started_at
-                .lock()
-                .expect("start-time lock is available")
-                .remove(invocation);
+        let mut observations = self
+            .observations
+            .lock()
+            .expect("observation lock is available");
+        match &outcome {
+            ObservationOutcome::WaitingForTermination { accumulation, .. } => {
+                observations.insert(invocation.clone(), accumulation.clone());
+            }
+            ObservationOutcome::Terminated { .. }
+            | ObservationOutcome::UncertainAfterDeadline { .. } => {
+                self.started_at
+                    .lock()
+                    .expect("start-time lock is available")
+                    .remove(invocation);
+                observations.remove(invocation);
+            }
         }
         Ok(outcome)
     }
@@ -298,10 +325,21 @@ where
         treasury.held()
     }
 
-    /// The workspace scope one invocation currently holds, if any.
-    pub fn workspace_hold_of(&self, invocation: &InvocationId) -> Option<WorkspaceScope> {
+    /// The per-scope workspace accesses one invocation currently holds.
+    pub fn workspace_accesses_of(&self, invocation: &InvocationId) -> Vec<WorkspaceAccess> {
         let workspace = self.workspace.lock().expect("workspace lock is available");
-        workspace.hold_of(invocation)
+        workspace.accesses_of(invocation)
+    }
+
+    /// The first workspace scope one invocation holds, retained as a
+    /// convenience for callers that admit a single-area assignment.
+    pub fn workspace_hold_of(
+        &self,
+        invocation: &InvocationId,
+    ) -> Option<execution::WorkspaceScope> {
+        self.workspace_accesses_of(invocation)
+            .first()
+            .map(|access| access.scope().clone())
     }
 
     /// The elapsed time the scenario clock reports.
@@ -309,24 +347,36 @@ where
         self.clock.elapsed()
     }
 
-    /// Rebuilds the in-memory reservations and workspace holds for one
-    /// session from its journaled history. Start times are not durable, so
-    /// wall-clock adjudication of invocations that were in flight across a
-    /// restart begins from the reattachment, not from their original start.
+    /// Rebuilds the in-memory reservations, workspace holds and start times
+    /// for one session from its journaled history. Start times are not
+    /// durable, so wall-clock adjudication of invocations that were in flight
+    /// across a restart begins from the reattachment, not from their original
+    /// start.
     pub fn reattach(&self, session_id: &SessionId) -> Result<(), ExecutionError> {
         let view = read_execution(&self.journal, session_id)?;
         let mut treasury_holds = Vec::new();
         let mut workspace_holds = Vec::new();
+        let mut start_times = BTreeMap::new();
+        let now = self.clock.elapsed();
         for (invocation, invocation_view) in view.invocations() {
             if invocation_view.holds_reservation() {
                 treasury_holds.push((
                     invocation.clone(),
                     invocation_view.assignment().grant().reservation(),
+                    invocation_view.assignment().grant().reservation_purpose(),
                 ));
+            }
+            if invocation_view.holds_workspace() {
                 workspace_holds.push((
                     invocation.clone(),
-                    invocation_view.assignment().workspace().clone(),
+                    invocation_view.assignment().workspace_accesses().to_vec(),
                 ));
+            }
+            if matches!(
+                invocation_view.status(),
+                execution::InvocationStatus::Started | execution::InvocationStatus::Cancelling
+            ) {
+                start_times.insert(invocation.clone(), now);
             }
         }
         self.treasury
@@ -337,6 +387,14 @@ where
             .lock()
             .expect("workspace lock is available")
             .rebuild_holds(workspace_holds);
+        *self
+            .started_at
+            .lock()
+            .expect("start-time lock is available") = start_times;
+        self.observations
+            .lock()
+            .expect("observation lock is available")
+            .clear();
         Ok(())
     }
 }
@@ -363,11 +421,11 @@ where
         clock: Arc<dyn Clock + Send + Sync>,
     ) -> Self {
         let backend = ScriptedBackend::for_provider(&provider);
-        let scopes = provider.effective_workspaces().to_vec();
+        let accesses = provider.effective_workspace_accesses().to_vec();
         Self::over(
             journal,
             backend,
-            scopes,
+            accesses,
             ScriptedRegistry::new([provider]),
             capacity,
             clock,

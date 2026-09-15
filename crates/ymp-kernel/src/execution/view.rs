@@ -19,6 +19,7 @@ use crate::{HistoryError, JournalEntry, Revision, SessionEvent, SessionId, repla
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct InvocationView {
     assignment: Assignment,
+    start_attempted: bool,
     started: bool,
     cancel_requested: bool,
     uncertain: bool,
@@ -34,6 +35,13 @@ pub struct InvocationView {
 impl InvocationView {
     pub fn assignment(&self) -> &Assignment {
         &self.assignment
+    }
+
+    /// Whether a start attempt is journaled whose outcome has not resolved
+    /// yet. The invocation is still in its admitted phase; a retry resolves
+    /// the attempt through the backend's idempotent start.
+    pub fn start_attempted(&self) -> bool {
+        self.start_attempted && !self.started
     }
 
     /// The derived lifecycle status: `terminated` on the termination
@@ -110,10 +118,17 @@ impl InvocationView {
         self.settled_usage.as_ref()
     }
 
-    /// Whether the invocation still holds its reservation and workspace
-    /// hold: everything admitted but not yet accounted.
+    /// Whether the invocation still holds its reservation: everything
+    /// admitted but not yet accounted.
     pub fn holds_reservation(&self) -> bool {
         self.settled_usage.is_none()
+    }
+
+    /// Whether the invocation still holds its workspace scope. Termination,
+    /// a confirmed never-started failure and effect evidence each release
+    /// this hold independently of reservation settlement.
+    pub fn holds_workspace(&self) -> bool {
+        self.termination.is_none() && self.failed_at_start.is_none() && !self.effect_evidence
     }
 }
 
@@ -185,6 +200,7 @@ pub fn replay_execution(
                     invocation.clone(),
                     InvocationView {
                         assignment: assignment.clone(),
+                        start_attempted: false,
                         started: false,
                         cancel_requested: false,
                         uncertain: false,
@@ -197,6 +213,11 @@ pub fn replay_execution(
                         settled_usage: None,
                     },
                 );
+            }
+            SessionEvent::InvocationStartAttempted { invocation, .. } => {
+                if let Some(view) = invocations.get_mut(invocation) {
+                    view.start_attempted = true;
+                }
             }
             SessionEvent::InvocationStarted { invocation, .. } => {
                 if let Some(view) = invocations.get_mut(invocation) {

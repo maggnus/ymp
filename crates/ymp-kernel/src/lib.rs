@@ -6,7 +6,9 @@ use std::collections::BTreeMap;
 use std::error::Error;
 use std::fmt;
 
-use execution::InvocationId;
+use execution::{
+    InvocationId, ObservedUsage, ReservationPurpose, ResourceAmount, UncertaintyCause,
+};
 use ymp_domain::{SessionId, Task};
 
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
@@ -47,13 +49,23 @@ pub enum SessionEvent {
         session_id: SessionId,
     },
     /// One committed admission: the assignment with its grant, allowance,
-    /// requested and resolved sent settings, and workspace scope.
+    /// reservation purpose, requested and resolved sent settings, and the
+    /// required operations in each workspace scope.
     /// Assignment, grant, allowance, reservation and sent settings appear
     /// together in this one event or not at all.
     AssignmentAdmitted {
         session_id: SessionId,
         invocation: InvocationId,
         assignment: execution::Assignment,
+    },
+    /// The host is about to call the backend's `start` for one admitted
+    /// invocation. This fact is appended before the external start action so
+    /// history never stays at `admitted` while a start may already be in
+    /// flight; a retry that finds the attempt unresolved re-asks the backend
+    /// idempotently instead of starting twice.
+    InvocationStartAttempted {
+        session_id: SessionId,
+        invocation: InvocationId,
     },
     /// The host started one admitted invocation. The sent settings were
     /// resolved and recorded at admission; `start` passes exactly those.
@@ -268,11 +280,53 @@ pub enum HistoryError {
         revision: Revision,
         invocation: InvocationId,
     },
+    /// The admission names one invocation while its assignment record names
+    /// another.
+    AssignmentInvocationMismatch {
+        revision: Revision,
+        invocation: InvocationId,
+        assignment: InvocationId,
+    },
+    /// The assignment's grant is issued for another invocation.
+    GrantInvocationMismatch {
+        revision: Revision,
+        invocation: InvocationId,
+        grant: InvocationId,
+    },
+    /// A reservation contradicts the admitted reservation of the same
+    /// invocation: across the allowance, the grant and the settlement.
+    ReservationMismatch {
+        revision: Revision,
+        invocation: InvocationId,
+        expected: ResourceAmount,
+        actual: ResourceAmount,
+    },
+    /// The grant assigns its reservation to a different purpose than the
+    /// bounded allowance.
+    ReservationPurposeMismatch {
+        revision: Revision,
+        invocation: InvocationId,
+        expected: ReservationPurpose,
+        actual: ReservationPurpose,
+    },
+    /// A settlement records usage that contradicts the invocation's
+    /// observed or failed-at-start usage.
+    SettledUsageMismatch {
+        revision: Revision,
+        invocation: InvocationId,
+    },
+    /// An uncertainty was recorded with a cause that does not match the
+    /// invocation's phase.
+    UncertaintyCauseMismatch {
+        revision: Revision,
+        invocation: InvocationId,
+    },
 }
 
 /// The lifecycle events one invocation records, for error specificity.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum LifecycleEventKind {
+    StartAttempted,
     Started,
     CancellationRequested,
     Observed,
@@ -285,6 +339,7 @@ pub enum LifecycleEventKind {
 impl fmt::Display for LifecycleEventKind {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         let name = match self {
+            Self::StartAttempted => "start attempted",
             Self::Started => "started",
             Self::CancellationRequested => "cancellation requested",
             Self::Observed => "observed",
@@ -351,6 +406,62 @@ impl fmt::Display for HistoryError {
                 "lifecycle event at revision {revision} does not follow invocation \
                  '{invocation}''s recorded state"
             ),
+            Self::AssignmentInvocationMismatch {
+                revision,
+                invocation,
+                assignment,
+            } => write!(
+                formatter,
+                "admission at revision {revision} names invocation '{invocation}' but its \
+                 assignment names '{assignment}'"
+            ),
+            Self::GrantInvocationMismatch {
+                revision,
+                invocation,
+                grant,
+            } => write!(
+                formatter,
+                "admission at revision {revision} of invocation '{invocation}' carries a grant \
+                 issued for '{grant}'"
+            ),
+            Self::ReservationMismatch {
+                revision,
+                invocation,
+                expected,
+                actual,
+            } => write!(
+                formatter,
+                "reservation at revision {revision} of invocation '{invocation}' contradicts its \
+                 admitted reservation: expected {}, actual {}",
+                expected.value(),
+                actual.value()
+            ),
+            Self::ReservationPurposeMismatch {
+                revision,
+                invocation,
+                expected,
+                actual,
+            } => write!(
+                formatter,
+                "reservation at revision {revision} of invocation '{invocation}' contradicts its \
+                 admitted purpose: expected {expected}, actual {actual}"
+            ),
+            Self::SettledUsageMismatch {
+                revision,
+                invocation,
+            } => write!(
+                formatter,
+                "settlement at revision {revision} of invocation '{invocation}' records usage \
+                 that contradicts its observed usage"
+            ),
+            Self::UncertaintyCauseMismatch {
+                revision,
+                invocation,
+            } => write!(
+                formatter,
+                "uncertainty at revision {revision} of invocation '{invocation}' names a cause \
+                 that does not match its phase"
+            ),
         }
     }
 }
@@ -415,7 +526,7 @@ pub fn replay_session(
             SessionEvent::AssignmentAdmitted {
                 session_id,
                 invocation,
-                ..
+                assignment,
             } => {
                 ensure_session_id(stream_id, session_id)?;
                 ensure_opened(&task)?;
@@ -425,7 +536,70 @@ pub fn replay_session(
                         invocation: invocation.clone(),
                     });
                 }
-                invocations.insert(invocation.clone(), InvocationTrack::default());
+                // The admission's identities and reservations are one
+                // fact: the event, the assignment and the grant name the
+                // same invocation, and the grant holds exactly the
+                // allowance's reservation.
+                if assignment.invocation() != invocation {
+                    return Err(HistoryError::AssignmentInvocationMismatch {
+                        revision: entry.revision,
+                        invocation: invocation.clone(),
+                        assignment: assignment.invocation().clone(),
+                    });
+                }
+                if assignment.grant().invocation() != invocation {
+                    return Err(HistoryError::GrantInvocationMismatch {
+                        revision: entry.revision,
+                        invocation: invocation.clone(),
+                        grant: assignment.grant().invocation().clone(),
+                    });
+                }
+                let admitted_reservation = assignment.allowance().reservation();
+                if assignment.grant().reservation() != admitted_reservation {
+                    return Err(HistoryError::ReservationMismatch {
+                        revision: entry.revision,
+                        invocation: invocation.clone(),
+                        expected: admitted_reservation,
+                        actual: assignment.grant().reservation(),
+                    });
+                }
+                let admitted_purpose = assignment.allowance().reservation_purpose();
+                if assignment.grant().reservation_purpose() != admitted_purpose {
+                    return Err(HistoryError::ReservationPurposeMismatch {
+                        revision: entry.revision,
+                        invocation: invocation.clone(),
+                        expected: admitted_purpose,
+                        actual: assignment.grant().reservation_purpose(),
+                    });
+                }
+                invocations.insert(
+                    invocation.clone(),
+                    InvocationTrack {
+                        reservation: Some(admitted_reservation),
+                        ..InvocationTrack::default()
+                    },
+                );
+            }
+            SessionEvent::InvocationStartAttempted {
+                session_id,
+                invocation,
+            } => {
+                ensure_session_id(stream_id, session_id)?;
+                let track = invocation_track(&mut invocations, invocation, entry.revision)?;
+                if track.start_attempted {
+                    return Err(HistoryError::DuplicateLifecycleEvent {
+                        revision: entry.revision,
+                        invocation: invocation.clone(),
+                        event: LifecycleEventKind::StartAttempted,
+                    });
+                }
+                if track.phase() != InvocationReplayPhase::Admitted {
+                    return Err(HistoryError::LifecycleOutOfOrder {
+                        revision: entry.revision,
+                        invocation: invocation.clone(),
+                    });
+                }
+                track.start_attempted = true;
             }
             SessionEvent::InvocationStarted {
                 session_id,
@@ -440,9 +614,7 @@ pub fn replay_session(
                         event: LifecycleEventKind::Started,
                     });
                 }
-                // Observed and accounted imply the invocation left the
-                // admitted phase through another path.
-                if track.observed || track.accounted || track.uncertain {
+                if track.phase() != InvocationReplayPhase::StartAttempted {
                     return Err(HistoryError::LifecycleOutOfOrder {
                         revision: entry.revision,
                         invocation: invocation.clone(),
@@ -453,7 +625,7 @@ pub fn replay_session(
             SessionEvent::InvocationUncertain {
                 session_id,
                 invocation,
-                ..
+                cause,
             } => {
                 ensure_session_id(stream_id, session_id)?;
                 let track = invocation_track(&mut invocations, invocation, entry.revision)?;
@@ -464,8 +636,33 @@ pub fn replay_session(
                         event: LifecycleEventKind::Uncertain,
                     });
                 }
-                if track.observed || track.accounted || track.failed_at_start {
+                if !matches!(
+                    track.phase(),
+                    InvocationReplayPhase::Admitted
+                        | InvocationReplayPhase::StartAttempted
+                        | InvocationReplayPhase::Started
+                        | InvocationReplayPhase::Cancelling
+                ) {
                     return Err(HistoryError::LifecycleOutOfOrder {
+                        revision: entry.revision,
+                        invocation: invocation.clone(),
+                    });
+                }
+                // The cause must match the phase: an unknown start outcome
+                // exists only before a start, and the bounded wait expires
+                // only after one.
+                let cause_matches_phase = matches!(
+                    (track.phase(), cause),
+                    (
+                        InvocationReplayPhase::StartAttempted,
+                        UncertaintyCause::StartOutcomeUnknown
+                    ) | (
+                        InvocationReplayPhase::Started | InvocationReplayPhase::Cancelling,
+                        UncertaintyCause::BoundedWaitExpired
+                    )
+                );
+                if !cause_matches_phase {
+                    return Err(HistoryError::UncertaintyCauseMismatch {
                         revision: entry.revision,
                         invocation: invocation.clone(),
                     });
@@ -485,7 +682,7 @@ pub fn replay_session(
                         event: LifecycleEventKind::CancellationRequested,
                     });
                 }
-                if !track.started || track.observed || track.accounted {
+                if track.phase() != InvocationReplayPhase::Started {
                     return Err(HistoryError::LifecycleOutOfOrder {
                         revision: entry.revision,
                         invocation: invocation.clone(),
@@ -507,8 +704,7 @@ pub fn replay_session(
                         event: LifecycleEventKind::FailedAtStart,
                     });
                 }
-                // Only an invocation that never started can fail at start.
-                if track.started || track.observed || track.uncertain || track.accounted {
+                if track.phase() != InvocationReplayPhase::StartAttempted {
                     return Err(HistoryError::LifecycleOutOfOrder {
                         revision: entry.revision,
                         invocation: invocation.clone(),
@@ -529,8 +725,13 @@ pub fn replay_session(
                         event: LifecycleEventKind::EffectEvidence,
                     });
                 }
-                // Evidence concerns an invocation that has not terminated.
-                if track.observed || track.failed_at_start || track.accounted {
+                if !matches!(
+                    track.phase(),
+                    InvocationReplayPhase::Started
+                        | InvocationReplayPhase::Cancelling
+                        | InvocationReplayPhase::Uncertain
+                ) || !track.started
+                {
                     return Err(HistoryError::LifecycleOutOfOrder {
                         revision: entry.revision,
                         invocation: invocation.clone(),
@@ -541,6 +742,7 @@ pub fn replay_session(
             SessionEvent::InvocationObserved {
                 session_id,
                 invocation,
+                usage,
                 ..
             } => {
                 ensure_session_id(stream_id, session_id)?;
@@ -552,18 +754,23 @@ pub fn replay_session(
                         event: LifecycleEventKind::Observed,
                     });
                 }
-                if track.accounted || track.uncertain || track.failed_at_start {
+                if !matches!(
+                    track.phase(),
+                    InvocationReplayPhase::Started | InvocationReplayPhase::Cancelling
+                ) {
                     return Err(HistoryError::LifecycleOutOfOrder {
                         revision: entry.revision,
                         invocation: invocation.clone(),
                     });
                 }
                 track.observed = true;
+                track.observed_usage = Some(*usage);
             }
             SessionEvent::InvocationAccounted {
                 session_id,
                 invocation,
-                ..
+                usage,
+                reservation,
             } => {
                 ensure_session_id(stream_id, session_id)?;
                 let track = invocation_track(&mut invocations, invocation, entry.revision)?;
@@ -574,8 +781,37 @@ pub fn replay_session(
                         event: LifecycleEventKind::Accounted,
                     });
                 }
-                if !track.observed && !track.failed_at_start {
+                if !matches!(
+                    track.phase(),
+                    InvocationReplayPhase::Terminated | InvocationReplayPhase::FailedAtStart
+                ) {
                     return Err(HistoryError::LifecycleOutOfOrder {
+                        revision: entry.revision,
+                        invocation: invocation.clone(),
+                    });
+                }
+                // The settlement releases exactly the admitted reservation.
+                let admitted = track
+                    .reservation
+                    .expect("an admitted invocation always carries its reservation");
+                if *reservation != admitted {
+                    return Err(HistoryError::ReservationMismatch {
+                        revision: entry.revision,
+                        invocation: invocation.clone(),
+                        expected: admitted,
+                        actual: *reservation,
+                    });
+                }
+                // The settlement records exactly the invocation's usage: a
+                // termination observation settles its observed usage, and a
+                // confirmed never-started failure settles unknown usage.
+                let expected_usage = if track.observed {
+                    track.observed_usage
+                } else {
+                    Some(ObservedUsage::unknown())
+                };
+                if expected_usage != Some(*usage) {
+                    return Err(HistoryError::SettledUsageMismatch {
                         revision: entry.revision,
                         invocation: invocation.clone(),
                     });
@@ -598,17 +834,64 @@ pub fn replay_session(
 }
 
 /// The lifecycle facts one admitted invocation has recorded. `observed`
-/// without `started` is the confirmed never-started failure path;
-/// `uncertain` without `started` is a start error with an unknown outcome.
+/// without `started` is invalid: a termination observation concerns a started
+/// invocation, and the only never-started terminal path is
+/// `failed_at_start`. `uncertain` without `started` is a start error with an
+/// unknown outcome; every start is first journaled as an attempt. The
+/// admitted reservation and observed usage are kept for the settlement's
+/// cross-field validation.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 struct InvocationTrack {
+    start_attempted: bool,
     started: bool,
     cancel_requested: bool,
     uncertain: bool,
     failed_at_start: bool,
     evidence: bool,
     observed: bool,
+    observed_usage: Option<ObservedUsage>,
     accounted: bool,
+    reservation: Option<ResourceAmount>,
+}
+
+/// The mutually exclusive lifecycle phase derived from the recorded facts.
+///
+/// Effect evidence is orthogonal to this phase: it releases the workspace
+/// hold without changing whether the invocation is started, cancelling or
+/// uncertain. Every lifecycle event above checks its permitted source phase
+/// against this table before adding another fact.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum InvocationReplayPhase {
+    Admitted,
+    StartAttempted,
+    Started,
+    Cancelling,
+    Uncertain,
+    FailedAtStart,
+    Terminated,
+    Accounted,
+}
+
+impl InvocationTrack {
+    fn phase(self) -> InvocationReplayPhase {
+        if self.accounted {
+            InvocationReplayPhase::Accounted
+        } else if self.observed {
+            InvocationReplayPhase::Terminated
+        } else if self.failed_at_start {
+            InvocationReplayPhase::FailedAtStart
+        } else if self.uncertain {
+            InvocationReplayPhase::Uncertain
+        } else if self.cancel_requested {
+            InvocationReplayPhase::Cancelling
+        } else if self.started {
+            InvocationReplayPhase::Started
+        } else if self.start_attempted {
+            InvocationReplayPhase::StartAttempted
+        } else {
+            InvocationReplayPhase::Admitted
+        }
+    }
 }
 
 fn ensure_opened(task: &Option<Task>) -> Result<(), HistoryError> {

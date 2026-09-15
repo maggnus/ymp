@@ -2,13 +2,14 @@
 //!
 //! The payload forms are fixed by the durable Journal contract. Version 1
 //! originally defined the two session-lifecycle forms; the bounded
-//! execution slice added the six execution forms additively within the same
-//! version, preserving the original two byte-for-byte:
+//! execution slice added the seven execution forms additively within the
+//! same version, preserving the original two byte-for-byte:
 //!
 //! ```json
 //! {"type":"session_opened","session_id":S,"task":{"id":T,"goal":{"request":G},"acceptance_contract":{"criteria":[{"id":C,"description":D}]},"constraints":{"conditions":[K]}}}
 //! {"type":"session_cancelled","session_id":S}
-//! {"type":"assignment_admitted","session_id":S,"invocation":I,"assignment":{"invocation":I,"agent":A,"role":R,"requested_settings":[{"key":K,"value":V}],"sent_settings":[{"key":K,"value":V}],"allowance":{"reservation":N,"limits":{"max_turns":N,"max_output_chars":N,"max_wall_clock_ms":N}},"grant":{"id":G,"invocation":I,"reservation":N},"workspace":W}}
+//! {"type":"assignment_admitted","session_id":S,"invocation":I,"assignment":{"invocation":I,"agent":A,"role":R,"requested_settings":[{"key":K,"value":V}],"sent_settings":[{"key":K,"value":V}],"allowance":{"reservation":N,"reservation_purpose":"production"|"verification"|"coordination","limits":{"max_turns":N,"max_output_chars":N,"max_wall_clock_ms":N}},"grant":{"id":G,"invocation":I,"reservation":N,"reservation_purpose":"production"|"verification"|"coordination"},"workspace_accesses":[{"scope":W,"operations":["read"|"write"]}]}}
+//! {"type":"invocation_start_attempted","session_id":S,"invocation":I}
 //! {"type":"invocation_started","session_id":S,"invocation":I}
 //! {"type":"invocation_cancellation_requested","session_id":S,"invocation":I}
 //! {"type":"invocation_observed","session_id":S,"invocation":I,"termination":{"outcome":"completed"|"failed"|"cancelled"|"timed_out"[,"error_class":C]},"reported_settings":[...]|null,"usage":{"turns":N|null,"output_chars":N|null,"wall_clock_ms":N|null}}
@@ -40,8 +41,8 @@ use ymp_domain::{
 };
 use ymp_kernel::execution::{
     AgentId, Allowance, Assignment, ErrorClass, Grant, GrantId, InvocationId, InvocationLimits,
-    ObservedUsage, ResourceAmount, Role, SettingKey, SettingValue, Settings, Termination,
-    UncertaintyCause, WorkspaceScope,
+    ObservedUsage, ReservationPurpose, ResourceAmount, Role, SettingKey, SettingValue, Settings,
+    Termination, UncertaintyCause, WorkspaceAccess, WorkspaceOperation, WorkspaceScope,
 };
 use ymp_kernel::{JournalError, SessionEvent};
 
@@ -183,6 +184,7 @@ struct InvocationLimitsDto {
 #[serde(deny_unknown_fields)]
 struct AllowanceDto {
     reservation: u64,
+    reservation_purpose: String,
     limits: InvocationLimitsDto,
 }
 
@@ -192,6 +194,14 @@ struct GrantDto<T> {
     id: T,
     invocation: T,
     reservation: u64,
+    reservation_purpose: T,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct WorkspaceAccessDto<T> {
+    scope: T,
+    operations: Vec<T>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -204,7 +214,7 @@ struct AssignmentDtoOwned<T> {
     sent_settings: Vec<SettingPairDto<T>>,
     allowance: AllowanceDto,
     grant: GrantDto<T>,
-    workspace: T,
+    workspace_accesses: Vec<WorkspaceAccessDto<T>>,
 }
 
 type AssignmentDto<'a> = AssignmentDtoOwned<&'a str>;
@@ -213,8 +223,12 @@ type AssignmentDto<'a> = AssignmentDtoOwned<&'a str>;
 #[serde(deny_unknown_fields)]
 struct TerminationDtoOwned<T> {
     outcome: T,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    error_class: Option<T>,
+    #[serde(
+        default,
+        deserialize_with = "present_field",
+        skip_serializing_if = "Option::is_none"
+    )]
+    error_class: Option<Option<T>>,
 }
 
 type TerminationDto<'a> = TerminationDtoOwned<&'a str>;
@@ -317,6 +331,7 @@ fn build_limits(dto: &InvocationLimitsDto) -> Result<InvocationLimits, String> {
 fn allowance_dto(allowance: &Allowance) -> AllowanceDto {
     AllowanceDto {
         reservation: allowance.reservation().value(),
+        reservation_purpose: allowance.reservation_purpose().as_str().to_owned(),
         limits: limits_dto(allowance.limits()),
     }
 }
@@ -324,6 +339,7 @@ fn allowance_dto(allowance: &Allowance) -> AllowanceDto {
 fn build_allowance(dto: &AllowanceDto) -> Result<Allowance, String> {
     Allowance::new(
         ResourceAmount::new(dto.reservation),
+        build_reservation_purpose(&dto.reservation_purpose)?,
         build_limits(&dto.limits)?,
     )
     .map_err(|error| format!("allowance is not valid: {error}"))
@@ -341,8 +357,20 @@ fn assignment_dto(assignment: &Assignment) -> AssignmentDto<'_> {
             id: assignment.grant().id().as_str(),
             invocation: assignment.grant().invocation().as_str(),
             reservation: assignment.grant().reservation().value(),
+            reservation_purpose: assignment.grant().reservation_purpose().as_str(),
         },
-        workspace: assignment.workspace().as_str(),
+        workspace_accesses: assignment
+            .workspace_accesses()
+            .iter()
+            .map(|access| WorkspaceAccessDto {
+                scope: access.scope().as_str(),
+                operations: access
+                    .operations()
+                    .iter()
+                    .map(|operation| operation.as_str())
+                    .collect(),
+            })
+            .collect(),
     }
 }
 
@@ -357,7 +385,31 @@ fn build_assignment(dto: &AssignmentDtoOwned<String>) -> Result<Assignment, Stri
     if grant_invocation != invocation {
         return Err("grant invocation does not match the assignment invocation".to_owned());
     }
-    Ok(Assignment::new(
+    let allowance = build_allowance(&dto.allowance)?;
+    let grant_reservation = ResourceAmount::new(dto.grant.reservation);
+    if grant_reservation != allowance.reservation() {
+        return Err("grant reservation does not match the allowance".to_owned());
+    }
+    let grant_purpose = build_reservation_purpose(&dto.grant.reservation_purpose)?;
+    if grant_purpose != allowance.reservation_purpose() {
+        return Err("grant reservation purpose does not match the allowance".to_owned());
+    }
+    let workspace_accesses = dto
+        .workspace_accesses
+        .iter()
+        .map(|access| {
+            let scope = WorkspaceScope::new(identifier(access.scope.clone(), "workspace scope")?)
+                .map_err(|error| format!("workspace scope is not valid: {error}"))?;
+            let operations = access
+                .operations
+                .iter()
+                .map(|operation| build_workspace_operation(operation))
+                .collect::<Result<Vec<_>, _>>()?;
+            WorkspaceAccess::new(scope, operations)
+                .map_err(|error| format!("workspace access is not valid: {error}"))
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    Assignment::new(
         invocation,
         AgentId::new(identifier(dto.agent.clone(), "agent")?)
             .map_err(|error| format!("agent ID is not valid: {error}"))?,
@@ -365,16 +417,34 @@ fn build_assignment(dto: &AssignmentDtoOwned<String>) -> Result<Assignment, Stri
             .map_err(|error| format!("role is not valid: {error}"))?,
         build_settings(&dto.requested_settings)?,
         build_settings(&dto.sent_settings)?,
-        build_allowance(&dto.allowance)?,
+        allowance,
         Grant::new(
             GrantId::new(identifier(dto.grant.id.clone(), "grant ID")?)
                 .map_err(|error| format!("grant ID is not valid: {error}"))?,
             grant_invocation,
-            ResourceAmount::new(dto.grant.reservation),
+            grant_reservation,
+            grant_purpose,
         ),
-        WorkspaceScope::new(identifier(dto.workspace.clone(), "workspace")?)
-            .map_err(|error| format!("workspace scope is not valid: {error}"))?,
-    ))
+        workspace_accesses,
+    )
+    .map_err(|error| format!("assignment is not valid: {error}"))
+}
+
+fn build_reservation_purpose(name: &str) -> Result<ReservationPurpose, String> {
+    match name {
+        "production" => Ok(ReservationPurpose::Production),
+        "verification" => Ok(ReservationPurpose::Verification),
+        "coordination" => Ok(ReservationPurpose::Coordination),
+        other => Err(format!("unknown reservation purpose '{other}'")),
+    }
+}
+
+fn build_workspace_operation(name: &str) -> Result<WorkspaceOperation, String> {
+    match name {
+        "read" => Ok(WorkspaceOperation::Read),
+        "write" => Ok(WorkspaceOperation::Write),
+        other => Err(format!("unknown workspace operation '{other}'")),
+    }
 }
 
 fn cause_name(cause: &UncertaintyCause) -> &'static str {
@@ -400,7 +470,7 @@ fn termination_dto(termination: &Termination) -> TerminationDto<'_> {
         },
         Termination::Failed { class } => TerminationDtoOwned {
             outcome: "failed",
-            error_class: Some(class.as_str()),
+            error_class: Some(Some(class.as_str())),
         },
         Termination::Cancelled => TerminationDtoOwned {
             outcome: "cancelled",
@@ -415,20 +485,37 @@ fn termination_dto(termination: &Termination) -> TerminationDto<'_> {
 
 fn build_termination(dto: &TerminationDtoOwned<String>) -> Result<Termination, String> {
     match dto.outcome.as_str() {
-        "completed" => Ok(Termination::Completed),
-        "cancelled" => Ok(Termination::Cancelled),
-        "timed_out" => Ok(Termination::TimedOut),
+        "completed" => {
+            forbid_termination_error_class(dto)?;
+            Ok(Termination::Completed)
+        }
+        "cancelled" => {
+            forbid_termination_error_class(dto)?;
+            Ok(Termination::Cancelled)
+        }
+        "timed_out" => {
+            forbid_termination_error_class(dto)?;
+            Ok(Termination::TimedOut)
+        }
         "failed" => {
-            let class = dto
-                .error_class
-                .clone()
-                .ok_or_else(|| "missing required field 'termination.error_class'".to_owned())?;
+            let class = required(&dto.error_class, "termination.error_class")?.clone();
             Ok(Termination::Failed {
                 class: ErrorClass::new(identifier(class, "termination.error_class")?)
                     .map_err(|error| format!("error class is not valid: {error}"))?,
             })
         }
         other => Err(format!("unknown termination outcome '{other}'")),
+    }
+}
+
+fn forbid_termination_error_class(dto: &TerminationDtoOwned<String>) -> Result<(), String> {
+    if dto.error_class.is_some() {
+        Err(format!(
+            "field 'termination.error_class' is not valid for termination outcome '{}'",
+            dto.outcome
+        ))
+    } else {
+        Ok(())
     }
 }
 
@@ -553,12 +640,24 @@ pub(super) fn encode_event(event: &SessionEvent) -> Result<Vec<u8>, JournalError
             require_limit(assignment.role().as_str())?;
             require_limit(assignment.grant().id().as_str())?;
             require_limit(assignment.grant().invocation().as_str())?;
-            require_limit(assignment.workspace().as_str())?;
+            for access in assignment.workspace_accesses() {
+                require_limit(access.scope().as_str())?;
+            }
             require_settings_limit(assignment.requested_settings())?;
             require_settings_limit(assignment.sent_settings())?;
             let mut dto = base("assignment_admitted", session_id.as_str());
             dto.invocation = Some(invocation.as_str());
             dto.assignment = Some(assignment_dto(assignment));
+            serialize(dto)
+        }
+        SessionEvent::InvocationStartAttempted {
+            session_id,
+            invocation,
+        } => {
+            require_limit(session_id.as_str())?;
+            require_limit(invocation.as_str())?;
+            let mut dto = base("invocation_start_attempted", session_id.as_str());
+            dto.invocation = Some(invocation.as_str());
             serialize(dto)
         }
         SessionEvent::InvocationStarted {
@@ -750,6 +849,26 @@ pub(super) fn decode_payload(bytes: &[u8]) -> Result<SessionEvent, String> {
                 session_id,
                 invocation,
                 assignment,
+            })
+        }
+        "invocation_start_attempted" => {
+            forbid_all(
+                &dto,
+                &[
+                    "task",
+                    "assignment",
+                    "sent_settings",
+                    "termination",
+                    "reported_settings",
+                    "usage",
+                    "cause",
+                    "error_class",
+                    "reservation",
+                ],
+            )?;
+            Ok(SessionEvent::InvocationStartAttempted {
+                session_id,
+                invocation: build_invocation(&dto.invocation)?,
             })
         }
         "invocation_started" => {
@@ -979,6 +1098,7 @@ fn domain_error(field: &str, error: &ymp_domain::DomainError) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json::{Value, json};
 
     fn opened_event() -> SessionEvent {
         let task = Task::new(
@@ -1024,7 +1144,12 @@ mod tests {
     }
 
     fn allowance() -> Allowance {
-        Allowance::new(ResourceAmount::new(5), limits()).expect("valid allowance")
+        Allowance::new(
+            ResourceAmount::new(5),
+            ReservationPurpose::Coordination,
+            limits(),
+        )
+        .expect("valid allowance")
     }
 
     fn assignment() -> Assignment {
@@ -1040,9 +1165,79 @@ mod tests {
                 GrantId::new("grant-1").expect("valid grant ID"),
                 invocation,
                 ResourceAmount::new(5),
+                ReservationPurpose::Coordination,
             ),
-            WorkspaceScope::new("session-primary").expect("valid scope"),
+            vec![
+                WorkspaceAccess::new(
+                    WorkspaceScope::new("session-primary").expect("valid scope"),
+                    [WorkspaceOperation::Read, WorkspaceOperation::Write],
+                )
+                .expect("valid workspace access"),
+                WorkspaceAccess::new(
+                    WorkspaceScope::new("session-review").expect("valid scope"),
+                    [WorkspaceOperation::Read],
+                )
+                .expect("valid workspace access"),
+            ],
         )
+        .expect("valid assignment")
+    }
+
+    fn valid_assignment_payload() -> Value {
+        json!({
+            "type": "assignment_admitted",
+            "session_id": "s1",
+            "invocation": "invocation-1",
+            "assignment": {
+                "invocation": "invocation-1",
+                "agent": "a",
+                "role": "r",
+                "requested_settings": [],
+                "sent_settings": [],
+                "allowance": {
+                    "reservation": 1,
+                    "reservation_purpose": "production",
+                    "limits": {
+                        "max_turns": 1,
+                        "max_output_chars": 1,
+                        "max_wall_clock_ms": 1
+                    }
+                },
+                "grant": {
+                    "id": "grant-1",
+                    "invocation": "invocation-1",
+                    "reservation": 1,
+                    "reservation_purpose": "production"
+                },
+                "workspace_accesses": [{"scope": "w", "operations": ["read"]}]
+            }
+        })
+    }
+
+    fn valid_observed_payload(outcome: &str) -> Value {
+        json!({
+            "type": "invocation_observed",
+            "session_id": "s1",
+            "invocation": "invocation-1",
+            "termination": {"outcome": outcome},
+            "reported_settings": null,
+            "usage": {"turns": null, "output_chars": null, "wall_clock_ms": null}
+        })
+    }
+
+    fn decode_json_payload(payload: &Value) -> Result<SessionEvent, String> {
+        let bytes = serde_json::to_vec(payload).expect("test payload serializes");
+        decode_payload(&bytes)
+    }
+
+    fn assert_json_payload_error(payload: &Value, expected_fragments: &[&str]) {
+        let error = decode_json_payload(payload).expect_err("test payload should be rejected");
+        for fragment in expected_fragments {
+            assert!(
+                error.contains(fragment),
+                "expected error containing '{fragment}', got '{error}'"
+            );
+        }
     }
 
     #[test]
@@ -1056,6 +1251,10 @@ mod tests {
                 session_id: SessionId::new("s1").expect("valid session ID"),
                 invocation: InvocationId::new("invocation-1").expect("valid invocation ID"),
                 assignment: assignment(),
+            },
+            SessionEvent::InvocationStartAttempted {
+                session_id: SessionId::new("s1").expect("valid session ID"),
+                invocation: InvocationId::new("invocation-1").expect("valid invocation ID"),
             },
             SessionEvent::InvocationStarted {
                 session_id: SessionId::new("s1").expect("valid session ID"),
@@ -1131,6 +1330,17 @@ mod tests {
         .expect("payload encodes");
         assert_eq!(payload, again);
 
+        let admitted = encode_event(&SessionEvent::AssignmentAdmitted {
+            session_id: SessionId::new("s1").expect("valid session ID"),
+            invocation: InvocationId::new("invocation-1").expect("valid invocation ID"),
+            assignment: assignment(),
+        })
+        .expect("payload encodes");
+        assert_eq!(
+            admitted,
+            br#"{"type":"assignment_admitted","session_id":"s1","invocation":"invocation-1","assignment":{"invocation":"invocation-1","agent":"claude-opus-5","role":"implementer","requested_settings":[{"key":"effort","value":"high"},{"key":"thinking","value":"on"}],"sent_settings":[{"key":"effort","value":"high"}],"allowance":{"reservation":5,"reservation_purpose":"coordination","limits":{"max_turns":12,"max_output_chars":4096,"max_wall_clock_ms":90000}},"grant":{"id":"grant-1","invocation":"invocation-1","reservation":5,"reservation_purpose":"coordination"},"workspace_accesses":[{"scope":"session-primary","operations":["read","write"]},{"scope":"session-review","operations":["read"]}]}}"#
+        );
+
         let observed = encode_event(&SessionEvent::InvocationObserved {
             session_id: SessionId::new("s1").expect("valid session ID"),
             invocation: InvocationId::new("invocation-2").expect("valid invocation ID"),
@@ -1168,6 +1378,114 @@ mod tests {
     }
 
     #[test]
+    fn decode_rejects_nested_duplicate_field() {
+        let payload = br#"{"type":"session_opened","session_id":"s1","task":{"id":"t","goal":{"request":"g","request":"g"},"acceptance_contract":{"criteria":[{"id":"c","description":"d"}]},"constraints":{"conditions":[]}}}"#;
+        let error = decode_payload(payload).expect_err("nested duplicate should be rejected");
+        assert!(
+            error.contains("duplicate field"),
+            "unexpected error: {error}"
+        );
+        assert!(error.contains("request"), "unexpected error: {error}");
+    }
+
+    #[test]
+    fn decode_rejects_termination_error_class_mismatch() {
+        for outcome in ["completed", "cancelled", "timed_out"] {
+            let valid = valid_observed_payload(outcome);
+            decode_json_payload(&valid).expect("non-error termination without error class decodes");
+
+            let mut with_error_class = valid;
+            with_error_class["termination"]["error_class"] = json!("provider_error");
+            assert_json_payload_error(&with_error_class, &["termination.error_class", outcome]);
+        }
+
+        let mut with_null_error_class = valid_observed_payload("completed");
+        with_null_error_class["termination"]["error_class"] = Value::Null;
+        assert_json_payload_error(
+            &with_null_error_class,
+            &["termination.error_class", "completed"],
+        );
+
+        let mut failed_without_error_class = valid_observed_payload("failed");
+        assert_json_payload_error(
+            &failed_without_error_class,
+            &["missing required field", "termination.error_class"],
+        );
+
+        failed_without_error_class["termination"]["error_class"] = json!("provider_error");
+        decode_json_payload(&failed_without_error_class)
+            .expect("failed termination with error class decodes");
+
+        failed_without_error_class["termination"]["error_class"] = Value::Null;
+        assert_json_payload_error(
+            &failed_without_error_class,
+            &["termination.error_class", "must not be null"],
+        );
+    }
+
+    #[test]
+    fn decode_rejects_inconsistent_assignment_facts() {
+        let valid = valid_assignment_payload();
+        decode_json_payload(&valid).expect("consistent admission decodes");
+
+        let mut event_invocation_mismatch = valid.clone();
+        event_invocation_mismatch["invocation"] = json!("invocation-9");
+        assert_json_payload_error(
+            &event_invocation_mismatch,
+            &["assignment invocation does not match the event invocation"],
+        );
+
+        let mut grant_invocation_mismatch = valid.clone();
+        grant_invocation_mismatch["assignment"]["grant"]["invocation"] = json!("invocation-9");
+        assert_json_payload_error(
+            &grant_invocation_mismatch,
+            &["grant invocation does not match the assignment invocation"],
+        );
+
+        let mut grant_reservation_mismatch = valid.clone();
+        grant_reservation_mismatch["assignment"]["grant"]["reservation"] = json!(2);
+        assert_json_payload_error(
+            &grant_reservation_mismatch,
+            &["grant reservation does not match the allowance"],
+        );
+
+        let mut grant_purpose_mismatch = valid.clone();
+        grant_purpose_mismatch["assignment"]["grant"]["reservation_purpose"] =
+            json!("verification");
+        assert_json_payload_error(
+            &grant_purpose_mismatch,
+            &["grant reservation purpose does not match the allowance"],
+        );
+    }
+
+    #[test]
+    fn malformed_assignment_cases_reach_the_intended_validation() {
+        let valid = valid_assignment_payload();
+
+        let mut missing_sent_settings = valid.clone();
+        missing_sent_settings["assignment"]
+            .as_object_mut()
+            .expect("assignment is an object")
+            .remove("sent_settings");
+        assert_json_payload_error(&missing_sent_settings, &["missing field", "sent_settings"]);
+
+        let mut zero_allowance_reservation = valid.clone();
+        zero_allowance_reservation["assignment"]["allowance"]["reservation"] = json!(0);
+        zero_allowance_reservation["assignment"]["grant"]["reservation"] = json!(0);
+        assert_json_payload_error(
+            &zero_allowance_reservation,
+            &["allowance is not valid", "allowance reservation"],
+        );
+
+        let mut duplicate_setting = valid;
+        duplicate_setting["assignment"]["requested_settings"] = json!([
+            {"key": "effort", "value": "high"},
+            {"key": "effort", "value": "low"}
+        ]);
+        assert_json_payload_error(&duplicate_setting, &["duplicate setting key", "effort"]);
+    }
+
+    #[test]
     fn decode_rejects_malformed_payloads() {
         let cases: Vec<(&str, Vec<u8>)> = vec![
             ("unknown type", br#"{"type":"session_paused","session_id":"s1"}"#.to_vec()),
@@ -1182,10 +1500,6 @@ mod tests {
             (
                 "duplicate field",
                 br#"{"type":"session_cancelled","session_id":"s1","session_id":"s2"}"#.to_vec(),
-            ),
-            (
-                "nested duplicate field",
-                br#"{"type":"session_cancelled","session_id":"s1","session_id":"s1"}"#.to_vec(),
             ),
             ("missing field", br#"{"type":"session_cancelled"}"#.to_vec()),
             (
@@ -1221,12 +1535,12 @@ mod tests {
                 br#"{"type":"session_cancelled","session_id":"s1","invocation":"invocation-1"}"#.to_vec(),
             ),
             (
-                "missing assignment on admitted",
-                br#"{"type":"assignment_admitted","session_id":"s1","invocation":"invocation-1"}"#.to_vec(),
+                "error class on start attempted",
+                br#"{"type":"invocation_start_attempted","session_id":"s1","invocation":"invocation-1","error_class":"c"}"#.to_vec(),
             ),
             (
-                "missing sent settings in assignment",
-                br#"{"type":"assignment_admitted","session_id":"s1","invocation":"invocation-1","assignment":{"invocation":"invocation-1","agent":"a","role":"r","requested_settings":[],"allowance":{"reservation":1,"limits":{"max_turns":1,"max_output_chars":1,"max_wall_clock_ms":1}},"grant":{"id":"grant-1","invocation":"invocation-1","reservation":1},"workspace":"w"}}"#.to_vec(),
+                "missing assignment on admitted",
+                br#"{"type":"assignment_admitted","session_id":"s1","invocation":"invocation-1"}"#.to_vec(),
             ),
             (
                 "null usage on observed",
@@ -1239,10 +1553,6 @@ mod tests {
             (
                 "unknown termination outcome",
                 br#"{"type":"invocation_observed","session_id":"s1","invocation":"invocation-1","termination":{"outcome":"vanished"},"reported_settings":null,"usage":{"turns":null,"output_chars":null,"wall_clock_ms":null}}"#.to_vec(),
-            ),
-            (
-                "failed without error class",
-                br#"{"type":"invocation_observed","session_id":"s1","invocation":"invocation-1","termination":{"outcome":"failed"},"reported_settings":null,"usage":{"turns":null,"output_chars":null,"wall_clock_ms":null}}"#.to_vec(),
             ),
             (
                 "usage missing component",
@@ -1259,18 +1569,6 @@ mod tests {
             (
                 "missing uncertainty cause",
                 br#"{"type":"invocation_uncertain","session_id":"s1","invocation":"invocation-1"}"#.to_vec(),
-            ),
-            (
-                "zero allowance reservation",
-                br#"{"type":"assignment_admitted","session_id":"s1","invocation":"invocation-1","assignment":{"invocation":"invocation-1","agent":"a","role":"r","requested_settings":[],"sent_settings":[],"allowance":{"reservation":0,"limits":{"max_turns":1,"max_output_chars":1,"max_wall_clock_ms":1}},"grant":{"id":"grant-1","invocation":"invocation-1","reservation":1},"workspace":"w"}}"#.to_vec(),
-            ),
-            (
-                "duplicate setting key",
-                br#"{"type":"assignment_admitted","session_id":"s1","invocation":"invocation-1","assignment":{"invocation":"invocation-1","agent":"a","role":"r","requested_settings":[{"key":"effort","value":"high"},{"key":"effort","value":"low"}],"sent_settings":[],"allowance":{"reservation":1,"limits":{"max_turns":1,"max_output_chars":1,"max_wall_clock_ms":1}},"grant":{"id":"grant-1","invocation":"invocation-1","reservation":1},"workspace":"w"}}"#.to_vec(),
-            ),
-            (
-                "grant invocation mismatch",
-                br#"{"type":"assignment_admitted","session_id":"s1","invocation":"invocation-1","assignment":{"invocation":"invocation-1","agent":"a","role":"r","requested_settings":[],"allowance":{"reservation":1,"limits":{"max_turns":1,"max_output_chars":1,"max_wall_clock_ms":1}},"grant":{"id":"grant-1","invocation":"invocation-9","reservation":1},"workspace":"w"}}"#.to_vec(),
             ),
         ];
         for (name, payload) in cases {

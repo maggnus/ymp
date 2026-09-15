@@ -13,7 +13,7 @@ use ymp_kernel::execution::{
     AgentId, BackendCancelRefused, BackendInvocation, BackendStartFailure, ErrorClass,
     ExclusionReason, ExecutionBackend, ExecutionObservation, InvocationId, ModelOffering,
     ObservedUsage, Pool, PoolEntry, Receipt, Registry, RegistryFailure, Settings, Termination,
-    WorkspaceScope,
+    WorkspaceAccess,
 };
 
 /// The scripted provider as one scan reports it.
@@ -23,19 +23,20 @@ pub struct ScriptedProvider {
     offering: ModelOffering,
     ready: bool,
     readiness_detail: String,
-    effective_workspaces: Vec<WorkspaceScope>,
+    effective_workspace_accesses: Vec<WorkspaceAccess>,
 }
 
 impl ScriptedProvider {
     /// A ready provider with one agent, one offering and no effective
-    /// workspaces (add them with [`ScriptedProvider::with_effective_workspaces`]).
+    /// workspace access (add it with
+    /// [`ScriptedProvider::with_effective_workspace_accesses`]).
     pub fn new(agent: AgentId, offering: ModelOffering) -> Self {
         Self {
             agent,
             offering,
             ready: true,
             readiness_detail: "the scripted provider is ready".to_owned(),
-            effective_workspaces: Vec::new(),
+            effective_workspace_accesses: Vec::new(),
         }
     }
 
@@ -47,12 +48,12 @@ impl ScriptedProvider {
         self
     }
 
-    /// States the workspaces the backend can actually enforce access to.
-    pub fn with_effective_workspaces(
+    /// States the per-scope operations the backend can actually enforce.
+    pub fn with_effective_workspace_accesses(
         mut self,
-        scopes: impl IntoIterator<Item = WorkspaceScope>,
+        accesses: impl IntoIterator<Item = WorkspaceAccess>,
     ) -> Self {
-        self.effective_workspaces = scopes.into_iter().collect();
+        self.effective_workspace_accesses = accesses.into_iter().collect();
         self
     }
 
@@ -72,8 +73,8 @@ impl ScriptedProvider {
         &self.readiness_detail
     }
 
-    pub fn effective_workspaces(&self) -> &[WorkspaceScope] {
-        &self.effective_workspaces
+    pub fn effective_workspace_accesses(&self) -> &[WorkspaceAccess] {
+        &self.effective_workspace_accesses
     }
 }
 
@@ -128,6 +129,7 @@ pub struct ScriptedReceiptSpec {
     termination: Termination,
     reported_settings: Option<Settings>,
     usage: ObservedUsage,
+    writes_ended: bool,
     only_after_cancel: bool,
 }
 
@@ -138,6 +140,7 @@ impl ScriptedReceiptSpec {
             termination: Termination::Completed,
             reported_settings,
             usage,
+            writes_ended: false,
             only_after_cancel: false,
         }
     }
@@ -148,6 +151,7 @@ impl ScriptedReceiptSpec {
             termination: Termination::Failed { class },
             reported_settings: None,
             usage,
+            writes_ended: false,
             only_after_cancel: false,
         }
     }
@@ -159,6 +163,7 @@ impl ScriptedReceiptSpec {
             termination: Termination::Cancelled,
             reported_settings: None,
             usage,
+            writes_ended: false,
             only_after_cancel: true,
         }
     }
@@ -170,6 +175,7 @@ impl ScriptedReceiptSpec {
             termination: Termination::TimedOut,
             reported_settings: None,
             usage,
+            writes_ended: false,
             only_after_cancel: false,
         }
     }
@@ -299,6 +305,14 @@ impl ScriptedOutcome {
         }
     }
 
+    /// Adds a writes-ended effect observation to this outcome's receipt.
+    pub fn with_receipt_effect_evidence(mut self) -> Self {
+        if let Some(receipt) = self.receipt.as_mut() {
+            receipt.writes_ended = true;
+        }
+        self
+    }
+
     /// Whether a configured start failure confirms the invocation never
     /// started.
     pub fn start_confirmed_never_started(&self) -> bool {
@@ -309,18 +323,28 @@ impl ScriptedOutcome {
 #[derive(Clone, Debug)]
 struct RunningInvocation {
     outcome: ScriptedOutcome,
-    delivered: usize,
+    /// Index of the first not-yet-consumed observation.
+    consumed: usize,
+    /// Tentative scan cursor: observations in `[consumed, scanned)` were
+    /// read by the current scan and are consumed only by a commit.
+    scanned: usize,
     cancel_requested: bool,
 }
 
 /// A deterministic scripted backend: outcomes are consumed in the order
 /// they were configured, one per started invocation; an unconfigured start
-/// never reports. Every return value is an observation.
+/// never reports. Every return value is an observation. Starts are
+/// idempotent per invocation — a repeated start of the same invocation
+/// returns its first outcome again — and the observation stream is read
+/// one observation at a time through the two-phase scan, so a failed
+/// journal append never loses observations.
 #[derive(Clone, Debug, Default)]
 pub struct ScriptedBackend {
-    effective_workspaces: Vec<WorkspaceScope>,
+    effective_workspace_accesses: Vec<WorkspaceAccess>,
     outcomes: VecDeque<ScriptedOutcome>,
     running: HashMap<InvocationId, RunningInvocation>,
+    /// Resolved start outcomes, for idempotent starts.
+    start_outcomes: HashMap<InvocationId, Result<(), BackendStartFailure>>,
     last_started: Option<BackendInvocation>,
 }
 
@@ -328,9 +352,10 @@ impl ScriptedBackend {
     /// A backend whose effective access is the provider's honest statement.
     pub fn for_provider(provider: &ScriptedProvider) -> Self {
         Self {
-            effective_workspaces: provider.effective_workspaces().to_vec(),
+            effective_workspace_accesses: provider.effective_workspace_accesses().to_vec(),
             outcomes: VecDeque::new(),
             running: HashMap::new(),
+            start_outcomes: HashMap::new(),
             last_started: None,
         }
     }
@@ -346,8 +371,8 @@ impl ScriptedBackend {
         self.outcomes.push_back(outcome);
     }
 
-    pub fn effective_workspaces(&self) -> &[WorkspaceScope] {
-        &self.effective_workspaces
+    pub fn effective_workspace_accesses(&self) -> &[WorkspaceAccess] {
+        &self.effective_workspace_accesses
     }
 
     /// The last accepted start invocation, for asserting that `start`
@@ -376,13 +401,18 @@ impl ScriptedBackend {
 
 impl ExecutionBackend for ScriptedBackend {
     fn start(&mut self, invocation: &BackendInvocation) -> Result<(), BackendStartFailure> {
+        if let Some(resolved) = self.start_outcomes.get(invocation.invocation()) {
+            // Idempotent start: the same invocation returns its first
+            // outcome again instead of consuming a new one.
+            return resolved.clone();
+        }
         let outcome = self
             .outcomes
             .pop_front()
             .unwrap_or_else(ScriptedOutcome::never_reports);
         if let Some(class) = outcome.start_failure.clone() {
             let confirmed = outcome.start_confirmed_never_started();
-            return Err(BackendStartFailure::new(
+            let failure = BackendStartFailure::new(
                 class,
                 confirmed,
                 if confirmed {
@@ -390,17 +420,23 @@ impl ExecutionBackend for ScriptedBackend {
                 } else {
                     "the scripted backend reports a start error with an unknown outcome"
                 },
-            ));
+            );
+            self.start_outcomes
+                .insert(invocation.invocation().clone(), Err(failure.clone()));
+            return Err(failure);
         }
         self.last_started = Some(invocation.clone());
         self.running.insert(
             invocation.invocation().clone(),
             RunningInvocation {
                 outcome,
-                delivered: 0,
+                consumed: 0,
+                scanned: 0,
                 cancel_requested: false,
             },
         );
+        self.start_outcomes
+            .insert(invocation.invocation().clone(), Ok(()));
         Ok(())
     }
 
@@ -416,14 +452,30 @@ impl ExecutionBackend for ScriptedBackend {
         }
     }
 
-    fn events(&mut self, invocation: &InvocationId) -> Vec<ExecutionObservation> {
-        match self.running.get_mut(invocation) {
-            None => Vec::new(),
-            Some(running) => {
-                let pending = running.outcome.stream[running.delivered..].to_vec();
-                running.delivered = running.outcome.stream.len();
-                pending
-            }
+    fn next_event(&mut self, invocation: &InvocationId) -> Option<ExecutionObservation> {
+        let running = self.running.get_mut(invocation)?;
+        let observation = running.outcome.stream.get(running.scanned).cloned()?;
+        running.scanned += 1;
+        Some(observation)
+    }
+
+    fn unread_last(&mut self, invocation: &InvocationId) {
+        if let Some(running) = self.running.get_mut(invocation)
+            && running.scanned > running.consumed
+        {
+            running.scanned -= 1;
+        }
+    }
+
+    fn reset_scan(&mut self, invocation: &InvocationId) {
+        if let Some(running) = self.running.get_mut(invocation) {
+            running.scanned = running.consumed;
+        }
+    }
+
+    fn commit_scan(&mut self, invocation: &InvocationId) {
+        if let Some(running) = self.running.get_mut(invocation) {
+            running.consumed = running.scanned;
         }
     }
 
@@ -437,6 +489,7 @@ impl ExecutionBackend for ScriptedBackend {
             spec.termination.clone(),
             spec.reported_settings.clone(),
             spec.usage,
+            spec.writes_ended,
         ))
     }
 }

@@ -303,6 +303,7 @@ where
         grant_id,
         invocation.clone(),
         request.allowance().reservation(),
+        request.allowance().reservation_purpose(),
     );
     let assignment = Assignment::new(
         invocation,
@@ -312,8 +313,9 @@ where
         sent_settings,
         request.allowance().clone(),
         grant.clone(),
-        request.workspace().clone(),
-    );
+        request.workspace_accesses().to_vec(),
+    )
+    .map_err(AdmissionFailure::InvalidValue)?;
 
     let event = SessionEvent::AssignmentAdmitted {
         session_id: session_id.clone(),
@@ -328,7 +330,7 @@ where
             detail: format!("committed admission could not hold its reservation: {refused}"),
         })?;
     workspace
-        .hold(request.workspace(), assignment.invocation())
+        .hold(request.workspace_accesses(), assignment.invocation())
         .map_err(|conflict| AdmissionFailure::PostCommitConflict {
             detail: format!("committed admission could not take its workspace hold: {conflict}"),
         })?;
@@ -388,7 +390,10 @@ fn commit_resolving_indeterminate<J: Journal>(
     }
 }
 
-/// Everything one invocation start needs.
+/// Everything one invocation start needs. The start input is only the
+/// [`InvocationId`]: every executed parameter comes from the journaled
+/// assignment, so an unrecorded caller-stated setting, agent, workspace or
+/// limit can never reach the backend.
 pub struct StartContext<'a, J, B, T, W>
 where
     J: Journal,
@@ -400,7 +405,7 @@ where
     pub backend: &'a mut B,
     pub session_id: &'a SessionId,
     pub expected_revision: Revision,
-    pub assignment: &'a Assignment,
+    pub invocation: &'a InvocationId,
     pub treasury: &'a mut T,
     pub workspace: &'a mut W,
 }
@@ -425,6 +430,19 @@ pub enum StartOutcome {
 
 /// Starts one admitted invocation with the settings recorded in the
 /// admission batch.
+///
+/// The [`BackendInvocation`] handed to the backend is built exclusively from
+/// the invocation's journaled assignment: agent, sent settings, workspace and
+/// limits all come from the committed admission batch, never from caller
+/// state beside the invocation ID.
+///
+/// The start attempt is journaled before the external start action, so a
+/// competing write or journal error can never leave history at `admitted`
+/// while a process may already be running. If the attempt's outcome append
+/// fails, the invocation stands at a journaled unresolved attempt in its
+/// admitted phase; calling `start_invocation` again re-asks the backend's
+/// idempotent start — which returns the same outcome for the same invocation
+/// — and appends the outcome at the then-current revision.
 pub fn start_invocation<J, B, T, W>(
     context: StartContext<'_, J, B, T, W>,
 ) -> Result<StartOutcome, ExecutionError>
@@ -439,62 +457,75 @@ where
         backend,
         session_id,
         expected_revision,
-        assignment,
+        invocation,
         treasury,
         workspace,
     } = context;
 
     let (_, view) = read_validated(journal, session_id)?;
     ensure_revision(view.revision(), expected_revision)?;
-    let invocation_view = view.invocation(assignment.invocation()).ok_or_else(|| {
-        ExecutionError::UnknownInvocation {
-            session_id: session_id.clone(),
-            invocation: assignment.invocation().clone(),
-        }
-    })?;
+    let invocation_view =
+        view.invocation(invocation)
+            .ok_or_else(|| ExecutionError::UnknownInvocation {
+                session_id: session_id.clone(),
+                invocation: invocation.clone(),
+            })?;
     if invocation_view.status() != InvocationStatus::Admitted {
         return Err(ExecutionError::WrongPhase {
-            invocation: assignment.invocation().clone(),
+            invocation: invocation.clone(),
             actual: invocation_view.status(),
         });
+    }
+
+    let assignment = invocation_view.assignment().clone();
+    let mut base_revision = expected_revision;
+    if !invocation_view.start_attempted() {
+        // The attempt is durable before the external action happens.
+        base_revision = append_events(
+            journal,
+            session_id,
+            expected_revision,
+            vec![SessionEvent::InvocationStartAttempted {
+                session_id: session_id.clone(),
+                invocation: invocation.clone(),
+            }],
+        )?;
     }
 
     let backend_invocation = BackendInvocation::new(
         assignment.invocation().clone(),
         assignment.agent().clone(),
         assignment.sent_settings().clone(),
-        assignment.workspace().clone(),
+        assignment.workspace_accesses().to_vec(),
         *assignment.allowance().limits(),
     );
     match backend.start(&backend_invocation) {
         Err(failure) if failure.confirmed_never_started() => {
             // Terminal failed without a termination observation: the
             // reservation and workspace hold are released and accounting
-            // is permitted.
+            // is permitted. The failure and its settlement land as one
+            // batch, so a competing commit cannot split them.
             let usage = ObservedUsage::unknown();
-            let failed_revision = append_events(
-                journal,
-                session_id,
-                expected_revision,
-                vec![SessionEvent::InvocationFailedAtStart {
-                    session_id: session_id.clone(),
-                    invocation: assignment.invocation().clone(),
-                    class: failure.class().clone(),
-                }],
-            )?;
             append_events(
                 journal,
                 session_id,
-                failed_revision,
-                vec![SessionEvent::InvocationAccounted {
-                    session_id: session_id.clone(),
-                    invocation: assignment.invocation().clone(),
-                    usage,
-                    reservation: assignment.grant().reservation(),
-                }],
+                base_revision,
+                vec![
+                    SessionEvent::InvocationFailedAtStart {
+                        session_id: session_id.clone(),
+                        invocation: invocation.clone(),
+                        class: failure.class().clone(),
+                    },
+                    SessionEvent::InvocationAccounted {
+                        session_id: session_id.clone(),
+                        invocation: invocation.clone(),
+                        usage,
+                        reservation: assignment.grant().reservation(),
+                    },
+                ],
             )?;
-            workspace.release(assignment.invocation());
-            settle_committed_invocation(treasury, session_id, assignment.invocation(), &usage)?;
+            workspace.release(invocation);
+            settle_committed_invocation(treasury, session_id, invocation, &usage)?;
             Ok(StartOutcome::FailedAtStart {
                 class: failure.class().clone(),
             })
@@ -504,10 +535,10 @@ where
             // failure: the invocation stands uncertain.
             let event = SessionEvent::InvocationUncertain {
                 session_id: session_id.clone(),
-                invocation: assignment.invocation().clone(),
+                invocation: invocation.clone(),
                 cause: UncertaintyCause::StartOutcomeUnknown,
             };
-            append_events(journal, session_id, expected_revision, vec![event])?;
+            append_events(journal, session_id, base_revision, vec![event])?;
             Ok(StartOutcome::UncertainAtStart {
                 class: failure.class().clone(),
             })
@@ -515,9 +546,9 @@ where
         Ok(()) => {
             let event = SessionEvent::InvocationStarted {
                 session_id: session_id.clone(),
-                invocation: assignment.invocation().clone(),
+                invocation: invocation.clone(),
             };
-            append_events(journal, session_id, expected_revision, vec![event])?;
+            append_events(journal, session_id, base_revision, vec![event])?;
             Ok(StartOutcome::Started)
         }
     }
@@ -626,6 +657,55 @@ pub struct HostEnforcement {
     pub turns_capped: bool,
 }
 
+/// The host's per-invocation accumulation across observation attempts.
+///
+/// Turn and output bounds are enforced against the totals accumulated over
+/// every attempt, not per attempt: the caller carries the accumulation
+/// returned by one [`ObservationOutcome::WaitingForTermination`] into the
+/// next attempt's [`ObservationContext::prior`], so no sequence of observe
+/// calls can accept output past the size bound or issue observations past
+/// the turn bound. The accumulation is host-side projection state, not a
+/// journal fact: after a restart it begins empty, and the durable usage
+/// record of an invocation is its termination observation.
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct ObservationAccumulation {
+    /// Output characters accepted at the host boundary so far.
+    accepted_output_chars: u64,
+    /// Usage merged from every accepted observation so far.
+    usage: ObservedUsage,
+    /// Settings the backend reported so far, if any.
+    reported_settings: Option<Settings>,
+    /// Whether output was ever refused at the boundary; sticky.
+    output_refused: bool,
+    /// Whether the reported turns ever reached the turn bound; sticky.
+    turns_capped: bool,
+}
+
+impl ObservationAccumulation {
+    /// The usage accumulated so far; unknown components stay unknown.
+    pub fn usage(&self) -> ObservedUsage {
+        self.usage
+    }
+
+    /// The settings reported so far, if the backend reported any.
+    pub fn reported_settings(&self) -> Option<&Settings> {
+        self.reported_settings.as_ref()
+    }
+
+    /// The output characters accepted so far.
+    pub fn accepted_output_chars(&self) -> u64 {
+        self.accepted_output_chars
+    }
+
+    /// What the host enforced so far.
+    pub fn enforcement(&self) -> HostEnforcement {
+        HostEnforcement {
+            output_refused: self.output_refused,
+            turns_capped: self.turns_capped,
+        }
+    }
+}
+
 /// Everything one termination observation needs.
 pub struct ObservationContext<'a, J, B, T, W>
 where
@@ -639,6 +719,9 @@ where
     pub session_id: &'a SessionId,
     pub expected_revision: Revision,
     pub invocation: &'a InvocationId,
+    /// The accumulation carried from every previous attempt of this
+    /// invocation; bounds apply against its totals.
+    pub prior: ObservationAccumulation,
     /// Logical elapsed time when the invocation started.
     pub started_at: Duration,
     /// Logical elapsed time now.
@@ -660,9 +743,11 @@ pub enum ObservationOutcome {
         enforcement: HostEnforcement,
     },
     /// No termination observation exists and the bounded deadline has not
-    /// passed: the invocation keeps waiting.
+    /// passed: the invocation keeps waiting, and the caller carries the
+    /// returned accumulation into the next attempt so the bounds hold
+    /// across attempts.
     WaitingForTermination {
-        partial_usage: ObservedUsage,
+        accumulation: ObservationAccumulation,
         enforcement: HostEnforcement,
     },
     /// The bounded deadline passed without a termination observation: the
@@ -673,11 +758,15 @@ pub enum ObservationOutcome {
 
 /// Observes one in-flight invocation.
 ///
-/// The event stream and the receipt are drained for one termination state;
-/// reported settings are recorded beside requested and sent. A lost stream
+/// The event stream is scanned one observation at a time and the receipt is
+/// asked for one termination state; reported settings are recorded beside
+/// requested and sent. Nothing the scan read is consumed until the append
+/// that records its facts resolves: on a competing write or journal error
+/// the scan is rewound, so the observations survive for the retry. Effect
+/// evidence on the stream is left pending for its own step. A lost stream
 /// or a receipt that never arrives is not a termination: after the bounded
 /// deadline the invocation is recorded `uncertain`, never `timed out`.
-/// Host-enforced limits apply while draining: output past the size bound is
+/// Host-enforced limits apply while scanning: output past the size bound is
 /// refused at the host-controlled boundary, and once reported turns reach
 /// the turn bound no further observations are issued.
 pub fn observe_invocation<J, B, T, W>(
@@ -695,6 +784,7 @@ where
         session_id,
         expected_revision,
         invocation,
+        prior,
         started_at,
         now,
         treasury: _,
@@ -718,37 +808,53 @@ where
     }
     let limits = *invocation_view.assignment().allowance().limits();
 
-    let mut partial_usage = ObservedUsage::unknown();
-    let mut partial_reported: Option<Settings> = None;
-    let mut accepted_output: u64 = 0;
-    let mut enforcement = HostEnforcement::default();
+    // Bounds apply against the totals accumulated across every attempt,
+    // carried in by the caller; the counters never reset per attempt.
+    let mut accumulation = prior;
     let mut termination: Option<Termination> = None;
 
-    for observation in backend.events(invocation) {
-        if enforcement.turns_capped {
+    loop {
+        if accumulation.turns_capped {
             // No further turns are issued past the turn bound.
+            break;
+        }
+        let Some(observation) = backend.next_event(invocation) else {
+            break;
+        };
+        if matches!(observation, ExecutionObservation::WritesEnded) {
+            // Effect evidence is recorded by its own step and stays
+            // pending on the stream.
+            backend.unread_last(invocation);
             break;
         }
         match observation {
             ExecutionObservation::OutputObserved { chars } => {
-                let remaining = limits.max_output_chars().saturating_sub(accepted_output);
+                let remaining = limits
+                    .max_output_chars()
+                    .saturating_sub(accumulation.accepted_output_chars);
                 let accepted = chars.min(remaining);
-                accepted_output += accepted;
+                accumulation.accepted_output_chars += accepted;
                 if accepted < chars {
-                    enforcement.output_refused = true;
+                    accumulation.output_refused = true;
                 }
-                partial_usage = partial_usage.with_output_chars(accepted_output);
+                accumulation.usage = accumulation.usage.with_output_chars(
+                    // The accepted total is the host's own usage report for
+                    // output: what was refused at the boundary was never
+                    // accepted, so it is not counted as observed output.
+                    accumulation.accepted_output_chars,
+                );
             }
             ExecutionObservation::SettingsReported { settings } => {
-                partial_reported = Some(settings);
+                accumulation.reported_settings = Some(settings);
             }
             ExecutionObservation::UsageObserved { usage } => {
-                partial_usage = partial_usage.merge_later(usage);
-                if partial_usage
+                accumulation.usage = accumulation.usage.merge_later(usage);
+                if accumulation
+                    .usage
                     .turns()
                     .is_some_and(|turns| turns >= u64::from(limits.max_turns()))
                 {
-                    enforcement.turns_capped = true;
+                    accumulation.turns_capped = true;
                 }
             }
             ExecutionObservation::Terminated {
@@ -758,20 +864,20 @@ where
                     termination = Some(observed);
                 }
             }
-            // Effect evidence is recorded by its own step; observing it
-            // here changes no accounting or termination fact.
             ExecutionObservation::WritesEnded => {}
         }
     }
 
-    let mut reported_settings = partial_reported;
+    let mut reported_settings = accumulation.reported_settings.clone();
     if termination.is_none()
         && let Some(receipt) = backend.receipt(invocation)
     {
         termination = Some(receipt.termination().clone());
         reported_settings = receipt.reported_settings().cloned().or(reported_settings);
-        partial_usage = partial_usage.merge_later(*receipt.usage());
+        accumulation.usage = accumulation.usage.merge_later(*receipt.usage());
     }
+    let partial_usage = accumulation.usage;
+    let enforcement = accumulation.enforcement();
 
     match termination {
         Some(termination) => {
@@ -782,7 +888,13 @@ where
                 reported_settings: reported_settings.clone(),
                 usage: partial_usage,
             };
-            append_events(journal, session_id, expected_revision, vec![event])?;
+            if let Err(error) = append_events(journal, session_id, expected_revision, vec![event]) {
+                // The append did not resolve: nothing the scan read is
+                // consumed, so the retry sees the same observations.
+                backend.reset_scan(invocation);
+                return Err(error);
+            }
+            backend.commit_scan(invocation);
             // The termination evidence releases the workspace hold; the
             // reservation is settled by its own append.
             workspace.release(invocation);
@@ -802,11 +914,22 @@ where
                     invocation: invocation.clone(),
                     cause: UncertaintyCause::BoundedWaitExpired,
                 };
-                append_events(journal, session_id, expected_revision, vec![event])?;
+                if let Err(error) =
+                    append_events(journal, session_id, expected_revision, vec![event])
+                {
+                    backend.reset_scan(invocation);
+                    return Err(error);
+                }
+                backend.commit_scan(invocation);
                 Ok(ObservationOutcome::UncertainAfterDeadline { partial_usage })
             } else {
+                // No termination observation exists and the deadline has
+                // not passed: the partial facts are delivered to the
+                // caller, which resolves their consumption and carries the
+                // accumulation into the next attempt.
+                backend.commit_scan(invocation);
                 Ok(ObservationOutcome::WaitingForTermination {
-                    partial_usage,
+                    accumulation,
                     enforcement,
                 })
             }
@@ -920,6 +1043,12 @@ pub enum EvidenceOutcome {
 /// evidence, releases the workspace hold and lifts the successor bar in
 /// one journal append. The report is the backend's observation, not kernel
 /// proof that a process stopped writing.
+///
+/// The stream is read at its head: a writes-ended observation behind
+/// pending observations waits until the observation step consumes those
+/// first, and the evidence observation itself is consumed only after the
+/// recording append resolves — a failed append leaves it pending, and no
+/// other observation kind is consumed by this step.
 pub fn record_effect_evidence<J, B, W>(
     context: EvidenceContext<'_, J, B, W>,
 ) -> Result<EvidenceOutcome, ExecutionError>
@@ -962,13 +1091,22 @@ where
         });
     }
 
-    let mut writes_ended = false;
-    for observation in backend.events(invocation) {
-        if matches!(observation, ExecutionObservation::WritesEnded) {
-            writes_ended = true;
-        }
-    }
-    if !writes_ended {
+    let stream_reported = matches!(
+        backend.next_event(invocation),
+        Some(ExecutionObservation::WritesEnded)
+    );
+    let receipt_reported = if stream_reported {
+        false
+    } else {
+        // No writes-ended observation is pending at the stream head;
+        // everything the peek read stays pending. A receipt is an
+        // independent final-report source for the same observation.
+        backend.reset_scan(invocation);
+        backend
+            .receipt(invocation)
+            .is_some_and(|receipt| receipt.writes_ended())
+    };
+    if !stream_reported && !receipt_reported {
         return Ok(EvidenceOutcome::NotObserved);
     }
 
@@ -976,9 +1114,21 @@ where
         session_id: session_id.clone(),
         invocation: invocation.clone(),
     };
-    append_events(journal, session_id, expected_revision, vec![event])?;
-    workspace.release(invocation);
-    Ok(EvidenceOutcome::Recorded)
+    match append_events(journal, session_id, expected_revision, vec![event]) {
+        Ok(_) => {
+            if stream_reported {
+                backend.commit_scan(invocation);
+            }
+            workspace.release(invocation);
+            Ok(EvidenceOutcome::Recorded)
+        }
+        Err(error) => {
+            if stream_reported {
+                backend.reset_scan(invocation);
+            }
+            Err(error)
+        }
+    }
 }
 
 /// Applies one committed settlement to the treasury. The journal append has
