@@ -63,7 +63,7 @@
 
 use std::collections::{HashMap, VecDeque};
 use std::io::{BufRead, BufReader, Read};
-use std::path::Path;
+use std::path::PathBuf;
 use std::process::{Child, Command, ExitStatus, Stdio};
 use std::sync::{Arc, Mutex};
 use std::thread;
@@ -356,6 +356,11 @@ struct CodexRun {
     pid: u32,
     cancel_requested: bool,
     pending: VecDeque<ExecutionObservation>,
+    /// Index of the next observation the current scan will read.
+    scanned: usize,
+    /// Index up to which observations were made consumed by a committed
+    /// journal append; a failed append rewinds `scanned` back here.
+    consumed: usize,
     receipt: Option<Receipt>,
     turns_observed: u64,
     output_chars_observed: u64,
@@ -379,6 +384,8 @@ impl CodexRun {
             pid,
             cancel_requested: false,
             pending: VecDeque::new(),
+            scanned: 0,
+            consumed: 0,
             receipt: None,
             turns_observed: 0,
             output_chars_observed: 0,
@@ -428,7 +435,7 @@ impl CodexRun {
         self.pending.push_back(ExecutionObservation::WritesEnded);
         // The verified event kinds include no settings report: `reported`
         // settings stay unknown.
-        self.receipt = Some(Receipt::new(termination, None, usage));
+        self.receipt = Some(Receipt::new(termination, None, usage, true));
     }
 
     /// Applies one JSONL line to the record; unknown shapes stay unmapped.
@@ -656,10 +663,7 @@ impl CodexBackend {
             .collect()
     }
 
-    fn start_invocation(
-        &mut self,
-        invocation: &BackendInvocation,
-    ) -> Result<(), BackendStartFailure> {
+    fn start_run(&mut self, invocation: &BackendInvocation) -> Result<(), BackendStartFailure> {
         let prompt = self.prompt.as_deref().ok_or_else(|| {
             Self::confirmed_failure(
                 CLASS_MISSING_PROMPT,
@@ -677,13 +681,21 @@ impl CodexBackend {
                 ),
             ));
         }
-        let workspace = Path::new(invocation.workspace().as_str());
+        let accesses = invocation.workspace_accesses();
+        let workspace = if accesses.len() == 1 {
+            PathBuf::from(accesses[0].scope().as_str())
+        } else {
+            return Err(Self::confirmed_failure(
+                CLASS_WORKSPACE_MISSING,
+                "this adapter runs in exactly one workspace scope",
+            ));
+        };
         if !workspace.is_dir() {
             return Err(Self::confirmed_failure(
                 CLASS_WORKSPACE_MISSING,
                 format!(
                     "workspace '{}' is not an existing directory",
-                    invocation.workspace()
+                    workspace.display()
                 ),
             ));
         }
@@ -856,19 +868,46 @@ impl CodexBackend {
 
 impl ExecutionBackend for CodexBackend {
     fn start(&mut self, invocation: &BackendInvocation) -> Result<(), BackendStartFailure> {
-        self.start_invocation(invocation)
+        self.start_run(invocation)
     }
 
     fn cancel(&mut self, invocation: &InvocationId) -> Result<(), BackendCancelRefused> {
         self.cancel_invocation(invocation)
     }
 
-    fn events(&mut self, invocation: &InvocationId) -> Vec<ExecutionObservation> {
-        self.runs
-            .get(invocation)
-            .and_then(|run| run.lock().ok())
-            .map(|mut run| run.pending.drain(..).collect())
-            .unwrap_or_default()
+    fn next_event(&mut self, invocation: &InvocationId) -> Option<ExecutionObservation> {
+        let run = self.runs.get(invocation)?.lock().ok()?;
+        let observation = run.pending.get(run.scanned).cloned()?;
+        drop(run);
+        if let Ok(mut run) = self.runs.get(invocation)?.lock() {
+            run.scanned += 1;
+        }
+        Some(observation)
+    }
+
+    fn unread_last(&mut self, invocation: &InvocationId) {
+        if let Some(handle) = self.runs.get(invocation)
+            && let Ok(mut run) = handle.lock()
+            && run.scanned > run.consumed
+        {
+            run.scanned -= 1;
+        }
+    }
+
+    fn reset_scan(&mut self, invocation: &InvocationId) {
+        if let Some(handle) = self.runs.get(invocation)
+            && let Ok(mut run) = handle.lock()
+        {
+            run.scanned = run.consumed;
+        }
+    }
+
+    fn commit_scan(&mut self, invocation: &InvocationId) {
+        if let Some(handle) = self.runs.get(invocation)
+            && let Ok(mut run) = handle.lock()
+        {
+            run.consumed = run.scanned;
+        }
     }
 
     fn receipt(&mut self, invocation: &InvocationId) -> Option<Receipt> {

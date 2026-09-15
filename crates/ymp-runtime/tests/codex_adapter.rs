@@ -27,7 +27,7 @@ use ymp_runtime::{
     BackendInvocation, CodexBackend, CodexProbe, CodexRegistry, CodexStreamStats, CodexTokenUsage,
     EmptyPoolReason, ErrorClass, ExecutionBackend, ExecutionObservation, InvocationId,
     InvocationLimits, ManualClock, ModelOffering, OfferingId, PoolEligibility, Registry, Settings,
-    Termination, WorkspaceScope,
+    Termination, WorkspaceAccess, WorkspaceOperation, WorkspaceScope,
 };
 
 // ---------------------------------------------------------------- fixtures
@@ -132,10 +132,24 @@ fn limits() -> InvocationLimits {
     InvocationLimits::new(8, 100_000, Duration::from_secs(60)).expect("valid limits")
 }
 
+fn drain_events(backend: &mut CodexBackend, invocation: &InvocationId) -> Vec<ExecutionObservation> {
+    let mut drained = Vec::new();
+    while let Some(observation) = backend.next_event(invocation) {
+        drained.push(observation);
+    }
+    backend.commit_scan(invocation);
+    drained
+}
+
+fn workspace_accesses(scope: WorkspaceScope) -> Vec<WorkspaceAccess> {
+    vec![WorkspaceAccess::new(scope, [WorkspaceOperation::Write])
+        .expect("valid workspace access")]
+}
+
 fn backend_invocation(dir: &FixtureDir, sent_settings: Settings) -> BackendInvocation {
     let workspace = WorkspaceScope::new(dir.path().to_string_lossy().into_owned())
         .expect("valid workspace scope");
-    BackendInvocation::new(invocation(), agent_id(), sent_settings, workspace, limits())
+    BackendInvocation::new(invocation(), agent_id(), sent_settings, workspace_accesses(workspace), limits())
 }
 
 fn backend_for(executable: &Path) -> CodexBackend {
@@ -156,7 +170,7 @@ fn wait_for_observations(
     let deadline = Instant::now() + timeout;
     let mut drained = Vec::new();
     loop {
-        drained.extend(backend.events(&invocation()));
+        drained.extend(drain_events(backend, &invocation()));
         if let Some(receipt) = backend.receipt(&invocation()) {
             return (drained, Some(receipt));
         }
@@ -631,7 +645,7 @@ fn codex_backend_refuses_unsupported_sent_settings() {
         "the refusal names the unsupported key: {}",
         failure.detail()
     );
-    assert!(backend.events(&invocation()).is_empty());
+    assert!(backend.next_event(&invocation()).is_none());
     assert!(backend.receipt(&invocation()).is_none());
 }
 
@@ -668,7 +682,7 @@ fn codex_backend_start_fails_typed_when_workspace_missing() {
     )
     .expect("valid workspace scope");
     let invocation =
-        BackendInvocation::new(invocation(), agent_id(), Settings::new(), missing, limits());
+        BackendInvocation::new(invocation(), agent_id(), Settings::new(), workspace_accesses(missing), limits());
 
     let failure = backend
         .start(&invocation)
@@ -861,8 +875,10 @@ fn codex_real_invocation_completes_with_output() {
         invocation(),
         agent_id(),
         Settings::new(),
-        WorkspaceScope::new(dir.path().to_string_lossy().into_owned())
-            .expect("valid workspace scope"),
+        workspace_accesses(
+            WorkspaceScope::new(dir.path().to_string_lossy().into_owned())
+                .expect("valid workspace scope"),
+        ),
         InvocationLimits::new(4, 4_000, Duration::from_secs(240)).expect("valid limits"),
     );
 
@@ -873,7 +889,7 @@ fn codex_real_invocation_completes_with_output() {
     let deadline = Instant::now() + Duration::from_secs(240);
     let mut observations = Vec::new();
     let receipt = loop {
-        observations.extend(backend.events(real_invocation.invocation()));
+        observations.extend(drain_events(&mut backend, real_invocation.invocation()));
         if let Some(receipt) = backend.receipt(real_invocation.invocation()) {
             break receipt;
         }
