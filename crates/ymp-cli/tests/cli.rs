@@ -167,8 +167,8 @@ fn sigint_cancels_child_and_records_observed_termination_before_exit_130() {
          printf '%s\\n' \"$$\" > \"$YMP_TEST_PROVIDER_PID\"\n\
          /bin/sh -c 'trap \"\" TERM INT; exec >/dev/null 2>&1; exec /bin/sleep 30' &\n\
          descendant=$!\n\
-         printf '%s\\n' \"$descendant\" > \"$YMP_TEST_DESCENDANT_PID\"\n\
          trap 'printf exited > \"$YMP_TEST_PROVIDER_EXITED\"; exit 0' TERM\n\
+         printf '%s\\n' \"$descendant\" > \"$YMP_TEST_DESCENDANT_PID\"\n\
          wait \"$descendant\"\n",
     );
     let _path_spoof = directory.executable("ps", "#!/bin/sh\nexit 0\n");

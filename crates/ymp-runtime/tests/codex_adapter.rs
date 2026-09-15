@@ -343,7 +343,8 @@ fn codex_registry_scan_reports_not_ready_when_version_probe_times_out() {
 fn codex_registry_scan_reports_not_ready_on_probe_failure() {
     let dir = FixtureDir::new("registry-failing");
     let codex = dir.executable("codex", "#!/bin/sh\nexit 7\n");
-    let mut registry = CodexRegistry::new(agent_id(), offering(), codex.to_string_lossy().as_ref());
+    let mut registry = CodexRegistry::new(agent_id(), offering(), codex.to_string_lossy().as_ref())
+        .with_probe_timeout(Duration::from_secs(30));
 
     let pool = registry.scan().expect("the scan runs");
 

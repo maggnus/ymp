@@ -12,11 +12,12 @@ use ymp_runtime::{
     AgentIneligibility, Allowance, Application, ApplicationMetadata, AssignmentRequest,
     BuiltinCheckExecutor, Check, CheckMethod, CodexBackend, CodexRegistry, Constraints, Criterion,
     CriterionEvaluation, CriterionId, CriterionStatus, ErrorClass, Evidence, ExclusionReason,
-    ExecutionBackend, ExecutionScenario, Goal, InvocationId, InvocationLimits, Journal,
-    ModelOffering, ObservationOutcome, ObservedUsage, OfferingId, Registry, ReservationPurpose,
-    ResourceAmount, Role, SessionExecutionView, SessionId, SessionStatus, Settings, StartOutcome,
-    SystemClock, Task, TaskId, Termination, UncertaintyCause, WorkspaceAccess, WorkspaceOperation,
-    WorkspaceScope, application_metadata, read_execution, sha256,
+    ExecutionBackend, ExecutionError, ExecutionScenario, Goal, InvocationId, InvocationLimits,
+    Journal, JournalError, ModelOffering, ObservationOutcome, ObservedUsage, OfferingId, Registry,
+    ReservationPurpose, ResourceAmount, Revision, Role, SessionExecutionView, SessionId,
+    SessionStatus, Settings, StartOutcome, SystemClock, Task, TaskId, Termination,
+    UncertaintyCause, WorkspaceAccess, WorkspaceOperation, WorkspaceScope, application_metadata,
+    read_execution, sha256,
 };
 use ymp_storage::SqliteJournal;
 
@@ -29,6 +30,8 @@ const DEFAULT_RESERVATION: ResourceAmount = ResourceAmount::new(1);
 const OBSERVATION_INTERVAL: Duration = Duration::from_millis(100);
 const CANCELLATION_LEAD: Duration = Duration::from_secs(5);
 const INTERRUPT_WAIT: Duration = Duration::from_secs(5);
+const EXECUTION_WRITE_ATTEMPTS: usize = 3;
+const EXECUTION_WRITE_RETRY_INTERVAL: Duration = Duration::from_millis(25);
 const CODEX_AGENT_ID: &str = "codex";
 const CODEX_OFFERING_ID: &str = "codex-cli-local";
 const IMPLEMENTER_ROLE: &str = "implementer";
@@ -798,15 +801,9 @@ where
         .admit(&session_id, request, opened.revision())
         .map_err(map_admission_failure)?;
     let invocation = assignment.invocation().clone();
-    let revision = scenario
-        .execution_view(&session_id)
-        .map_err(|error| CliFailure::operational(error.to_string()))?
-        .revision();
-
-    match scenario
-        .invoke(&session_id, &invocation, revision)
-        .map_err(|error| CliFailure::operational(error.to_string()))?
-    {
+    match retry_execution_write(scenario, &session_id, &mut wait, |revision| {
+        scenario.invoke(&session_id, &invocation, revision)
+    })? {
         StartOutcome::FailedAtStart { class } => {
             return report_from_history(
                 scenario,
@@ -838,32 +835,19 @@ where
                     .shorten_observation_deadline(&invocation, INTERRUPT_WAIT)
                     .map_err(|error| CliFailure::operational(error.to_string()))?;
             }
-            let revision = scenario
-                .execution_view(&session_id)
-                .map_err(|error| CliFailure::operational(error.to_string()))?
-                .revision();
-            scenario
-                .cancel(&session_id, &invocation, revision)
-                .map_err(|error| CliFailure::operational(error.to_string()))?;
+            retry_execution_write(scenario, &session_id, &mut wait, |revision| {
+                scenario.cancel(&session_id, &invocation, revision)
+            })?;
             cancellation_requested = true;
         }
 
-        let revision = scenario
-            .execution_view(&session_id)
-            .map_err(|error| CliFailure::operational(error.to_string()))?
-            .revision();
-        match scenario
-            .observe(&session_id, &invocation, revision)
-            .map_err(|error| CliFailure::operational(error.to_string()))?
-        {
+        match retry_execution_write(scenario, &session_id, &mut wait, |revision| {
+            scenario.observe(&session_id, &invocation, revision)
+        })? {
             ObservationOutcome::Terminated { termination, .. } => {
-                let revision = scenario
-                    .execution_view(&session_id)
-                    .map_err(|error| CliFailure::operational(error.to_string()))?
-                    .revision();
-                scenario
-                    .settle(&session_id, &invocation, revision)
-                    .map_err(|error| CliFailure::operational(error.to_string()))?;
+                retry_execution_write(scenario, &session_id, &mut wait, |revision| {
+                    scenario.settle(&session_id, &invocation, revision)
+                })?;
                 return report_from_history(
                     scenario,
                     &session_id,
@@ -891,6 +875,46 @@ where
             }
         }
     }
+}
+
+fn retry_execution_write<J, B, R, W, T>(
+    scenario: &ExecutionScenario<J, B, R>,
+    session_id: &SessionId,
+    wait: &mut W,
+    mut operation: impl FnMut(Revision) -> Result<T, ExecutionError>,
+) -> Result<T, CliFailure>
+where
+    J: Journal + Clone,
+    B: ExecutionBackend,
+    R: Registry,
+    W: FnMut(Duration),
+{
+    for attempt in 0..EXECUTION_WRITE_ATTEMPTS {
+        let revision = scenario
+            .execution_view(session_id)
+            .map_err(|error| CliFailure::operational(error.to_string()))?
+            .revision();
+        match operation(revision) {
+            Ok(outcome) => return Ok(outcome),
+            Err(error)
+                if attempt + 1 < EXECUTION_WRITE_ATTEMPTS && retryable_execution_write(&error) =>
+            {
+                wait(EXECUTION_WRITE_RETRY_INTERVAL);
+            }
+            Err(error) => return Err(CliFailure::operational(error.to_string())),
+        }
+    }
+    unreachable!("the execution write loop returns from every final attempt")
+}
+
+fn retryable_execution_write(error: &ExecutionError) -> bool {
+    matches!(
+        error,
+        ExecutionError::StaleRevision { .. }
+            | ExecutionError::Journal(
+                JournalError::AdapterFailure { .. } | JournalError::IndeterminateCommit { .. }
+            )
+    )
 }
 
 fn map_admission_failure(error: AdmissionFailure) -> CliFailure {
@@ -1234,6 +1258,63 @@ mod tests {
         }
     }
 
+    #[derive(Clone)]
+    struct FlakyExecutionJournal {
+        inner: ymp_runtime::MemoryJournal,
+        fail_started: Arc<AtomicBool>,
+        fail_observed: Arc<AtomicBool>,
+        fail_accounted: Arc<AtomicBool>,
+    }
+
+    impl FlakyExecutionJournal {
+        fn new() -> Self {
+            Self {
+                inner: ymp_runtime::MemoryJournal::new(),
+                fail_started: Arc::new(AtomicBool::new(true)),
+                fail_observed: Arc::new(AtomicBool::new(true)),
+                fail_accounted: Arc::new(AtomicBool::new(true)),
+            }
+        }
+
+        fn fail_selected_append(&self, events: &[ymp_runtime::SessionEvent]) -> bool {
+            events.iter().any(|event| match event {
+                ymp_runtime::SessionEvent::InvocationStarted { .. } => {
+                    self.fail_started.swap(false, Ordering::SeqCst)
+                }
+                ymp_runtime::SessionEvent::InvocationObserved { .. } => {
+                    self.fail_observed.swap(false, Ordering::SeqCst)
+                }
+                ymp_runtime::SessionEvent::InvocationAccounted { .. } => {
+                    self.fail_accounted.swap(false, Ordering::SeqCst)
+                }
+                _ => false,
+            })
+        }
+    }
+
+    impl Journal for FlakyExecutionJournal {
+        fn read(
+            &self,
+            session_id: &SessionId,
+        ) -> Result<Vec<ymp_runtime::JournalEntry>, JournalError> {
+            self.inner.read(session_id)
+        }
+
+        fn append(
+            &self,
+            session_id: &SessionId,
+            expected_revision: Revision,
+            events: Vec<ymp_runtime::SessionEvent>,
+        ) -> Result<Revision, JournalError> {
+            if self.fail_selected_append(&events) {
+                return Err(JournalError::AdapterFailure {
+                    message: "injected post-start append failure".to_owned(),
+                });
+            }
+            self.inner.append(session_id, expected_revision, events)
+        }
+    }
+
     fn test_limits() -> InvocationLimits {
         InvocationLimits::new(4, 4_000, Duration::from_secs(60)).expect("valid limits")
     }
@@ -1517,6 +1598,95 @@ mod tests {
             read_execution(&journal, &report.session_id)
                 .expect("execution reads")
                 .invocation_count(),
+            1
+        );
+    }
+
+    #[test]
+    fn run_retries_post_start_writes_and_settlement_without_losing_holds() {
+        let workspace = TestDir::new("post-start-retries-workspace");
+        let workspace = workspace.path().canonicalize().expect("workspace resolves");
+        let access = workspace_access(&workspace, WorkspaceMode::ReadWrite)
+            .expect("workspace access is valid");
+        let provider = ScriptedProvider::new(
+            codex_agent().expect("valid agent"),
+            codex_offering().expect("valid offering"),
+        )
+        .with_effective_workspace_accesses([access.clone()]);
+        let backend = ScriptedBackend::for_provider(&provider)
+            .with_outcome(ScriptedOutcome::completes(
+                None,
+                ObservedUsage::unknown().with_turns(2),
+            ))
+            .with_outcome(ScriptedOutcome::never_reports());
+        let journal = FlakyExecutionJournal::new();
+        let scenario = ExecutionScenario::over(
+            journal.clone(),
+            backend,
+            [access.clone()],
+            ScriptedRegistry::new([provider]),
+            DEFAULT_RESERVATION,
+            Arc::new(ManualClock::new()),
+        );
+        let application = Application::new(journal.clone());
+        let interrupted = AtomicBool::new(false);
+        let mut waits = Vec::new();
+        let report = run_one(
+            &application,
+            &scenario,
+            SessionId::new("session-post-start-retries").expect("valid session ID"),
+            build_task("finish despite transient writes", "post-start-retries")
+                .expect("valid task"),
+            assignment_request(access, test_limits()).expect("valid request"),
+            test_limits(),
+            &interrupted,
+            |duration| waits.push(duration),
+        )
+        .expect("transient execution writes are retried");
+
+        assert_eq!(
+            report.outcome,
+            RunOutcome::Terminated(Termination::Completed)
+        );
+        assert_eq!(report.revision, Revision::new(6));
+        assert_eq!(waits, vec![EXECUTION_WRITE_RETRY_INTERVAL; 3]);
+        assert_eq!(
+            scenario.with_backend(ScriptedBackend::pending_outcomes),
+            1,
+            "an idempotent duplicate start must retain the second outcome"
+        );
+        assert!(scenario.workspace_hold_of(&report.invocation).is_none());
+        assert_eq!(scenario.treasury_held(), ResourceAmount::new(0));
+        let invocation = scenario
+            .execution_view(&report.session_id)
+            .expect("execution history replays")
+            .invocation(&report.invocation)
+            .expect("invocation is recorded")
+            .clone();
+        assert_eq!(
+            invocation.status(),
+            ymp_runtime::InvocationStatus::Terminated
+        );
+        assert_eq!(invocation.settled_usage(), Some(&report.usage));
+        let history = journal.read(&report.session_id).expect("history reads");
+        assert_eq!(
+            history
+                .iter()
+                .filter(|entry| matches!(
+                    entry.event(),
+                    ymp_runtime::SessionEvent::InvocationStarted { .. }
+                ))
+                .count(),
+            1
+        );
+        assert_eq!(
+            history
+                .iter()
+                .filter(|entry| matches!(
+                    entry.event(),
+                    ymp_runtime::SessionEvent::InvocationAccounted { .. }
+                ))
+                .count(),
             1
         );
     }
