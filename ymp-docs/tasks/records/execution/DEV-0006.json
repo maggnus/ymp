@@ -5,11 +5,11 @@
   "title": "Define the bounded native execution contract",
   "type": "design",
   "priority": 60,
-  "status": "new",
+  "status": "in_progress",
   "depends_on": [
     "DEV-0005"
   ],
-  "owner": null,
+  "owner": "maintainer",
   "goal": "Define an implementable contract for one bounded agent execution that preserves native identities, settings, resources, workspace constraints, and uncertain outcomes.",
   "scope": [
     "Specify only the trusted ports and behavior needed by one admitted execution scenario.",
@@ -22,11 +22,13 @@
     "The required execution record distinguishes requested, sent, and observed settings and retains typed provider failures.",
     "The contract requires implementations to state which resource and workspace guarantees are enforced and which remain unknown."
   ],
-  "evidence": [],
+  "evidence": [
+    "ymp-docs/bounded-execution-contract.md"
+  ],
   "context": [
     "This task is intentionally unscheduled until durable session state is implemented and accepted."
   ],
-  "revision": 1,
+  "revision": 5,
   "history": [
     {
       "revision": 1,
@@ -34,6 +36,34 @@
       "actor": "maintainer",
       "status": "new",
       "note": "Recorded as unscheduled future work."
+    },
+    {
+      "revision": 2,
+      "at": "2026-09-15T03:19:10.577141Z",
+      "actor": "maintainer",
+      "status": "planned",
+      "note": "Durable session state is accepted (DEV-0005 done); the bounded execution contract is ready to be authored."
+    },
+    {
+      "revision": 3,
+      "at": "2026-09-15T03:19:10.618555Z",
+      "actor": "maintainer",
+      "status": "in_progress",
+      "note": "Claimed by maintainer."
+    },
+    {
+      "revision": 4,
+      "at": "2026-09-15T03:19:41.538920Z",
+      "actor": "maintainer",
+      "status": "in_progress",
+      "note": "Contract authored as ymp-docs/bounded-execution-contract.md; completion awaits review and integration."
+    },
+    {
+      "revision": 5,
+      "at": "2026-09-15T04:00:11.874172Z",
+      "actor": "maintainer",
+      "status": "in_progress",
+      "note": "R1 review (sol xhigh) RETURN with 8 findings, applied"
     }
   ]
 }
