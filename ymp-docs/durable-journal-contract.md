@@ -1,5 +1,9 @@
 # Durable Journal contract
 
+Status: historical contract of the previous iteration. The code it describes was
+removed from the working tree and is reachable only at git tag `legacy-foundation`;
+it is not delivered scope or a baseline for the new implementation.
+
 This contract records the accepted durable `Journal` adapter, implemented as `SqliteJournal` in
 `crates/ymp-storage` and verified by that crate's acceptance tests through the kernel `Dispatcher`.
 It fixes the port semantics, the typed failure mapping and the indeterminate-commit resolution rule;

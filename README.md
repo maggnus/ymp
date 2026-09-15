@@ -11,7 +11,8 @@ An evolving terminal interface exposes this behavior.
 This iteration starts with a new implementation. The architecture and development
 task tooling are available; no application functionality is credited as delivered.
 Earlier source material and implementation notes are historical references, not a
-baseline to extend or a reason to omit planned work.
+baseline to extend or a reason to omit planned work. The previous iteration's code
+was removed from the working tree and is reachable only at git tag `legacy-foundation`.
 
 ## Product definition
 

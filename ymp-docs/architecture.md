@@ -12,7 +12,7 @@ YMP separates task meaning, trusted decisions, external effects and presentation
 The kernel owns admission and state transitions. Replaceable strategies can choose
 how to work without choosing which rules to bypass.
 
-The executable dependency graph is:
+The crate dependency graph of that earlier implementation was:
 
 ```mermaid
 flowchart TD
@@ -94,10 +94,9 @@ Native model discovery supplies actual identifiers and supported controls.
 Authentication stays in the native environment. Adapters must preserve typed
 failure causes, invocation attribution and incomplete observations.
 
-Durable session state, one bounded native Codex invocation and preliminary
-criterion evaluation by a caller-supplied command are implemented. Immutable
-result capture, final checked-result acceptance and an interactive terminal UI
-remain target capabilities. Their absence is
-explicit in the foundation and command-line output. The product exposes one native
-executable; development tools are not automatically application runtime
-dependencies.
+The earlier implementation provided durable session state, one bounded native
+Codex invocation and preliminary criterion evaluation by a caller-supplied
+command. That code was removed from the working tree for the new iteration and
+remains reachable only at the git tag `legacy-foundation`; nothing from it is
+credited as implemented. The product exposes one native executable; development
+tools are not automatically application runtime dependencies.

@@ -1,5 +1,9 @@
 # Bounded native execution contract
 
+Status: historical contract of the previous iteration. The code it describes was
+removed from the working tree and is reachable only at git tag `legacy-foundation`;
+it is not delivered scope or a baseline for the new implementation.
+
 This contract defines the first executable execution slice. One admitted
 invocation runs from native discovery through admission, execution,
 termination observation and accounting against a scripted `ExecutionBackend`.

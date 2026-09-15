@@ -7,8 +7,10 @@ The model is the single architectural authority; `ymp-docs/domain.md`,
 implementation boundaries and the delivered subset. Keep product prose, code
 comments, examples, and user-facing strings in English.
 
-The workspace specifies its Rust toolchain and dependencies in the checked-in
-toolchain and Cargo manifests. Keep crate dependencies aligned with the approved
+The repository pins its Rust toolchain in the checked-in `rust-toolchain.toml`.
+The Cargo workspace and its manifests are created by task W1-0001; the previous
+iteration's code is reachable only at the git tag `legacy-foundation` and is not
+a baseline. Keep crate dependencies aligned with the approved
 model and its implementation notes, use relative workspace paths,
 and do not introduce machine-specific configuration or undisclosed services.
 
