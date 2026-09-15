@@ -20,9 +20,10 @@ use ymp_kernel::Journal;
 use ymp_runtime::Pool;
 use ymp_runtime::{
     AgentId, Allowance, AssignmentRequest, ExecutionScenario, InvocationStatus, ModelOffering,
-    ObservationOutcome, ObservedUsage, OfferingId, ResourceAmount, Revision, Role, ScriptedOutcome,
-    ScriptedProvider, SessionStatus, SettingKey, SettingValue, Settings, StartOutcome,
-    SupportedControl, Termination, WorkspaceScope,
+    ObservationOutcome, ObservedUsage, OfferingId, ReservationPurpose, ResourceAmount, Revision,
+    Role, ScriptedOutcome, ScriptedProvider, SessionStatus, SettingKey, SettingValue, Settings,
+    StartOutcome, SupportedControl, Termination, WorkspaceAccess, WorkspaceOperation,
+    WorkspaceScope,
 };
 use ymp_storage::SqliteJournal;
 
@@ -51,7 +52,15 @@ fn provider() -> ScriptedProvider {
         AgentId::new("claude-opus-5").expect("valid agent ID"),
         offering(),
     )
-    .with_effective_workspaces([WorkspaceScope::new("session-primary").expect("valid scope")])
+    .with_effective_workspace_accesses([workspace_access()])
+}
+
+fn workspace_access() -> WorkspaceAccess {
+    WorkspaceAccess::new(
+        WorkspaceScope::new("session-primary").expect("valid scope"),
+        [WorkspaceOperation::Read, WorkspaceOperation::Write],
+    )
+    .expect("valid workspace access")
 }
 
 fn request() -> AssignmentRequest {
@@ -65,12 +74,14 @@ fn request() -> AssignmentRequest {
         .expect("valid settings"),
         Allowance::new(
             ResourceAmount::new(4),
+            ReservationPurpose::Production,
             ymp_runtime::InvocationLimits::new(6, 2048, Duration::from_millis(60_000))
                 .expect("valid limits"),
         )
         .expect("valid allowance"),
-        WorkspaceScope::new("session-primary").expect("valid scope"),
+        vec![workspace_access()],
     )
+    .expect("valid assignment request")
 }
 
 #[test]

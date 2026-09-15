@@ -6,7 +6,9 @@ use std::collections::BTreeMap;
 use std::error::Error;
 use std::fmt;
 
-use execution::{InvocationId, ObservedUsage, ResourceAmount, UncertaintyCause};
+use execution::{
+    InvocationId, ObservedUsage, ReservationPurpose, ResourceAmount, UncertaintyCause,
+};
 use ymp_domain::{SessionId, Task};
 
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
@@ -47,7 +49,8 @@ pub enum SessionEvent {
         session_id: SessionId,
     },
     /// One committed admission: the assignment with its grant, allowance,
-    /// requested and resolved sent settings, and workspace scope.
+    /// reservation purpose, requested and resolved sent settings, and the
+    /// required operations in each workspace scope.
     /// Assignment, grant, allowance, reservation and sent settings appear
     /// together in this one event or not at all.
     AssignmentAdmitted {
@@ -298,6 +301,14 @@ pub enum HistoryError {
         expected: ResourceAmount,
         actual: ResourceAmount,
     },
+    /// The grant assigns its reservation to a different purpose than the
+    /// bounded allowance.
+    ReservationPurposeMismatch {
+        revision: Revision,
+        invocation: InvocationId,
+        expected: ReservationPurpose,
+        actual: ReservationPurpose,
+    },
     /// A settlement records usage that contradicts the invocation's
     /// observed or failed-at-start usage.
     SettledUsageMismatch {
@@ -425,6 +436,16 @@ impl fmt::Display for HistoryError {
                 expected.value(),
                 actual.value()
             ),
+            Self::ReservationPurposeMismatch {
+                revision,
+                invocation,
+                expected,
+                actual,
+            } => write!(
+                formatter,
+                "reservation at revision {revision} of invocation '{invocation}' contradicts its \
+                 admitted purpose: expected {expected}, actual {actual}"
+            ),
             Self::SettledUsageMismatch {
                 revision,
                 invocation,
@@ -540,6 +561,15 @@ pub fn replay_session(
                         invocation: invocation.clone(),
                         expected: admitted_reservation,
                         actual: assignment.grant().reservation(),
+                    });
+                }
+                let admitted_purpose = assignment.allowance().reservation_purpose();
+                if assignment.grant().reservation_purpose() != admitted_purpose {
+                    return Err(HistoryError::ReservationPurposeMismatch {
+                        revision: entry.revision,
+                        invocation: invocation.clone(),
+                        expected: admitted_purpose,
+                        actual: assignment.grant().reservation_purpose(),
                     });
                 }
                 invocations.insert(

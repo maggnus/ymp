@@ -13,7 +13,7 @@ use ymp_kernel::execution::{
     AgentId, BackendCancelRefused, BackendInvocation, BackendStartFailure, ErrorClass,
     ExclusionReason, ExecutionBackend, ExecutionObservation, InvocationId, ModelOffering,
     ObservedUsage, Pool, PoolEntry, Receipt, Registry, RegistryFailure, Settings, Termination,
-    WorkspaceScope,
+    WorkspaceAccess,
 };
 
 /// The scripted provider as one scan reports it.
@@ -23,19 +23,20 @@ pub struct ScriptedProvider {
     offering: ModelOffering,
     ready: bool,
     readiness_detail: String,
-    effective_workspaces: Vec<WorkspaceScope>,
+    effective_workspace_accesses: Vec<WorkspaceAccess>,
 }
 
 impl ScriptedProvider {
     /// A ready provider with one agent, one offering and no effective
-    /// workspaces (add them with [`ScriptedProvider::with_effective_workspaces`]).
+    /// workspace access (add it with
+    /// [`ScriptedProvider::with_effective_workspace_accesses`]).
     pub fn new(agent: AgentId, offering: ModelOffering) -> Self {
         Self {
             agent,
             offering,
             ready: true,
             readiness_detail: "the scripted provider is ready".to_owned(),
-            effective_workspaces: Vec::new(),
+            effective_workspace_accesses: Vec::new(),
         }
     }
 
@@ -47,12 +48,12 @@ impl ScriptedProvider {
         self
     }
 
-    /// States the workspaces the backend can actually enforce access to.
-    pub fn with_effective_workspaces(
+    /// States the per-scope operations the backend can actually enforce.
+    pub fn with_effective_workspace_accesses(
         mut self,
-        scopes: impl IntoIterator<Item = WorkspaceScope>,
+        accesses: impl IntoIterator<Item = WorkspaceAccess>,
     ) -> Self {
-        self.effective_workspaces = scopes.into_iter().collect();
+        self.effective_workspace_accesses = accesses.into_iter().collect();
         self
     }
 
@@ -72,8 +73,8 @@ impl ScriptedProvider {
         &self.readiness_detail
     }
 
-    pub fn effective_workspaces(&self) -> &[WorkspaceScope] {
-        &self.effective_workspaces
+    pub fn effective_workspace_accesses(&self) -> &[WorkspaceAccess] {
+        &self.effective_workspace_accesses
     }
 }
 
@@ -128,6 +129,7 @@ pub struct ScriptedReceiptSpec {
     termination: Termination,
     reported_settings: Option<Settings>,
     usage: ObservedUsage,
+    writes_ended: bool,
     only_after_cancel: bool,
 }
 
@@ -138,6 +140,7 @@ impl ScriptedReceiptSpec {
             termination: Termination::Completed,
             reported_settings,
             usage,
+            writes_ended: false,
             only_after_cancel: false,
         }
     }
@@ -148,6 +151,7 @@ impl ScriptedReceiptSpec {
             termination: Termination::Failed { class },
             reported_settings: None,
             usage,
+            writes_ended: false,
             only_after_cancel: false,
         }
     }
@@ -159,6 +163,7 @@ impl ScriptedReceiptSpec {
             termination: Termination::Cancelled,
             reported_settings: None,
             usage,
+            writes_ended: false,
             only_after_cancel: true,
         }
     }
@@ -170,6 +175,7 @@ impl ScriptedReceiptSpec {
             termination: Termination::TimedOut,
             reported_settings: None,
             usage,
+            writes_ended: false,
             only_after_cancel: false,
         }
     }
@@ -299,6 +305,14 @@ impl ScriptedOutcome {
         }
     }
 
+    /// Adds a writes-ended effect observation to this outcome's receipt.
+    pub fn with_receipt_effect_evidence(mut self) -> Self {
+        if let Some(receipt) = self.receipt.as_mut() {
+            receipt.writes_ended = true;
+        }
+        self
+    }
+
     /// Whether a configured start failure confirms the invocation never
     /// started.
     pub fn start_confirmed_never_started(&self) -> bool {
@@ -326,7 +340,7 @@ struct RunningInvocation {
 /// journal append never loses observations.
 #[derive(Clone, Debug, Default)]
 pub struct ScriptedBackend {
-    effective_workspaces: Vec<WorkspaceScope>,
+    effective_workspace_accesses: Vec<WorkspaceAccess>,
     outcomes: VecDeque<ScriptedOutcome>,
     running: HashMap<InvocationId, RunningInvocation>,
     /// Resolved start outcomes, for idempotent starts.
@@ -338,7 +352,7 @@ impl ScriptedBackend {
     /// A backend whose effective access is the provider's honest statement.
     pub fn for_provider(provider: &ScriptedProvider) -> Self {
         Self {
-            effective_workspaces: provider.effective_workspaces().to_vec(),
+            effective_workspace_accesses: provider.effective_workspace_accesses().to_vec(),
             outcomes: VecDeque::new(),
             running: HashMap::new(),
             start_outcomes: HashMap::new(),
@@ -357,8 +371,8 @@ impl ScriptedBackend {
         self.outcomes.push_back(outcome);
     }
 
-    pub fn effective_workspaces(&self) -> &[WorkspaceScope] {
-        &self.effective_workspaces
+    pub fn effective_workspace_accesses(&self) -> &[WorkspaceAccess] {
+        &self.effective_workspace_accesses
     }
 
     /// The last accepted start invocation, for asserting that `start`
@@ -475,6 +489,7 @@ impl ExecutionBackend for ScriptedBackend {
             spec.termination.clone(),
             spec.reported_settings.clone(),
             spec.usage,
+            spec.writes_ended,
         ))
     }
 }

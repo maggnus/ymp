@@ -61,8 +61,8 @@ pub use types::{
     AdmissionDenial, AgentId, AgentIneligibility, Allowance, Assignment, AssignmentRequest,
     EmptyPoolReason, ErrorClass, ExclusionReason, ExecutionProfile, ExecutionTypeError, Grant,
     GrantId, IndependenceConflict, InvocationId, InvocationLimits, InvocationStatus, ModelOffering,
-    ObservedUsage, OfferingId, Pool, PoolEligibility, PoolEntry, ResourceAmount, Role, SettingKey,
-    SettingValue, Settings, SupportedControl, Termination, UncertaintyCause,
-    WorkspaceAccessRefusal, WorkspaceScope,
+    ObservedUsage, OfferingId, Pool, PoolEligibility, PoolEntry, ReservationPurpose,
+    ResourceAmount, Role, SettingKey, SettingValue, Settings, SupportedControl, Termination,
+    UncertaintyCause, WorkspaceAccess, WorkspaceAccessRefusal, WorkspaceOperation, WorkspaceScope,
 };
 pub use view::{InvocationView, SessionExecutionView, replay_execution};

@@ -13,7 +13,9 @@ use std::collections::BTreeMap;
 use std::time::Duration;
 
 use super::ports::{ReserveRefused, SettleRefused, Treasury};
-use super::types::{Grant, InvocationId, ObservedUsage, ResourceAmount, Termination};
+use super::types::{
+    Grant, InvocationId, ObservedUsage, ReservationPurpose, ResourceAmount, Termination,
+};
 use crate::SessionEvent;
 
 /// Aggregated observed usage across invocations.
@@ -176,7 +178,7 @@ impl AccountingFold {
 #[derive(Clone, Debug)]
 pub struct LedgerTreasury {
     capacity: ResourceAmount,
-    holds: BTreeMap<InvocationId, ResourceAmount>,
+    holds: BTreeMap<InvocationId, (ResourceAmount, ReservationPurpose)>,
     settled_usage: BTreeMap<InvocationId, ObservedUsage>,
 }
 
@@ -192,20 +194,23 @@ impl LedgerTreasury {
     /// Rebuilds the ledger's holds from replayed history; existing state is
     /// cleared. Settled usage of already-accounted invocations is retained
     /// for [`Treasury::settle`] idempotence checks.
-    pub fn rebuild(&mut self, holds: impl IntoIterator<Item = (InvocationId, ResourceAmount)>) {
+    pub fn rebuild(
+        &mut self,
+        holds: impl IntoIterator<Item = (InvocationId, ResourceAmount, ReservationPurpose)>,
+    ) {
         self.holds.clear();
-        for (invocation, amount) in holds {
-            self.holds.insert(invocation, amount);
+        for (invocation, amount, purpose) in holds {
+            self.holds.insert(invocation, (amount, purpose));
         }
     }
 
-    /// The reservations currently held, by invocation.
-    pub fn holds(&self) -> &BTreeMap<InvocationId, ResourceAmount> {
+    /// The reservation amounts and purposes currently held, by invocation.
+    pub fn holds(&self) -> &BTreeMap<InvocationId, (ResourceAmount, ReservationPurpose)> {
         &self.holds
     }
 
     fn held_total(&self) -> u64 {
-        self.holds.values().map(|amount| amount.value()).sum()
+        self.holds.values().map(|(amount, _)| amount.value()).sum()
     }
 
     fn available(&self) -> ResourceAmount {
@@ -222,16 +227,19 @@ impl Treasury for LedgerTreasury {
         ResourceAmount::new(self.held_total())
     }
 
-    fn can_hold(&self, amount: ResourceAmount) -> bool {
+    fn can_hold(&self, amount: ResourceAmount, _purpose: ReservationPurpose) -> bool {
         self.available().value() >= amount.value()
     }
 
     fn reserve(&mut self, grant: &Grant) -> Result<(), ReserveRefused> {
         let requested = grant.reservation();
-        if !self.can_hold(requested) {
+        if !self.can_hold(requested, grant.reservation_purpose()) {
             return Err(ReserveRefused::new(requested, self.available()));
         }
-        self.holds.insert(grant.invocation().clone(), requested);
+        self.holds.insert(
+            grant.invocation().clone(),
+            (requested, grant.reservation_purpose()),
+        );
         Ok(())
     }
 
@@ -241,7 +249,7 @@ impl Treasury for LedgerTreasury {
         usage: &ObservedUsage,
     ) -> Result<ResourceAmount, SettleRefused> {
         match self.holds.remove(invocation) {
-            Some(amount) => {
+            Some((amount, _purpose)) => {
                 self.settled_usage.insert(invocation.clone(), *usage);
                 Ok(amount)
             }

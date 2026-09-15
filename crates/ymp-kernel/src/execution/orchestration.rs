@@ -303,6 +303,7 @@ where
         grant_id,
         invocation.clone(),
         request.allowance().reservation(),
+        request.allowance().reservation_purpose(),
     );
     let assignment = Assignment::new(
         invocation,
@@ -312,8 +313,9 @@ where
         sent_settings,
         request.allowance().clone(),
         grant.clone(),
-        request.workspace().clone(),
-    );
+        request.workspace_accesses().to_vec(),
+    )
+    .map_err(AdmissionFailure::InvalidValue)?;
 
     let event = SessionEvent::AssignmentAdmitted {
         session_id: session_id.clone(),
@@ -328,7 +330,7 @@ where
             detail: format!("committed admission could not hold its reservation: {refused}"),
         })?;
     workspace
-        .hold(request.workspace(), assignment.invocation())
+        .hold(request.workspace_accesses(), assignment.invocation())
         .map_err(|conflict| AdmissionFailure::PostCommitConflict {
             detail: format!("committed admission could not take its workspace hold: {conflict}"),
         })?;
@@ -494,7 +496,7 @@ where
         assignment.invocation().clone(),
         assignment.agent().clone(),
         assignment.sent_settings().clone(),
-        assignment.workspace().clone(),
+        assignment.workspace_accesses().to_vec(),
         *assignment.allowance().limits(),
     );
     match backend.start(&backend_invocation) {
@@ -1089,13 +1091,22 @@ where
         });
     }
 
-    if !matches!(
+    let stream_reported = matches!(
         backend.next_event(invocation),
         Some(ExecutionObservation::WritesEnded)
-    ) {
+    );
+    let receipt_reported = if stream_reported {
+        false
+    } else {
         // No writes-ended observation is pending at the stream head;
-        // everything the peek read stays pending.
+        // everything the peek read stays pending. A receipt is an
+        // independent final-report source for the same observation.
         backend.reset_scan(invocation);
+        backend
+            .receipt(invocation)
+            .is_some_and(|receipt| receipt.writes_ended())
+    };
+    if !stream_reported && !receipt_reported {
         return Ok(EvidenceOutcome::NotObserved);
     }
 
@@ -1105,12 +1116,16 @@ where
     };
     match append_events(journal, session_id, expected_revision, vec![event]) {
         Ok(_) => {
-            backend.commit_scan(invocation);
+            if stream_reported {
+                backend.commit_scan(invocation);
+            }
             workspace.release(invocation);
             Ok(EvidenceOutcome::Recorded)
         }
         Err(error) => {
-            backend.reset_scan(invocation);
+            if stream_reported {
+                backend.reset_scan(invocation);
+            }
             Err(error)
         }
     }

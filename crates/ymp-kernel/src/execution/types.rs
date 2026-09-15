@@ -19,6 +19,7 @@ use crate::Revision;
 pub enum ExecutionTypeError {
     BlankText { field: &'static str },
     ZeroBound { field: &'static str },
+    EmptyCollection { field: &'static str },
     DuplicateKey { field: &'static str, key: String },
 }
 
@@ -27,6 +28,9 @@ impl fmt::Display for ExecutionTypeError {
         match self {
             Self::BlankText { field } => write!(formatter, "{field} must not be blank"),
             Self::ZeroBound { field } => write!(formatter, "{field} must be greater than zero"),
+            Self::EmptyCollection { field } => {
+                write!(formatter, "{field} must contain at least one value")
+            }
             Self::DuplicateKey { field, key } => {
                 write!(formatter, "{field} '{key}' must be unique")
             }
@@ -110,6 +114,98 @@ execution_identifier!(
     OfferingId,
     "offering ID"
 );
+
+/// An operation required within one workspace scope.
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub enum WorkspaceOperation {
+    Read,
+    Write,
+}
+
+impl WorkspaceOperation {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Read => "read",
+            Self::Write => "write",
+        }
+    }
+}
+
+impl fmt::Display for WorkspaceOperation {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(self.as_str())
+    }
+}
+
+/// The operations one assignment requires in one workspace scope.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct WorkspaceAccess {
+    scope: WorkspaceScope,
+    operations: Vec<WorkspaceOperation>,
+}
+
+impl WorkspaceAccess {
+    /// Builds one per-scope requirement. At least one operation is required,
+    /// and repeated operations are rejected rather than silently collapsed.
+    pub fn new(
+        scope: WorkspaceScope,
+        operations: impl IntoIterator<Item = WorkspaceOperation>,
+    ) -> Result<Self, ExecutionTypeError> {
+        let mut unique: std::collections::BTreeSet<WorkspaceOperation> =
+            std::collections::BTreeSet::new();
+        let mut collected: Vec<WorkspaceOperation> = Vec::new();
+        for operation in operations {
+            if !unique.insert(operation) {
+                return Err(ExecutionTypeError::DuplicateKey {
+                    field: "workspace operation",
+                    key: operation.to_string(),
+                });
+            }
+            collected.push(operation);
+        }
+        if collected.is_empty() {
+            return Err(ExecutionTypeError::EmptyCollection {
+                field: "workspace operations",
+            });
+        }
+        Ok(Self {
+            scope,
+            operations: collected,
+        })
+    }
+
+    pub fn scope(&self) -> &WorkspaceScope {
+        &self.scope
+    }
+
+    pub fn operations(&self) -> &[WorkspaceOperation] {
+        &self.operations
+    }
+}
+
+/// Why reservation capacity is held for an assignment.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ReservationPurpose {
+    Production,
+    Verification,
+    Coordination,
+}
+
+impl ReservationPurpose {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Production => "production",
+            Self::Verification => "verification",
+            Self::Coordination => "coordination",
+        }
+    }
+}
+
+impl fmt::Display for ReservationPurpose {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(self.as_str())
+    }
+}
 
 /// A set of execution settings keyed by native names.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
@@ -436,11 +532,12 @@ impl InvocationLimits {
     }
 }
 
-/// The bounded allowance one admission grants: a reservation and the
-/// per-invocation limits bound to it.
+/// The bounded allowance one admission grants: a reservation with its
+/// purpose and the per-invocation limits bound to it.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Allowance {
     reservation: ResourceAmount,
+    reservation_purpose: ReservationPurpose,
     limits: InvocationLimits,
 }
 
@@ -448,6 +545,7 @@ impl Allowance {
     /// A reservation of zero is not a bounded allowance.
     pub fn new(
         reservation: ResourceAmount,
+        reservation_purpose: ReservationPurpose,
         limits: InvocationLimits,
     ) -> Result<Self, ExecutionTypeError> {
         if reservation.value() == 0 {
@@ -457,6 +555,7 @@ impl Allowance {
         }
         Ok(Self {
             reservation,
+            reservation_purpose,
             limits,
         })
     }
@@ -465,26 +564,37 @@ impl Allowance {
         self.reservation
     }
 
+    pub const fn reservation_purpose(&self) -> ReservationPurpose {
+        self.reservation_purpose
+    }
+
     pub fn limits(&self) -> &InvocationLimits {
         &self.limits
     }
 }
 
 /// The grant one committed admission issues: evidence that the reservation
-/// is held for exactly this invocation.
+/// is held for exactly this invocation and purpose.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Grant {
     id: GrantId,
     invocation: InvocationId,
     reservation: ResourceAmount,
+    reservation_purpose: ReservationPurpose,
 }
 
 impl Grant {
-    pub fn new(id: GrantId, invocation: InvocationId, reservation: ResourceAmount) -> Self {
+    pub fn new(
+        id: GrantId,
+        invocation: InvocationId,
+        reservation: ResourceAmount,
+        reservation_purpose: ReservationPurpose,
+    ) -> Self {
         Self {
             id,
             invocation,
             reservation,
+            reservation_purpose,
         }
     }
 
@@ -499,6 +609,10 @@ impl Grant {
     pub fn reservation(&self) -> ResourceAmount {
         self.reservation
     }
+
+    pub const fn reservation_purpose(&self) -> ReservationPurpose {
+        self.reservation_purpose
+    }
 }
 
 /// An assignment request as the session caller states it.
@@ -508,7 +622,7 @@ pub struct AssignmentRequest {
     role: Role,
     requested_settings: Settings,
     allowance: Allowance,
-    workspace: WorkspaceScope,
+    workspace_accesses: Vec<WorkspaceAccess>,
 }
 
 impl AssignmentRequest {
@@ -517,15 +631,16 @@ impl AssignmentRequest {
         role: Role,
         requested_settings: Settings,
         allowance: Allowance,
-        workspace: WorkspaceScope,
-    ) -> Self {
-        Self {
+        workspace_accesses: Vec<WorkspaceAccess>,
+    ) -> Result<Self, ExecutionTypeError> {
+        validate_workspace_accesses(&workspace_accesses)?;
+        Ok(Self {
             agent,
             role,
             requested_settings,
             allowance,
-            workspace,
-        }
+            workspace_accesses,
+        })
     }
 
     pub fn agent(&self) -> &AgentId {
@@ -544,15 +659,16 @@ impl AssignmentRequest {
         &self.allowance
     }
 
-    pub fn workspace(&self) -> &WorkspaceScope {
-        &self.workspace
+    pub fn workspace_accesses(&self) -> &[WorkspaceAccess] {
+        &self.workspace_accesses
     }
 }
 
 /// A committed admission: one assignment carrying its assignment-scoped
 /// role, bounded allowance, grant, and the sent settings resolved during
 /// admission from the requested settings and the offering's reported
-/// controls. `start` passes exactly these recorded settings.
+/// controls, plus the required operations in each workspace scope. `start`
+/// passes exactly these recorded values.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Assignment {
     invocation: InvocationId,
@@ -562,7 +678,7 @@ pub struct Assignment {
     sent_settings: Settings,
     allowance: Allowance,
     grant: Grant,
-    workspace: WorkspaceScope,
+    workspace_accesses: Vec<WorkspaceAccess>,
 }
 
 impl Assignment {
@@ -576,9 +692,10 @@ impl Assignment {
         sent_settings: Settings,
         allowance: Allowance,
         grant: Grant,
-        workspace: WorkspaceScope,
-    ) -> Self {
-        Self {
+        workspace_accesses: Vec<WorkspaceAccess>,
+    ) -> Result<Self, ExecutionTypeError> {
+        validate_workspace_accesses(&workspace_accesses)?;
+        Ok(Self {
             invocation,
             agent,
             role,
@@ -586,8 +703,8 @@ impl Assignment {
             sent_settings,
             allowance,
             grant,
-            workspace,
-        }
+            workspace_accesses,
+        })
     }
 
     pub fn invocation(&self) -> &InvocationId {
@@ -620,9 +737,29 @@ impl Assignment {
         &self.grant
     }
 
-    pub fn workspace(&self) -> &WorkspaceScope {
-        &self.workspace
+    pub fn workspace_accesses(&self) -> &[WorkspaceAccess] {
+        &self.workspace_accesses
     }
+}
+
+fn validate_workspace_accesses(
+    workspace_accesses: &[WorkspaceAccess],
+) -> Result<(), ExecutionTypeError> {
+    if workspace_accesses.is_empty() {
+        return Err(ExecutionTypeError::EmptyCollection {
+            field: "workspace accesses",
+        });
+    }
+    let mut scopes = std::collections::BTreeSet::new();
+    for access in workspace_accesses {
+        if !scopes.insert(access.scope()) {
+            return Err(ExecutionTypeError::DuplicateKey {
+                field: "workspace scope",
+                key: access.scope().to_string(),
+            });
+        }
+    }
+    Ok(())
 }
 
 /// Why an agent in the request cannot serve this assignment.

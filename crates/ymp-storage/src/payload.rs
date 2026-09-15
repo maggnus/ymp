@@ -8,7 +8,7 @@
 //! ```json
 //! {"type":"session_opened","session_id":S,"task":{"id":T,"goal":{"request":G},"acceptance_contract":{"criteria":[{"id":C,"description":D}]},"constraints":{"conditions":[K]}}}
 //! {"type":"session_cancelled","session_id":S}
-//! {"type":"assignment_admitted","session_id":S,"invocation":I,"assignment":{"invocation":I,"agent":A,"role":R,"requested_settings":[{"key":K,"value":V}],"sent_settings":[{"key":K,"value":V}],"allowance":{"reservation":N,"limits":{"max_turns":N,"max_output_chars":N,"max_wall_clock_ms":N}},"grant":{"id":G,"invocation":I,"reservation":N},"workspace":W}}
+//! {"type":"assignment_admitted","session_id":S,"invocation":I,"assignment":{"invocation":I,"agent":A,"role":R,"requested_settings":[{"key":K,"value":V}],"sent_settings":[{"key":K,"value":V}],"allowance":{"reservation":N,"reservation_purpose":"production"|"verification"|"coordination","limits":{"max_turns":N,"max_output_chars":N,"max_wall_clock_ms":N}},"grant":{"id":G,"invocation":I,"reservation":N,"reservation_purpose":"production"|"verification"|"coordination"},"workspace_accesses":[{"scope":W,"operations":["read"|"write"]}]}}
 //! {"type":"invocation_start_attempted","session_id":S,"invocation":I}
 //! {"type":"invocation_started","session_id":S,"invocation":I}
 //! {"type":"invocation_cancellation_requested","session_id":S,"invocation":I}
@@ -41,8 +41,8 @@ use ymp_domain::{
 };
 use ymp_kernel::execution::{
     AgentId, Allowance, Assignment, ErrorClass, Grant, GrantId, InvocationId, InvocationLimits,
-    ObservedUsage, ResourceAmount, Role, SettingKey, SettingValue, Settings, Termination,
-    UncertaintyCause, WorkspaceScope,
+    ObservedUsage, ReservationPurpose, ResourceAmount, Role, SettingKey, SettingValue, Settings,
+    Termination, UncertaintyCause, WorkspaceAccess, WorkspaceOperation, WorkspaceScope,
 };
 use ymp_kernel::{JournalError, SessionEvent};
 
@@ -184,6 +184,7 @@ struct InvocationLimitsDto {
 #[serde(deny_unknown_fields)]
 struct AllowanceDto {
     reservation: u64,
+    reservation_purpose: String,
     limits: InvocationLimitsDto,
 }
 
@@ -193,6 +194,14 @@ struct GrantDto<T> {
     id: T,
     invocation: T,
     reservation: u64,
+    reservation_purpose: T,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct WorkspaceAccessDto<T> {
+    scope: T,
+    operations: Vec<T>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -205,7 +214,7 @@ struct AssignmentDtoOwned<T> {
     sent_settings: Vec<SettingPairDto<T>>,
     allowance: AllowanceDto,
     grant: GrantDto<T>,
-    workspace: T,
+    workspace_accesses: Vec<WorkspaceAccessDto<T>>,
 }
 
 type AssignmentDto<'a> = AssignmentDtoOwned<&'a str>;
@@ -318,6 +327,7 @@ fn build_limits(dto: &InvocationLimitsDto) -> Result<InvocationLimits, String> {
 fn allowance_dto(allowance: &Allowance) -> AllowanceDto {
     AllowanceDto {
         reservation: allowance.reservation().value(),
+        reservation_purpose: allowance.reservation_purpose().as_str().to_owned(),
         limits: limits_dto(allowance.limits()),
     }
 }
@@ -325,6 +335,7 @@ fn allowance_dto(allowance: &Allowance) -> AllowanceDto {
 fn build_allowance(dto: &AllowanceDto) -> Result<Allowance, String> {
     Allowance::new(
         ResourceAmount::new(dto.reservation),
+        build_reservation_purpose(&dto.reservation_purpose)?,
         build_limits(&dto.limits)?,
     )
     .map_err(|error| format!("allowance is not valid: {error}"))
@@ -342,8 +353,20 @@ fn assignment_dto(assignment: &Assignment) -> AssignmentDto<'_> {
             id: assignment.grant().id().as_str(),
             invocation: assignment.grant().invocation().as_str(),
             reservation: assignment.grant().reservation().value(),
+            reservation_purpose: assignment.grant().reservation_purpose().as_str(),
         },
-        workspace: assignment.workspace().as_str(),
+        workspace_accesses: assignment
+            .workspace_accesses()
+            .iter()
+            .map(|access| WorkspaceAccessDto {
+                scope: access.scope().as_str(),
+                operations: access
+                    .operations()
+                    .iter()
+                    .map(|operation| operation.as_str())
+                    .collect(),
+            })
+            .collect(),
     }
 }
 
@@ -358,7 +381,27 @@ fn build_assignment(dto: &AssignmentDtoOwned<String>) -> Result<Assignment, Stri
     if grant_invocation != invocation {
         return Err("grant invocation does not match the assignment invocation".to_owned());
     }
-    Ok(Assignment::new(
+    let allowance = build_allowance(&dto.allowance)?;
+    let grant_purpose = build_reservation_purpose(&dto.grant.reservation_purpose)?;
+    if grant_purpose != allowance.reservation_purpose() {
+        return Err("grant reservation purpose does not match the allowance".to_owned());
+    }
+    let workspace_accesses = dto
+        .workspace_accesses
+        .iter()
+        .map(|access| {
+            let scope = WorkspaceScope::new(identifier(access.scope.clone(), "workspace scope")?)
+                .map_err(|error| format!("workspace scope is not valid: {error}"))?;
+            let operations = access
+                .operations
+                .iter()
+                .map(|operation| build_workspace_operation(operation))
+                .collect::<Result<Vec<_>, _>>()?;
+            WorkspaceAccess::new(scope, operations)
+                .map_err(|error| format!("workspace access is not valid: {error}"))
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    Assignment::new(
         invocation,
         AgentId::new(identifier(dto.agent.clone(), "agent")?)
             .map_err(|error| format!("agent ID is not valid: {error}"))?,
@@ -366,16 +409,34 @@ fn build_assignment(dto: &AssignmentDtoOwned<String>) -> Result<Assignment, Stri
             .map_err(|error| format!("role is not valid: {error}"))?,
         build_settings(&dto.requested_settings)?,
         build_settings(&dto.sent_settings)?,
-        build_allowance(&dto.allowance)?,
+        allowance,
         Grant::new(
             GrantId::new(identifier(dto.grant.id.clone(), "grant ID")?)
                 .map_err(|error| format!("grant ID is not valid: {error}"))?,
             grant_invocation,
             ResourceAmount::new(dto.grant.reservation),
+            grant_purpose,
         ),
-        WorkspaceScope::new(identifier(dto.workspace.clone(), "workspace")?)
-            .map_err(|error| format!("workspace scope is not valid: {error}"))?,
-    ))
+        workspace_accesses,
+    )
+    .map_err(|error| format!("assignment is not valid: {error}"))
+}
+
+fn build_reservation_purpose(name: &str) -> Result<ReservationPurpose, String> {
+    match name {
+        "production" => Ok(ReservationPurpose::Production),
+        "verification" => Ok(ReservationPurpose::Verification),
+        "coordination" => Ok(ReservationPurpose::Coordination),
+        other => Err(format!("unknown reservation purpose '{other}'")),
+    }
+}
+
+fn build_workspace_operation(name: &str) -> Result<WorkspaceOperation, String> {
+    match name {
+        "read" => Ok(WorkspaceOperation::Read),
+        "write" => Ok(WorkspaceOperation::Write),
+        other => Err(format!("unknown workspace operation '{other}'")),
+    }
 }
 
 fn cause_name(cause: &UncertaintyCause) -> &'static str {
@@ -554,7 +615,9 @@ pub(super) fn encode_event(event: &SessionEvent) -> Result<Vec<u8>, JournalError
             require_limit(assignment.role().as_str())?;
             require_limit(assignment.grant().id().as_str())?;
             require_limit(assignment.grant().invocation().as_str())?;
-            require_limit(assignment.workspace().as_str())?;
+            for access in assignment.workspace_accesses() {
+                require_limit(access.scope().as_str())?;
+            }
             require_settings_limit(assignment.requested_settings())?;
             require_settings_limit(assignment.sent_settings())?;
             let mut dto = base("assignment_admitted", session_id.as_str());
@@ -1055,7 +1118,12 @@ mod tests {
     }
 
     fn allowance() -> Allowance {
-        Allowance::new(ResourceAmount::new(5), limits()).expect("valid allowance")
+        Allowance::new(
+            ResourceAmount::new(5),
+            ReservationPurpose::Coordination,
+            limits(),
+        )
+        .expect("valid allowance")
     }
 
     fn assignment() -> Assignment {
@@ -1071,9 +1139,22 @@ mod tests {
                 GrantId::new("grant-1").expect("valid grant ID"),
                 invocation,
                 ResourceAmount::new(5),
+                ReservationPurpose::Coordination,
             ),
-            WorkspaceScope::new("session-primary").expect("valid scope"),
+            vec![
+                WorkspaceAccess::new(
+                    WorkspaceScope::new("session-primary").expect("valid scope"),
+                    [WorkspaceOperation::Read, WorkspaceOperation::Write],
+                )
+                .expect("valid workspace access"),
+                WorkspaceAccess::new(
+                    WorkspaceScope::new("session-review").expect("valid scope"),
+                    [WorkspaceOperation::Read],
+                )
+                .expect("valid workspace access"),
+            ],
         )
+        .expect("valid assignment")
     }
 
     #[test]
@@ -1165,6 +1246,17 @@ mod tests {
         })
         .expect("payload encodes");
         assert_eq!(payload, again);
+
+        let admitted = encode_event(&SessionEvent::AssignmentAdmitted {
+            session_id: SessionId::new("s1").expect("valid session ID"),
+            invocation: InvocationId::new("invocation-1").expect("valid invocation ID"),
+            assignment: assignment(),
+        })
+        .expect("payload encodes");
+        assert_eq!(
+            admitted,
+            br#"{"type":"assignment_admitted","session_id":"s1","invocation":"invocation-1","assignment":{"invocation":"invocation-1","agent":"claude-opus-5","role":"implementer","requested_settings":[{"key":"effort","value":"high"},{"key":"thinking","value":"on"}],"sent_settings":[{"key":"effort","value":"high"}],"allowance":{"reservation":5,"reservation_purpose":"coordination","limits":{"max_turns":12,"max_output_chars":4096,"max_wall_clock_ms":90000}},"grant":{"id":"grant-1","invocation":"invocation-1","reservation":5,"reservation_purpose":"coordination"},"workspace_accesses":[{"scope":"session-primary","operations":["read","write"]},{"scope":"session-review","operations":["read"]}]}}"#
+        );
 
         let observed = encode_event(&SessionEvent::InvocationObserved {
             session_id: SessionId::new("s1").expect("valid session ID"),

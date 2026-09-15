@@ -7,7 +7,8 @@ use ymp_domain::{
 };
 use ymp_kernel::execution::{
     AgentId, Allowance, Assignment, ErrorClass, Grant, GrantId, InvocationId, InvocationLimits,
-    ObservedUsage, ResourceAmount, Role, Settings, Termination, UncertaintyCause, WorkspaceScope,
+    ObservedUsage, ReservationPurpose, ResourceAmount, Role, Settings, Termination,
+    UncertaintyCause, WorkspaceAccess, WorkspaceOperation, WorkspaceScope,
 };
 use ymp_kernel::{
     DispatchError, Dispatcher, HistoryError, Journal, JournalEntry, JournalError, Revision,
@@ -148,6 +149,16 @@ fn invocation(name: &str) -> InvocationId {
     InvocationId::new(name).expect("valid invocation ID")
 }
 
+fn workspace_accesses() -> Vec<WorkspaceAccess> {
+    vec![
+        WorkspaceAccess::new(
+            WorkspaceScope::new("session-primary").expect("valid scope"),
+            [WorkspaceOperation::Read, WorkspaceOperation::Write],
+        )
+        .expect("valid workspace access"),
+    ]
+}
+
 fn assignment_for(invocation_id: &InvocationId) -> Assignment {
     let reservation = ResourceAmount::new(5);
     Assignment::new(
@@ -158,6 +169,7 @@ fn assignment_for(invocation_id: &InvocationId) -> Assignment {
         Settings::new(),
         Allowance::new(
             reservation,
+            ReservationPurpose::Production,
             InvocationLimits::new(3, 100, Duration::from_millis(1000)).expect("valid limits"),
         )
         .expect("valid allowance"),
@@ -165,9 +177,11 @@ fn assignment_for(invocation_id: &InvocationId) -> Assignment {
             GrantId::new("grant-1").expect("valid grant ID"),
             invocation_id.clone(),
             reservation,
+            ReservationPurpose::Production,
         ),
-        WorkspaceScope::new("session-primary").expect("valid scope"),
+        workspace_accesses(),
     )
+    .expect("valid assignment")
 }
 
 fn admitted(id: &SessionId, revision: u64, assignment: &Assignment) -> JournalEntry {
@@ -517,6 +531,7 @@ fn replay_rejects_admissions_whose_identities_or_reservations_contradict() {
         Settings::new(),
         Allowance::new(
             reservation,
+            ReservationPurpose::Production,
             InvocationLimits::new(3, 100, Duration::from_millis(1000)).expect("valid limits"),
         )
         .expect("valid allowance"),
@@ -524,9 +539,11 @@ fn replay_rejects_admissions_whose_identities_or_reservations_contradict() {
             GrantId::new("grant-9").expect("valid grant ID"),
             other.clone(),
             reservation,
+            ReservationPurpose::Production,
         ),
-        WorkspaceScope::new("session-primary").expect("valid scope"),
-    );
+        workspace_accesses(),
+    )
+    .expect("valid assignment");
     reject(
         &id,
         vec![opened(&id, 1), admitted(&id, 2, &grant_for_other)],
@@ -546,6 +563,7 @@ fn replay_rejects_admissions_whose_identities_or_reservations_contradict() {
         Settings::new(),
         Allowance::new(
             ResourceAmount::new(5),
+            ReservationPurpose::Production,
             InvocationLimits::new(3, 100, Duration::from_millis(1000)).expect("valid limits"),
         )
         .expect("valid allowance"),
@@ -553,9 +571,11 @@ fn replay_rejects_admissions_whose_identities_or_reservations_contradict() {
             GrantId::new("grant-1").expect("valid grant ID"),
             first.clone(),
             ResourceAmount::new(4),
+            ReservationPurpose::Production,
         ),
-        WorkspaceScope::new("session-primary").expect("valid scope"),
-    );
+        workspace_accesses(),
+    )
+    .expect("valid assignment");
     reject(
         &id,
         vec![opened(&id, 1), admitted(&id, 2, &mismatched_reservation)],
@@ -564,6 +584,39 @@ fn replay_rejects_admissions_whose_identities_or_reservations_contradict() {
             invocation: first.clone(),
             expected: ResourceAmount::new(5),
             actual: ResourceAmount::new(4),
+        },
+    );
+
+    // The grant's reservation purpose contradicts the allowance.
+    let mismatched_purpose = Assignment::new(
+        first.clone(),
+        AgentId::new("claude-opus-5").expect("valid agent ID"),
+        Role::new("implementer").expect("valid role"),
+        Settings::new(),
+        Settings::new(),
+        Allowance::new(
+            ResourceAmount::new(5),
+            ReservationPurpose::Production,
+            InvocationLimits::new(3, 100, Duration::from_millis(1000)).expect("valid limits"),
+        )
+        .expect("valid allowance"),
+        Grant::new(
+            GrantId::new("grant-1").expect("valid grant ID"),
+            first.clone(),
+            ResourceAmount::new(5),
+            ReservationPurpose::Verification,
+        ),
+        workspace_accesses(),
+    )
+    .expect("valid assignment");
+    reject(
+        &id,
+        vec![opened(&id, 1), admitted(&id, 2, &mismatched_purpose)],
+        HistoryError::ReservationPurposeMismatch {
+            revision: Revision::new(2),
+            invocation: first,
+            expected: ReservationPurpose::Production,
+            actual: ReservationPurpose::Verification,
         },
     );
 }

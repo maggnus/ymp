@@ -13,8 +13,8 @@ use std::fmt;
 use super::types::{
     AdmissionDenial, AgentId, AgentIneligibility, AssignmentRequest, ErrorClass, Grant,
     IndependenceConflict, InvocationId, InvocationLimits, ModelOffering, ObservedUsage, Pool,
-    PoolEligibility, ResourceAmount, Role, SettingKey, Settings, Termination,
-    WorkspaceAccessRefusal, WorkspaceScope,
+    PoolEligibility, ReservationPurpose, ResourceAmount, Role, SettingKey, Settings, Termination,
+    WorkspaceAccess, WorkspaceAccessRefusal, WorkspaceOperation, WorkspaceScope,
 };
 use crate::Revision;
 
@@ -147,8 +147,8 @@ pub trait Treasury: Send {
     /// The sum of reservations currently held.
     fn held(&self) -> ResourceAmount;
 
-    /// Whether a reservation of this amount could be held now.
-    fn can_hold(&self, amount: ResourceAmount) -> bool;
+    /// Whether a reservation of this amount and purpose could be held now.
+    fn can_hold(&self, amount: ResourceAmount, purpose: ReservationPurpose) -> bool;
 
     /// Holds the grant's reservation for an in-flight invocation.
     fn reserve(&mut self, grant: &Grant) -> Result<(), ReserveRefused>;
@@ -203,22 +203,27 @@ impl Error for WorkspaceHoldConflict {}
 /// time, and a conflicting successor waits until the predecessor's
 /// termination or effect evidence exists.
 pub trait WorkspaceGuard: Send {
-    /// Whether the backend can enforce access to this scope, stated
-    /// honestly by the adapter in this slice.
-    fn enforceable(&self, scope: &WorkspaceScope) -> Result<(), WorkspaceAccessRefusal>;
+    /// Whether the backend can enforce these exact operations in this
+    /// scope, stated honestly by the adapter in this slice.
+    fn enforceable(
+        &self,
+        scope: &WorkspaceScope,
+        operations: &[WorkspaceOperation],
+    ) -> Result<(), WorkspaceAccessRefusal>;
 
-    /// Takes the exclusive hold of one scope for one invocation.
+    /// Takes the exclusive holds of every requested scope for one
+    /// invocation. No hold is taken if any scope conflicts.
     fn hold(
         &mut self,
-        scope: &WorkspaceScope,
+        accesses: &[WorkspaceAccess],
         invocation: &InvocationId,
     ) -> Result<(), WorkspaceHoldConflict>;
 
-    /// Releases the hold one invocation holds, if any.
-    fn release(&mut self, invocation: &InvocationId) -> Option<WorkspaceScope>;
+    /// Releases all holds one invocation owns.
+    fn release(&mut self, invocation: &InvocationId) -> Vec<WorkspaceAccess>;
 
-    /// The scope one invocation holds, if any.
-    fn hold_of(&self, invocation: &InvocationId) -> Option<WorkspaceScope>;
+    /// The per-scope access requirements one invocation currently holds.
+    fn accesses_of(&self, invocation: &InvocationId) -> Vec<WorkspaceAccess>;
 
     /// The invocation currently holding one scope, if any.
     fn holder_of(&self, scope: &WorkspaceScope) -> Option<InvocationId>;
@@ -231,16 +236,25 @@ pub trait WorkspaceGuard: Send {
 /// providers.
 #[derive(Clone, Debug, Default)]
 pub struct TrackedWorkspaceGuard {
-    enforceable: BTreeSet<WorkspaceScope>,
-    holds_by_invocation: BTreeMap<InvocationId, WorkspaceScope>,
+    enforceable: BTreeMap<WorkspaceScope, BTreeSet<WorkspaceOperation>>,
+    holds_by_invocation: BTreeMap<InvocationId, Vec<WorkspaceAccess>>,
     holders_by_scope: BTreeMap<WorkspaceScope, InvocationId>,
 }
 
 impl TrackedWorkspaceGuard {
-    /// A guard over the scopes the backend states it can enforce.
-    pub fn new(enforceable: impl IntoIterator<Item = WorkspaceScope>) -> Self {
+    /// A guard over the per-scope operations the backend states it can
+    /// enforce.
+    pub fn new(enforceable: impl IntoIterator<Item = WorkspaceAccess>) -> Self {
         Self {
-            enforceable: enforceable.into_iter().collect(),
+            enforceable: enforceable
+                .into_iter()
+                .map(|access| {
+                    (
+                        access.scope().clone(),
+                        access.operations().iter().copied().collect(),
+                    )
+                })
+                .collect(),
             holds_by_invocation: BTreeMap::new(),
             holders_by_scope: BTreeMap::new(),
         }
@@ -249,54 +263,87 @@ impl TrackedWorkspaceGuard {
     /// Rebuilds the holds from replayed history; existing holds are cleared.
     pub fn rebuild_holds(
         &mut self,
-        holds: impl IntoIterator<Item = (InvocationId, WorkspaceScope)>,
+        holds: impl IntoIterator<Item = (InvocationId, Vec<WorkspaceAccess>)>,
     ) {
         self.holds_by_invocation.clear();
         self.holders_by_scope.clear();
-        for (invocation, scope) in holds {
+        for (invocation, accesses) in holds {
             self.holds_by_invocation
-                .insert(invocation.clone(), scope.clone());
-            self.holders_by_scope.insert(scope, invocation);
+                .insert(invocation.clone(), accesses.clone());
+            for access in accesses {
+                self.holders_by_scope
+                    .insert(access.scope().clone(), invocation.clone());
+            }
         }
     }
 }
 
 impl WorkspaceGuard for TrackedWorkspaceGuard {
-    fn enforceable(&self, scope: &WorkspaceScope) -> Result<(), WorkspaceAccessRefusal> {
-        if self.enforceable.contains(scope) {
+    fn enforceable(
+        &self,
+        scope: &WorkspaceScope,
+        operations: &[WorkspaceOperation],
+    ) -> Result<(), WorkspaceAccessRefusal> {
+        if self.enforceable.get(scope).is_some_and(|available| {
+            operations
+                .iter()
+                .all(|operation| available.contains(operation))
+        }) {
             Ok(())
         } else {
             Err(WorkspaceAccessRefusal::NotEnforceable {
-                detail: "the backend does not state effective access to this scope".to_owned(),
+                detail: format!(
+                    "the backend does not state effective access for operations [{}] in this \
+                     scope",
+                    operations
+                        .iter()
+                        .map(ToString::to_string)
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                ),
             })
         }
     }
 
     fn hold(
         &mut self,
-        scope: &WorkspaceScope,
+        accesses: &[WorkspaceAccess],
         invocation: &InvocationId,
     ) -> Result<(), WorkspaceHoldConflict> {
-        if let Some(held_by) = self.holders_by_scope.get(scope)
-            && held_by != invocation
-        {
-            return Err(WorkspaceHoldConflict::new(scope.clone(), held_by.clone()));
+        for access in accesses {
+            if let Some(held_by) = self.holders_by_scope.get(access.scope())
+                && held_by != invocation
+            {
+                return Err(WorkspaceHoldConflict::new(
+                    access.scope().clone(),
+                    held_by.clone(),
+                ));
+            }
         }
         self.holds_by_invocation
-            .insert(invocation.clone(), scope.clone());
-        self.holders_by_scope
-            .insert(scope.clone(), invocation.clone());
+            .insert(invocation.clone(), accesses.to_vec());
+        for access in accesses {
+            self.holders_by_scope
+                .insert(access.scope().clone(), invocation.clone());
+        }
         Ok(())
     }
 
-    fn release(&mut self, invocation: &InvocationId) -> Option<WorkspaceScope> {
-        let scope = self.holds_by_invocation.remove(invocation)?;
-        self.holders_by_scope.remove(&scope);
-        Some(scope)
+    fn release(&mut self, invocation: &InvocationId) -> Vec<WorkspaceAccess> {
+        let Some(accesses) = self.holds_by_invocation.remove(invocation) else {
+            return Vec::new();
+        };
+        for access in &accesses {
+            self.holders_by_scope.remove(access.scope());
+        }
+        accesses
     }
 
-    fn hold_of(&self, invocation: &InvocationId) -> Option<WorkspaceScope> {
-        self.holds_by_invocation.get(invocation).cloned()
+    fn accesses_of(&self, invocation: &InvocationId) -> Vec<WorkspaceAccess> {
+        self.holds_by_invocation
+            .get(invocation)
+            .cloned()
+            .unwrap_or_default()
     }
 
     fn holder_of(&self, scope: &WorkspaceScope) -> Option<InvocationId> {
@@ -400,7 +447,7 @@ pub trait Gatekeeper: Send {
     ) -> Result<(), AdmissionDenial>;
 }
 
-/// The kernel's reference gatekeeper: the revision check and the four
+/// The kernel's reference gatekeeper: the revision check and the five
 /// admission requirements in the contract's order.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct PolicyGatekeeper;
@@ -486,39 +533,47 @@ impl Gatekeeper for PolicyGatekeeper {
         }
 
         let requested = request.allowance().reservation();
-        if !snapshot.treasury().can_hold(requested) {
+        if !snapshot
+            .treasury()
+            .can_hold(requested, request.allowance().reservation_purpose())
+        {
             return Err(AdmissionDenial::ResourcesUnavailable {
                 requested,
                 available: Self::available(snapshot.treasury()),
             });
         }
 
-        if let Err(refusal) = snapshot.workspace().enforceable(request.workspace()) {
-            return Err(AdmissionDenial::WorkspaceNotEnforceable {
-                scope: request.workspace().clone(),
-                refusal,
-            });
-        }
-        if let Some(held_by) = snapshot.workspace().holder_of(request.workspace()) {
-            return Err(AdmissionDenial::WorkspaceNotEnforceable {
-                scope: request.workspace().clone(),
-                refusal: WorkspaceAccessRefusal::HeldByPredecessor { held_by },
-            });
+        for access in request.workspace_accesses() {
+            if let Err(refusal) = snapshot
+                .workspace()
+                .enforceable(access.scope(), access.operations())
+            {
+                return Err(AdmissionDenial::WorkspaceNotEnforceable {
+                    scope: access.scope().clone(),
+                    refusal,
+                });
+            }
+            if let Some(held_by) = snapshot.workspace().holder_of(access.scope()) {
+                return Err(AdmissionDenial::WorkspaceNotEnforceable {
+                    scope: access.scope().clone(),
+                    refusal: WorkspaceAccessRefusal::HeldByPredecessor { held_by },
+                });
+            }
         }
 
         Ok(())
     }
 }
 
-/// An admitted invocation as handed to the backend: its sent settings and
-/// per-invocation limits. Sent settings are exactly what the host resolved;
-/// the host never invents a setting the native environment did not report.
+/// An admitted invocation as handed to the backend: its sent settings,
+/// per-scope workspace operations and per-invocation limits. Every value is
+/// copied from the committed assignment.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct BackendInvocation {
     invocation: InvocationId,
     agent: AgentId,
     sent_settings: Settings,
-    workspace: WorkspaceScope,
+    workspace_accesses: Vec<WorkspaceAccess>,
     limits: InvocationLimits,
 }
 
@@ -527,14 +582,14 @@ impl BackendInvocation {
         invocation: InvocationId,
         agent: AgentId,
         sent_settings: Settings,
-        workspace: WorkspaceScope,
+        workspace_accesses: Vec<WorkspaceAccess>,
         limits: InvocationLimits,
     ) -> Self {
         Self {
             invocation,
             agent,
             sent_settings,
-            workspace,
+            workspace_accesses,
             limits,
         }
     }
@@ -551,8 +606,8 @@ impl BackendInvocation {
         &self.sent_settings
     }
 
-    pub fn workspace(&self) -> &WorkspaceScope {
-        &self.workspace
+    pub fn workspace_accesses(&self) -> &[WorkspaceAccess] {
+        &self.workspace_accesses
     }
 
     pub fn limits(&self) -> &InvocationLimits {
@@ -664,6 +719,7 @@ pub struct Receipt {
     termination: Termination,
     reported_settings: Option<Settings>,
     usage: ObservedUsage,
+    writes_ended: bool,
 }
 
 impl Receipt {
@@ -671,11 +727,13 @@ impl Receipt {
         termination: Termination,
         reported_settings: Option<Settings>,
         usage: ObservedUsage,
+        writes_ended: bool,
     ) -> Self {
         Self {
             termination,
             reported_settings,
             usage,
+            writes_ended,
         }
     }
 
@@ -689,6 +747,12 @@ impl Receipt {
 
     pub fn usage(&self) -> &ObservedUsage {
         &self.usage
+    }
+
+    /// Whether the receipt reports that this invocation's writes to every
+    /// held scope have ended.
+    pub const fn writes_ended(&self) -> bool {
+        self.writes_ended
     }
 }
 

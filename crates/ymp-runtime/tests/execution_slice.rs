@@ -21,10 +21,11 @@ use ymp_runtime::{
     AssignmentRequest, Constraints, Criterion, CriterionId, EmptyPoolReason, ExecutionError,
     ExecutionObservation, ExecutionScenario, Goal, IndependenceConflict, InvocationLimits,
     InvocationStatus, Journal, JournalError, ManualClock, MemoryJournal, ModelOffering,
-    ObservationOutcome, ObservedUsage, OfferingId, ResourceAmount, Revision, Role, ScriptedBackend,
-    ScriptedOutcome, ScriptedProvider, ScriptedRegistry, SessionEvent, SessionId, SessionStatus,
-    SettingKey, SettingValue, Settings, StartOutcome, SupportedControl, Task, TaskId, Termination,
-    UncertaintyCause, WorkspaceAccessRefusal, WorkspaceScope,
+    ObservationOutcome, ObservedUsage, OfferingId, ReservationPurpose, ResourceAmount, Revision,
+    Role, ScriptedBackend, ScriptedOutcome, ScriptedProvider, ScriptedRegistry, SessionEvent,
+    SessionId, SessionStatus, SettingKey, SettingValue, Settings, StartOutcome, SupportedControl,
+    Task, TaskId, Termination, UncertaintyCause, WorkspaceAccess, WorkspaceAccessRefusal,
+    WorkspaceOperation, WorkspaceScope,
 };
 
 const AGENT: &str = "claude-opus-5";
@@ -101,8 +102,27 @@ fn review_scope() -> WorkspaceScope {
     WorkspaceScope::new("session-review").expect("valid workspace scope")
 }
 
+fn workspace_access(scope: WorkspaceScope) -> WorkspaceAccess {
+    workspace_access_for(
+        scope,
+        vec![WorkspaceOperation::Read, WorkspaceOperation::Write],
+    )
+}
+
+fn workspace_access_for(
+    scope: WorkspaceScope,
+    operations: Vec<WorkspaceOperation>,
+) -> WorkspaceAccess {
+    WorkspaceAccess::new(scope, operations).expect("valid workspace access")
+}
+
+fn effective_workspace_accesses() -> Vec<WorkspaceAccess> {
+    vec![workspace_access(scope()), workspace_access(review_scope())]
+}
+
 fn provider() -> ScriptedProvider {
-    ScriptedProvider::new(agent(), offering()).with_effective_workspaces([scope(), review_scope()])
+    ScriptedProvider::new(agent(), offering())
+        .with_effective_workspace_accesses(effective_workspace_accesses())
 }
 
 fn other_provider() -> ScriptedProvider {
@@ -121,7 +141,7 @@ fn other_provider() -> ScriptedProvider {
     )
     .expect("valid offering");
     ScriptedProvider::new(other_agent(), offering)
-        .with_effective_workspaces([scope(), review_scope()])
+        .with_effective_workspace_accesses(effective_workspace_accesses())
 }
 
 fn providers() -> Vec<ScriptedProvider> {
@@ -137,11 +157,19 @@ fn tight_limits() -> InvocationLimits {
 }
 
 fn allowance(reservation: u64) -> Allowance {
-    Allowance::new(ResourceAmount::new(reservation), limits()).expect("valid allowance")
+    allowance_for(reservation, ReservationPurpose::Production, limits())
+}
+
+fn allowance_for(
+    reservation: u64,
+    purpose: ReservationPurpose,
+    limits: InvocationLimits,
+) -> Allowance {
+    Allowance::new(ResourceAmount::new(reservation), purpose, limits).expect("valid allowance")
 }
 
 fn tight_allowance() -> Allowance {
-    Allowance::new(ResourceAmount::new(4), tight_limits()).expect("valid allowance")
+    allowance_for(4, ReservationPurpose::Production, tight_limits())
 }
 
 fn request_for(
@@ -156,8 +184,9 @@ fn request_for(
         Role::new(role).expect("valid role"),
         requested,
         allowance(reservation),
-        workspace,
+        vec![workspace_access(workspace)],
     )
+    .expect("valid assignment request")
 }
 
 fn default_request() -> AssignmentRequest {
@@ -176,7 +205,7 @@ fn scenario_multi(journal: MemoryJournal, clock: ManualClock) -> ExecutionScenar
     ExecutionScenario::over(
         journal,
         backend,
-        [scope(), review_scope()],
+        effective_workspace_accesses(),
         ScriptedRegistry::new(providers),
         ResourceAmount::new(10),
         Arc::new(clock),
@@ -200,7 +229,7 @@ where
     ExecutionScenario::over(
         journal,
         backend,
-        [scope(), review_scope()],
+        effective_workspace_accesses(),
         ScriptedRegistry::new(providers),
         ResourceAmount::new(10),
         Arc::new(clock),
@@ -218,6 +247,37 @@ fn prepared(clock: ManualClock) -> (MemoryJournal, ExecutionScenario<MemoryJourn
     assert_eq!(opened.revision(), Revision::new(1));
     scenario.scan().expect("scripted scan succeeds");
     (journal, scenario, id)
+}
+
+#[test]
+fn assignment_requests_require_operations_for_each_workspace_area() {
+    assert!(
+        WorkspaceAccess::new(scope(), std::iter::empty::<WorkspaceOperation>()).is_err(),
+        "a workspace area without required operations must be rejected"
+    );
+    assert!(
+        AssignmentRequest::new(
+            agent(),
+            Role::new("implementer").expect("valid role"),
+            default_settings(),
+            allowance(1),
+            Vec::new(),
+        )
+        .is_err(),
+        "an assignment request without workspace areas must be rejected"
+    );
+    let duplicated_scope = workspace_access(scope());
+    assert!(
+        AssignmentRequest::new(
+            agent(),
+            Role::new("implementer").expect("valid role"),
+            default_settings(),
+            allowance(1),
+            vec![duplicated_scope.clone(), duplicated_scope],
+        )
+        .is_err(),
+        "the same workspace area must not appear twice"
+    );
 }
 
 /// "Scripted backend lifecycle: one invocation passes start, observation and
@@ -430,7 +490,7 @@ fn typed_admission_denials_each_observable() {
     let journal = MemoryJournal::new();
     let unready = ScriptedProvider::new(agent(), offering())
         .with_readiness(false, "the scripted probe reports not ready")
-        .with_effective_workspaces([scope()]);
+        .with_effective_workspace_accesses([workspace_access(scope())]);
     let scenario = ExecutionScenario::with_clock(
         journal.clone(),
         unready,
@@ -533,6 +593,35 @@ fn typed_admission_denials_each_observable() {
     );
     assert!(matches!(
         scenario.admit(&id, request, Revision::new(2)).unwrap_err(),
+        AdmissionFailure::Denied(AdmissionDenial::WorkspaceNotEnforceable {
+            refusal: WorkspaceAccessRefusal::NotEnforceable { .. },
+            ..
+        })
+    ));
+
+    // Workspace operations are checked per scope: declaring a scope as
+    // readable does not make a requested write enforceable.
+    let limited_provider = provider();
+    let limited_scenario = ExecutionScenario::over(
+        MemoryJournal::new(),
+        ScriptedBackend::for_provider(&limited_provider),
+        [workspace_access_for(
+            scope(),
+            vec![WorkspaceOperation::Read],
+        )],
+        ScriptedRegistry::new([limited_provider]),
+        ResourceAmount::new(10),
+        Arc::new(ManualClock::new()),
+    );
+    let limited_id = session("operation-not-enforceable");
+    limited_scenario
+        .open_session(limited_id.clone(), task())
+        .expect("session opens");
+    limited_scenario.scan().expect("scan succeeds");
+    assert!(matches!(
+        limited_scenario
+            .admit(&limited_id, default_request(), Revision::new(1))
+            .unwrap_err(),
         AdmissionFailure::Denied(AdmissionDenial::WorkspaceNotEnforceable {
             refusal: WorkspaceAccessRefusal::NotEnforceable { .. },
             ..
@@ -724,8 +813,20 @@ fn atomic_admission_one_batch_recorded_sent_and_one_winner() {
     // allowance, reservation and the resolved sent settings.
     let (journal, scenario, id) = prepared(ManualClock::new());
     scenario.script_outcome(ScriptedOutcome::never_reports());
+    let requested_workspace = vec![
+        workspace_access(scope()),
+        workspace_access_for(review_scope(), vec![WorkspaceOperation::Read]),
+    ];
+    let request = AssignmentRequest::new(
+        agent(),
+        Role::new("implementer").expect("valid role"),
+        default_settings(),
+        allowance_for(4, ReservationPurpose::Verification, limits()),
+        requested_workspace.clone(),
+    )
+    .expect("valid assignment request");
     let assignment = scenario
-        .admit(&id, default_request(), Revision::new(1))
+        .admit(&id, request, Revision::new(1))
         .expect("admission commits");
     let history = journal.read(&id).expect("history reads");
     assert_eq!(history.len(), 2);
@@ -738,6 +839,19 @@ fn atomic_admission_one_batch_recorded_sent_and_one_winner() {
     assert_eq!(assignment.requested_settings(), &default_settings());
     assert_eq!(assignment.sent_settings(), &default_settings());
     assert_eq!(assignment.grant().reservation().value(), 4);
+    assert_eq!(
+        assignment.allowance().reservation_purpose(),
+        ReservationPurpose::Verification
+    );
+    assert_eq!(
+        assignment.grant().reservation_purpose(),
+        ReservationPurpose::Verification
+    );
+    assert_eq!(assignment.workspace_accesses(), requested_workspace);
+    assert_eq!(
+        scenario.workspace_accesses_of(assignment.invocation()),
+        requested_workspace
+    );
     assert_eq!(assignment.allowance().limits().max_turns(), 6);
 
     // `start` passes exactly the recorded sent settings.
@@ -749,6 +863,10 @@ fn atomic_admission_one_batch_recorded_sent_and_one_winner() {
         .expect("a start was accepted");
     assert_eq!(started.sent_settings(), assignment.sent_settings());
     assert_eq!(started.invocation(), assignment.invocation());
+    assert_eq!(
+        started.workspace_accesses(),
+        assignment.workspace_accesses()
+    );
 
     // Two admissions at one expected revision: exactly one commits.
     let (journal, scenario, id) = prepared(ManualClock::new());
@@ -1350,8 +1468,9 @@ fn host_enforced_limits_bound_output_turns_and_deadline() {
         Role::new("implementer").expect("valid role"),
         default_settings(),
         tight_allowance(),
-        scope(),
-    );
+        vec![workspace_access(scope())],
+    )
+    .expect("valid assignment request");
     let assignment = scenario
         .admit(&id, request, Revision::new(1))
         .expect("admission commits");
@@ -1416,8 +1535,9 @@ fn host_enforced_limits_bound_output_turns_and_deadline() {
         Role::new("implementer").expect("valid role"),
         default_settings(),
         tight_allowance(),
-        scope(),
-    );
+        vec![workspace_access(scope())],
+    )
+    .expect("valid assignment request");
     let assignment = scenario
         .admit(&id, request, Revision::new(1))
         .expect("admission commits");
@@ -1466,8 +1586,9 @@ fn host_limit_accumulation_spans_multiple_observe_attempts() {
         Role::new("implementer").expect("valid role"),
         default_settings(),
         tight_allowance(),
-        scope(),
-    );
+        vec![workspace_access(scope())],
+    )
+    .expect("valid assignment request");
     let assignment = scenario
         .admit(&id, request, Revision::new(1))
         .expect("admission commits");
@@ -1543,8 +1664,9 @@ fn host_limit_accumulation_spans_multiple_observe_attempts() {
         Role::new("implementer").expect("valid role"),
         default_settings(),
         tight_allowance(),
-        scope(),
-    );
+        vec![workspace_access(scope())],
+    )
+    .expect("valid assignment request");
     let assignment = scenario
         .admit(&id, request, Revision::new(1))
         .expect("admission commits");
@@ -1730,6 +1852,40 @@ fn bounded_cancellation_records_uncertainty_and_waits() {
         .admit(&id, successor, Revision::new(7))
         .expect("the successor is admitted after the effect evidence");
     assert_eq!(successor_assignment.invocation().as_str(), "invocation-2");
+
+    // The same effect observation may arrive in the final receipt rather
+    // than the stream; it releases every held workspace area through the
+    // same journal event.
+    let (_, scenario, id) = prepared(ManualClock::new());
+    scenario.script_outcome(
+        ScriptedOutcome::completes(None, ObservedUsage::unknown()).with_receipt_effect_evidence(),
+    );
+    let receipt_request = AssignmentRequest::new(
+        agent(),
+        Role::new("implementer").expect("valid role"),
+        default_settings(),
+        allowance_for(2, ReservationPurpose::Coordination, limits()),
+        vec![workspace_access(scope()), workspace_access(review_scope())],
+    )
+    .expect("valid receipt-evidence request");
+    let receipt_assignment = scenario
+        .admit(&id, receipt_request, Revision::new(1))
+        .expect("admission commits");
+    scenario
+        .invoke(&id, receipt_assignment.invocation(), Revision::new(2))
+        .expect("starts");
+    assert_eq!(
+        scenario
+            .evidence(&id, receipt_assignment.invocation(), Revision::new(4))
+            .expect("receipt evidence records"),
+        ymp_runtime::EvidenceOutcome::Recorded
+    );
+    assert!(
+        scenario
+            .workspace_accesses_of(receipt_assignment.invocation())
+            .is_empty()
+    );
+    assert_eq!(scenario.treasury_held().value(), 2);
 
     // Contrast: with a termination observation the successor is admitted
     // after the settlement.

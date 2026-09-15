@@ -22,7 +22,7 @@ use ymp_kernel::execution::{
     InvocationId, LedgerTreasury, ObservationAccumulation, ObservationContext, ObservationOutcome,
     PolicyGatekeeper, Pool, Registry, RegistryFailure, ResourceAmount, SessionAccounting,
     SessionExecutionView, SettlementContext, StartContext, StartOutcome, TrackedWorkspaceGuard,
-    Treasury, WorkspaceGuard, WorkspaceScope, observe_invocation, read_execution,
+    Treasury, WorkspaceAccess, WorkspaceGuard, observe_invocation, read_execution,
     record_effect_evidence, request_invocation_cancellation, scan_registry, settle_invocation,
     start_invocation,
 };
@@ -66,7 +66,7 @@ where
     pub fn over(
         journal: J,
         backend: B,
-        enforceable_scopes: impl IntoIterator<Item = WorkspaceScope>,
+        enforceable_accesses: impl IntoIterator<Item = WorkspaceAccess>,
         registry: ScriptedRegistry,
         capacity: ResourceAmount,
         clock: Arc<dyn Clock + Send + Sync>,
@@ -76,7 +76,7 @@ where
             journal,
             registry: Mutex::new(registry),
             treasury: Mutex::new(LedgerTreasury::new(capacity)),
-            workspace: Mutex::new(TrackedWorkspaceGuard::new(enforceable_scopes)),
+            workspace: Mutex::new(TrackedWorkspaceGuard::new(enforceable_accesses)),
             backend: Mutex::new(backend),
             gatekeeper: PolicyGatekeeper,
             clock,
@@ -325,10 +325,21 @@ where
         treasury.held()
     }
 
-    /// The workspace scope one invocation currently holds, if any.
-    pub fn workspace_hold_of(&self, invocation: &InvocationId) -> Option<WorkspaceScope> {
+    /// The per-scope workspace accesses one invocation currently holds.
+    pub fn workspace_accesses_of(&self, invocation: &InvocationId) -> Vec<WorkspaceAccess> {
         let workspace = self.workspace.lock().expect("workspace lock is available");
-        workspace.hold_of(invocation)
+        workspace.accesses_of(invocation)
+    }
+
+    /// The first workspace scope one invocation holds, retained as a
+    /// convenience for callers that admit a single-area assignment.
+    pub fn workspace_hold_of(
+        &self,
+        invocation: &InvocationId,
+    ) -> Option<execution::WorkspaceScope> {
+        self.workspace_accesses_of(invocation)
+            .first()
+            .map(|access| access.scope().clone())
     }
 
     /// The elapsed time the scenario clock reports.
@@ -352,12 +363,13 @@ where
                 treasury_holds.push((
                     invocation.clone(),
                     invocation_view.assignment().grant().reservation(),
+                    invocation_view.assignment().grant().reservation_purpose(),
                 ));
             }
             if invocation_view.holds_workspace() {
                 workspace_holds.push((
                     invocation.clone(),
-                    invocation_view.assignment().workspace().clone(),
+                    invocation_view.assignment().workspace_accesses().to_vec(),
                 ));
             }
             if matches!(
@@ -409,11 +421,11 @@ where
         clock: Arc<dyn Clock + Send + Sync>,
     ) -> Self {
         let backend = ScriptedBackend::for_provider(&provider);
-        let scopes = provider.effective_workspaces().to_vec();
+        let accesses = provider.effective_workspace_accesses().to_vec();
         Self::over(
             journal,
             backend,
-            scopes,
+            accesses,
             ScriptedRegistry::new([provider]),
             capacity,
             clock,
