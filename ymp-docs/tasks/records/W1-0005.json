@@ -5,13 +5,13 @@
   "title": "Capture direct workspace snapshots and enforce assignment path ownership",
   "type": "implementation",
   "priority": 105,
-  "status": "planned",
+  "status": "in_progress",
   "depends_on": [
     "W1-0001",
     "W1-0003",
     "W1-0016"
   ],
-  "owner": null,
+  "owner": "codex",
   "goal": "Make the workspace state used for production and checking content-addressed, and allow only work whose effective access and path ownership are enforceable.",
   "scope": [
     "Implement trusted WorkspaceGuard.open(Direct), lock(Read/Write), snapshot and release(assignment,basis) over a Direct WorkspaceProvider. Record workspace IDs, canonical relative paths, digests and release basis. Release conflicting access only after attributable cessation or never-started evidence; cessation may follow termination or effective withdrawal of access.",
@@ -29,9 +29,11 @@
     "Greenfield: create this behavior in the new implementation. Paths below are PROPOSED target modules under the layout owned by W1-0001; only completed prerequisite tasks supply implementation. Prior source, APIs, fixtures and delivery claims are not a baseline.",
     "Create proposed crates/ymp-domain/src/workspace.rs, crates/ymp-kernel/src/workspace_guard.rs and crates/ymp-runtime/src/workspace/direct.rs. W1-0016 supplies durable content storage; W1-0003 supplies explicit actual-capability facts. Implement Direct snapshot/path ownership as new behavior.",
     "W1-0006 binds locks to admitted assignments; W1-0017 supplies native cessation observations, and W1-0008 submits ResultVersion from retained snapshots. This task tests WorkspaceGuard operations over attributable ownership/basis fixtures, not a fabricated completed agent result. IsolatedCopy/CopyOnWrite/merge are W4-0001.",
-    "Under §3.9/R-19, revocation, parent exit or stream loss alone cannot release conflicting access. Validate scoped cessation or never-started evidence; effective withdrawal of access may establish cessation. Financial settlement is independent and unrelated scopes can continue. Observation types remain implementation choices."
+    "Under §3.9/R-19, revocation, parent exit or stream loss alone cannot release conflicting access. Validate scoped cessation or never-started evidence; effective withdrawal of access may establish cessation. Financial settlement is independent and unrelated scopes can continue. Observation types remain implementation choices.",
+    "Implementation checkpoint: ymp-docs/workspace-implementation.md. Pure workspace paths/identity/snapshot manifests, Direct descriptor-relative capture with rustix, WorkspaceGuard.open/snapshot/retained/read_artifact, WorkspaceOpened/SnapshotTaken replay and explicit content links are implemented. SQLite tests retain exact bytes, modes and empty directories after workspace mutation/restart; negative tests cover aliases, root replacement, corruption, size limits and changes between scans. Path-lock admission/release and alternate provider are not implemented; this checkpoint does not complete W1-0005. Independent snapshot review ACCEPT after replacing overridable Journal.view with validated replay from read; an adversarial adapter-view regression confirms source attribution. All four offline Cargo checks and legacy/task validation passed. This acceptance covers only the snapshot checkpoint.",
+    "Independent design review: native cwd is not confinement; an unconfined writer must be denied rather than given an artificial root scope. Path ownership needs physical/case/Unicode/ancestor alias treatment and one atomic coordinator across sessions/processes/stores. Holds persist after coordinator exit. A constrained alternative must mediate real operations and drain admitted operations before issuing withdrawal evidence. Direct double capture detects changes but is not an atomic filesystem snapshot; final check/result capture must be quiescent under the completed guard."
   ],
-  "revision": 3,
+  "revision": 6,
   "history": [
     {
       "revision": 1,
@@ -53,6 +55,27 @@
       "actor": "owner",
       "status": "planned",
       "note": "Start decision 2026-09-16: W1 scheduled; readiness follows dependencies."
+    },
+    {
+      "revision": 4,
+      "at": "2026-09-15T22:02:04.254905Z",
+      "actor": "codex",
+      "status": "in_progress",
+      "note": "Claimed by codex."
+    },
+    {
+      "revision": 5,
+      "at": "2026-09-15T22:12:03.758305Z",
+      "actor": "codex",
+      "status": "in_progress",
+      "note": "Implemented Direct retained-snapshot checkpoint and recorded the remaining cross-session ownership/cessation requirements. Task remains in progress; no execution authority is granted."
+    },
+    {
+      "revision": 6,
+      "at": "2026-09-15T22:14:01.539168Z",
+      "actor": "codex",
+      "status": "in_progress",
+      "note": "Snapshot checkpoint accepted independently and verified with all required offline checks. Ownership, alternate provider and cessation remain required; do not mark the task complete."
     }
   ]
 }

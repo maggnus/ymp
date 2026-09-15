@@ -32,6 +32,8 @@ pub struct SessionView {
     criteria: Vec<Criterion>,
     registry: Option<Box<crate::registry::PoolRecorded>>,
     treasury: Option<Box<crate::treasury::TreasuryView>>,
+    workspaces: BTreeMap<Id<ymp_domain::workspace::Workspace>, ymp_domain::workspace::Workspace>,
+    snapshots: BTreeMap<Id<ymp_domain::workspace::Snapshot>, ymp_domain::workspace::Snapshot>,
 }
 
 impl SessionView {
@@ -49,7 +51,19 @@ impl SessionView {
             criteria: Vec::new(),
             registry: None,
             treasury: None,
+            workspaces: BTreeMap::new(),
+            snapshots: BTreeMap::new(),
         }
+    }
+    pub fn workspaces(
+        &self,
+    ) -> &BTreeMap<Id<ymp_domain::workspace::Workspace>, ymp_domain::workspace::Workspace> {
+        &self.workspaces
+    }
+    pub fn snapshots(
+        &self,
+    ) -> &BTreeMap<Id<ymp_domain::workspace::Snapshot>, ymp_domain::workspace::Snapshot> {
+        &self.snapshots
     }
     pub fn treasury(&self) -> Option<&crate::treasury::TreasuryView> {
         self.treasury.as_deref()
@@ -160,6 +174,53 @@ impl SessionView {
             self.resolve(reference)?;
         }
         match &event.payload {
+            Event::WorkspaceOpened { workspace, .. } => {
+                self.validate_complete()?;
+                workspace.location.validate()?;
+                schemas.validate(&workspace.provider)?;
+                if self.task.is_none()
+                    || workspace.kind != ymp_domain::workspace::WorkspaceKind::Direct
+                    || self.policies.get("WorkspaceProvider") != Some(&workspace.provider)
+                    || self.workspaces.contains_key(&workspace.id)
+                    || self.workspaces.values().any(|w| {
+                        w.location == workspace.location
+                            || (w.location.device == workspace.location.device
+                                && w.location.inode == workspace.location.inode)
+                    })
+                    || event.policy.as_ref() != Some(&workspace.provider.policy)
+                    || event.input.is_some()
+                    || !event.refs.is_empty()
+                {
+                    return Err(Denial::new(
+                        "workspace_open",
+                        "Workspace identity or provider selection is invalid",
+                    ));
+                }
+                self.references.insert(workspace.reference()?);
+                self.workspaces
+                    .insert(workspace.id.clone(), (**workspace).clone());
+            }
+            Event::SnapshotTaken { snapshot, .. } => {
+                self.validate_complete()?;
+                snapshot.tree.validate()?;
+                let workspace = self.workspaces.get(&snapshot.workspace).ok_or_else(|| {
+                    Denial::new("workspace_missing", "Snapshot has no recorded workspace")
+                })?;
+                if self.snapshots.contains_key(&snapshot.id)
+                    || snapshot.taken != event.at
+                    || event.policy.as_ref() != Some(&workspace.provider.policy)
+                    || event.input.is_some()
+                    || event.refs != vec![workspace.reference()?]
+                {
+                    return Err(Denial::new(
+                        "snapshot_record",
+                        "Snapshot identity or attribution is invalid",
+                    ));
+                }
+                self.references.insert(snapshot.reference()?);
+                self.snapshots
+                    .insert(snapshot.id.clone(), (**snapshot).clone());
+            }
             Event::BudgetOpened { .. }
             | Event::ReservationChanged { .. }
             | Event::ReceiptSettled { .. }

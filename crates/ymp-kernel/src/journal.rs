@@ -22,6 +22,10 @@ impl Default for ParameterSchemas {
         Self {
             validators: BTreeMap::from([
                 (
+                    ("WorkspaceProvider".into(), "Direct".into(), "1".into()),
+                    validate_direct as ParameterValidator,
+                ),
+                (
                     ("CostModel".into(), "PriceWeighted".into(), "1".into()),
                     validate_price_weighted as ParameterValidator,
                 ),
@@ -44,6 +48,11 @@ impl Default for ParameterSchemas {
             ]),
         }
     }
+}
+fn validate_direct(selection: &PolicySelection) -> Result<()> {
+    let limits: ymp_domain::workspace::CaptureLimits =
+        ymp_domain::journal::decode(&encode(&selection.parameters)?)?;
+    limits.validate()
 }
 fn validate_price_weighted(selection: &PolicySelection) -> Result<()> {
     let parameters: ymp_domain::resources::PriceWeightedParameters =

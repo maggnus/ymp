@@ -9,6 +9,7 @@ publish.workspace = true
 ymp-domain = { path = "../ymp-domain" }
 ymp-kernel = { path = "../ymp-kernel" }
 serde_json.workspace = true
+rustix = { version = "1.1.4", features = ["fs"] }
 
 [dev-dependencies]
 serde.workspace = true

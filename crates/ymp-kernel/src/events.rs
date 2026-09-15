@@ -29,6 +29,14 @@ pub struct CriteriaCommitted {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub enum Event {
+    WorkspaceOpened {
+        version: u32,
+        workspace: Box<ymp_domain::workspace::Workspace>,
+    },
+    SnapshotTaken {
+        version: u32,
+        snapshot: Box<ymp_domain::workspace::Snapshot>,
+    },
     BudgetOpened {
         version: u32,
         data: Box<crate::treasury::BudgetOpening>,
@@ -74,6 +82,8 @@ pub enum Event {
 impl Event {
     pub fn contents(&self) -> Result<EventContent> {
         let selections: Vec<&PolicySelection> = match self {
+            Self::WorkspaceOpened { workspace, .. } => vec![&workspace.provider],
+            Self::SnapshotTaken { .. } => vec![],
             Self::BudgetOpened { data, .. } => vec![&data.reporting.effective],
             Self::ReservationChanged {
                 change: crate::treasury::ReservationChange::Reserved(data),
@@ -97,11 +107,22 @@ impl Event {
                 .attached
                 .insert(selection.policy.params.clone(), bytes);
         }
+        if let Self::SnapshotTaken { snapshot, .. } = self {
+            let bytes = ymp_domain::journal::encode(&snapshot.tree)?;
+            let digest = snapshot.tree.digest()?;
+            content.required.insert(digest.clone());
+            content.attached.insert(digest, bytes);
+            content
+                .required
+                .extend(snapshot.tree.files.values().map(|file| file.digest.clone()));
+        }
         Ok(content)
     }
     pub fn version(&self) -> u32 {
         match self {
-            Self::BudgetOpened { version, .. }
+            Self::WorkspaceOpened { version, .. }
+            | Self::SnapshotTaken { version, .. }
+            | Self::BudgetOpened { version, .. }
             | Self::ReservationChanged { version, .. }
             | Self::ReceiptSettled { version, .. }
             | Self::ReportingStarted { version, .. }

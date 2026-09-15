@@ -256,6 +256,17 @@ value Snapshot { id: Id<Snapshot>; workspace: Id<Workspace>; files: Map<Path, Di
 value Artifact { path: Path; digest: Digest }
 ```
 
+The Rust implementation uses `WorkspacePath` for a validated relative path (`.`
+only for the root), and a content-addressed `SnapshotTree` manifest to retain each
+file's digest, byte count and ordinary Unix permission bits (`SnapshotFile`), plus
+empty directories and their modes. These values preserve rerunnable content rather
+than treating a digest without stored bytes as a snapshot. Symlinks, hard links,
+special files and special permission bits are refused by Direct capture; ownership,
+timestamps and extended attributes are not claimed as reproducible snapshot state.
+`CaptureLimits` bounds entry count, nesting depth and per-file/total bytes.
+`WorkspaceLocation` binds the canonical root to its observed device and inode;
+it identifies an I/O target and does not certify an executor's confinement.
+
 ### 3.3. Session, team and plan
 
 ```text

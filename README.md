@@ -20,6 +20,9 @@ those events and immutable bytes across restart, with explicit commit resolution
 The [Treasury](ymp-docs/resources-implementation.md) records budget reservations,
 receipt observations and policy-attributed charges while protecting verification
 and reporting capacity. Native execution and its evidence remain separate work.
+The [Direct workspace capture](ymp-docs/workspace-implementation.md) retains file
+content, ordinary permissions and empty directories in immutable snapshots.
+Assignment path ownership and cessation checks remain under development.
 The remaining modules are placeholders under
 [the proposed layout](ymp-docs/project-worktree.md). The executable still has no
 interactive or task-execution behavior.
