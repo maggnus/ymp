@@ -1,95 +1,65 @@
-//! Codex CLI provider adapter: the first real [`ExecutionBackend`].
+//! Codex App Server adapter for the provider execution boundary.
 //!
-//! This adapter spawns the locally installed `codex` executable (verified on
-//! this machine as `codex-cli 0.154.0`) as a child process through
-//! `std::process` and maps its `codex exec --json` JSONL event stream into the
-//! port's execution observations. Every return value stays an observation,
-//! never authority; unknown metadata stays unknown and is never guessed.
-//!
-//! The verified `codex exec` flags used are:
-//!
-//! - `--json`: print events to stdout as JSONL (the only stream parsed);
-//! - `--skip-git-repo-check`: allow running outside a Git repository, so the
-//!   workspace root is not required to be a repository;
-//! - `-m, --model <MODEL>`: passed through only when the recorded sent
-//!   settings carry an admitted `model` setting.
-//!
-//! The child inherits the environment unchanged: authentication stays in the
-//! native environment (`CODEX_HOME`), and no credential is read, copied or
-//! stored. The process runs with its working directory set to the invocation's
-//! workspace scope, interpreted as a directory path.
-//!
-//! Verified JSONL event kinds (from `codex exec --help` and the official
-//! non-interactive-mode documentation of this Codex generation) and their
-//! conservative mapping:
-//!
-//! | Codex JSONL event | Port observation |
-//! | --- | --- |
-//! | `thread.started` (field `thread_id`) | none; the thread id is kept adapter-side |
-//! | `turn.started` | [`ExecutionObservation::UsageObserved`] with the running count of observed turn starts |
-//! | `item.completed` with `item.type=agent_message` and a string `text` | [`ExecutionObservation::OutputObserved`] with the message's character count |
-//! | other `item.started` / `item.updated` / `item.completed` kinds | none; not output text at the host-controlled boundary |
-//! | `turn.completed` (field `usage`) | token totals kept adapter-side ([`CodexTokenUsage`]); the port's usage fields carry no tokens |
-//! | `turn.failed` (fields undocumented) | failure signal; class `codex-turn-failed` once exit is observed; free-form fields are counted and dropped |
-//! | `error` (fields undocumented) | failure signal; class `codex-error-event`; only an allowlisted protocol code survives (see [`allowlisted_error_code`]), free-form fields are counted and dropped |
-//! | process exit observed, code 0, no failure signal | [`Termination::Completed`] plus [`ExecutionObservation::WritesEnded`] |
-//! | process exit observed, non-zero code | [`Termination::Failed`] with class `codex-nonzero-exit` (or the earlier signal's class) plus `WritesEnded` |
-//! | exit by signal without a cancellation request | [`Termination::Failed`] with class `codex-signal-terminated` |
-//! | exit observed after a cancellation request | [`Termination::Cancelled`] plus `WritesEnded` |
-//! | malformed JSON line / unknown event type | no observation; counted adapter-side, never guessed |
-//!
-//! Honest limits of this adapter:
-//!
-//! - no model or effort negotiation: one default invocation shape, with an
-//!   optional admitted `model` setting passed through to `-m`; any other sent
-//!   setting key is refused at start with a typed confirmed never-started
-//!   failure rather than silently dropped;
-//! - free-form provider text never becomes a persisted diagnosis: a failure
-//!   event keeps only an allowlisted protocol code (or the stable generic
-//!   marker) adapter-side, and the child's stderr is drained to a sink and
-//!   discarded, because SDK diagnostics may contain credentials;
-//! - no session resume: each invocation is a fresh `codex exec`;
-//! - the port's [`Receipt`] carries no settings report because the verified
-//!   event kinds include none: `reported` settings stay unknown;
-//! - token usage does not fit the port's [`ObservedUsage`] fields (turns,
-//!   output characters, wall clock); the adapter preserves it adapter-side;
-//! - cancellation requests SIGTERM (through the POSIX `kill` utility, when
-//!   present) and escalates to SIGKILL after a grace period, but claims a
-//!   `cancelled` termination only when the child's exit was actually
-//!   observed; an unobserved exit stays the kernel's `uncertain` path;
-//! - the reader threads poll without an overall deadline: a child that never
-//!   exits keeps its reader thread alive until the host cancels or the
-//!   process dies.
+//! The adapter starts `codex app-server --stdio`, completes the App Server
+//! handshake synchronously in [`ExecutionBackend::start`], and then maps only
+//! the selected thread and turn into typed observations. Authentication and
+//! unknown native metadata remain in the native Codex environment.
+
+mod rpc;
+mod settings;
+mod usage;
 
 use std::collections::{HashMap, VecDeque};
-use std::io::{BufRead, BufReader, Read};
-use std::path::PathBuf;
-use std::process::{Child, Command, ExitStatus, Stdio};
+use std::path::{Path, PathBuf};
+use std::process::{Child, Command, Stdio};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
 
-use serde_json::Value;
+#[cfg(unix)]
+use std::os::unix::process::CommandExt;
+
+use rpc::{ReaderEvent, RpcFailure, RpcProcess, SharedInput, spawn_reader};
+use serde_json::{Map, Value, json};
+use settings::{load_catalog, setting};
+use usage::{CodexUsage, TokenCounts, codex_counts};
 use ymp_kernel::execution::{
     AgentId, BackendCancelRefused, BackendInvocation, BackendStartFailure, ErrorClass,
     ExclusionReason, ExecutionBackend, ExecutionObservation, InvocationId, ModelOffering,
-    ObservedUsage, Pool, PoolEntry, Receipt, Registry, RegistryFailure, SettingKey, Settings,
-    Termination,
+    ObservedUsage, Pool, PoolEntry, Receipt, Registry, RegistryFailure, Settings, Termination,
+    WorkspaceOperation,
 };
 
-use crate::clock::Clock;
+use crate::clock::{Clock, SystemClock};
 
-/// How long the version probe waits before it kills the child and reports
-/// the adapter not ready.
-const PROBE_TIMEOUT: Duration = Duration::from_secs(5);
-
-/// Default grace between SIGTERM and SIGKILL during cancellation.
+const HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(15);
 const DEFAULT_CANCEL_GRACE: Duration = Duration::from_secs(3);
+const SUPERVISOR_POLL: Duration = Duration::from_millis(10);
+const SUPERVISOR_SCRIPT: &str = r#"
+trap '' TERM
+trap 'kill -KILL -- -$$ 2>/dev/null' HUP INT EXIT
+"$@" <&0 &
+agent=$!
+wait "$agent"
+exit $?
+"#;
 
-/// Protocol-defined error codes a failure event may carry in its
-/// `codexErrorInfo` as a string naming the failure mode, enumerated from the
-/// Codex CLI protocol's error types. Membership test only: these are the only
-/// provider-side failure codes this adapter ever preserves.
+const MODEL_SETTING_KEY: &str = "model";
+const EFFORT_SETTING_KEY: &str = "effort";
+
+const CLASS_SPAWN_FAILED: &str = "codex-spawn-failed";
+const CLASS_PROTOCOL_FAILURE: &str = "codex-protocol-failure";
+const CLASS_PROTOCOL_ENDED: &str = "codex-protocol-ended";
+const CLASS_EMPTY_RESPONSE: &str = "codex-empty-response";
+const CLASS_ERROR_EVENT: &str = "codex-error-event";
+const CLASS_TURN_FAILED: &str = "codex-turn-failed";
+const CLASS_UNSUPPORTED_SETTING: &str = "unsupported-sent-setting";
+const CLASS_INVALID_ARGUMENT: &str = "unsupported-codex-argument";
+const CLASS_WORKSPACE_MISSING: &str = "workspace-dir-missing";
+const CLASS_MISSING_PROMPT: &str = "missing-prompt";
+const FAILURE_CODE_UNSPECIFIED: &str = "codex-failure-unspecified";
+
 const PROTOCOL_ERROR_CODE_STRINGS: &[&str] = &[
     "contextWindowExceeded",
     "sessionBudgetExceeded",
@@ -106,9 +76,6 @@ const PROTOCOL_ERROR_CODE_STRINGS: &[&str] = &[
     "other",
 ];
 
-/// Protocol-defined error codes a failure event may carry in its
-/// `codexErrorInfo` as an object whose key names the failure mode; the nested
-/// payload is never read. Membership test only, like the string codes.
 const PROTOCOL_ERROR_CODE_OBJECT_KEYS: &[&str] = &[
     "httpConnectionFailed",
     "responseStreamConnectionFailed",
@@ -117,40 +84,17 @@ const PROTOCOL_ERROR_CODE_OBJECT_KEYS: &[&str] = &[
     "activeTurnNotSteerable",
 ];
 
-/// Stable generic marker kept when a failure event carries no allowlisted
-/// protocol code; a code states a code, never a cause.
-const FAILURE_CODE_UNSPECIFIED: &str = "codex-failure-unspecified";
-
-/// The one sent-setting key this adapter can pass through to the CLI.
-const MODEL_SETTING_KEY: &str = "model";
-
-/// Error classes this adapter reports; a class states a class, not a cause.
-const CLASS_SPAWN_FAILED: &str = "codex-spawn-failed";
-const CLASS_SIGNAL_TERMINATED: &str = "codex-signal-terminated";
-const CLASS_NONZERO_EXIT: &str = "codex-nonzero-exit";
-const CLASS_ERROR_EVENT: &str = "codex-error-event";
-const CLASS_TURN_FAILED: &str = "codex-turn-failed";
-const CLASS_UNSUPPORTED_SETTING: &str = "unsupported-sent-setting";
-const CLASS_WORKSPACE_MISSING: &str = "workspace-dir-missing";
-const CLASS_MISSING_PROMPT: &str = "missing-prompt";
-
-/// The typed outcome of one discovery probe of the `codex` executable.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum CodexProbe {
-    /// The executable answered the version probe; the version line is kept
-    /// exactly as printed.
     Ready { version: String },
-    /// The executable cannot serve invocations now, with the typed reason.
     NotReady { detail: String },
 }
 
 impl CodexProbe {
-    /// Whether the probe admits the adapter to serving.
     pub const fn is_ready(&self) -> bool {
         matches!(self, Self::Ready { .. })
     }
 
-    /// The version line the probe observed, if any.
     pub fn version(&self) -> Option<&str> {
         match self {
             Self::Ready { version } => Some(version),
@@ -158,7 +102,6 @@ impl CodexProbe {
         }
     }
 
-    /// The not-ready reason, if any.
     pub fn not_ready_detail(&self) -> Option<&str> {
         match self {
             Self::Ready { .. } => None,
@@ -167,15 +110,7 @@ impl CodexProbe {
     }
 }
 
-/// A registry over the locally installed Codex CLI.
-///
-/// Discovery is an explicit probe: it spawns `<executable> --version` under a
-/// deadline, keeps the printed version line verbatim, and reports the agent
-/// with its explicitly configured offering. The registry invents no models
-/// and no controls: the offering is operator configuration, and anything the
-/// native environment did not report stays unknown. Authentication stays in
-/// the native environment; the probe reads no credential. Reading the pool
-/// never probes; only an explicit scan does.
+/// Registry backed by a short-lived App Server `model/list` scan.
 pub struct CodexRegistry {
     agent: AgentId,
     offering: ModelOffering,
@@ -186,49 +121,71 @@ pub struct CodexRegistry {
 }
 
 impl CodexRegistry {
-    /// A registry for one agent identity whose offering comes from explicit
-    /// configuration, never from a hand-invented model table inside this
-    /// adapter. `executable` is resolved through `PATH` unless it names a
-    /// path.
     pub fn new(agent: AgentId, offering: ModelOffering, executable: impl Into<String>) -> Self {
         Self {
             agent,
             offering,
             executable: executable.into(),
-            probe_timeout: PROBE_TIMEOUT,
+            probe_timeout: HANDSHAKE_TIMEOUT,
             last_scan: None,
             last_probe: None,
         }
     }
 
-    /// Sets how long the version probe may run before the adapter is
-    /// reported not ready.
     pub fn with_probe_timeout(mut self, timeout: Duration) -> Self {
         self.probe_timeout = timeout;
         self
     }
 
-    /// The probe of the last explicit scan, if one ran.
     pub fn probe(&self) -> Option<&CodexProbe> {
         self.last_probe.as_ref()
+    }
+
+    fn native_scan(&self) -> Result<(String, ModelOffering), String> {
+        let workspace = std::env::current_dir()
+            .map_err(|error| format!("cannot read the registry working directory: {error}"))?;
+        let clock: Arc<dyn Clock> = Arc::new(SystemClock::new());
+        let (mut process, handle) = spawn_app_server(&self.executable, &workspace, true, clock)
+            .map_err(|error| format!("cannot spawn '{}': {error}", self.executable))?;
+        let deadline = Instant::now() + self.probe_timeout;
+        let result = (|| {
+            let initialized = initialize(&mut process, deadline)?;
+            let version = initialized
+                .get("userAgent")
+                .and_then(Value::as_str)
+                .filter(|version| !version.trim().is_empty())
+                .ok_or_else(|| RpcFailure::protocol("Codex initialize omitted userAgent"))?
+                .to_owned();
+            let catalog = load_catalog(&mut process, deadline)?;
+            let offering = catalog
+                .offering(self.offering.id().clone())
+                .map_err(RpcFailure::protocol)?;
+            Ok((version, offering))
+        })();
+        process.close_input();
+        if !handle.wait_for_exit(deadline) {
+            handle.kill("KILL");
+        }
+        result.map_err(|failure: RpcFailure| failure.to_string())
     }
 }
 
 impl Registry for CodexRegistry {
     fn scan(&mut self) -> Result<Pool, RegistryFailure> {
-        let probe = probe_with_timeout(&self.executable, self.probe_timeout);
-        self.last_probe = Some(probe.clone());
-        let exclusion = (!probe.is_ready()).then(|| ExclusionReason::NotReady {
-            detail: probe
-                .not_ready_detail()
-                .unwrap_or("the probe reported not ready")
-                .to_owned(),
-        });
-        // Exclusion is a fact about serving, not a denial of identity: the
-        // agent stays in the pool with its typed reason.
+        let (probe, offering, exclusion) = match self.native_scan() {
+            Ok((version, offering)) => (CodexProbe::Ready { version }, offering, None),
+            Err(detail) => (
+                CodexProbe::NotReady {
+                    detail: detail.clone(),
+                },
+                self.offering.clone(),
+                Some(ExclusionReason::NotReady { detail }),
+            ),
+        };
+        self.last_probe = Some(probe);
         let pool = Pool::from_scan(vec![PoolEntry::new(
             self.agent.clone(),
-            self.offering.clone(),
+            offering,
             exclusion,
         )]);
         self.last_scan = Some(pool.clone());
@@ -240,75 +197,6 @@ impl Registry for CodexRegistry {
     }
 }
 
-/// Runs `<executable> --version` under a deadline, killing the child when the
-/// deadline passes and reporting the typed not-ready reason.
-fn probe_with_timeout(executable: &str, timeout: Duration) -> CodexProbe {
-    let spawn = Command::new(executable)
-        .arg("--version")
-        .stdin(Stdio::null())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn();
-    let mut child = match spawn {
-        Ok(child) => child,
-        Err(error) => {
-            return CodexProbe::NotReady {
-                detail: format!("cannot spawn '{executable}': {error}"),
-            };
-        }
-    };
-    let deadline = Instant::now() + timeout;
-    loop {
-        match child.try_wait() {
-            Ok(Some(status)) => {
-                let mut stdout = String::new();
-                if let Some(mut pipe) = child.stdout.take() {
-                    let _ = pipe.read_to_string(&mut stdout);
-                }
-                let _ = child.wait();
-                if !status.success() {
-                    return CodexProbe::NotReady {
-                        detail: format!(
-                            "version probe of '{executable}' exited with status {status}"
-                        ),
-                    };
-                }
-                let version = stdout.lines().next().unwrap_or_default().trim();
-                if version.is_empty() {
-                    return CodexProbe::NotReady {
-                        detail: format!("version probe of '{executable}' printed no version line"),
-                    };
-                }
-                return CodexProbe::Ready {
-                    version: version.to_owned(),
-                };
-            }
-            Ok(None) => {
-                if Instant::now() >= deadline {
-                    let _ = child.kill();
-                    let _ = child.wait();
-                    return CodexProbe::NotReady {
-                        detail: format!(
-                            "version probe of '{executable}' did not answer within {} ms",
-                            timeout.as_millis()
-                        ),
-                    };
-                }
-                thread::sleep(Duration::from_millis(10));
-            }
-            Err(error) => {
-                return CodexProbe::NotReady {
-                    detail: format!("version probe of '{executable}' failed: {error}"),
-                };
-            }
-        }
-    }
-}
-
-/// Token totals one `turn.completed` event reported. A `None` component is a
-/// field the event did not carry: it stays unknown, never zero. The port's
-/// [`ObservedUsage`] has no token fields, so the adapter preserves these
-/// totals adapter-side as evidence.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct CodexTokenUsage {
     pub input_tokens: Option<u64>,
@@ -317,69 +205,50 @@ pub struct CodexTokenUsage {
     pub reasoning_output_tokens: Option<u64>,
 }
 
-impl CodexTokenUsage {
-    fn from_usage_value(usage: &Value) -> Self {
-        let number = |name: &str| {
-            usage
-                .get(name)
-                .and_then(Value::as_i64)
-                .and_then(|value| u64::try_from(value).ok())
-        };
+impl From<TokenCounts> for CodexTokenUsage {
+    fn from(counts: TokenCounts) -> Self {
         Self {
-            input_tokens: number("input_tokens"),
-            cached_input_tokens: number("cached_input_tokens"),
-            output_tokens: number("output_tokens"),
-            reasoning_output_tokens: number("reasoning_output_tokens"),
+            input_tokens: counts.input,
+            cached_input_tokens: counts.cache_read,
+            output_tokens: counts.output,
+            reasoning_output_tokens: counts.reasoning,
         }
     }
 }
 
-/// Conservative stream-parse statistics, kept adapter-side.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct CodexStreamStats {
-    /// Lines that were valid JSON but of an event kind or shape this adapter
-    /// has not verified: mapped to no observation.
     pub unmapped_lines: u64,
-    /// Lines that were not valid JSON at all.
     pub malformed_lines: u64,
-    /// Free-form failure texts (an `error` or `turn.failed` message) that
-    /// were observed and dropped: counted here, never stored or surfaced,
-    /// because SDK diagnostics may contain credentials.
     pub dropped_failure_details: u64,
 }
 
-/// The live record of one invocation, shared with the reader threads.
 #[derive(Debug)]
 struct CodexRun {
-    child: Option<Child>,
     pid: u32,
     cancel_requested: bool,
     pending: VecDeque<ExecutionObservation>,
-    /// Index of the next observation the current scan will read.
     scanned: usize,
-    /// Index up to which observations were made consumed by a committed
-    /// journal append; a failed append rewinds `scanned` back here.
     consumed: usize,
     receipt: Option<Receipt>,
     turns_observed: u64,
     output_chars_observed: u64,
     started_at: Duration,
-    ended_at: Option<Duration>,
-    thread_id: Option<String>,
+    session: Option<String>,
+    turn: Option<String>,
+    reported_settings: Option<Settings>,
+    usage: ObservedUsage,
     token_totals: Option<CodexTokenUsage>,
-    failure_signal: Option<ErrorClass>,
-    /// An allowlisted protocol code or the stable generic marker; free-form
-    /// provider text is never stored here or anywhere else.
+    turn_termination: Option<Termination>,
     failure_code: Option<String>,
     stats: CodexStreamStats,
     exit_observed: bool,
+    stream_drained: bool,
 }
 
 impl CodexRun {
-    fn new(child: Child, started_at: Duration) -> Self {
-        let pid = child.id();
+    fn new(pid: u32, started_at: Duration) -> Self {
         Self {
-            child: Some(child),
             pid,
             cancel_requested: false,
             pending: VecDeque::new(),
@@ -389,201 +258,339 @@ impl CodexRun {
             turns_observed: 0,
             output_chars_observed: 0,
             started_at,
-            ended_at: None,
-            thread_id: None,
+            session: None,
+            turn: None,
+            reported_settings: None,
+            usage: ObservedUsage::unknown(),
             token_totals: None,
-            failure_signal: None,
+            turn_termination: None,
             failure_code: None,
             stats: CodexStreamStats::default(),
             exit_observed: false,
+            stream_drained: false,
         }
     }
 
-    /// Queues the exit-derived observations and assembles the receipt. Runs
-    /// once, after the child's exit status was observed.
-    fn finalize(&mut self, status: &ExitStatus, clock: &dyn Clock) {
-        if self.receipt.is_some() {
+    fn fail(&mut self, class: &str, code: Option<String>) {
+        if self.turn_termination.is_none() {
+            self.turn_termination = Some(Termination::Failed {
+                class: ErrorClass::new(class).expect("static error class is valid"),
+            });
+            self.failure_code = code.or_else(|| Some(FAILURE_CODE_UNSPECIFIED.to_owned()));
+        }
+    }
+
+    fn maybe_finalize(&mut self, clock: &dyn Clock) {
+        if self.receipt.is_some() || !self.stream_drained {
             return;
         }
-        self.ended_at = Some(clock.elapsed());
+        if !self.exit_observed {
+            return;
+        }
         let termination = if self.cancel_requested {
             Termination::Cancelled
-        } else if let Some(class) = self.failure_signal.clone() {
-            Termination::Failed { class }
-        } else if status.success() {
-            Termination::Completed
-        } else if status.code().is_none() {
-            Termination::Failed {
-                class: ErrorClass::new(CLASS_SIGNAL_TERMINATED).expect("valid error class"),
-            }
+        } else if let Some(termination) = self.turn_termination.clone() {
+            termination
         } else {
             Termination::Failed {
-                class: ErrorClass::new(CLASS_NONZERO_EXIT).expect("valid error class"),
+                class: ErrorClass::new(CLASS_PROTOCOL_ENDED).expect("static error class is valid"),
             }
         };
-        let wall_clock = clock.elapsed().saturating_sub(self.started_at);
-        let usage = ObservedUsage::unknown()
+        let usage = self
+            .usage
             .with_turns(self.turns_observed)
             .with_output_chars(self.output_chars_observed)
-            .with_wall_clock(wall_clock);
+            .with_wall_clock(clock.elapsed().saturating_sub(self.started_at));
         self.pending.push_back(ExecutionObservation::Terminated {
             termination: termination.clone(),
         });
-        // The backend observed this child's exit, so its writes to the held
-        // scope have ended: an observation, not kernel proof.
         self.pending.push_back(ExecutionObservation::WritesEnded);
-        // The verified event kinds include no settings report: `reported`
-        // settings stay unknown.
-        self.receipt = Some(Receipt::new(termination, None, usage, true));
+        let mut receipt = Receipt::new(termination, self.reported_settings.clone(), usage, true);
+        if let Some(session) = &self.session {
+            receipt = receipt.with_session(session.clone());
+        }
+        self.receipt = Some(receipt);
+    }
+}
+
+#[derive(Clone)]
+struct RunHandle {
+    state: Arc<Mutex<CodexRun>>,
+    input: SharedInput,
+    kill_root: Arc<AtomicBool>,
+}
+
+impl RunHandle {
+    fn close_input(&self) {
+        if let Ok(mut input) = self.input.lock() {
+            input.take();
+        }
     }
 
-    /// Applies one JSONL line to the record; unknown shapes stay unmapped.
-    fn apply_line(&mut self, line: &str) {
-        let value: Value = match serde_json::from_str(line) {
-            Ok(value) => value,
-            Err(_) => {
-                self.stats.malformed_lines += 1;
-                return;
+    fn kill(&self, signal: &str) {
+        let pid = self.state.lock().ok().map_or(0, |state| state.pid);
+        if pid == 0 || !signal_process_group(pid, signal) {
+            self.kill_root.store(true, Ordering::Release);
+        }
+    }
+
+    fn wait_for_exit(&self, deadline: Instant) -> bool {
+        loop {
+            if self
+                .state
+                .lock()
+                .map(|state| state.exit_observed)
+                .unwrap_or(true)
+            {
+                return true;
             }
+            if Instant::now() >= deadline {
+                return false;
+            }
+            thread::sleep(SUPERVISOR_POLL);
+        }
+    }
+}
+
+fn signal_process_group(pid: u32, signal: &str) -> bool {
+    #[cfg(unix)]
+    {
+        use nix::sys::signal::{Signal, killpg};
+        use nix::unistd::Pid;
+
+        let signal = match signal {
+            "TERM" => Signal::SIGTERM,
+            "KILL" => Signal::SIGKILL,
+            _ => return false,
         };
-        let kind = value.get("type").and_then(Value::as_str).unwrap_or("");
-        match kind {
-            "thread.started" => {
-                if self.thread_id.is_none()
-                    && let Some(thread_id) = value.get("thread_id").and_then(Value::as_str)
-                {
-                    self.thread_id = Some(thread_id.to_owned());
+        i32::try_from(pid)
+            .ok()
+            .is_some_and(|group| killpg(Pid::from_raw(group), signal).is_ok())
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = (pid, signal);
+        false
+    }
+}
+
+fn spawn_supervisor(
+    mut child: Child,
+    handle: RunHandle,
+    clock: Arc<dyn Clock>,
+) -> thread::JoinHandle<()> {
+    thread::spawn(move || {
+        loop {
+            if handle.kill_root.swap(false, Ordering::AcqRel) {
+                let _ = child.kill();
+            }
+            match child.try_wait() {
+                Ok(Some(_status)) => {
+                    if let Ok(mut state) = handle.state.lock() {
+                        state.exit_observed = true;
+                        state.maybe_finalize(clock.as_ref());
+                    }
+                    // Descendants can retain stdout after the group leader
+                    // exits. Cleanup starts from the independently observed
+                    // process status and does not wait for EOF first.
+                    let _ = signal_process_group(child.id(), "KILL");
+                    return;
+                }
+                Ok(None) => thread::sleep(SUPERVISOR_POLL),
+                Err(_) => {
+                    let _ = child.kill();
+                    return;
                 }
             }
-            "turn.started" => {
-                self.turns_observed += 1;
-                self.pending.push_back(ExecutionObservation::UsageObserved {
-                    usage: ObservedUsage::unknown().with_turns(self.turns_observed),
-                });
-            }
-            "item.started" | "item.updated" => {
-                // Verified event kinds that carry no output text at the
-                // host-controlled boundary: no port observation.
-            }
-            "item.completed" => {
-                let item = value.get("item");
-                let is_agent_message = item
-                    .and_then(|item| item.get("type"))
-                    .and_then(Value::as_str)
-                    == Some("agent_message");
-                let text = item
-                    .and_then(|item| item.get("text"))
-                    .and_then(Value::as_str);
-                if is_agent_message && let Some(text) = text {
-                    let chars = text.chars().count() as u64;
-                    self.output_chars_observed += chars;
-                    self.pending
-                        .push_back(ExecutionObservation::OutputObserved { chars });
-                } else {
-                    // A recognized container whose item kind or shape was not
-                    // verified: no observation is guessed.
-                    self.stats.unmapped_lines += 1;
+        }
+    })
+}
+
+fn spawn_app_server(
+    executable: &str,
+    workspace: &Path,
+    read_only: bool,
+    clock: Arc<dyn Clock>,
+) -> Result<(RpcProcess, RunHandle), String> {
+    let executable = resolve_executable(executable, workspace)?;
+    let mut command = Command::new("/bin/sh");
+    command
+        .arg("-c")
+        .arg(SUPERVISOR_SCRIPT)
+        .arg("ymp-codex-supervisor")
+        .arg(executable)
+        .arg("app-server")
+        .arg("--stdio")
+        .current_dir(workspace)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
+    #[cfg(unix)]
+    command.process_group(0);
+    let started_at = clock.elapsed();
+    let mut child = command.spawn().map_err(|error| error.to_string())?;
+    let pid = child.id();
+    let input = child.stdin.take().ok_or_else(|| {
+        let _ = child.kill();
+        "App Server stdin was not piped".to_owned()
+    })?;
+    let stdout = child.stdout.take().ok_or_else(|| {
+        let _ = child.kill();
+        "App Server stdout was not piped".to_owned()
+    })?;
+    if let Some(mut stderr) = child.stderr.take() {
+        thread::spawn(move || {
+            let _ = std::io::copy(&mut stderr, &mut std::io::sink());
+        });
+    }
+    let input = Arc::new(Mutex::new(Some(input)));
+    let output = spawn_reader(stdout);
+    let state = Arc::new(Mutex::new(CodexRun::new(pid, started_at)));
+    let handle = RunHandle {
+        state,
+        input: Arc::clone(&input),
+        kill_root: Arc::new(AtomicBool::new(false)),
+    };
+    spawn_supervisor(child, handle.clone(), clock);
+    Ok((RpcProcess::new(input, output, read_only), handle))
+}
+
+fn resolve_executable(executable: &str, workspace: &Path) -> Result<PathBuf, String> {
+    let path = Path::new(executable);
+    if path.components().count() > 1 {
+        let path = if path.is_absolute() {
+            path.to_owned()
+        } else {
+            workspace.join(path)
+        };
+        return path
+            .is_file()
+            .then_some(path)
+            .ok_or_else(|| format!("executable '{executable}' is not a file"));
+    }
+    std::env::var_os("PATH")
+        .into_iter()
+        .flat_map(|path| std::env::split_paths(&path).collect::<Vec<_>>())
+        .map(|directory| directory.join(executable))
+        .find(|candidate| candidate.is_file())
+        .ok_or_else(|| format!("executable '{executable}' was not found on PATH"))
+}
+
+fn initialize(process: &mut RpcProcess, deadline: Instant) -> Result<Value, RpcFailure> {
+    let response = process.request(
+        "initialize",
+        json!({
+            "clientInfo": {"name": "ymp", "version": env!("CARGO_PKG_VERSION")},
+            "capabilities": {}
+        }),
+        deadline,
+    )?;
+    process.notify("initialized", json!({}))?;
+    Ok(response)
+}
+
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+struct AdapterOptions {
+    ephemeral: bool,
+    sandbox: Option<String>,
+    workspace_write_config: Map<String, Value>,
+}
+
+impl AdapterOptions {
+    fn parse(arguments: &[String]) -> Result<Self, String> {
+        let mut parsed = Self::default();
+        let mut index = 0;
+        while index < arguments.len() {
+            match arguments[index].as_str() {
+                "--ephemeral" if !parsed.ephemeral => parsed.ephemeral = true,
+                "--sandbox" | "-s" => {
+                    index += 1;
+                    let sandbox = arguments
+                        .get(index)
+                        .ok_or_else(|| "the sandbox argument has no value".to_owned())?;
+                    if !matches!(sandbox.as_str(), "read-only" | "workspace-write") {
+                        return Err(format!("sandbox mode '{sandbox}' is not allowlisted"));
+                    }
+                    if parsed.sandbox.replace(sandbox.clone()).is_some() {
+                        return Err("the sandbox argument is repeated".to_owned());
+                    }
                 }
-            }
-            "turn.completed" => {
-                if let Some(usage) = value.get("usage") {
-                    self.token_totals = Some(CodexTokenUsage::from_usage_value(usage));
+                "-c" | "--config" => {
+                    index += 1;
+                    let config = arguments
+                        .get(index)
+                        .ok_or_else(|| "the config argument has no value".to_owned())?;
+                    match config.as_str() {
+                        "approval_policy=\"never\"" => {}
+                        "sandbox_workspace_write.writable_roots=[]" => {
+                            parsed
+                                .workspace_write_config
+                                .insert("writable_roots".to_owned(), json!([]));
+                        }
+                        "sandbox_workspace_write.exclude_slash_tmp=true" => {
+                            parsed
+                                .workspace_write_config
+                                .insert("exclude_slash_tmp".to_owned(), json!(true));
+                        }
+                        "sandbox_workspace_write.exclude_tmpdir_env_var=true" => {
+                            parsed
+                                .workspace_write_config
+                                .insert("exclude_tmpdir_env_var".to_owned(), json!(true));
+                        }
+                        _ => return Err(format!("config override '{config}' is not allowlisted")),
+                    }
                 }
+                argument => return Err(format!("argument '{argument}' is not allowlisted")),
             }
-            "turn.failed" => {
-                if self.failure_signal.is_none() {
-                    self.failure_signal =
-                        Some(ErrorClass::new(CLASS_TURN_FAILED).expect("valid error class"));
-                    self.failure_code = Some(
-                        allowlisted_error_code(&value)
-                            .unwrap_or(FAILURE_CODE_UNSPECIFIED)
-                            .to_owned(),
-                    );
-                }
-                self.count_dropped_failure_detail(&value);
-            }
-            "error" => {
-                if self.failure_signal.is_none() {
-                    self.failure_signal =
-                        Some(ErrorClass::new(CLASS_ERROR_EVENT).expect("valid error class"));
-                    self.failure_code = Some(
-                        allowlisted_error_code(&value)
-                            .unwrap_or(FAILURE_CODE_UNSPECIFIED)
-                            .to_owned(),
-                    );
-                }
-                self.count_dropped_failure_detail(&value);
-            }
-            _ => {
-                self.stats.unmapped_lines += 1;
-            }
+            index += 1;
+        }
+        Ok(parsed)
+    }
+
+    fn thread_config(&self) -> Value {
+        let mut config = Map::new();
+        if !self.workspace_write_config.is_empty() {
+            config.insert(
+                "sandbox_workspace_write".to_owned(),
+                Value::Object(self.workspace_write_config.clone()),
+            );
+        }
+        Value::Object(config)
+    }
+}
+
+struct HandshakeFailure {
+    source: RpcFailure,
+    confirmed_never_started: bool,
+}
+
+impl HandshakeFailure {
+    fn before_invocation(source: RpcFailure) -> Self {
+        Self {
+            source,
+            confirmed_never_started: true,
         }
     }
 
-    /// Counts the free-form failure text a failure event carried beyond any
-    /// allowlisted code: observable as a number in [`CodexStreamStats`],
-    /// never as text. SDK diagnostics may contain credentials, so the text
-    /// itself is neither stored nor surfaced.
-    fn count_dropped_failure_detail(&mut self, value: &Value) {
-        let carries_free_form_text = value.get("message").is_some()
-            || value
-                .get("error")
-                .is_some_and(|error| error.get("message").is_some());
-        if carries_free_form_text {
-            self.stats.dropped_failure_details += 1;
+    fn after_start_request(source: RpcFailure) -> Self {
+        Self {
+            source,
+            confirmed_never_started: false,
         }
     }
 }
 
-/// The allowlisted protocol error code a failure event carried, if any.
-///
-/// Membership test only: `codexErrorInfo` (directly on the event or nested
-/// in its `error` object) is read either as the string naming the failure
-/// mode or as an object whose key names it, and only codes in the fixed
-/// [`PROTOCOL_ERROR_CODE_STRINGS`] / [`PROTOCOL_ERROR_CODE_OBJECT_KEYS`]
-/// lists survive. Messages, nested payloads and every other free-form field
-/// are dropped: they are never returned, stored or surfaced, because SDK
-/// diagnostics may contain credentials.
-fn allowlisted_error_code(value: &Value) -> Option<&'static str> {
-    let info = value
-        .get("codexErrorInfo")
-        .or_else(|| value.pointer("/error/codexErrorInfo"))?;
-    if let Some(reported) = info.as_str() {
-        return PROTOCOL_ERROR_CODE_STRINGS
-            .iter()
-            .find(|code| **code == reported)
-            .copied();
-    }
-    PROTOCOL_ERROR_CODE_OBJECT_KEYS
-        .iter()
-        .find(|code| info.get(*code).is_some())
-        .copied()
-}
-
-/// The Codex CLI [`ExecutionBackend`]: spawn, stream-parse, cancel.
-///
-/// One configured instruction per backend instance: the port's
-/// [`BackendInvocation`] carries no payload field, so the prompt is explicit
-/// adapter configuration ([`CodexBackend::with_prompt`]) and a missing prompt
-/// is a typed confirmed never-started start failure. Wall-clock usage is
-/// measured with the injected [`Clock`]; the kernel's bounded-deadline
-/// adjudication stays with the kernel, and the output bound is enforced at
-/// the host-controlled drain boundary exactly as with the scripted backend.
 pub struct CodexBackend {
     executable: String,
     clock: Arc<dyn Clock>,
     prompt: Option<String>,
     cancel_grace: Duration,
     extra_args: Vec<String>,
-    runs: HashMap<InvocationId, Arc<Mutex<CodexRun>>>,
-    /// Resolved start outcomes, retained so retries return the first result
-    /// without spawning another process or reclassifying a live invocation.
+    runs: HashMap<InvocationId, RunHandle>,
     start_outcomes: HashMap<InvocationId, Result<(), BackendStartFailure>>,
 }
 
 impl CodexBackend {
-    /// A backend that spawns `executable` (resolved through `PATH` unless it
-    /// names a path) and measures wall-clock usage with `clock`.
     pub fn new(executable: impl Into<String>, clock: Arc<dyn Clock>) -> Self {
         Self {
             executable: executable.into(),
@@ -596,273 +603,548 @@ impl CodexBackend {
         }
     }
 
-    /// Sets the instruction sent as the `codex exec` prompt argument.
     pub fn with_prompt(mut self, prompt: impl Into<String>) -> Self {
         self.prompt = Some(prompt.into());
         self
     }
 
-    /// Sets the grace between SIGTERM and SIGKILL during cancellation.
     pub fn with_cancel_grace(mut self, grace: Duration) -> Self {
         self.cancel_grace = grace;
         self
     }
 
-    /// Appends explicit extra CLI arguments (for example a sandbox policy);
-    /// the adapter passes them through verbatim after its own flags.
+    /// Accepts only the narrow argument vocabulary parsed by
+    /// [`AdapterOptions`]; arbitrary arguments are rejected before spawn.
     pub fn with_extra_args(mut self, args: impl IntoIterator<Item = String>) -> Self {
         self.extra_args.extend(args);
         self
     }
 
-    /// Token totals the invocation's `turn.completed` event reported, kept
-    /// adapter-side because the port's usage fields carry no tokens.
     pub fn token_totals(&self, invocation: &InvocationId) -> Option<CodexTokenUsage> {
         self.runs
             .get(invocation)
-            .and_then(|run| run.lock().ok())
-            .and_then(|run| run.token_totals)
+            .and_then(|run| run.state.lock().ok())
+            .and_then(|state| state.token_totals)
     }
 
-    /// The codex thread id the invocation's `thread.started` event reported.
     pub fn thread_id(&self, invocation: &InvocationId) -> Option<String> {
         self.runs
             .get(invocation)
-            .and_then(|run| run.lock().ok())
-            .and_then(|run| run.thread_id.clone())
+            .and_then(|run| run.state.lock().ok())
+            .and_then(|state| state.session.clone())
     }
 
-    /// The typed failure code preserved from a failure event: an allowlisted
-    /// protocol code, or the stable generic marker when the event carried
-    /// none. Free-form provider text is never stored or surfaced; its drop is
-    /// counted in [`CodexStreamStats`].
     pub fn failure_code(&self, invocation: &InvocationId) -> Option<String> {
         self.runs
             .get(invocation)
-            .and_then(|run| run.lock().ok())
-            .and_then(|run| run.failure_code.clone())
+            .and_then(|run| run.state.lock().ok())
+            .and_then(|state| state.failure_code.clone())
     }
 
-    /// Conservative stream-parse statistics for one invocation.
     pub fn stream_stats(&self, invocation: &InvocationId) -> Option<CodexStreamStats> {
         self.runs
             .get(invocation)
-            .and_then(|run| run.lock().ok())
-            .map(|run| run.stats)
+            .and_then(|run| run.state.lock().ok())
+            .map(|state| state.stats)
     }
 
-    fn confirmed_failure(class: &str, detail: impl Into<String>) -> BackendStartFailure {
+    fn start_failure(
+        class: &str,
+        confirmed_never_started: bool,
+        detail: impl Into<String>,
+    ) -> BackendStartFailure {
         BackendStartFailure::new(
-            ErrorClass::new(class).expect("valid error class"),
-            true,
+            ErrorClass::new(class).expect("static error class is valid"),
+            confirmed_never_started,
             detail,
         )
     }
 
-    fn unsupported_sent_settings(sent: &Settings) -> Vec<String> {
-        sent.iter()
-            .map(|(key, _)| key.to_string())
-            .filter(|key| key != MODEL_SETTING_KEY)
-            .collect()
-    }
-
-    fn start_run(&mut self, invocation: &BackendInvocation) -> Result<(), BackendStartFailure> {
-        let prompt = self.prompt.as_deref().ok_or_else(|| {
-            Self::confirmed_failure(
+    fn validate_start(
+        &self,
+        invocation: &BackendInvocation,
+    ) -> Result<(PathBuf, bool, AdapterOptions), BackendStartFailure> {
+        if self.prompt.as_ref().is_none_or(|prompt| prompt.is_empty()) {
+            return Err(Self::start_failure(
                 CLASS_MISSING_PROMPT,
-                "no prompt is configured for this codex backend",
-            )
-        })?;
-        let unsupported = Self::unsupported_sent_settings(invocation.sent_settings());
+                true,
+                "no prompt is configured for this Codex backend",
+            ));
+        }
+        let unsupported = invocation
+            .sent_settings()
+            .iter()
+            .map(|(key, _)| key.as_str())
+            .filter(|key| !matches!(*key, MODEL_SETTING_KEY | EFFORT_SETTING_KEY))
+            .collect::<Vec<_>>();
         if !unsupported.is_empty() {
-            return Err(Self::confirmed_failure(
+            return Err(Self::start_failure(
                 CLASS_UNSUPPORTED_SETTING,
-                format!(
-                    "this adapter passes only the '{MODEL_SETTING_KEY}' setting; unsupported \
-                     sent settings: {}",
-                    unsupported.join(", ")
-                ),
+                true,
+                format!("unsupported sent settings: {}", unsupported.join(", ")),
+            ));
+        }
+        let options = AdapterOptions::parse(&self.extra_args)
+            .map_err(|detail| Self::start_failure(CLASS_INVALID_ARGUMENT, true, detail))?;
+        if invocation.session().is_some() && options.ephemeral {
+            return Err(Self::start_failure(
+                CLASS_INVALID_ARGUMENT,
+                true,
+                "an ephemeral Codex thread cannot be resumed",
             ));
         }
         let accesses = invocation.workspace_accesses();
         let workspace = if accesses.len() == 1 {
             PathBuf::from(accesses[0].scope().as_str())
         } else {
-            return Err(Self::confirmed_failure(
+            return Err(Self::start_failure(
                 CLASS_WORKSPACE_MISSING,
+                true,
                 "this adapter runs in exactly one workspace scope",
             ));
         };
         if !workspace.is_dir() {
-            return Err(Self::confirmed_failure(
+            return Err(Self::start_failure(
                 CLASS_WORKSPACE_MISSING,
+                true,
                 format!(
                     "workspace '{}' is not an existing directory",
                     workspace.display()
                 ),
             ));
         }
-        let mut command = Command::new(&self.executable);
-        command
-            .arg("exec")
-            .arg("--json")
-            .arg("--skip-git-repo-check")
-            .current_dir(workspace)
-            .stdin(Stdio::null())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped());
-        if let Some(model) = invocation
-            .sent_settings()
-            .get(&SettingKey::new(MODEL_SETTING_KEY).expect("valid setting key"))
-        {
-            command.arg("-m").arg(model.as_str());
+        let writable = accesses[0]
+            .operations()
+            .contains(&WorkspaceOperation::Write);
+        if !writable && options.sandbox.as_deref() == Some("workspace-write") {
+            return Err(Self::start_failure(
+                CLASS_INVALID_ARGUMENT,
+                true,
+                "workspace-write exceeds the admitted read-only workspace access",
+            ));
         }
-        for arg in &self.extra_args {
-            command.arg(arg);
-        }
-        command.arg(prompt);
+        Ok((workspace, !writable, options))
+    }
 
-        let started_at = self.clock.elapsed();
-        let child = command.spawn().map_err(|error| {
-            Self::confirmed_failure(
+    fn start_run(&mut self, invocation: &BackendInvocation) -> Result<(), BackendStartFailure> {
+        let (workspace, read_only, options) = self.validate_start(invocation)?;
+        let (mut process, handle) = spawn_app_server(
+            &self.executable,
+            &workspace,
+            read_only,
+            Arc::clone(&self.clock),
+        )
+        .map_err(|error| {
+            Self::start_failure(
                 CLASS_SPAWN_FAILED,
+                true,
                 format!("cannot spawn '{}': {error}", self.executable),
             )
         })?;
-        let run = Arc::new(Mutex::new(CodexRun::new(child, started_at)));
-        self.spawn_readers(&run);
-        self.runs.insert(invocation.invocation().clone(), run);
-        Ok(())
+        let timeout = HANDSHAKE_TIMEOUT.min(invocation.limits().max_wall_clock());
+        let deadline = Instant::now() + timeout;
+        let started = self.complete_handshake(
+            invocation,
+            &workspace,
+            &options,
+            &mut process,
+            &handle,
+            deadline,
+        );
+        match started {
+            Ok((session, turn)) => {
+                self.spawn_event_worker(
+                    process,
+                    handle.clone(),
+                    session,
+                    turn,
+                    invocation.session().is_some(),
+                );
+                self.runs.insert(invocation.invocation().clone(), handle);
+                Ok(())
+            }
+            Err(failure) => {
+                process.close_input();
+                handle.kill("KILL");
+                Err(Self::start_failure(
+                    CLASS_PROTOCOL_FAILURE,
+                    failure.confirmed_never_started,
+                    failure.source.detail(),
+                ))
+            }
+        }
     }
 
-    /// Starts the stdout parser and the stderr drainer. The stdout parser
-    /// holds the run lock only in short sections, so cancellation never
-    /// blocks on it; the stderr drainer touches no run state at all.
-    fn spawn_readers(&self, run: &Arc<Mutex<CodexRun>>) {
-        let mut guard = match run.lock() {
-            Ok(guard) => guard,
-            Err(_) => return,
-        };
-        let stdout = guard.child.as_mut().and_then(|child| child.stdout.take());
-        let stderr = guard.child.as_mut().and_then(|child| child.stderr.take());
-        drop(guard);
+    #[allow(clippy::too_many_arguments)]
+    fn complete_handshake(
+        &self,
+        invocation: &BackendInvocation,
+        workspace: &Path,
+        options: &AdapterOptions,
+        process: &mut RpcProcess,
+        handle: &RunHandle,
+        deadline: Instant,
+    ) -> Result<(String, String), HandshakeFailure> {
+        initialize(process, deadline).map_err(HandshakeFailure::before_invocation)?;
+        let catalog =
+            load_catalog(process, deadline).map_err(HandshakeFailure::before_invocation)?;
+        catalog
+            .validate(invocation.sent_settings())
+            .map_err(RpcFailure::protocol)
+            .map_err(HandshakeFailure::before_invocation)?;
 
-        if let Some(stdout) = stdout {
-            let run = Arc::clone(run);
-            let clock = Arc::clone(&self.clock);
-            thread::spawn(move || {
-                for line in BufReader::new(stdout).lines().map_while(Result::ok) {
-                    if let Ok(mut guard) = run.lock() {
-                        guard.apply_line(&line);
-                    }
-                }
-                // Stdout reached EOF; poll the child's exit without holding
-                // the lock, then finalize under it. The poll has no overall
-                // deadline: the kernel's bounded wait and cancellation own
-                // that decision.
-                loop {
-                    let status = {
-                        let Ok(mut guard) = run.lock() else {
-                            return;
-                        };
-                        let Some(child) = guard.child.as_mut() else {
-                            return;
-                        };
-                        match child.try_wait() {
-                            Ok(status) => status,
-                            Err(_) => return,
+        let sandbox = options.sandbox.as_deref().unwrap_or(
+            if invocation.workspace_accesses()[0]
+                .operations()
+                .contains(&WorkspaceOperation::Write)
+            {
+                "workspace-write"
+            } else {
+                "read-only"
+            },
+        );
+        let mut thread_params = json!({
+            "cwd": workspace,
+            "approvalPolicy": "never",
+            "sandbox": sandbox,
+            "config": options.thread_config()
+        });
+        if let Some(model) = setting(invocation.sent_settings(), MODEL_SETTING_KEY) {
+            thread_params["model"] = json!(model);
+        }
+        if let Some(effort) = setting(invocation.sent_settings(), EFFORT_SETTING_KEY) {
+            thread_params["config"]["model_reasoning_effort"] = json!(effort);
+        }
+        let thread_response = if let Some(session) = invocation.session() {
+            thread_params["threadId"] = json!(session);
+            process
+                .request("thread/resume", thread_params, deadline)
+                .map_err(HandshakeFailure::after_start_request)?
+        } else {
+            thread_params["ephemeral"] = json!(options.ephemeral);
+            process
+                .request("thread/start", thread_params, deadline)
+                .map_err(HandshakeFailure::after_start_request)?
+        };
+        catalog
+            .verify_acknowledgement(invocation.sent_settings(), &thread_response)
+            .map_err(RpcFailure::protocol)
+            .map_err(HandshakeFailure::after_start_request)?;
+        let session = thread_response
+            .pointer("/thread/id")
+            .and_then(Value::as_str)
+            .filter(|id| !id.trim().is_empty())
+            .ok_or_else(|| RpcFailure::protocol("Codex did not return a thread ID"))
+            .map_err(HandshakeFailure::after_start_request)?
+            .to_owned();
+
+        let prompt = self
+            .prompt
+            .as_deref()
+            .expect("prompt validated before spawn");
+        let mut turn_params = json!({
+            "threadId": session,
+            "input": [{"type": "text", "text": prompt}]
+        });
+        if let Some(model) = setting(invocation.sent_settings(), MODEL_SETTING_KEY) {
+            turn_params["model"] = json!(model);
+        }
+        if let Some(effort) = setting(invocation.sent_settings(), EFFORT_SETTING_KEY) {
+            turn_params["effort"] = json!(effort);
+        }
+        let turn_response = process
+            .request("turn/start", turn_params, deadline)
+            .map_err(HandshakeFailure::after_start_request)?;
+        let turn = turn_response
+            .pointer("/turn/id")
+            .and_then(Value::as_str)
+            .filter(|id| !id.trim().is_empty())
+            .ok_or_else(|| RpcFailure::protocol("Codex did not return a turn ID"))
+            .map_err(HandshakeFailure::after_start_request)?
+            .to_owned();
+        if let Ok(mut state) = handle.state.lock() {
+            state.session = Some(session.clone());
+            state.turn = Some(turn.clone());
+            state.reported_settings = Some(invocation.sent_settings().clone());
+            state.turns_observed = 1;
+            state
+                .pending
+                .push_back(ExecutionObservation::SettingsReported {
+                    settings: invocation.sent_settings().clone(),
+                });
+            state
+                .pending
+                .push_back(ExecutionObservation::UsageObserved {
+                    usage: ObservedUsage::unknown().with_turns(1),
+                });
+        }
+        Ok((session, turn))
+    }
+
+    fn spawn_event_worker(
+        &self,
+        mut process: RpcProcess,
+        handle: RunHandle,
+        session: String,
+        turn: String,
+        resumed: bool,
+    ) {
+        let clock = Arc::clone(&self.clock);
+        thread::spawn(move || {
+            let mut usage = CodexUsage::new(resumed, None);
+            let mut saw_delta = false;
+            let mut final_response_observed = false;
+            let mut terminal_seen = false;
+            loop {
+                match process.next() {
+                    ReaderEvent::Message(message) => match process.respond_server(&message) {
+                        Ok(true) => continue,
+                        Ok(false) => {
+                            if !terminal_seen
+                                && apply_notification(
+                                    &handle,
+                                    &session,
+                                    &turn,
+                                    &mut usage,
+                                    &mut saw_delta,
+                                    &mut final_response_observed,
+                                    &message,
+                                )
+                            {
+                                terminal_seen = true;
+                                process.close_input();
+                            }
                         }
-                    };
-                    if let Some(status) = status
-                        && let Ok(mut guard) = run.lock()
-                    {
-                        guard.exit_observed = true;
-                        guard.finalize(&status, clock.as_ref());
+                        Err(_) => {
+                            mark_protocol_failure(&handle, false, clock.as_ref());
+                            process.close_input();
+                            handle.kill("KILL");
+                            return;
+                        }
+                    },
+                    ReaderEvent::InvalidJson => {
+                        mark_protocol_failure(&handle, true, clock.as_ref());
+                        process.close_input();
+                        handle.kill("KILL");
                         return;
                     }
-                    thread::sleep(Duration::from_millis(10));
+                    ReaderEvent::LineTooLong | ReaderEvent::IoFailure => {
+                        mark_protocol_failure(&handle, false, clock.as_ref());
+                        process.close_input();
+                        handle.kill("KILL");
+                        return;
+                    }
+                    ReaderEvent::Eof => {
+                        if let Ok(mut state) = handle.state.lock() {
+                            state.stream_drained = true;
+                            state.maybe_finalize(clock.as_ref());
+                        }
+                        return;
+                    }
                 }
-            });
-        }
-
-        if let Some(mut stderr) = stderr {
-            thread::spawn(move || {
-                // Drain stderr fully to a sink, retaining nothing: provider
-                // diagnostics may contain credentials, so no byte of stderr
-                // is stored, surfaced or persisted. The drain exists only so
-                // the child cannot block on a full pipe.
-                let _ = std::io::copy(&mut stderr, &mut std::io::sink());
-            });
-        }
-    }
-
-    /// Sends a signal to the run's child through the POSIX `kill` utility.
-    /// Returns whether the utility ran successfully; `false` never asserts
-    /// the child is dead.
-    fn signal_child(run: &Arc<Mutex<CodexRun>>, signal_name: &str) -> bool {
-        let pid = run.lock().ok().map_or(0, |guard| guard.pid);
-        if pid == 0 {
-            return false;
-        }
-        Command::new("kill")
-            .arg("-s")
-            .arg(signal_name)
-            .arg(pid.to_string())
-            .stdin(Stdio::null())
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .output()
-            .is_ok_and(|output| output.status.success())
-    }
-
-    /// Escalates to SIGKILL: through the `kill` utility when present, else
-    /// through `Child::kill` under a short lock.
-    fn kill_child(run: &Arc<Mutex<CodexRun>>) {
-        if !Self::signal_child(run, "KILL")
-            && let Ok(mut guard) = run.lock()
-            && let Some(child) = guard.child.as_mut()
-        {
-            let _ = child.kill();
-        }
+            }
+        });
     }
 
     fn cancel_invocation(&mut self, invocation: &InvocationId) -> Result<(), BackendCancelRefused> {
-        let run = self.runs.get(invocation).cloned().ok_or_else(|| {
-            BackendCancelRefused::new("this codex backend does not know the invocation")
+        let handle = self.runs.get(invocation).cloned().ok_or_else(|| {
+            BackendCancelRefused::new("this Codex backend does not know the invocation")
         })?;
         {
-            let mut guard = run
+            let mut state = handle
+                .state
                 .lock()
                 .map_err(|_| BackendCancelRefused::new("the invocation record is poisoned"))?;
-            if guard.receipt.is_some() {
-                // Exit already observed; nothing to signal.
+            if state.receipt.is_some() {
                 return Ok(());
             }
-            guard.cancel_requested = true;
-        }
-        // SIGTERM first; escalate straight to SIGKILL when the utility is
-        // unavailable. Neither claims termination: only the observed exit
-        // does, and the reader thread reports it.
-        if !Self::signal_child(&run, "TERM") {
-            Self::kill_child(&run);
-        }
-        let deadline = Instant::now() + self.cancel_grace;
-        while Instant::now() < deadline {
-            let observed = run.lock().map(|guard| guard.exit_observed).unwrap_or(true);
-            if observed {
-                return Ok(());
+            if state.turn_termination.is_none() {
+                state.cancel_requested = true;
             }
-            thread::sleep(Duration::from_millis(10));
+            // When a provider termination already won the race, keep that
+            // outcome but still clean up a server that has not closed its
+            // protocol pipes.
         }
-        Self::kill_child(&run);
+        handle.close_input();
+        handle.kill("TERM");
+        if !handle.wait_for_exit(Instant::now() + self.cancel_grace) {
+            handle.kill("KILL");
+        }
         Ok(())
     }
 }
 
+fn mark_protocol_failure(handle: &RunHandle, malformed: bool, clock: &dyn Clock) {
+    if let Ok(mut state) = handle.state.lock() {
+        state.stats.malformed_lines += u64::from(malformed);
+        state.fail(CLASS_PROTOCOL_FAILURE, None);
+        state.stream_drained = true;
+        state.maybe_finalize(clock);
+    }
+}
+
+fn apply_notification(
+    handle: &RunHandle,
+    session: &str,
+    turn: &str,
+    usage: &mut CodexUsage,
+    saw_delta: &mut bool,
+    final_response_observed: &mut bool,
+    message: &Value,
+) -> bool {
+    let method = message.get("method").and_then(Value::as_str).unwrap_or("");
+    let params = message.get("params").unwrap_or(&Value::Null);
+    if params
+        .get("threadId")
+        .and_then(Value::as_str)
+        .is_some_and(|reported| reported != session)
+    {
+        return false;
+    }
+    if params
+        .get("turnId")
+        .and_then(Value::as_str)
+        .is_some_and(|reported| reported != turn)
+    {
+        if method == "thread/tokenUsage/updated" {
+            usage.restored(params.get("tokenUsage").unwrap_or(&Value::Null));
+        }
+        return false;
+    }
+
+    match method {
+        "item/agentMessage/delta" => {
+            if let Some(delta) = params.get("delta").and_then(Value::as_str) {
+                *saw_delta = true;
+                let chars = delta.chars().count() as u64;
+                if let Ok(mut state) = handle.state.lock() {
+                    state.output_chars_observed = state.output_chars_observed.saturating_add(chars);
+                    state
+                        .pending
+                        .push_back(ExecutionObservation::OutputObserved { chars });
+                }
+            }
+        }
+        "item/completed" if !*saw_delta => {
+            if params.pointer("/item/type").and_then(Value::as_str) == Some("agentMessage")
+                && let Some(text) = params.pointer("/item/text").and_then(Value::as_str)
+            {
+                *final_response_observed = !text.is_empty();
+                let chars = text.chars().count() as u64;
+                if let Ok(mut state) = handle.state.lock() {
+                    state.output_chars_observed = state.output_chars_observed.saturating_add(chars);
+                    state
+                        .pending
+                        .push_back(ExecutionObservation::OutputObserved { chars });
+                }
+            }
+        }
+        "item/completed" => {
+            if params.pointer("/item/type").and_then(Value::as_str) == Some("agentMessage")
+                && let Some(text) = params.pointer("/item/text").and_then(Value::as_str)
+            {
+                *final_response_observed = !text.is_empty();
+            }
+        }
+        "thread/tokenUsage/updated" => {
+            let raw = params.get("tokenUsage").unwrap_or(&Value::Null);
+            if let Some(observed) = usage.update(raw)
+                && let Ok(mut state) = handle.state.lock()
+            {
+                state.token_totals = Some(CodexTokenUsage::from(codex_counts(
+                    raw.get("total").unwrap_or(&Value::Null),
+                )));
+                state.usage = observed;
+                state
+                    .pending
+                    .push_back(ExecutionObservation::UsageObserved { usage: observed });
+            }
+        }
+        "error" => {
+            let error = params.get("error").unwrap_or(&Value::Null);
+            let code = allowlisted_error_code(error).map(str::to_owned);
+            if let Ok(mut state) = handle.state.lock() {
+                count_dropped_failure_detail(&mut state, error);
+                if params.get("willRetry").and_then(Value::as_bool) == Some(true) {
+                    state
+                        .pending
+                        .push_back(ExecutionObservation::RetryObserved {
+                            session: session.to_owned(),
+                            turn: turn.to_owned(),
+                            error_code: code,
+                        });
+                    return false;
+                }
+                state.fail(CLASS_ERROR_EVENT, code);
+            }
+            return true;
+        }
+        "turn/completed" => {
+            if params.pointer("/turn/id").and_then(Value::as_str) != Some(turn) {
+                return false;
+            }
+            if let Some(final_usage) = usage.finish()
+                && let Ok(mut state) = handle.state.lock()
+            {
+                state.usage = final_usage;
+                state
+                    .pending
+                    .push_back(ExecutionObservation::UsageObserved { usage: final_usage });
+            }
+            if let Ok(mut state) = handle.state.lock() {
+                if params.pointer("/turn/status").and_then(Value::as_str) == Some("completed")
+                    && *final_response_observed
+                {
+                    state.turn_termination = Some(Termination::Completed);
+                } else if params.pointer("/turn/status").and_then(Value::as_str)
+                    == Some("completed")
+                {
+                    state.fail(CLASS_EMPTY_RESPONSE, None);
+                } else {
+                    let error = params.pointer("/turn/error").unwrap_or(&Value::Null);
+                    count_dropped_failure_detail(&mut state, error);
+                    state.fail(
+                        CLASS_TURN_FAILED,
+                        allowlisted_error_code(error).map(str::to_owned),
+                    );
+                }
+            }
+            return true;
+        }
+        "item/started" | "item/updated" => {}
+        _ => {
+            if let Ok(mut state) = handle.state.lock() {
+                state.stats.unmapped_lines += 1;
+            }
+        }
+    }
+    false
+}
+
+fn count_dropped_failure_detail(state: &mut CodexRun, error: &Value) {
+    if error.get("message").is_some() {
+        state.stats.dropped_failure_details += 1;
+    }
+}
+
+fn allowlisted_error_code(error: &Value) -> Option<&'static str> {
+    let info = error.get("codexErrorInfo")?;
+    if let Some(reported) = info.as_str() {
+        return PROTOCOL_ERROR_CODE_STRINGS
+            .iter()
+            .find(|code| **code == reported)
+            .copied();
+    }
+    PROTOCOL_ERROR_CODE_OBJECT_KEYS
+        .iter()
+        .find(|code| info.get(*code).is_some())
+        .copied()
+}
+
 impl ExecutionBackend for CodexBackend {
     fn start(&mut self, invocation: &BackendInvocation) -> Result<(), BackendStartFailure> {
-        if let Some(resolved) = self.start_outcomes.get(invocation.invocation()) {
-            return resolved.clone();
+        if let Some(outcome) = self.start_outcomes.get(invocation.invocation()) {
+            return outcome.clone();
         }
         let outcome = self.start_run(invocation);
         self.start_outcomes
@@ -875,44 +1157,54 @@ impl ExecutionBackend for CodexBackend {
     }
 
     fn next_event(&mut self, invocation: &InvocationId) -> Option<ExecutionObservation> {
-        let run = self.runs.get(invocation)?.lock().ok()?;
-        let observation = run.pending.get(run.scanned).cloned()?;
-        drop(run);
-        if let Ok(mut run) = self.runs.get(invocation)?.lock() {
-            run.scanned += 1;
-        }
+        let handle = self.runs.get(invocation)?;
+        let mut state = handle.state.lock().ok()?;
+        let observation = state.pending.get(state.scanned).cloned()?;
+        state.scanned += 1;
         Some(observation)
     }
 
     fn unread_last(&mut self, invocation: &InvocationId) {
         if let Some(handle) = self.runs.get(invocation)
-            && let Ok(mut run) = handle.lock()
-            && run.scanned > run.consumed
+            && let Ok(mut state) = handle.state.lock()
+            && state.scanned > state.consumed
         {
-            run.scanned -= 1;
+            state.scanned -= 1;
         }
     }
 
     fn reset_scan(&mut self, invocation: &InvocationId) {
         if let Some(handle) = self.runs.get(invocation)
-            && let Ok(mut run) = handle.lock()
+            && let Ok(mut state) = handle.state.lock()
         {
-            run.scanned = run.consumed;
+            state.scanned = state.consumed;
         }
     }
 
     fn commit_scan(&mut self, invocation: &InvocationId) {
         if let Some(handle) = self.runs.get(invocation)
-            && let Ok(mut run) = handle.lock()
+            && let Ok(mut state) = handle.state.lock()
         {
-            run.consumed = run.scanned;
+            let consumed = state.scanned;
+            state.pending.drain(..consumed);
+            state.scanned = 0;
+            state.consumed = 0;
         }
     }
 
     fn receipt(&mut self, invocation: &InvocationId) -> Option<Receipt> {
         self.runs
             .get(invocation)
-            .and_then(|run| run.lock().ok())
-            .and_then(|run| run.receipt.clone())
+            .and_then(|run| run.state.lock().ok())
+            .and_then(|state| state.receipt.clone())
+    }
+}
+
+impl Drop for CodexBackend {
+    fn drop(&mut self) {
+        for handle in self.runs.values() {
+            handle.close_input();
+            handle.kill("KILL");
+        }
     }
 }
