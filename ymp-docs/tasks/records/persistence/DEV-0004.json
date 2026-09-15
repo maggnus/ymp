@@ -5,18 +5,18 @@
   "title": "Define the durable Journal contract",
   "type": "design",
   "priority": 40,
-  "status": "planned",
+  "status": "done",
   "depends_on": [
     "DEV-0002",
     "DEV-0003"
   ],
-  "owner": null,
+  "owner": "maintainer",
   "goal": "Turn durable session recovery into an implementable contract before selecting or adding a storage adapter.",
   "scope": [
     "Specify durability, atomicity, ordering, schema-version, recovery, corruption, and concurrent-writer behavior at the Journal port boundary.",
     "Define how storage location, ownership, lifetime, migration, and deletion are selected and exposed to the user.",
-    "Identify the kernel consumer scenarios and failure observations needed to verify a future adapter.",
-    "Compare proportionate storage approaches against the contract without selecting a technology or path in advance."
+    "Identify the kernel consumer scenarios and failure observations used to verify the adapter.",
+    "Compare proportionate storage approaches and record the selection: embedded SQLite, chosen over a custom file protocol because no demonstrated advantage justified replacing a proven transactional mechanism."
   ],
   "acceptance": [
     "A reviewed repository document states the durable Journal invariants and typed failure behavior.",
@@ -25,12 +25,15 @@
     "The design records the selected storage approach and location only after evaluating them against explicit requirements.",
     "The resulting implementation task can proceed without relying on chat context or claiming persistence is already delivered."
   ],
-  "evidence": [],
-  "context": [
-    "This task becomes ready only after the task workflow is accepted.",
-    "No database, file format, storage path, or migration mechanism has been selected."
+  "evidence": [
+    "ymp-docs/durable-journal-contract.md",
+    "implementation commits ee1de2f..281f002 integrated on main (crates/ymp-storage)"
   ],
-  "revision": 1,
+  "context": [
+    "The contract is finalized as ymp-docs/durable-journal-contract.md and documents the accepted SQLite adapter, its typed failures, indeterminate-commit resolution, payload and checksum encoding, and verified behavior with honest limits.",
+    "Embedded SQLite through rusqlite with the bundled build was selected; unsupported schema versions are never rewritten or migrated, and no migration, compaction, or deletion is performed."
+  ],
+  "revision": 4,
   "history": [
     {
       "revision": 1,
@@ -38,6 +41,27 @@
       "actor": "maintainer",
       "status": "planned",
       "note": "Contract work is planned and waits for completion of DEV-0003."
+    },
+    {
+      "revision": 2,
+      "at": "2026-09-15T02:59:42.814300Z",
+      "actor": "manage.py",
+      "status": "planned",
+      "note": "Scope and context updated to the contract outcome: embedded SQLite selected; the contract documents the accepted adapter."
+    },
+    {
+      "revision": 3,
+      "at": "2026-09-15T02:59:48.013478Z",
+      "actor": "maintainer",
+      "status": "in_progress",
+      "note": "Claimed by maintainer."
+    },
+    {
+      "revision": 4,
+      "at": "2026-09-15T02:59:54.251154Z",
+      "actor": "maintainer",
+      "status": "done",
+      "note": "Contract finalized as the SQLite journal contract documenting the accepted implementation (commits ee1de2f..281f002 integrated on main)."
     }
   ]
 }

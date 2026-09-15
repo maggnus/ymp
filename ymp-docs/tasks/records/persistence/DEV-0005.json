@@ -5,11 +5,11 @@
   "title": "Implement persistent Journal storage and restart recovery",
   "type": "implementation",
   "priority": 50,
-  "status": "planned",
+  "status": "done",
   "depends_on": [
     "DEV-0004"
   ],
-  "owner": null,
+  "owner": "maintainer",
   "goal": "Implement the storage adapter selected by the durable Journal contract and demonstrate coherent session recovery after process restart.",
   "scope": [
     "Implement only the adapter and assembly changes admitted by DEV-0004.",
@@ -22,11 +22,14 @@
     "Failed or stale appends do not expose partial history, and deliberately corrupt state is not reported as an empty or valid session.",
     "User-facing documentation states storage ownership, location, lifetime, migration, and recovery limits."
   ],
-  "evidence": [],
+  "evidence": [
+    "Result commits ee1de2f,9da2d5e,8b43352,281f002 on main",
+    "Independent review verdict conditions satisfied; gates green"
+  ],
   "context": [
     "This task is intentionally unscheduled until DEV-0004 selects and reviews the contract and storage approach."
   ],
-  "revision": 2,
+  "revision": 4,
   "history": [
     {
       "revision": 1,
@@ -41,6 +44,20 @@
       "actor": "maintainer",
       "status": "planned",
       "note": "Storage implemented as SQLite journal (SqliteJournal); review cycle complete."
+    },
+    {
+      "revision": 3,
+      "at": "2026-09-15T03:01:06.595624Z",
+      "actor": "maintainer",
+      "status": "in_progress",
+      "note": "Claimed by maintainer."
+    },
+    {
+      "revision": 4,
+      "at": "2026-09-15T03:01:06.639632Z",
+      "actor": "maintainer",
+      "status": "done",
+      "note": "SQLite durable journal integrated into main as fast-forward ee1de2f..281f002: SqliteJournal (WAL+FULL, one IMMEDIATE append transaction, u64 hi/lo checked columns, strict serde DTO + CRC-32, typed Corruption/UnsupportedFormat/IndeterminateCommit, fault injection feature-gated). Independent review (codex/gpt-5.6-sol): 2 findings fixed — fault seam behind non-default feature; multi-event batch atomicity proven by direct DB queries. All gates green offline; real multi-process restart and two-process contention verified. Contract: ymp-docs/durable-journal-contract.md."
     }
   ]
 }
