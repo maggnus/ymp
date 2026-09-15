@@ -81,6 +81,17 @@ pub enum JournalError {
     AdapterFailure {
         message: String,
     },
+    Corruption {
+        message: String,
+    },
+    UnsupportedFormat {
+        version: u16,
+    },
+    IndeterminateCommit {
+        expected: Revision,
+        attempted: Revision,
+        message: String,
+    },
 }
 
 impl fmt::Display for JournalError {
@@ -95,6 +106,22 @@ impl fmt::Display for JournalError {
             Self::AdapterFailure { message } => {
                 write!(formatter, "journal adapter failed: {message}")
             }
+            Self::Corruption { message } => {
+                write!(formatter, "journal storage is corrupted: {message}")
+            }
+            Self::UnsupportedFormat { version } => write!(
+                formatter,
+                "journal stream format version {version} is not supported"
+            ),
+            Self::IndeterminateCommit {
+                expected,
+                attempted,
+                message,
+            } => write!(
+                formatter,
+                "journal commit outcome is indeterminate: expected {expected}, attempted \
+                 {attempted}: {message}"
+            ),
         }
     }
 }
