@@ -21,7 +21,9 @@
   "context": [
     "Authority: model sections 3.1/3.4/3.7/3.9/5.1/5.7, A5/A13 and R-2/R-3/R-8/R-9/R-19/R-20; greenfield baseline 0c61ff1.",
     "Proposed modules: crates/ymp-runtime/src/backends/codex.rs and focused protocol/discovery/usage modules, with new runtime protocol fixtures. W1-0003 supplies Registry/offerings and W1-0017 the execution host; create the actual adapter here rather than assuming App Server or another prior implementation is delivered.",
-    "Choose the native wire protocol using installed/official provider information during implementation. Do not copy credentials, infer unsupported model/effort values or rely on old tests. Fixture evidence is separate from real inference; builds/tests do not authorize native calls or real user-data mutation."
+    "Choose the native wire protocol using installed/official provider information during implementation. Do not copy credentials, infer unsupported model/effort values or rely on old tests. Fixture evidence is separate from real inference; builds/tests do not authorize native calls or real user-data mutation.",
+    "Legacy access granted (AGENTS.md rule): legacy-foundation:crates/ymp-runtime/src/codex/{rpc,settings,usage}.rs and crates/ymp-runtime/tests/fixtures/codex_app_server.py may be opened for wire-protocol and usage facts only: JSON-RPC method and notification names, handshake order, will_retry semantics, usage field meanings, resume baseline subtraction, line-length bound. Import no types, module names or control flow; ymp-docs/legacy-lessons.md lists the facts and the pitfalls with their fixing commits.",
+    "Legacy access extended (owner decision 2026-09-16, AGENTS.md rule): legacy-attempt-2:ymp-rust/crates/ymp-providers/src/{lib,rpc,settings,usage,failure,redaction}.rs, its tests/fixtures/*.py and legacy-attempt-2:ymp-bridges/claude/src/*.ts may be opened for wire facts only: Codex app-server parameters and notifications, Claude Agent SDK options and message fields, ACP session methods for GLM, usage field names and de-duplication rules, the failure-code allowlist. legacy-attempt-1:ymp-rust/crates/ymp-runtime-codex/src/lib.rs only for the CLI JSON-lines event and usage names. Import no types, module names or control flow; ymp-docs/legacy-lessons.md sections 10.3 and 11.7 list the facts and their limits."
   ],
   "acceptance": [
     "Through the real Registry/Gatekeeper/host consumer, a new Codex protocol fixture discovers supported offerings, runs a bounded admitted turn, returns attributable role output and settles a correctly normalized receipt without copying authentication.",
@@ -29,7 +31,7 @@
     "Codex and Scripted run the shared execution contract through actual consumers. Native-run evidence, if separately authorized and collected, records exact runtime version/settings/observations and is not conflated with fixture behavior."
   ],
   "evidence": [],
-  "revision": 2,
+  "revision": 4,
   "history": [
     {
       "revision": 1,
@@ -44,6 +46,20 @@
       "actor": "owner",
       "status": "planned",
       "note": "Start decision 2026-09-16: W1 scheduled; readiness follows dependencies."
+    },
+    {
+      "revision": 3,
+      "at": "2026-09-15T18:22:31.078336Z",
+      "actor": "manage.py",
+      "status": "planned",
+      "note": "Owner decision 2026-09-16: bounded legacy access for facts only, per the AGENTS.md legacy rule."
+    },
+    {
+      "revision": 4,
+      "at": "2026-09-15T19:07:39.553364Z",
+      "actor": "manage.py",
+      "status": "planned",
+      "note": "Owner decision 2026-09-16: bounded legacy access to attempts 1 and 2 for facts only, per the AGENTS.md legacy rule."
     }
   ]
 }

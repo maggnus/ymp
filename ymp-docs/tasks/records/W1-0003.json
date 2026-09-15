@@ -28,9 +28,10 @@
     "Greenfield: create this behavior in the new implementation. Paths below are PROPOSED target modules under the layout owned by W1-0001; only completed prerequisite tasks supply implementation. Prior source, APIs, fixtures and delivery claims are not a baseline.",
     "Create proposed crates/ymp-domain/src/identity.rs, crates/ymp-kernel/src/registry.rs and crates/ymp-runtime/src/readiness.rs. W1-0001 provides events/provenance and W1-0002 user constraints. Use StaticDependencyProbe plus a substantially different deterministic probe through Registry.",
     "Each ModelOffering preserves its own native effort values. Family/version metadata has a stated source; absent native data stays unknown and yields an explicit fallback/denial when a decision requires it. An agent has persistent instructions/defaults, not permanent role authority.",
-    "This Registry implementation does not claim an executor exists. W1-0017 builds Scripted, W1-0018 builds Codex, W6-0001 builds Claude and W6-0002 builds Glm against this contract."
+    "This Registry implementation does not claim an executor exists. W1-0017 builds Scripted, W1-0018 builds Codex, W6-0001 builds Claude and W6-0002 builds Glm against this contract.",
+    "Legacy access granted (owner decision 2026-09-16, AGENTS.md rule): legacy-attempt-2:ymp-rust/crates/ymp-providers/src/discovery/*.rs and settings.rs may be opened for native catalog discovery facts only (Codex model/list rows, Claude supportedModels fields, GLM configOptions), snapshot fingerprint and staleness rules; legacy-attempt-1:ymp-rust/crates/ymp-runtime-registry/src/*.rs and ymp-domain/src/pool.rs for the frozen launch snapshot and the readiness-measurement rules. Import no types or control flow; ymp-docs/legacy-lessons.md sections 10.3 and 11.6."
   ],
-  "revision": 3,
+  "revision": 4,
   "history": [
     {
       "revision": 1,
@@ -52,6 +53,13 @@
       "actor": "owner",
       "status": "planned",
       "note": "Start decision 2026-09-16: W1 scheduled; readiness follows dependencies."
+    },
+    {
+      "revision": 4,
+      "at": "2026-09-15T19:07:39.703554Z",
+      "actor": "manage.py",
+      "status": "planned",
+      "note": "Owner decision 2026-09-16: bounded legacy access to attempts 1 and 2 for facts only, per the AGENTS.md legacy rule."
     }
   ]
 }

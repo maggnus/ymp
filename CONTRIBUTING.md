@@ -9,10 +9,13 @@ comments, examples, and user-facing strings in English.
 
 The repository pins its Rust toolchain in the checked-in `rust-toolchain.toml`.
 The Cargo workspace and its manifests are created by task W1-0001; the previous
-iteration's code is reachable only at the git tag `legacy-foundation` and is not
-a baseline. Keep crate dependencies aligned with the approved
-model and its implementation notes, use relative workspace paths,
-and do not introduce machine-specific configuration or undisclosed services.
+iteration's code is reachable only at git tags named `legacy-*` and is not a
+baseline. Read `ymp-docs/legacy-lessons.md` rather than that code, open a tag only
+when your task record allows it, copy nothing, and add a `Legacy-Consulted:`
+trailer to every commit message. `make legacy-scan` rejects copied blocks. Keep
+crate dependencies aligned with the approved model and its implementation notes,
+use relative workspace paths, and do not introduce machine-specific configuration
+or undisclosed services.
 
 Repository development tasks use Python 3.11 or newer and the standard library.
 Their canonical records are individual JSON files under `ymp-docs/tasks/records/`.
@@ -29,7 +32,8 @@ Use `claim`, `update`, and `status` with `--expect-revision` for coordinated wri
 Owner labels are cooperative coordination rather than authentication or product
 execution authority. Separate clones and worktrees do not share the writer lock.
 
-Before submitting a change, run:
+Before submitting a change, run the following (`make all-checks` wraps them; `make help`
+lists every shortcut):
 
 ```sh
 python3 -m unittest discover -s ymp-docs/tasks/tests -v

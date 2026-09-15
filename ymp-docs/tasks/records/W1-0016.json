@@ -20,7 +20,9 @@
   "context": [
     "Authority: approved model sections 0/2/4/5.8/9, D-1–D-5 and R-1/R-17/R-19/R-20; greenfield baseline 0c61ff1.",
     "The placeholder crate crates/ymp-storage with src/{lib,journal,content}.rs and empty test targets exists; give it durable behavior and focused storage integration tests here. W1-0001 owns Journal/Envelope/MemoryJournal/type boundaries; W1-0002 and later features supply their concrete payloads through the same contract. Add storage dependencies only for this implemented capability.",
-    "This task owns durable transaction/content behavior; later features own their payload schemas and use the same Journal contract. No prior SQLite implementation, API, migration or fixture is assumed."
+    "This task owns durable transaction/content behavior; later features own their payload schemas and use the same Journal contract. No prior SQLite implementation, API, migration or fixture is assumed.",
+    "Legacy access granted (AGENTS.md rule): legacy-foundation:crates/ymp-storage/src/lib.rs may be opened for SQLite facts only: pragmas, identity header, revision column split, checksum coverage, open-time validation order. crates/ymp-storage/tests at the tag and ymp-docs/durable-journal-contract.md list the edge cases to reproduce. Import no schema, codec, type or module names; the new payload vocabulary comes from model section 9.",
+    "Legacy access extended (owner decision 2026-09-16, AGENTS.md rule): legacy-attempt-1:ymp-rust/crates/ymp-storage/src/{journal,object_store,root}.rs may be opened for the hash-chain checks, the terminal reserve, the atomic write protocol, object re-verification and the recovery rule after an interrupted commit (commit 6544e25). Attempt 2 storage is a negative example in ymp-docs/legacy-lessons.md section 10.6 and needs no access. Section 11.1 lists the facts."
   ],
   "acceptance": [
     "A real temporary durable store persists the W1-0001 decision events and effective parameters; reopening yields the same projection/digests and exact content as MemoryJournal through the same kernel consumer. Later feature payloads, starting with W1-0002 intake, use this contract without changing it.",
@@ -28,7 +30,7 @@
     "Restart preserves original effective parameter values after later configuration changes. The implementation documents what its actual durability test establishes, without claiming prior-iteration compatibility or inaccessible native effects."
   ],
   "evidence": [],
-  "revision": 4,
+  "revision": 6,
   "history": [
     {
       "revision": 1,
@@ -57,6 +59,20 @@
       "actor": "manage.py",
       "status": "planned",
       "note": "Owner decision 2026-09-16: the placeholder module skeleton of ymp-docs/project-worktree.md is checked in; 'create' now means 'give the placeholder its behavior'."
+    },
+    {
+      "revision": 5,
+      "at": "2026-09-15T18:22:31.126872Z",
+      "actor": "manage.py",
+      "status": "planned",
+      "note": "Owner decision 2026-09-16: bounded legacy access for facts only, per the AGENTS.md legacy rule."
+    },
+    {
+      "revision": 6,
+      "at": "2026-09-15T19:07:39.653102Z",
+      "actor": "manage.py",
+      "status": "planned",
+      "note": "Owner decision 2026-09-16: bounded legacy access to attempts 1 and 2 for facts only, per the AGENTS.md legacy rule."
     }
   ]
 }

@@ -1,18 +1,12 @@
 [package]
-name = "ymp-cli"
+name = "ymp-tui"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 publish.workspace = true
 
-[[bin]]
-name = "ymp"
-path = "src/main.rs"
-
 [dependencies]
 ymp-runtime = { path = "../ymp-runtime" }
-ymp-storage = { path = "../ymp-storage" }
-ymp-tui = { path = "../ymp-tui" }
 
 [lints]
 workspace = true

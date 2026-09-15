@@ -5,6 +5,7 @@ members = [
     "crates/ymp-kernel",
     "crates/ymp-runtime",
     "crates/ymp-storage",
+    "crates/ymp-tui",
 ]
 resolver = "3"
 

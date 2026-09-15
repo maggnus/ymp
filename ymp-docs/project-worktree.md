@@ -18,14 +18,18 @@ line names the task that creates or extends it.
 ## Dependency direction
 
 ```text
-ymp-cli ──► ymp-runtime ──► ymp-kernel ──► ymp-domain
-   │                            ▲              ▲
-   └──────► ymp-storage ────────┴──────────────┘
+ymp-cli ──► ymp-tui ──► ymp-runtime ──► ymp-kernel ──► ymp-domain
+  │  │                      ▲               ▲              ▲
+  │  └──────────────────────┘               │              │
+  └────────► ymp-storage ───────────────────┴──────────────┘
 ```
 
 The domain knows nothing about the kernel, the kernel knows no concrete
-adapter, the runtime knows no presentation. Crates reference each other only by
-relative `path` dependencies.
+adapter, the runtime knows no presentation, and the interface crate sees only
+`Application` operations and `*View` projections. `ymp-cli` stays a thin
+binary: argument parsing, exit codes and non-interactive subcommands such as
+the W3-0009 comparison runner, which must not depend on a terminal UI. Crates
+reference each other only by relative `path` dependencies.
 
 ## Tree
 
@@ -34,6 +38,9 @@ ymp/
 ├── Cargo.toml                      # W1-0001: workspace, resolver 3, edition 2024, lints
 ├── Cargo.lock
 ├── rust-toolchain.toml             # retained: 1.89.0 with clippy and rustfmt
+├── Makefile                        # make help: build, verify, task-register targets
+├── tools/
+│   └── legacy_scan.py              # make legacy-scan: rejects code copied from legacy-* tags
 └── crates/
     ├── ymp-domain/                 # pure values and validation, no I/O
     │   ├── Cargo.toml              # sha2, serde
@@ -154,12 +161,19 @@ ymp/
     │   │   └── content.rs          # content-addressed store
     │   └── tests/                  # atomicity, restart, corruption, indeterminate commits
     │
+    ├── ymp-tui/                    # W1-0015, Ratatui presentation and control adapter
+    │   ├── Cargo.toml              # ymp-runtime, ratatui, crossterm
+    │   └── src/
+    │       ├── lib.rs
+    │       ├── app.rs              # interface state derived only from projections
+    │       ├── events.rs           # terminal event loop, responsiveness, terminal restoration
+    │       └── screens/mod.rs      # intake, progress, inspection, report; later waves add views
+    │
     └── ymp-cli/                    # W1-0015, the ymp executable
-        ├── Cargo.toml              # ymp-runtime, ymp-storage, ratatui, crossterm
+        ├── Cargo.toml              # ymp-runtime, ymp-storage, ymp-tui
         └── src/
             ├── main.rs
-            ├── lib.rs              # command parsing, exit codes
-            ├── tui/                # screens and event handling
+            ├── lib.rs              # command parsing, exit codes, subcommands
             └── compare.rs          # W3-0009: comparison-runner subcommand
 ```
 
@@ -178,6 +192,11 @@ ymp/
 - **Events are one typed enumeration.** `ymp-kernel/src/events.rs` grows by one
   variant per event of model section 9. Each task adds its variants without
   changing records written earlier, as W1-0001 requires.
+- **The interface is its own crate.** `ymp-tui` holds screens and the event
+  loop and depends only on `ymp-runtime`; `ymp-cli` composes it with storage
+  selection and non-interactive subcommands. Presentation never owns domain
+  state or grants authority (model section 3.9), and headless commands do not
+  link a terminal UI.
 - **Tests sit next to their consumer.** Integration tests live in each crate's
   `tests/`, shared helpers in `tests/support/mod.rs`, filesystem scenarios and
   protocol fixtures only under `ymp-runtime/tests/`.

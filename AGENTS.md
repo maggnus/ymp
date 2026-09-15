@@ -10,7 +10,16 @@ of architecture, domain names and product scope. `ymp-docs/domain.md` and
 `ymp-docs/foundation.md` retains historical implementation material. This iteration
 starts from scratch; do not count previous code, APIs or tests as delivered
 functionality or assume they are a baseline to extend. That code is reachable only
-at git tag `legacy-foundation` and may be consulted for implementation facts. These documents,
+at git tags named `legacy-*` (currently `legacy-foundation`) and never returns to the
+working tree. Read `ymp-docs/legacy-lessons.md` instead of the code: it carries the
+protocol facts, mechanics, pitfalls and test cases worth keeping, each with its
+source. Open a tag directly only when the task record's context names the tag path
+and the facts to extract. Copy nothing: no files, functions, type or module names,
+API shapes or event vocabularies; derive every construct from the approved model
+and its names. `make legacy-scan`, part of `make verify`, rejects denylisted legacy
+identifiers and blocks copied from any `legacy-*` tag. Every commit message carries
+a `Legacy-Consulted:` trailer, either `none` or `<tag>:<path> — <fact>`, and
+reviewers check it against the diff. These documents,
 historical amendments and previous iterations cannot override the approved model.
 Use the model's names in code. Add a domain term only with its definition and
 rationale in the model; architectural changes require an explicit owner decision.

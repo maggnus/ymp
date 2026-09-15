@@ -22,7 +22,8 @@
   "context": [
     "Authority: model sections 3.4/3.7/3.9/4/5.7, A5/A13, P2 and R-2/R-8/R-9/R-12/R-19/R-20; greenfield baseline 0c61ff1.",
     "Proposed modules: crates/ymp-kernel/src/execution.rs for trusted observation transitions and crates/ymp-runtime/src/{execution_host,clock,backends/scripted}.rs. W1-0006 owns admission/authority, W1-0007 commitments and W1-0016 durable state. This task builds all execution/supervision behavior from scratch.",
-    "Scripted controls model observations without native inference and may use task-owned local fixture processes/files for actual lifecycle checks. W1-0018 creates Codex; W3-0001 adds TeamOperation transport; this task does not invent mandatory EffectState/effects/control APIs beyond the model’s guarantees."
+    "Scripted controls model observations without native inference and may use task-owned local fixture processes/files for actual lifecycle checks. W1-0018 creates Codex; W3-0001 adds TeamOperation transport; this task does not invent mandatory EffectState/effects/control APIs beyond the model’s guarantees.",
+    "Legacy access granted (owner decision 2026-09-16, AGENTS.md rule): legacy-attempt-1:ymp-rust/crates/ymp-runtime-api/src/lib.rs may be opened for the termination ladder, honest termination recording and the failure-evidence record (commit ee96f70); legacy-attempt-1:ymp-rust/crates/ymp-runtime-supervisor/src/lib.rs for the timed-out-wait rule (commits b34ceb9, 6aa404b). Facts only; ymp-docs/legacy-lessons.md section 11.7."
   ],
   "acceptance": [
     "An actually admitted Scripted assignment runs, emits attributable bounded output/progress and settles one receipt, with non-artifact completion discharging its own commitment. A producer completion alone cannot accept/discharge an artifact result.",
@@ -30,7 +31,7 @@
     "Scripted and a materially different backend contract implementation run through the real host; whole-invocation limits and response identity are enforced, unknown metadata/usage remain unknown, and malicious output cannot grant itself authority."
   ],
   "evidence": [],
-  "revision": 2,
+  "revision": 3,
   "history": [
     {
       "revision": 1,
@@ -45,6 +46,13 @@
       "actor": "owner",
       "status": "planned",
       "note": "Start decision 2026-09-16: W1 scheduled; readiness follows dependencies."
+    },
+    {
+      "revision": 3,
+      "at": "2026-09-15T19:07:39.758415Z",
+      "actor": "manage.py",
+      "status": "planned",
+      "note": "Owner decision 2026-09-16: bounded legacy access to attempts 1 and 2 for facts only, per the AGENTS.md legacy rule."
     }
   ]
 }

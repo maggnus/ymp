@@ -14,7 +14,8 @@ An empty placeholder skeleton of the crates exists by owner decision (see
 [the proposed layout](ymp-docs/project-worktree.md)); it contains no behavior.
 Earlier source material and implementation notes are historical references, not a
 baseline to extend or a reason to omit planned work. The previous iteration's code
-was removed from the working tree and is reachable only at git tag `legacy-foundation`.
+was removed from the working tree and is reachable only at git tag `legacy-foundation`;
+the facts worth keeping from it are collected in [legacy lessons](ymp-docs/legacy-lessons.md).
 
 ## Product definition
 
@@ -37,6 +38,8 @@ python3 ymp-docs/tasks/manage.py next
 python3 ymp-docs/tasks/manage.py show W1-0001
 python3 ymp-docs/tasks/manage.py check
 ```
+
+`make help` lists Makefile shortcuts for these commands and for the Cargo checks.
 
 Before implementing product behavior, read `AGENTS.md` and the approved model.
 Use the repository's required checks when committing implementation work. Builds,

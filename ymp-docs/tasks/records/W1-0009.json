@@ -29,9 +29,11 @@
     "Greenfield: create this behavior in the new implementation. Paths below are PROPOSED target modules under the layout owned by W1-0001; only completed prerequisite tasks supply implementation. Prior source, APIs, fixtures and delivery claims are not a baseline.",
     "Create proposed crates/ymp-domain/src/verification.rs (Check, CheckSpec, CheckRun), the register_check/run part of crates/ymp-kernel/src/acceptance.rs and crates/ymp-runtime/src/checks/process.rs. W1-0005/0016 supply exact snapshot content; W1-0006 supplies assignment references for CheckAuthor. Evidence, Review and result applicability are W1-0019.",
     "Command is the model’s explicit program/args/inputs contract. Do not substitute an unversioned shell string or a loose invocation-success label. W2 owns independent hidden design, Property/BrowserScenario/ExternalQuery, ContainerRunner and mutation.",
-    "Split on 2026-09-16 from the original W1-0009 so that check execution proceeds in parallel with W1-0007 → W1-0017 → W1-0008; the evidence/review half is W1-0019."
+    "Split on 2026-09-16 from the original W1-0009 so that check execution proceeds in parallel with W1-0007 → W1-0017 → W1-0008; the evidence/review half is W1-0019.",
+    "Legacy access granted (AGENTS.md rule): legacy-foundation:crates/ymp-runtime/src/check.rs may be opened for sandbox mechanics only: macOS sandbox profile, Linux namespace sequence, process-group cleanup, start marker, verifier digest checks and the timeout rule. Import no types or control flow; ymp-docs/legacy-lessons.md summarizes the mechanics and their limits.",
+    "Legacy access extended (owner decision 2026-09-16, AGENTS.md rule): legacy-attempt-1:ymp-rust/crates/ymp-verifier/src/lib.rs may be opened for negative-control ordering, per-observation isolation roots, oracle integrity checks and the Linux namespace sequence; legacy-attempt-1:ymp-rust/crates/ymp-application/src/answer.rs for the discrimination demonstration. Facts only; ymp-docs/legacy-lessons.md section 11.3."
   ],
-  "revision": 4,
+  "revision": 6,
   "history": [
     {
       "revision": 1,
@@ -60,6 +62,20 @@
       "actor": "owner",
       "status": "planned",
       "note": "Start decision 2026-09-16: W1 scheduled; readiness follows dependencies."
+    },
+    {
+      "revision": 5,
+      "at": "2026-09-15T18:22:31.182764Z",
+      "actor": "manage.py",
+      "status": "planned",
+      "note": "Owner decision 2026-09-16: bounded legacy access for facts only, per the AGENTS.md legacy rule."
+    },
+    {
+      "revision": 6,
+      "at": "2026-09-15T19:07:39.603388Z",
+      "actor": "manage.py",
+      "status": "planned",
+      "note": "Owner decision 2026-09-16: bounded legacy access to attempts 1 and 2 for facts only, per the AGENTS.md legacy rule."
     }
   ]
 }

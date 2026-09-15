@@ -8,6 +8,7 @@ version = "0.1.0"
 dependencies = [
  "ymp-runtime",
  "ymp-storage",
+ "ymp-tui",
 ]
 
 [[package]]
@@ -35,4 +36,11 @@ version = "0.1.0"
 dependencies = [
  "ymp-domain",
  "ymp-kernel",
+]
+
+[[package]]
+name = "ymp-tui"
+version = "0.1.0"
+dependencies = [
+ "ymp-runtime",
 ]
