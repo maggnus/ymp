@@ -1,5 +1,4 @@
-//! Trusted capture read holds and assignment ownership primitives. Physical root
-//! binding and mediated execution remain integration work for W1-0005.
+//! Trusted snapshots, physical path ownership and bounded mediated file access.
 use crate::{
     events::Event,
     journal::{ContentStore, Journal, validate_append},
@@ -615,6 +614,7 @@ pub struct AccessEvidence {
     workspace: ymp_domain::Ref,
     profile: ymp_domain::identity::ExecutionProfile,
     actual: Vec<(WorkspacePath, LockMode)>,
+    mediated_owner: Option<Digest>,
     basis: Vec<ymp_domain::Ref>,
 }
 /// Cessation evidence is deliberately distinct from revocation and financial settlement.
@@ -698,6 +698,7 @@ impl<J: Journal, C: ContentStore> WorkspaceGuard<J, C> {
                 version: 1,
                 change: crate::workspace_locks::LockChange::Acquired(Box::new(
                     crate::workspace_locks::LockAcquisition {
+                        mediated_owner: proof.mediated_owner.clone(),
                         workspace: request.workspace,
                         assignment: request.assignment,
                         profile: request.profile,
@@ -829,3 +830,589 @@ impl<J: Journal, C: ContentStore> WorkspaceGuard<J, C> {
 #[cfg(test)]
 #[path = "workspace_guard_tests.rs"]
 mod tests;
+
+/// One borrowed kernel-validated file operation. Not a reusable or serialized grant.
+/// ```compile_fail
+/// let op: ymp_kernel::workspace_guard::FileAccess = serde_json::from_str("{}").unwrap();
+/// ```
+pub struct FileAccess {
+    binding: WorkspaceBinding,
+    scope: PathObservation,
+    target: PathObservation,
+    limit: usize,
+    created_file: Option<FileIdentity>,
+    path: WorkspacePath,
+    mode: LockMode,
+}
+impl FileAccess {
+    pub fn limit(&self) -> usize {
+        self.limit
+    }
+    pub fn target(&self) -> &PathObservation {
+        &self.target
+    }
+    pub fn created_file(&self) -> Option<&FileIdentity> {
+        self.created_file.as_ref()
+    }
+    pub fn scope(&self) -> &PathObservation {
+        &self.scope
+    }
+    pub fn binding(&self) -> &WorkspaceBinding {
+        &self.binding
+    }
+    pub fn journal(&self) -> &JournalIdentity {
+        &self.binding.journal
+    }
+    pub fn path(&self) -> &WorkspacePath {
+        &self.path
+    }
+    pub fn mode(&self) -> LockMode {
+        self.mode
+    }
+}
+/// Files-only capability. The host exposes these methods, never the provider,
+/// root descriptor or an arbitrary process API, to the Scripted participant.
+enum CreationOutcome {
+    NotAttempted,
+    Uncertain,
+    Observed(FileIdentity),
+}
+struct LocalCreation {
+    owner: Digest,
+    path: WorkspacePath,
+    outcome: CreationOutcome,
+}
+pub struct MediatedAccess<J: Journal> {
+    journal: Arc<J>,
+    provider: Arc<dyn WorkspaceProvider>,
+    session: Id,
+    assignment: Id,
+    owner: Digest,
+    issuer: Arc<()>,
+    binding: WorkspaceBinding,
+    acquisition: ymp_domain::Ref,
+    closed: std::sync::atomic::AtomicBool,
+    operation: Mutex<Option<LocalCreation>>,
+}
+impl<J: Journal> MediatedAccess<J> {
+    pub fn request_withdrawal(&self) {
+        self.closed.store(true, std::sync::atomic::Ordering::SeqCst);
+    }
+    fn check_open(&self) -> Result<()> {
+        if self.closed.load(std::sync::atomic::Ordering::SeqCst) {
+            return Err(Denial::new(
+                "access_closed",
+                "Mediated access has been withdrawn",
+            ));
+        }
+        Ok(())
+    }
+    fn operation(&self, path: &WorkspacePath, mode: LockMode, limit: usize) -> Result<FileAccess> {
+        self.check_open()?;
+        let inventory = self.journal.workspace_inventory(&self.session)?;
+        let view =
+            inventory
+                .current
+                .view_with_schemas(&self.session, None, self.journal.schemas())?;
+        let record = view
+            .path_locks()
+            .get(&self.assignment)
+            .ok_or_else(|| Denial::new("locks_missing", "No recorded access for this handle"))?;
+        if record.acquired.mediated_owner.as_ref() != Some(&self.owner)
+            || record.released.is_some()
+            || record.revoked
+            || record.invocation.is_none()
+        {
+            return Err(Denial::new(
+                "invocation_authority",
+                "This mediated handle has no active authorized invocation",
+            ));
+        }
+        view.resolve(&self.acquisition)?;
+        crate::workspace_locks::validate_profile(&view, &record.acquired)?;
+        if view.workspace_bindings().get(&record.acquired.workspace) != Some(&self.binding) {
+            return Err(Denial::new(
+                "workspace_binding",
+                "Mediated access lost its recorded root binding",
+            ));
+        }
+        // Exclusivity of a Write lock is not permission to perform Read.
+        let scope =
+            record
+                .acquired
+                .effective
+                .iter()
+                .find(|claim| {
+                    claim.lock.mode == mode
+                        && claim.lock.path.contains(path)
+                        && record.acquired.requested.iter().any(|requested| {
+                            requested.mode == mode && requested.path.contains(path)
+                        })
+                })
+                .ok_or_else(|| {
+                    Denial::new(
+                        "access_scope",
+                        "Operation is outside this assignment's requested permission",
+                    )
+                })?
+                .observation
+                .clone();
+        validate_provider(
+            &view.workspaces()[&record.acquired.workspace],
+            self.provider.as_ref(),
+        )?;
+        self.provider
+            .verify_binding(&self.binding, self.journal.as_ref())?;
+        let journal = self.journal.binding_identity()?;
+        if journal != self.binding.journal {
+            return Err(Denial::new(
+                "workspace_binding",
+                "The journal identity changed",
+            ));
+        }
+        let mut observations = self.provider.observe_paths(std::slice::from_ref(path))?;
+        if observations.len() != 1 || observations[0].path != *path {
+            return Err(Denial::new(
+                "path_observation",
+                "Provider returned a different operation path",
+            ));
+        }
+        let target = observations.remove(0);
+        target.validate(&self.binding.root)?;
+        let actual = ObservedPathLock {
+            lock: PathLock {
+                path: path.clone(),
+                mode,
+                holder: self.assignment.clone(),
+            },
+            observation: target.clone(),
+        };
+        let current = crate::workspace_locks::WorkspaceOwnership::from_view(&view);
+        for owner in inventory.other.iter().chain(std::iter::once(&current)) {
+            owner.validate_operation(&self.session, &self.assignment, &actual)?;
+        }
+        Ok(FileAccess {
+            binding: self.binding.clone(),
+            scope,
+            target,
+            limit,
+            created_file: record
+                .file_holds
+                .values()
+                .find(|hold| hold.lock.path == *path && hold.lock.mode == LockMode::Write)
+                .and_then(|hold| hold.observation.existing.last())
+                .map(|part| part.identity.clone()),
+            path: path.clone(),
+            mode,
+        })
+    }
+    fn commit_creation(&self, change: crate::workspace_locks::LockChange, at: u64) -> Result<()> {
+        let inventory = self.journal.workspace_inventory(&self.session)?;
+        let view =
+            inventory
+                .current
+                .view_with_schemas(&self.session, None, self.journal.schemas())?;
+        let expected = view.revision();
+        let event = Envelope {
+            seq: expected
+                .checked_add(1)
+                .ok_or_else(|| Denial::new("revision_overflow", "Journal sequence exhausted"))?,
+            session: self.session.clone(),
+            at,
+            actor: Actor::Runtime,
+            policy: None,
+            input: None,
+            refs: crate::workspace_locks::attribution(&view, &change)?,
+            payload: Event::LockChanged { version: 1, change },
+        };
+        crate::journal::validate_workspace_append(
+            &inventory,
+            &self.session,
+            expected,
+            std::slice::from_ref(&event),
+            self.journal.schemas(),
+        )?;
+        if self.journal.append(&self.session, expected, &[event])? != expected + 1 {
+            return Err(Denial::new(
+                "journal_append",
+                "Unexpected creation commit revision",
+            ));
+        }
+        Ok(())
+    }
+    fn prepare(
+        &self,
+        path: &WorkspacePath,
+        mode: LockMode,
+        limit: usize,
+        pending: &mut Option<LocalCreation>,
+        at: u64,
+    ) -> Result<Box<dyn crate::ports::execution::WorkspaceFile>> {
+        let coordinator = self.provider.coordinate(&self.binding)?;
+        if coordinator.binding() != &self.binding {
+            return Err(Denial::new(
+                "binding_conflict",
+                "I/O coordinator differs from this handle",
+            ));
+        }
+        if pending.is_some() {
+            return Err(Denial::new(
+                "file_creation_pending",
+                "Resolve this handle's earlier creation before more I/O",
+            ));
+        }
+        let access = self.operation(path, mode, limit)?;
+        self.provider.validate_file_request(&access)?;
+        if mode != LockMode::Write || access.target.missing.is_empty() {
+            let file = self.provider.prepare_file(&access)?;
+            let identity = file.identity();
+            if !access.target.missing.is_empty()
+                || access
+                    .target
+                    .existing
+                    .last()
+                    .is_none_or(|part| part.identity != identity)
+            {
+                return Err(Denial::new(
+                    "file_identity",
+                    "Prepared file differs from the checked physical target",
+                ));
+            }
+            let view = self.journal.read(&self.session)?.view_with_schemas(
+                &self.session,
+                None,
+                self.journal.schemas(),
+            )?;
+            let key = Digest::of_value(&identity)?;
+            let held = view.path_locks()[&self.assignment].file_holds.get(&key);
+            if held.is_none_or(|held| held.lock.mode != LockMode::Write && mode == LockMode::Write)
+            {
+                self.commit_creation(
+                    crate::workspace_locks::LockChange::FileAccessPrepared {
+                        assignment: self.assignment.clone(),
+                        target: access.target.clone(),
+                        mode,
+                    },
+                    at,
+                )?;
+            }
+            return Ok(file);
+        }
+        use crate::workspace_locks::LockChange;
+        let mut random = [0u8; 32];
+        getrandom::fill(&mut random)
+            .map_err(|_| Denial::new("creation_owner", "Cannot generate a creation owner"))?;
+        let owner = Digest::of(random);
+        *pending = Some(LocalCreation {
+            owner: owner.clone(),
+            path: path.clone(),
+            outcome: CreationOutcome::NotAttempted,
+        });
+        self.commit_creation(
+            LockChange::FileCreationStarted {
+                assignment: self.assignment.clone(),
+                owner: owner.clone(),
+                target: access.target.clone(),
+            },
+            at,
+        )?;
+        pending.as_mut().expect("local creation").outcome = CreationOutcome::Uncertain;
+        let file = self.provider.prepare_file(&access)?;
+        let identity = file.identity();
+        pending.as_mut().expect("local creation").outcome =
+            CreationOutcome::Observed(identity.clone());
+        self.commit_creation(
+            LockChange::FileCreated {
+                assignment: self.assignment.clone(),
+                owner,
+                identity,
+            },
+            at,
+        )?;
+        *pending = None;
+        // The physical object is durably owned before the coordinator drops and
+        // before any data write. The returned file retains that same descriptor.
+        Ok(file)
+    }
+    pub fn read(&self, path: &WorkspacePath, limit: usize, at: u64) -> Result<Vec<u8>> {
+        self.check_open()?;
+        let mut pending = self.operation.lock().map_err(|_| {
+            Denial::new(
+                "access_uncertain",
+                "An interrupted file operation requires investigation",
+            )
+        })?;
+        let mut file = self.prepare(path, LockMode::Read, limit, &mut pending, at)?;
+        let bytes = file.read()?;
+        if bytes.len() > limit {
+            return Err(Denial::new(
+                "file_limit",
+                "Provider returned more bytes than permitted",
+            ));
+        }
+        Ok(bytes)
+    }
+    /// An I/O error may follow a partial write. It never releases the hold.
+    pub fn write(&self, path: &WorkspacePath, bytes: &[u8], at: u64) -> Result<()> {
+        self.check_open()?;
+        let mut pending = self.operation.lock().map_err(|_| {
+            Denial::new(
+                "access_uncertain",
+                "An interrupted file operation requires investigation",
+            )
+        })?;
+        let mut file = self.prepare(path, LockMode::Write, bytes.len(), &mut pending, at)?;
+        file.write(bytes)
+    }
+    /// Retry only publication of local preparation evidence, never file creation
+    /// or data I/O. Lost local state cannot be reconstructed from a pathname.
+    pub fn resolve_creation(&self, at: u64) -> Result<()> {
+        let mut pending = self.operation.lock().map_err(|_| {
+            Denial::new(
+                "access_uncertain",
+                "Cannot resolve interrupted file preparation",
+            )
+        })?;
+        let local = pending.as_ref().ok_or_else(|| {
+            Denial::new(
+                "file_creation",
+                "This handle has no local creation evidence",
+            )
+        })?;
+        let coordinator = self.provider.coordinate(&self.binding)?;
+        if coordinator.binding() != &self.binding {
+            return Err(Denial::new(
+                "binding_conflict",
+                "I/O coordinator differs from this handle",
+            ));
+        }
+        let view = self.journal.read(&self.session)?.view_with_schemas(
+            &self.session,
+            None,
+            self.journal.schemas(),
+        )?;
+        let record = view
+            .path_locks()
+            .get(&self.assignment)
+            .ok_or_else(|| Denial::new("locks_missing", "No creation owner"))?;
+        if record.acquired.mediated_owner.as_ref() != Some(&self.owner) || record.released.is_some()
+        {
+            return Err(Denial::new(
+                "creation_owner",
+                "Local completion does not own this hold",
+            ));
+        }
+        if record.creation.is_none() {
+            let complete = match &local.outcome {
+                CreationOutcome::NotAttempted => true,
+                CreationOutcome::Observed(identity) => record.file_holds.values().any(|hold| {
+                    hold.lock.path == local.path
+                        && hold
+                            .observation
+                            .existing
+                            .last()
+                            .is_some_and(|part| &part.identity == identity)
+                }),
+                CreationOutcome::Uncertain => false,
+            };
+            if !complete {
+                return Err(Denial::new(
+                    "file_creation",
+                    "No matching committed creation",
+                ));
+            }
+            *pending = None;
+            return Ok(());
+        }
+        if record.creation.as_ref().expect("pending creation").owner != local.owner {
+            return Err(Denial::new(
+                "creation_owner",
+                "Another attempt owns the pending creation",
+            ));
+        }
+        use crate::workspace_locks::LockChange;
+        let change = match &local.outcome {
+            CreationOutcome::NotAttempted => LockChange::FileCreationAborted {
+                assignment: self.assignment.clone(),
+                owner: local.owner.clone(),
+            },
+            CreationOutcome::Observed(identity) => LockChange::FileCreated {
+                assignment: self.assignment.clone(),
+                owner: local.owner.clone(),
+                identity: identity.clone(),
+            },
+            CreationOutcome::Uncertain => {
+                return Err(Denial::new(
+                    "access_uncertain",
+                    "Preparation may have created an unidentified object; retain the root barrier",
+                ));
+            }
+        };
+        self.commit_creation(change, at)?;
+        *pending = None;
+        Ok(())
+    }
+}
+impl<J: Journal, C: ContentStore> WorkspaceGuard<J, C> {
+    /// Creates path ownership for files-only Scripted mediation. Admission,
+    /// invocation funding and execution lifecycle remain separate kernel work.
+    pub fn mediate(
+        &self,
+        session: &Id,
+        expected: u64,
+        at: u64,
+        request: LockRequest,
+        provider: Arc<dyn WorkspaceProvider>,
+    ) -> Result<MediatedAccess<J>> {
+        let view = self.view(session)?;
+        if view.revision() != expected {
+            return Err(Denial::new(
+                "stale_revision",
+                "Workspace changed before mediated admission",
+            ));
+        }
+        let binding = view
+            .workspace_bindings()
+            .get(&request.workspace)
+            .ok_or_else(|| {
+                Denial::new(
+                    "workspace_binding",
+                    "Bind the physical root before exposing file access",
+                )
+            })?
+            .clone();
+        provider.verify_binding(&binding, self.journal.as_ref())?;
+        let registry = view
+            .registry()
+            .ok_or_else(|| Denial::new("registry_missing", "No profile observation"))?;
+        let agent = registry
+            .input
+            .facts
+            .agents
+            .iter()
+            .find(|a| a.id == request.profile.agent)
+            .ok_or_else(|| Denial::new("agent_missing", "No recorded agent"))?;
+        let discovery = registry
+            .input
+            .facts
+            .discoveries
+            .iter()
+            .find(|d| d.provider.id == agent.provider)
+            .ok_or_else(|| Denial::new("provider_missing", "No recorded provider"))?;
+        use ymp_domain::{
+            identity::{DiscoverySource, ProviderKind},
+            journal::Capability,
+        };
+        if discovery.provider.kind != ProviderKind::Scripted
+            || discovery.source != DiscoverySource::ScriptedFixture
+            || discovery.provider.capabilities.as_ref().is_none_or(|caps| {
+                caps.iter()
+                    .any(|c| !matches!(c, Capability::ReadFiles | Capability::WriteFiles))
+            })
+        {
+            return Err(Denial::new(
+                "mediation_boundary",
+                "Files-only mediation cannot certify native or process-capable execution",
+            ));
+        }
+        let modes = provider.file_modes();
+        if request.paths.iter().any(|(_, mode)| !modes.contains(mode)) {
+            return Err(Denial::new(
+                "file_operation",
+                "Provider does not supply a requested file operation",
+            ));
+        }
+        let mut random = [0u8; 32];
+        getrandom::fill(&mut random)
+            .map_err(|_| Denial::new("access_owner", "Cannot generate an access owner"))?;
+        let owner = Digest::of(random);
+        let workspace = view
+            .workspaces()
+            .get(&request.workspace)
+            .ok_or_else(|| Denial::new("workspace_missing", "Workspace is not open"))?
+            .reference()?;
+        let proof = AccessEvidence {
+            session: session.clone(),
+            issuer: self.issuer.clone(),
+            workspace: workspace.clone(),
+            profile: request.profile.clone(),
+            actual: request.paths.clone(),
+            mediated_owner: Some(owner.clone()),
+            basis: vec![workspace],
+        };
+        let assignment = request.assignment.clone();
+        self.lock(session, expected, at, request, provider.as_ref(), &proof)?;
+        let recorded = self.view(session)?;
+        let acquired = recorded.path_locks().get(&assignment).ok_or_else(|| {
+            Denial::new(
+                "locks_missing",
+                "Committed mediation has no recorded ownership",
+            )
+        })?;
+        if acquired.acquired.mediated_owner.as_ref() != Some(&owner) {
+            return Err(Denial::new(
+                "access_owner",
+                "Another mediation attempt owns the assignment",
+            ));
+        }
+        Ok(MediatedAccess {
+            journal: self.journal.clone(),
+            provider,
+            session: session.clone(),
+            assignment,
+            owner,
+            issuer: self.issuer.clone(),
+            binding,
+            acquisition: acquired.last.clone(),
+            closed: std::sync::atomic::AtomicBool::new(false),
+            operation: Mutex::new(None),
+        })
+    }
+    /// Close new operations first, then wait for every admitted synchronous call.
+    /// The returned evidence only covers this files-only capability.
+    pub fn withdraw_mediated(&self, access: &MediatedAccess<J>) -> Result<CessationEvidence> {
+        if !Arc::ptr_eq(&access.issuer, &self.issuer) {
+            return Err(Denial::new(
+                "cessation_evidence",
+                "Handle belongs to another workspace authority",
+            ));
+        }
+        access.request_withdrawal();
+        let _drained = access.operation.lock().map_err(|_| {
+            Denial::new(
+                "access_uncertain",
+                "Cannot certify an interrupted operation",
+            )
+        })?;
+        let view = self.view(&access.session)?;
+        let record = view
+            .path_locks()
+            .get(&access.assignment)
+            .ok_or_else(|| Denial::new("locks_missing", "No recorded access"))?;
+        if record.acquired.mediated_owner.as_ref() != Some(&access.owner)
+            || record.released.is_some()
+        {
+            return Err(Denial::new(
+                "cessation_evidence",
+                "Handle does not own this active hold",
+            ));
+        }
+        view.resolve(&access.acquisition)?;
+        Ok(CessationEvidence {
+            session: access.session.clone(),
+            issuer: self.issuer.clone(),
+            record: crate::workspace_locks::CessationRecord {
+                assignment: access.assignment.clone(),
+                workspace: record.acquired.workspace.clone(),
+                invocation: record.invocation.clone(),
+                state: record.last.clone(),
+                kind: if record.invocation.is_some() {
+                    crate::workspace_locks::Cessation::AccessWithdrawn
+                } else {
+                    crate::workspace_locks::Cessation::NeverAuthorized
+                },
+                basis: vec![access.acquisition.clone(), record.last.clone()],
+            },
+        })
+    }
+}

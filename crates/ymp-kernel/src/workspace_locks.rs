@@ -13,6 +13,8 @@ use ymp_domain::{
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct LockAcquisition {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mediated_owner: Option<Digest>,
     pub workspace: Id<Workspace>,
     pub assignment: Id,
     pub profile: ExecutionProfile,
@@ -50,6 +52,25 @@ pub struct CaptureRead {
 }
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum LockChange {
+    FileAccessPrepared {
+        assignment: Id,
+        target: PathObservation,
+        mode: LockMode,
+    },
+    FileCreationStarted {
+        assignment: Id,
+        owner: Digest,
+        target: PathObservation,
+    },
+    FileCreated {
+        assignment: Id,
+        owner: Digest,
+        identity: FileIdentity,
+    },
+    FileCreationAborted {
+        assignment: Id,
+        owner: Digest,
+    },
     CaptureStarted {
         owner: Digest,
         snapshot: Id<Snapshot>,
@@ -74,7 +95,20 @@ pub enum LockChange {
 }
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
+pub struct FileCreation {
+    pub owner: Digest,
+    pub target: PathObservation,
+    pub started: Ref,
+}
+pub const MAX_FILE_HOLDS: usize = 4096;
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct AssignmentLocks {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub creation: Option<FileCreation>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub file_holds: BTreeMap<Digest, ObservedPathLock>,
     pub acquired: LockAcquisition,
     pub invocation: Option<Id>,
     pub revoked: bool,
@@ -227,6 +261,8 @@ pub fn apply(
             locks.insert(
                 acquisition.assignment.clone(),
                 AssignmentLocks {
+                    creation: None,
+                    file_holds: BTreeMap::new(),
                     acquired: (**acquisition).clone(),
                     invocation: None,
                     revoked: false,
@@ -261,6 +297,171 @@ pub fn apply(
             prior.invocation = Some(invocation.clone());
             prior.last = reference;
         }
+        LockChange::FileAccessPrepared {
+            assignment,
+            target,
+            mode,
+        } => {
+            let prior = locks
+                .get_mut(assignment)
+                .ok_or_else(|| Denial::new("locks_missing", "No physical file owner"))?;
+            target.validate(&view.workspaces()[&prior.acquired.workspace].location)?;
+            validate_profile(view, &prior.acquired)?;
+            if prior.acquired.mediated_owner.is_none()
+                || prior.invocation.is_none()
+                || prior.revoked
+                || prior.released.is_some()
+                || prior.creation.is_some()
+                || !target.missing.is_empty()
+                || !prior
+                    .acquired
+                    .requested
+                    .iter()
+                    .any(|lock| lock.mode == *mode && lock.path.contains(&target.path))
+                || ymp_domain::journal::encode(target)?.len() > 48 * 1024
+            {
+                return Err(Denial::new(
+                    "file_access",
+                    "Prepared file lacks active bounded ownership",
+                ));
+            }
+            let key = Digest::of_value(
+                &target
+                    .existing
+                    .last()
+                    .expect("validated observation")
+                    .identity,
+            )?;
+            if !prior.file_holds.contains_key(&key) && prior.file_holds.len() >= MAX_FILE_HOLDS {
+                return Err(Denial::new(
+                    "file_limit",
+                    "Physical file ownership capacity exhausted",
+                ));
+            }
+            let held_mode = if prior
+                .file_holds
+                .get(&key)
+                .is_some_and(|held| held.lock.mode == LockMode::Write)
+            {
+                LockMode::Write
+            } else {
+                *mode
+            };
+            prior.file_holds.insert(
+                key,
+                ObservedPathLock {
+                    lock: PathLock {
+                        path: target.path.clone(),
+                        mode: held_mode,
+                        holder: assignment.clone(),
+                    },
+                    observation: target.clone(),
+                },
+            );
+            prior.last = reference;
+        }
+        LockChange::FileCreationStarted {
+            assignment,
+            owner,
+            target,
+        } => {
+            let prior = locks
+                .get_mut(assignment)
+                .ok_or_else(|| Denial::new("locks_missing", "No path ownership for creation"))?;
+            let workspace = &view.workspaces()[&prior.acquired.workspace];
+            target.validate(&workspace.location)?;
+            validate_profile(view, &prior.acquired)?;
+            if prior.acquired.mediated_owner.is_none()
+                || prior.invocation.is_none()
+                || prior.revoked
+                || prior.released.is_some()
+                || prior.creation.is_some()
+                || target.missing.len() != 1
+                || prior
+                    .file_holds
+                    .values()
+                    .any(|hold| hold.lock.path == target.path)
+                || prior.file_holds.len() >= MAX_FILE_HOLDS
+                || ymp_domain::journal::encode(target)?.len() > 48 * 1024
+                || !prior
+                    .acquired
+                    .requested
+                    .iter()
+                    .any(|lock| lock.mode == LockMode::Write && lock.path.contains(&target.path))
+            {
+                return Err(Denial::new(
+                    "file_creation",
+                    "Creation requires active bounded mediated write ownership",
+                ));
+            }
+            prior.creation = Some(FileCreation {
+                owner: owner.clone(),
+                target: target.clone(),
+                started: reference.clone(),
+            });
+            prior.last = reference;
+        }
+        LockChange::FileCreated {
+            assignment,
+            owner,
+            identity,
+        } => {
+            let prior = locks
+                .get_mut(assignment)
+                .ok_or_else(|| Denial::new("locks_missing", "No creation owner"))?;
+            let creation = prior
+                .creation
+                .as_ref()
+                .ok_or_else(|| Denial::new("file_creation", "No pending creation"))?;
+            if &creation.owner != owner
+                || prior.released.is_some()
+                || identity.inode == 0
+                || identity.device != view.workspaces()[&prior.acquired.workspace].location.device
+            {
+                return Err(Denial::new(
+                    "file_creation",
+                    "Creation completion differs from its physical owner",
+                ));
+            }
+            let mut observed = creation.target.clone();
+            observed.existing.push(PathComponent {
+                name: observed.missing.remove(0),
+                identity: identity.clone(),
+            });
+            observed.validate(&view.workspaces()[&prior.acquired.workspace].location)?;
+            let key = Digest::of_value(&identity)?;
+            prior.file_holds.insert(
+                key,
+                ObservedPathLock {
+                    lock: PathLock {
+                        path: observed.path.clone(),
+                        mode: LockMode::Write,
+                        holder: assignment.clone(),
+                    },
+                    observation: observed,
+                },
+            );
+            prior.creation = None;
+            prior.last = reference;
+        }
+        LockChange::FileCreationAborted { assignment, owner } => {
+            let prior = locks
+                .get_mut(assignment)
+                .ok_or_else(|| Denial::new("locks_missing", "No creation owner"))?;
+            if prior.released.is_some()
+                || prior
+                    .creation
+                    .as_ref()
+                    .is_none_or(|creation| &creation.owner != owner)
+            {
+                return Err(Denial::new(
+                    "file_creation",
+                    "No matching unattempted creation",
+                ));
+            }
+            prior.creation = None;
+            prior.last = reference;
+        }
         LockChange::Revoked { assignment, reason } => {
             require_text(reason, 4096)?;
             let prior = locks
@@ -292,6 +493,7 @@ pub fn apply(
 pub struct WorkspaceOwnership {
     session: Id,
     locks: Vec<(Id, Ref, Vec<ObservedPathLock>)>,
+    pending: Vec<(WorkspaceLocation, Ref)>,
 }
 impl WorkspaceOwnership {
     pub fn from_view(view: &SessionView) -> Self {
@@ -303,7 +505,12 @@ impl WorkspaceOwnership {
                 (
                     l.acquired.assignment.clone(),
                     l.last.clone(),
-                    l.acquired.effective.clone(),
+                    l.acquired
+                        .effective
+                        .iter()
+                        .cloned()
+                        .chain(l.file_holds.values().cloned())
+                        .collect(),
                 )
             })
             .collect();
@@ -328,11 +535,65 @@ impl WorkspaceOwnership {
         );
         Self {
             session: view.session().clone(),
+            pending: view
+                .path_locks()
+                .values()
+                .filter(|lock| lock.released.is_none())
+                .filter_map(|lock| {
+                    lock.creation.as_ref().map(|creation| {
+                        (
+                            view.workspaces()[&lock.acquired.workspace].location.clone(),
+                            creation.started.clone(),
+                        )
+                    })
+                })
+                .collect(),
             locks,
         }
     }
+    /// Check a freshly observed operation target against retained physical owners.
+    pub fn validate_operation(
+        &self,
+        session: &Id,
+        assignment: &Id,
+        target: &ObservedPathLock,
+    ) -> Result<()> {
+        for (root, reference) in &self.pending {
+            if target.observation.existing.iter().any(|part| {
+                part.identity.device == root.device && part.identity.inode == root.inode
+            }) {
+                return Err(Denial::new(
+                    "file_creation_pending",
+                    "Unresolved file creation prevents new operations in this root",
+                )
+                .with_ref(reference.clone()));
+            }
+        }
+        for (holder, reference, paths) in &self.locks {
+            if &self.session == session && holder == assignment {
+                continue;
+            }
+            if paths.iter().any(|other| {
+                (target.lock.mode == LockMode::Write || other.lock.mode == LockMode::Write)
+                    && target.observation.overlaps(&other.observation)
+            }) {
+                return Err(Denial::new(
+                    "path_conflict",
+                    format!(
+                        "Operation conflicts with {holder} in session {}",
+                        self.session
+                    ),
+                )
+                .with_ref(reference.clone()));
+            }
+        }
+        Ok(())
+    }
     pub fn retained_weight(&self) -> Result<(usize, usize)> {
-        Ok((ymp_domain::journal::encode(self)?.len(), self.locks.len()))
+        Ok((
+            ymp_domain::journal::encode(self)?.len() + self.pending.len() * 64 * 1024,
+            self.locks.len(),
+        ))
     }
     pub fn is_empty(&self) -> bool {
         self.locks.is_empty()
@@ -356,6 +617,7 @@ pub fn validate_ownership<'a>(
     let mut active: Vec<(&Id, &Id, &Ref, &Vec<ObservedPathLock>)> = vec![];
     let mut bytes = 0usize;
     let mut sessions = std::collections::BTreeSet::new();
+    let mut pending_roots = std::collections::BTreeSet::new();
     for owner in ownership {
         if !sessions.insert(owner.session.clone()) {
             return Err(Denial::new(
@@ -363,8 +625,17 @@ pub fn validate_ownership<'a>(
                 "Duplicate session ownership",
             ));
         }
+        for (root, reference) in &owner.pending {
+            if !pending_roots.insert((root.device, root.inode)) {
+                return Err(Denial::new(
+                    "file_creation_pending",
+                    "Only one creation can await publication per root",
+                )
+                .with_ref(reference.clone()));
+            }
+        }
         bytes = bytes
-            .checked_add(ymp_domain::journal::encode(owner)?.len())
+            .checked_add(owner.retained_weight()?.0)
             .ok_or_else(|| Denial::new("workspace_inventory", "Ownership size overflow"))?;
         if bytes > 16 * 1024 * 1024 {
             return Err(Denial::new(
@@ -424,6 +695,12 @@ pub fn control_reserve(view: &SessionView) -> (usize, usize) {
             .values()
             .filter(|c| c.ended.is_none())
             .count();
+    let events = events
+        + view
+            .path_locks()
+            .values()
+            .filter(|lock| lock.released.is_none() && lock.creation.is_some())
+            .count();
     (events, events * 64 * 1024)
 }
 pub fn attribution(view: &SessionView, change: &LockChange) -> Result<Vec<Ref>> {
@@ -451,7 +728,12 @@ pub fn attribution(view: &SessionView, change: &LockChange) -> Result<Vec<Ref>> 
             refs.push(record.state.clone());
             refs
         }
-        LockChange::Authorized { assignment, .. } | LockChange::Revoked { assignment, .. } => vec![
+        LockChange::Authorized { assignment, .. }
+        | LockChange::Revoked { assignment, .. }
+        | LockChange::FileAccessPrepared { assignment, .. }
+        | LockChange::FileCreationStarted { assignment, .. }
+        | LockChange::FileCreated { assignment, .. }
+        | LockChange::FileCreationAborted { assignment, .. } => vec![
             view.path_locks()
                 .get(assignment)
                 .ok_or_else(|| Denial::new("locks_missing", "No path ownership for assignment"))?

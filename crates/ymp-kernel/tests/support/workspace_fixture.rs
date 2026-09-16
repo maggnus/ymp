@@ -167,6 +167,7 @@ pub fn acquire<J: Journal>(
         holder: id("assignment"),
     };
     let change = LockChange::Acquired(Box::new(LockAcquisition {
+        mediated_owner: None,
         workspace: id("workspace"),
         assignment: id("assignment"),
         profile,

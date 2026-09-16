@@ -1,11 +1,9 @@
 # Workspace implementation notes
 
-Canonical task status is in `tasks/records/W1-0005.json`. Direct capture and
-retained snapshots are implemented. The ownership checkpoint adds path-lock state,
-opaque access/cessation inputs and aggregate checks within one Journal. W1-0005
-has persistent physical-root binding across stores; a real mediated executor/provider
-that protects the binding metadata is still required. Capture read holds now cover synchronous capture and
-publication. There are no production access-evidence factories or native write calls.
+Canonical task status is in `tasks/records/W1-0005.json`. Direct capture, retained
+snapshots, persistent physical-root binding and mediated file access are implemented.
+Native execution and admission integration remain owned by W1-0017 and W1-0006;
+these file-access guarantees do not claim that a native session is running.
 
 ## Capture and retained content
 
@@ -78,9 +76,8 @@ child binding. Bound capture uses shared coordination locks and verifies its mar
 Capture receives the calling journal's identity as a read-only observation and
 checks it under the provider's binding mutex. A bound provider reused by another
 Guard cannot capture through that Guard's unrelated journal.
-This is cooperative filesystem coordination, not a native sandbox. The mediated
-provider must still prevent access to control metadata and expose only checked file
-operations; native execution must independently establish its actual enforcement.
+This is cooperative filesystem coordination, not a native sandbox. The mediator prevents access to control metadata and exposes checked synchronous
+file operations. Native execution must independently establish its actual enforcement.
 
 ## Capture read lifecycle
 
@@ -129,7 +126,10 @@ requested path. Comparison uses shared physical objects to detect aliases and
 ancestor workspace roots; ASCII case is conflated conservatively, and ambiguous
 Unicode components cannot establish disjointness. Traversal and unsupported
 filesystem objects are refused. These observations alone do not establish confinement.
-Actual broker operations will need to revalidate paths while enforcing each ticket.
+Mediated operations compare the acquired physical scope with opened descriptors
+before accessing bytes. An originally missing scoped leaf must be created exclusively by its handle;
+subsequent access checks the identity returned by that successful creation. A missing
+scope cannot become a directory. Existing scope anchors cannot silently change identity.
 
 WorkspaceGuard uses replayed Journal.read data, reconstructs effective claims and
 checks all current owners before appending. SQLite repeats the kernel check under
@@ -149,9 +149,10 @@ does not promise writes when the filesystem itself is full or unavailable.
 Revocation keeps all holds. NeverAuthorized evidence is issued only for an unreleased
 assignment without invocation authorization; state changes invalidate old evidence.
 Terminated/AccessWithdrawn evidence is non-deserializable, scoped to the current
-assignment/workspace/invocation state and requires a recorded basis. Production
-factories remain unimplemented. Synthetic fixtures exercise those consumer inputs
-without claiming actual execution, confinement or cessation. No cost receipt or
+assignment/workspace/invocation state and requires a recorded basis. The mediated factory produces AccessWithdrawn after closing and draining its actual
+file capability. Native Terminated evidence remains unimplemented here. Synthetic
+fixtures separately exercise those consumer inputs without claiming native execution,
+confinement or cessation. No cost receipt or
 financial settlement releases workspace access.
 
 ## Evidence
@@ -187,27 +188,111 @@ concurrent identity creation, replacement/hard-link refusal and malformed identi
 missing/foreign metadata, copied databases, nested roots in both orders, thread and
 process races, sibling roots and unbound-preview exclusion of bound descendants.
 
-## Remaining W1-0005 work
+## Mediated file access
 
-PathLock admission must account for effective access, not just requested paths.
-A native process's cwd is not confinement. Unknown access must be denied; a confirmed
-root-confined broad writer must hold that root, while independently enforced disjoint
-scopes may proceed concurrently. Case/Unicode aliases, overlapping roots and changes
-between validation and use must not create artificial independence.
+WorkspaceGuard.mediate creates an opaque MediatedAccess and records a random
+per-attempt owner in LockAcquisition. This prevents two otherwise identical creation
+attempts from owning the same handle after ambiguous commit resolution. Missing
+`mediated_owner` remains omitted from old serialized acquisitions. A journal record
+cannot recreate a live handle. Failed creation may leave an unresolved conservative
+hold; it never exposes file I/O without the matching recorded owner.
 
-Ownership checks and commits must have one shared atomic boundary across sessions
-and processes for the physical tree. A per-session journal CAS or one Guard's mutex
-is insufficient. Independent stores must not concurrently claim the same tree.
-Persisted holds survive a coordinator exit; an OS lock alone does not establish that
-an external process stopped writing.
+The factory requires a bound workspace and an eligible Scripted profile with only
+ReadFiles/WriteFiles capabilities. It refuses native or process-capable environments,
+rather than assuming a requested path list constrains their access. The host must
+expose only this handle to the Scripted participant. WorkspaceProvider is trusted
+adapter code with an explicit synchronous-I/O contract; an arbitrary plugin is not
+made safe merely by implementing this trait.
 
-The alternate constrained provider must mediate actual access rather than return a
-boolean claim of confinement. Withdrawal must stop new operations and wait for admitted
-ones before issuing scoped cessation evidence. Native evidence production belongs to
-W1-0017; W1-0006 binds locks to admitted assignments. Revocation, stream loss, elapsed
-time and parent exit alone cannot release conflicts. Financial settlement is independent.
-The remaining work is the alternate provider that enforces operations through the
-actual consumer, protects binding metadata, and withdraws access only after admitted
-operations drain. Integrate that enforcement with the existing binding and capture
-read lifecycle.
-Their integration/concurrency/restart tests are required before W1-0005 is complete.
+Each operation checks current replayed ownership, authorization, revocation, release,
+profile eligibility and binding. Read and Write are distinct permissions. FileAccess
+binds the checked operation to its exact root/journal, acquired physical scope and
+freshly observed full target. The kernel checks that target against other retained
+physical owners; Direct checks the same chain again on opened descriptors.
+Direct opens descendants relative to its root descriptor without following links,
+checks original existing scope identities during traversal, and refuses marker names,
+staging names and physical marker aliases. Another root in the same journal cannot
+consume the operation. Regular-file type, device, link count, scope and marker checks
+precede truncation; write size limits precede creation. Reads are bounded and checked
+for concurrent changes. File errors can leave partial changes and never release a hold.
+
+The API reads or replaces complete files and creates missing leaf files under existing
+parents. Every prepared existing file receives a journaled physical hold before its
+bytes are read or written. Read holds remain compatible; Write is retained as the
+strongest mode for an object. The holds are keyed by physical identity, bounded to
+4,096 objects per assignment and retained through revocation until validated release.
+A renamed file therefore remains protected even after leaving the declared directory.
+An originally missing scoped leaf uses its published identity for later operations;
+it cannot silently adopt a foreign replacement. All read/write and creation-resolution
+calls take an explicit timestamp from the trusted host for the events they produce. It does not create/remove/rename directories, expose descriptors or execute
+processes. File operations within one handle are serialized; independent handles can
+perform compatible reads or disjoint writes. ReadOnly is a constrained provider with
+capture and read capabilities but no write method; the same kernel consumer denies
+write ownership before appending, records its distinct policy and runs actual reads.
+
+Withdrawal closes the handle before waiting for the operation mutex. Queued operations
+recheck closure after acquiring that mutex, so they cannot start after withdrawal.
+Only after admitted synchronous I/O returns can the issuing Guard produce state-bound
+cessation evidence. A poisoned operation mutex retains uncertainty and cannot certify
+withdrawal. Revocation and dropped handles retain holds. NeverAuthorized evidence
+becomes invalid if authorization intervenes; release must validate the current state.
+The release basis persists across restart independently of Treasury settlement.
+
+Filesystem checks detect observed replacement of roots, scope anchors, leaf files and
+metadata. They do not claim to stop a privileged external actor from moving already-open
+objects or changing them after validation. Managed file operations cannot make those
+topology changes. Native execution needs its own enforced boundary; cwd alone is
+insufficient. W1-0006 must bind ownership to admitted assignments, and W1-0017 must
+connect the admitted Scripted host and native execution lifecycle.
+
+`ymp-storage/tests/mediation.rs` exercises actual file operations through WorkspaceGuard
+and SQLite: authorization, separate read/write scopes, limits before mutation, link
+and marker rejection, existing/missing directory and leaf replacement, wrong-root forwarding, compatible
+cross-session reads/disjoint writes, retained revoked/disconnected ownership, unrelated
+work, restart release basis, ReadOnly behavior, process-capability denial, blocked I/O
+withdrawal and provider panic. These fixtures do not claim a completed native agent run.
+
+### Durable file preparation and creation
+
+All mediated I/O obtains WorkspaceCoordination before checking current pending
+creations, resolving the complete target and preparing its descriptor. Direct uses
+shared physical ancestor flocks and a blocking exclusive root flock for this short
+section; separate handles and processes participate in the same coordinator. Existing
+file preparation does not truncate data. WorkspaceGuard commits FileAccessPrepared
+with the target's physical observation and permitted Read/Write mode before dropping
+the coordinator. The returned WorkspaceFile retains that exact descriptor for data
+I/O outside the coordination section. A failed publication exposes no bytes.
+
+Missing-file writes first commit FileCreationStarted with a unique random owner and
+target. Direct then opens the file exclusively, verifies its descriptor, synchronizes
+the empty file and parent directory, and returns its physical identity. FileCreated
+publishes that identity into the assignment's physical holds and clears the pending
+creation before data I/O begins. The maximum target encoding is 48 KiB; pending
+creation reserves 64 KiB of aggregate ownership capacity and one additional control
+event/64 KiB of journal capacity for publication or proven non-attempt. New creation
+is refused before filesystem mutation if its future publication cannot fit. Ordinary
+appends still cannot consume the separate revoke/release capacity.
+
+A pending creation prevents new file I/O in that physical root, even for a different
+session, until its uncertainty is resolved. The live handle keeps only one opaque
+local outcome: not attempted, prepared identity, or uncertain. resolve_creation
+retries only a proven non-attempt abort or publication of its known physical identity;
+it never repeats creation or writes data. Lost publication acknowledgements resolve
+against the recorded identity. Preparation errors after filesystem mutation and loss
+of local state retain the pending barrier. Restart or absence of the old pathname
+cannot prove that no file exists. A validated handle withdrawal drains all admitted
+I/O; its subsequent assignment release can end retained ownership and its barrier.
+An I/O error after publication may leave partial bytes but has no unpublished creation.
+
+These checks do not stop an external actor from moving or modifying already-open
+objects. They keep managed operations and later admissions from treating a renamed
+physical file as unowned while its assignment still holds it. They do not promise
+OS confinement of arbitrary native processes or reconstruction of lost live authority.
+
+`ymp-storage/tests/file_creation.rs` covers failures before/after Begin and publication,
+post-open preparation failure, resolution without repeated data I/O, retained pending
+state after restart and pathname movement, exclusion of another operation during
+preparation, and partial data writes after physical ownership publication.
+`workspace_capacity_tests.rs` uses real SQLite with a small event limit to show that
+creation is refused before I/O without room for publication, and successful creation
+still leaves enough capacity for revoke and release despite an unrelated denied append.

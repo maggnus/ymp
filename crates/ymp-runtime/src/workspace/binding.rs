@@ -111,6 +111,9 @@ impl Drop for DirectoryLocks {
 }
 impl DirectoryLocks {
     fn acquire(path: &str, exclusive_root: bool) -> Result<Self> {
+        Self::acquire_mode(path, exclusive_root, false)
+    }
+    fn acquire_mode(path: &str, exclusive_root: bool, wait: bool) -> Result<Self> {
         let names: Vec<_> = path.split('/').filter(|s| !s.is_empty()).collect();
         let top = File::from(
             rfs::open(
@@ -131,9 +134,17 @@ impl DirectoryLocks {
                 ));
             }
             let operation = if exclusive_root && index == names.len() {
-                FlockOperation::NonBlockingLockExclusive
+                if wait {
+                    FlockOperation::LockExclusive
+                } else {
+                    FlockOperation::NonBlockingLockExclusive
+                }
             } else {
-                FlockOperation::NonBlockingLockShared
+                if wait {
+                    FlockOperation::LockShared
+                } else {
+                    FlockOperation::NonBlockingLockShared
+                }
             };
             rfs::flock(&next, operation).map_err(|error| {
                 if error == rustix::io::Errno::WOULDBLOCK {
@@ -414,6 +425,21 @@ impl RootBinding {
         result.verify(journal)?;
         Ok(result)
     }
+    pub(super) fn access_lock(location: &WorkspaceLocation) -> Result<DirectoryLocks> {
+        let locks = DirectoryLocks::acquire_mode(&location.root, true, true)?;
+        if identity(locks.root())?
+            != (FileIdentity {
+                device: location.device,
+                inode: location.inode,
+            })
+        {
+            return Err(Denial::new(
+                "binding_changed",
+                "I/O coordinator names another physical root",
+            ));
+        }
+        Ok(locks)
+    }
     pub(super) fn capture_lock(location: &WorkspaceLocation) -> Result<DirectoryLocks> {
         let locks = DirectoryLocks::acquire(&location.root, false)?;
         if identity(locks.root())?
@@ -465,6 +491,9 @@ impl RootBinding {
             limits,
         )?;
         Ok(locks)
+    }
+    pub(super) fn is_marker(&self, metadata: &std::fs::Metadata) -> bool {
+        self.marker.device == metadata.dev() && self.marker.inode == metadata.ino()
     }
     pub fn record(&self) -> &WorkspaceBinding {
         &self.record

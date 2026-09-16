@@ -362,6 +362,26 @@ or execution grants. Mutable holds remain in Journal. Bound roots do not nest;
 relative PathLocks express subscopes within a root. Binding metadata must be protected
 by the actual execution mechanism before it can justify file access.
 
+`MediatedAccess` is the Rust implementation's non-serializable, files-only handle
+issued by WorkspaceGuard for Scripted execution. `FileAccess` is one synchronous
+operation's checked scope and physical WorkspaceBinding, borrowed by the I/O port.
+They implement enforcement of PathLocks without adding a domain grant or treating
+native cwd as confinement. The mediator exposes only permitted file operations,
+protects binding metadata and drains admitted I/O before producing AccessWithdrawn
+evidence. Direct supports bounded reads and writes; the constrained ReadOnly
+WorkspaceProvider exposes reads and capture through the same consumer. Neither
+interface permits arbitrary process execution, directory mutation or detached I/O.
+
+`WorkspaceCoordination` is the I/O port's short physical-root coordination section;
+`WorkspaceFile` retains the validated open descriptor after that section. The kernel
+publishes physical Read/Write ownership for each prepared file before exposing its
+bytes. `FileCreation` records an unresolved exclusive creation, with a per-attempt
+owner and target observation. LockChanged records its start and physical publication
+(or proven non-attempt), so a crash between creation and publication cannot erase
+uncertainty. Physical file holds remain until the assignment's evidence-backed
+release. These implementation values enforce the existing PathLock/R-19 contract;
+they do not replace assignment grants or make external processes confined.
+
 ### 3.5. Coordination
 
 ```text

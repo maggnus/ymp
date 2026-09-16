@@ -167,6 +167,7 @@ fn proof(
         issuer: guard.issuer.clone(),
         workspace: reference.clone(),
         profile: profile.clone(),
+        mediated_owner: None,
         actual: vec![(WorkspacePath::new(path).unwrap(), mode)],
         basis: vec![reference],
     }

@@ -3,10 +3,10 @@ use rustix::fs::{self as rfs, AtFlags, Dir, FileType, Mode, OFlags};
 use std::{
     collections::BTreeMap,
     fs::{File, Metadata},
-    io::Read,
+    io::{Read, Write},
     os::unix::fs::MetadataExt,
     path::Path,
-    sync::Mutex,
+    sync::{Arc, Mutex},
 };
 use ymp_domain::{Denial, Digest, Result, journal::PolicySelection, workspace::*};
 use ymp_kernel::{
@@ -19,7 +19,7 @@ pub struct Direct {
     location: WorkspaceLocation,
     selection: PolicySelection,
     limits: CaptureLimits,
-    binding: Mutex<Option<super::binding::RootBinding>>,
+    binding: Mutex<Option<Arc<super::binding::RootBinding>>>,
 }
 struct CaptureState {
     tree: SnapshotTree,
@@ -153,6 +153,165 @@ impl Direct {
         }
         Ok(file)
     }
+    fn operation_binding(
+        &self,
+        access: &ymp_kernel::workspace_guard::FileAccess,
+        mode: LockMode,
+    ) -> Result<Arc<super::binding::RootBinding>> {
+        if access.mode() != mode || access.path() == &WorkspacePath::root() {
+            return Err(Denial::new(
+                "file_operation",
+                "Expected a permitted regular-file operation",
+            ));
+        }
+        let first = access
+            .path()
+            .as_str()
+            .split('/')
+            .next()
+            .expect("validated path");
+        let folded = first.to_ascii_lowercase();
+        if folded == super::binding::MARKER
+            || folded.starts_with(&format!("{}.tmp-", super::binding::MARKER))
+        {
+            return Err(Denial::new(
+                "binding_metadata",
+                "Execution cannot access binding metadata",
+            ));
+        }
+        let binding = self
+            .binding
+            .lock()
+            .map_err(|_| Denial::new("workspace_binding", "Binding state is unavailable"))?
+            .clone()
+            .ok_or_else(|| Denial::new("binding_required", "Bind the root before file I/O"))?;
+        if access.binding() != binding.record() {
+            return Err(Denial::new(
+                "binding_conflict",
+                "File operation targets another workspace binding",
+            ));
+        }
+        self.location()?;
+        access.scope().validate(&self.location)?;
+        access.target().validate(&self.location)?;
+        if access.target().path != *access.path() {
+            return Err(Denial::new(
+                "path_observation",
+                "Operation target does not match its path",
+            ));
+        }
+        if !access.scope().missing.is_empty()
+            && (access.scope().missing.len() != 1 || access.path() != &access.scope().path)
+        {
+            return Err(Denial::new(
+                "workspace_changed",
+                "An absent scope cannot become a directory",
+            ));
+        }
+        if !access.scope().path.contains(access.path()) {
+            return Err(Denial::new(
+                "access_scope",
+                "File is outside its observed scope",
+            ));
+        }
+        binding.verify_marker()?;
+        Ok(binding)
+    }
+    fn scope_identity<'a>(
+        &self,
+        access: &'a ymp_kernel::workspace_guard::FileAccess,
+        depth: usize,
+    ) -> Option<&'a FileIdentity> {
+        let root_depth = self
+            .location
+            .root
+            .split('/')
+            .filter(|part| !part.is_empty())
+            .count();
+        access
+            .scope()
+            .existing
+            .get(root_depth + depth)
+            .map(|part| &part.identity)
+            .or_else(|| {
+                (depth == access.path().as_str().split('/').count())
+                    .then(|| access.created_file())
+                    .flatten()
+            })
+    }
+    fn check_scope_component(
+        &self,
+        access: &ymp_kernel::workspace_guard::FileAccess,
+        depth: usize,
+        metadata: &Metadata,
+    ) -> Result<()> {
+        let root_depth = self
+            .location
+            .root
+            .split('/')
+            .filter(|part| !part.is_empty())
+            .count();
+        if access
+            .target()
+            .existing
+            .get(root_depth + depth)
+            .is_some_and(|expected| {
+                expected.identity.device != metadata.dev()
+                    || expected.identity.inode != metadata.ino()
+            })
+        {
+            return Err(changed());
+        }
+        if self.scope_identity(access, depth).is_some_and(|expected| {
+            expected.device != metadata.dev() || expected.inode != metadata.ino()
+        }) {
+            return Err(changed());
+        }
+        Ok(())
+    }
+    fn file_parent(
+        &self,
+        access: &ymp_kernel::workspace_guard::FileAccess,
+    ) -> Result<(File, String)> {
+        let path = access.path();
+        let mut components = path.as_str().split('/').collect::<Vec<_>>();
+        let name = components.pop().expect("validated file path").to_owned();
+        let mut parent = self.root.try_clone().map_err(io_error)?;
+        self.check_scope_component(access, 0, &parent.metadata().map_err(io_error)?)?;
+        for (index, component) in components.into_iter().enumerate() {
+            let next = self.child(&parent, component)?;
+            self.check_scope_component(access, index + 1, &next.metadata().map_err(io_error)?)?;
+            if !next.metadata().map_err(io_error)?.is_dir() {
+                return Err(Denial::new(
+                    "workspace_path",
+                    "A file ancestor is not a directory",
+                ));
+            }
+            parent = next;
+        }
+        Ok((parent, name))
+    }
+    fn check_operation_file(
+        &self,
+        file: &File,
+        binding: &super::binding::RootBinding,
+    ) -> Result<Metadata> {
+        let metadata = file.metadata().map_err(io_error)?;
+        if !metadata.is_file() || metadata.dev() != self.location.device || metadata.nlink() != 1 {
+            return Err(Denial::new(
+                "workspace_type",
+                "File operations require an unaliased regular file on the root device",
+            ));
+        }
+        if binding.is_marker(&metadata) {
+            return Err(Denial::new(
+                "binding_metadata",
+                "Execution cannot access a physical alias of the binding marker",
+            ));
+        }
+        permissions(&metadata)?;
+        Ok(metadata)
+    }
     fn walk(
         &self,
         directory: &File,
@@ -258,9 +417,181 @@ impl Direct {
         Ok(state.tree)
     }
 }
+struct DirectCoordination {
+    _locks: super::binding::DirectoryLocks,
+    binding: WorkspaceBinding,
+}
+impl ymp_kernel::ports::execution::WorkspaceCoordination for DirectCoordination {
+    fn binding(&self) -> &WorkspaceBinding {
+        &self.binding
+    }
+}
+struct DirectFile {
+    file: File,
+    binding: Arc<super::binding::RootBinding>,
+    mode: LockMode,
+    limit: usize,
+    observed: Metadata,
+}
+impl ymp_kernel::ports::execution::WorkspaceFile for DirectFile {
+    fn identity(&self) -> FileIdentity {
+        FileIdentity {
+            device: self.observed.dev(),
+            inode: self.observed.ino(),
+        }
+    }
+    fn read(&mut self) -> Result<Vec<u8>> {
+        if self.mode != LockMode::Read {
+            return Err(Denial::new(
+                "file_operation",
+                "File was not opened for reading",
+            ));
+        }
+        self.binding.verify_marker()?;
+        let before = self.file.metadata().map_err(io_error)?;
+        if !same(&self.observed, &before) || before.len() > self.limit as u64 {
+            return Err(changed());
+        }
+        let mut bytes = Vec::new();
+        Read::by_ref(&mut self.file)
+            .take(self.limit as u64 + 1)
+            .read_to_end(&mut bytes)
+            .map_err(io_error)?;
+        if bytes.len() > self.limit
+            || bytes.len() as u64 != before.len()
+            || !same(&before, &self.file.metadata().map_err(io_error)?)
+        {
+            return Err(changed());
+        }
+        self.binding.verify_marker()?;
+        Ok(bytes)
+    }
+    fn write(&mut self, bytes: &[u8]) -> Result<()> {
+        if self.mode != LockMode::Write || bytes.len() > self.limit {
+            return Err(Denial::new(
+                "file_operation",
+                "Write exceeds its prepared permission",
+            ));
+        }
+        self.binding.verify_marker()?;
+        let now = self.file.metadata().map_err(io_error)?;
+        if now.dev() != self.observed.dev()
+            || now.ino() != self.observed.ino()
+            || now.nlink() != 1
+            || !now.is_file()
+        {
+            return Err(changed());
+        }
+        permissions(&now)?;
+        self.file.set_len(0).map_err(io_error)?;
+        self.file.write_all(bytes).map_err(io_error)?;
+        self.file.sync_all().map_err(io_error)?;
+        self.binding.verify_marker()
+    }
+}
 impl WorkspaceProvider for Direct {
+    fn coordinate(
+        &self,
+        expected: &WorkspaceBinding,
+    ) -> Result<Box<dyn ymp_kernel::ports::execution::WorkspaceCoordination + '_>> {
+        let locks = super::binding::RootBinding::access_lock(&expected.root)?;
+        let binding = self
+            .binding
+            .lock()
+            .map_err(|_| Denial::new("workspace_binding", "Binding state unavailable"))?
+            .clone()
+            .ok_or_else(|| Denial::new("binding_required", "Bind before I/O"))?;
+        if binding.record() != expected || self.location()? != expected.root {
+            return Err(Denial::new(
+                "binding_conflict",
+                "Coordinator differs from operation binding",
+            ));
+        }
+        binding.verify_marker()?;
+        Ok(Box::new(DirectCoordination {
+            _locks: locks,
+            binding: expected.clone(),
+        }))
+    }
+    fn validate_file_request(
+        &self,
+        access: &ymp_kernel::workspace_guard::FileAccess,
+    ) -> Result<()> {
+        if access.mode() == LockMode::Write && access.limit() > self.limits.max_file_bytes {
+            return Err(Denial::new(
+                "file_limit",
+                "Write exceeds the bounded file size",
+            ));
+        }
+        self.operation_binding(access, access.mode())?;
+        Ok(())
+    }
+    fn prepare_file(
+        &self,
+        access: &ymp_kernel::workspace_guard::FileAccess,
+    ) -> Result<Box<dyn ymp_kernel::ports::execution::WorkspaceFile>> {
+        if access.mode() == LockMode::Write && access.limit() > self.limits.max_file_bytes {
+            return Err(Denial::new(
+                "file_limit",
+                "Write exceeds the bounded file size",
+            ));
+        }
+        let binding = self.operation_binding(access, access.mode())?;
+        let (parent, name) = self.file_parent(access)?;
+        let depth = access.path().as_str().split('/').count();
+        let is_new = !access.target().missing.is_empty();
+        if is_new
+            && (access.mode() != LockMode::Write
+                || access.target().missing.len() != 1
+                || self.scope_identity(access, depth).is_some())
+        {
+            return Err(changed());
+        }
+        if !access.scope().missing.is_empty() && access.created_file().is_none() && !is_new {
+            return Err(changed());
+        }
+        let flags = match access.mode() {
+            LockMode::Read => OFlags::RDONLY,
+            LockMode::Write => OFlags::WRONLY,
+        };
+        let flags = flags
+            | OFlags::NOFOLLOW
+            | OFlags::CLOEXEC
+            | OFlags::NONBLOCK
+            | if is_new {
+                OFlags::CREATE | OFlags::EXCL
+            } else {
+                OFlags::empty()
+            };
+        let file = File::from(
+            rfs::openat(
+                &parent,
+                name.as_str(),
+                flags,
+                Mode::RUSR | Mode::WUSR | Mode::RGRP | Mode::ROTH,
+            )
+            .map_err(io_error)?,
+        );
+        let observed = self.check_operation_file(&file, &binding)?;
+        self.check_scope_component(access, depth, &observed)?;
+        if is_new {
+            file.sync_all().map_err(io_error)?;
+            parent.sync_all().map_err(io_error)?;
+        }
+        binding.verify_marker()?;
+        Ok(Box::new(DirectFile {
+            file,
+            binding,
+            mode: access.mode(),
+            limit: access.limit().min(self.limits.max_file_bytes),
+            observed,
+        }))
+    }
     fn selection(&self) -> &PolicySelection {
         &self.selection
+    }
+    fn file_modes(&self) -> Vec<LockMode> {
+        vec![LockMode::Read, LockMode::Write]
     }
     fn bind(&self, journal: &dyn Journal) -> Result<WorkspaceBinding> {
         let mut binding = self
@@ -268,11 +599,11 @@ impl WorkspaceProvider for Direct {
             .lock()
             .map_err(|_| Denial::new("workspace_binding", "Binding state is unavailable"))?;
         if binding.is_none() {
-            *binding = Some(super::binding::RootBinding::open(
+            *binding = Some(Arc::new(super::binding::RootBinding::open(
                 Path::new(&self.location.root),
                 journal,
                 &self.limits,
-            )?);
+            )?));
         }
         let bound = binding.as_ref().expect("initialized binding");
         bound.verify(journal)?;

@@ -26,6 +26,10 @@ impl Default for ParameterSchemas {
                     validate_direct as ParameterValidator,
                 ),
                 (
+                    ("WorkspaceProvider".into(), "ReadOnly".into(), "1".into()),
+                    validate_direct as ParameterValidator,
+                ),
+                (
                     ("CostModel".into(), "PriceWeighted".into(), "1".into()),
                     validate_price_weighted as ParameterValidator,
                 ),

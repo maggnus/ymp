@@ -58,6 +58,7 @@ fn unrelated_appends_cannot_consume_the_slots_needed_to_revoke_and_release_acces
         &journal,
         &session,
         LockChange::Acquired(Box::new(LockAcquisition {
+            mediated_owner: None,
             workspace: id("workspace"),
             assignment: id("assignment"),
             profile,
@@ -135,4 +136,107 @@ fn unrelated_appends_cannot_consume_the_slots_needed_to_revoke_and_release_acces
             .released
             .is_some()
     );
+}
+
+#[test]
+fn creation_is_denied_before_io_without_room_to_publish_and_release() {
+    for event_limit in [9, 11] {
+        let root = Directory::new();
+        let database = Directory::new();
+        let provider = Arc::new(Direct::open(&root.0, CaptureLimits::default()).unwrap());
+        let mut sqlite =
+            SqliteJournal::open(database.database(), ParameterSchemas::default()).unwrap();
+        sqlite.event_limit = event_limit;
+        let journal = Arc::new(sqlite);
+        let session = id("creation-capacity");
+        let (guard, profile) = fixture::open(
+            journal.clone(),
+            Arc::new(journal.content_store()),
+            &session,
+            provider.as_ref(),
+        );
+        guard
+            .bind_workspace(&session, 4, 4, &id("workspace"), provider.as_ref())
+            .unwrap();
+        let access = guard
+            .mediate(
+                &session,
+                5,
+                5,
+                ymp_kernel::workspace_guard::LockRequest {
+                    assignment: id("assignment"),
+                    workspace: id("workspace"),
+                    profile,
+                    paths: vec![(WorkspacePath::new("file").unwrap(), LockMode::Write)],
+                },
+                provider.clone(),
+            )
+            .unwrap();
+        guard
+            .authorize_access(
+                &session,
+                6,
+                6,
+                id("assignment"),
+                id("invocation"),
+                provider.as_ref(),
+            )
+            .unwrap();
+        let written = access.write(&WorkspacePath::new("file").unwrap(), b"created", 12);
+        if event_limit == 9 {
+            assert!(written.is_err());
+            assert!(!root.0.join("file").exists());
+            assert_eq!(guard.view(&session).unwrap().revision(), 7);
+            access.resolve_creation(13).unwrap();
+        } else {
+            written.unwrap();
+            assert_eq!(std::fs::read(root.0.join("file")).unwrap(), b"created");
+            assert_eq!(guard.view(&session).unwrap().revision(), 9);
+            let registry = ymp_kernel::registry::Registry::new(journal.clone());
+            let prior = guard.view(&session).unwrap().registry().unwrap().clone();
+            let input = registry
+                .prepare(&session, prior.input.facts.clone(), 13)
+                .unwrap();
+            let responses = ymp_kernel::registry::readiness_views(&input)
+                .iter()
+                .map(|view| ymp_kernel::registry::ReadinessResponse {
+                    profile: view.profile.clone(),
+                    input: ymp_domain::Digest::of_value(view).unwrap(),
+                    proposal: ymp_domain::Proposal {
+                        value: ymp_domain::identity::Readiness::Ready,
+                        rationale: "Repeated fixture readiness".into(),
+                        basis: vec![],
+                        policy: prior.effective.policy.clone(),
+                    },
+                })
+                .collect();
+            let denied = registry
+                .record(&session, 9, 13, input, prior.effective, responses)
+                .unwrap_err();
+            assert_eq!(denied.code, "journal_limit");
+            guard
+                .revoke_access(
+                    &session,
+                    9,
+                    14,
+                    id("assignment"),
+                    "Stop after creation".into(),
+                )
+                .unwrap();
+        }
+        let proof = guard.withdraw_mediated(&access).unwrap();
+        guard
+            .release(
+                &session,
+                guard.view(&session).unwrap().revision(),
+                15,
+                &proof,
+            )
+            .unwrap();
+        assert!(
+            guard.view(&session).unwrap().path_locks()[&id("assignment")]
+                .released
+                .is_some()
+        );
+    }
 }
