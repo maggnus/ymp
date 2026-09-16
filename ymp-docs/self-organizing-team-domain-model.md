@@ -354,6 +354,14 @@ SnapshotTaken atomically publishes a completed capture and ends that hold; abort
 or unresolved capture I/O cannot be presented as a completed snapshot. Cross-session checks use active ownership derived from each session's Journal;
 control space for release is protected while those holds remain active.
 
+`JournalIdentity` records a durable journal's random identity and observed physical
+file. `WorkspaceBinding` fixes a physical root to that journal; its immutable marker
+prevents another physical database, including a copy, from joining the same root.
+These are implementation observations for cross-store coordination, not credentials
+or execution grants. Mutable holds remain in Journal. Bound roots do not nest;
+relative PathLocks express subscopes within a root. Binding metadata must be protected
+by the actual execution mechanism before it can justify file access.
+
 ### 3.5. Coordination
 
 ```text

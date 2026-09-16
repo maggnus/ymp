@@ -168,7 +168,7 @@ fn links_escapes_missing_content_and_changed_roots_cannot_commit_a_snapshot() {
             .snapshot(&session, 3, 3, &id("workspace"), id("symlink"), &provider)
             .unwrap_err()
             .code,
-        "workspace_type"
+        "binding_topology"
     );
     fs::remove_file(root.0.join("escape")).unwrap();
     fs::hard_link(outside.0.join("secret"), root.0.join("alias")).unwrap();
@@ -283,7 +283,9 @@ fn changes_during_capture_are_aborted_without_publishing_a_snapshot() {
     )
     .unwrap();
     assert_eq!(
-        tiny.capture(&journal.content_store()).unwrap_err().code,
+        tiny.capture(&journal.binding_identity(), &journal.content_store())
+            .unwrap_err()
+            .code,
         "capture_limit"
     );
 }

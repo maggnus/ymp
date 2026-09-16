@@ -35,6 +35,8 @@ pub struct SessionView {
     workspaces: BTreeMap<Id<ymp_domain::workspace::Workspace>, ymp_domain::workspace::Workspace>,
     snapshots: BTreeMap<Id<ymp_domain::workspace::Snapshot>, ymp_domain::workspace::Snapshot>,
     path_locks: BTreeMap<Id, crate::workspace_locks::AssignmentLocks>,
+    workspace_bindings:
+        BTreeMap<Id<ymp_domain::workspace::Workspace>, ymp_domain::workspace::WorkspaceBinding>,
     capture_reads:
         BTreeMap<Id<ymp_domain::workspace::Snapshot>, crate::workspace_locks::CaptureRead>,
 }
@@ -58,7 +60,14 @@ impl SessionView {
             snapshots: BTreeMap::new(),
             path_locks: BTreeMap::new(),
             capture_reads: BTreeMap::new(),
+            workspace_bindings: BTreeMap::new(),
         }
+    }
+    pub fn workspace_bindings(
+        &self,
+    ) -> &BTreeMap<Id<ymp_domain::workspace::Workspace>, ymp_domain::workspace::WorkspaceBinding>
+    {
+        &self.workspace_bindings
     }
     pub fn capture_reads(
         &self,
@@ -189,6 +198,30 @@ impl SessionView {
             self.resolve(reference)?;
         }
         match &event.payload {
+            Event::WorkspaceBound {
+                workspace, binding, ..
+            } => {
+                self.validate_complete()?;
+                binding.validate()?;
+                let recorded = self
+                    .workspaces
+                    .get(workspace)
+                    .ok_or_else(|| Denial::new("workspace_missing", "Workspace is not open"))?;
+                if binding.root != recorded.location
+                    || self.workspace_bindings.contains_key(workspace)
+                    || event.policy.is_some()
+                    || event.input.is_some()
+                    || event.refs != vec![recorded.reference()?]
+                {
+                    return Err(Denial::new(
+                        "workspace_binding",
+                        "Binding does not match the unbound workspace",
+                    ));
+                }
+                self.workspace_bindings
+                    .insert(workspace.clone(), (**binding).clone());
+            }
+
             Event::LockChanged { change, .. } => {
                 self.validate_complete()?;
                 if event.policy.is_some()

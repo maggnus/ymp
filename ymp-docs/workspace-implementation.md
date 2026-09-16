@@ -3,8 +3,8 @@
 Canonical task status is in `tasks/records/W1-0005.json`. Direct capture and
 retained snapshots are implemented. The ownership checkpoint adds path-lock state,
 opaque access/cessation inputs and aggregate checks within one Journal. W1-0005
-still requires protected physical-root binding across independent stores and a real
-mediated executor/provider. Capture read holds now cover synchronous capture and
+has persistent physical-root binding across stores; a real mediated executor/provider
+that protects the binding metadata is still required. Capture read holds now cover synchronous capture and
 publication. There are no production access-evidence factories or native write calls.
 
 ## Capture and retained content
@@ -23,7 +23,9 @@ regular-file opens use NONBLOCK, and the opened object's type, device, inode and
 link count are checked. Symlinks, hard-linked files, device boundaries, special
 files, non-UTF-8 names and special Unix permission bits are refused. Capture preserves
 ordinary permissions; ownership, timestamps, ACLs and extended attributes are not
-included. It does not omit hidden files or apply an ambient exclusion list.
+included. Hidden task files are retained. Once a root binding is attached, capture
+excludes exactly its validated application-owned marker; it does not apply an
+ambient exclusion list or silently omit a user-owned file with that name.
 
 Explicit limits bound entries, depth, per-file size and total bytes. The adapter
 checks content and directory metadata around each read, compares directory listings,
@@ -44,6 +46,41 @@ be outside the source tree so writes to storage cannot alter the tree being capt
 `retained` loads and verifies the stored manifest and its files without consulting the
 live workspace. `read_artifact` returns the exact bytes named by a recorded snapshot.
 No method here applies those bytes to the user's directory or claims to have run a check.
+
+## Persistent root binding
+
+`RootBinding` in `ymp-runtime/src/workspace/binding.rs` installs or verifies an
+immutable `.ymp-workspace-owner` marker. It records format, physical workspace root,
+and JournalIdentity (stored random identity, canonical database path and physical
+file identity). The journal records the same value in WorkspaceBound through
+WorkspaceGuard.bind_workspace. A marker alone does not grant execution access.
+
+Markers are installed through a private staging file and a no-replace rename,
+with file and parent-directory synchronization. Existing foreign or malformed files
+are refused without overwrite. A recorded binding whose marker disappeared is not
+silently recreated. Replaced markers and roots are refused by existing handles.
+A copied database cannot join the original root merely by retaining its UUID.
+Only the journal contains mutable access holds; there is no second mutable ledger
+in the marker. Relocation, rebinding and arbitrary external state replacement are
+not silently repaired by this interface.
+
+Binding operations lock physical ancestor directories from top to bottom, shared
+on ancestors and exclusive on the chosen root. They retain those descriptors until
+validation and installation finish, then explicitly unlock them. Existing ancestor
+markers and bounded descendant scans forbid nested bound roots. Use relative scopes
+within one workspace instead. Independent sibling roots can bind concurrently.
+Unavailable topology, aliases, links, device crossings and scan limits cause refusal.
+
+Unbound Direct preview obtains an exclusive root lock plus shared ancestor locks
+for all its synchronous I/O, checks ancestors and scans descendants for existing
+bindings. Thus it cannot read a bound descendant from another journal or race a new
+child binding. Bound capture uses shared coordination locks and verifies its marker.
+Capture receives the calling journal's identity as a read-only observation and
+checks it under the provider's binding mutex. A bound provider reused by another
+Guard cannot capture through that Guard's unrelated journal.
+This is cooperative filesystem coordination, not a native sandbox. The mediated
+provider must still prevent access to control metadata and expose only checked file
+operations; native execution must independently establish its actual enforcement.
 
 ## Capture read lifecycle
 
@@ -144,6 +181,12 @@ refinement resolution and races between two Guards with identical requests. Repe
 foreign begin losses, including temporary read failures, do not exhaust local capacity
 or abort the foreign holds.
 
+`ymp-storage/tests/identity.rs` checks v1 migration without changing retained content,
+concurrent identity creation, replacement/hard-link refusal and malformed identity.
+`ymp-storage/tests/binding.rs` exercises WorkspaceGuard binding, marker exclusion,
+missing/foreign metadata, copied databases, nested roots in both orders, thread and
+process races, sibling roots and unbound-preview exclusion of bound descendants.
+
 ## Remaining W1-0005 work
 
 PathLock admission must account for effective access, not just requested paths.
@@ -163,7 +206,8 @@ boolean claim of confinement. Withdrawal must stop new operations and wait for a
 ones before issuing scoped cessation evidence. Native evidence production belongs to
 W1-0017; W1-0006 binds locks to admitted assignments. Revocation, stream loss, elapsed
 time and parent exit alone cannot release conflicts. Financial settlement is independent.
-The remaining work includes a protected same-root binding across independent stores,
-an alternate provider that enforces operations through the actual consumer, withdrawal
-with operation draining, and integration of those controls with capture read holds.
+The remaining work is the alternate provider that enforces operations through the
+actual consumer, protects binding metadata, and withdraws access only after admitted
+operations drain. Integrate that enforcement with the existing binding and capture
+read lifecycle.
 Their integration/concurrency/restart tests are required before W1-0005 is complete.

@@ -85,6 +85,20 @@ impl<J: Journal, C: ContentStore> WorkspaceGuard<J, C> {
                 let view = current.view_with_schemas(session, None, self.journal.schemas())?;
                 (None, crate::workspace_locks::attribution(&view, change)?)
             }
+            Event::WorkspaceBound { workspace, .. } => {
+                let view = current.view_with_schemas(session, None, self.journal.schemas())?;
+                (
+                    None,
+                    vec![
+                        view.workspaces()
+                            .get(workspace)
+                            .ok_or_else(|| {
+                                Denial::new("workspace_missing", "Workspace is not open")
+                            })?
+                            .reference()?,
+                    ],
+                )
+            }
             Event::WorkspaceOpened { workspace, .. } => {
                 (Some(workspace.provider.policy.clone()), vec![])
             }
@@ -177,6 +191,56 @@ impl<J: Journal, C: ContentStore> WorkspaceGuard<J, C> {
             },
         )
     }
+    pub fn bind_workspace(
+        &self,
+        session: &Id,
+        expected: u64,
+        at: u64,
+        workspace: &Id<Workspace>,
+        provider: &dyn WorkspaceProvider,
+    ) -> Result<u64> {
+        let view = self.view(session)?;
+        if view.revision() != expected {
+            return Err(Denial::new(
+                "stale_revision",
+                "Workspace changed before binding",
+            ));
+        }
+        let recorded = view
+            .workspaces()
+            .get(workspace)
+            .ok_or_else(|| Denial::new("workspace_missing", "Workspace is not open"))?;
+        validate_provider(recorded, provider)?;
+        let journal = self.journal.binding_identity()?;
+        let binding = provider.bind(self.journal.as_ref())?;
+        binding.validate()?;
+        if binding.root != recorded.location || binding.journal != journal {
+            return Err(Denial::new(
+                "workspace_binding",
+                "Provider binding differs from the workspace or journal identity",
+            ));
+        }
+        provider.verify_binding(&binding, self.journal.as_ref())?;
+        if let Some(prior) = view.workspace_bindings().get(workspace) {
+            if prior != &binding {
+                return Err(Denial::new(
+                    "workspace_binding",
+                    "Workspace binding cannot be replaced",
+                ));
+            }
+            return Ok(view.revision());
+        }
+        self.commit(
+            session,
+            expected,
+            at,
+            Event::WorkspaceBound {
+                version: 1,
+                workspace: workspace.clone(),
+                binding: Box::new(binding),
+            },
+        )
+    }
     pub fn snapshot(
         &self,
         session: &Id,
@@ -204,6 +268,9 @@ impl<J: Journal, C: ContentStore> WorkspaceGuard<J, C> {
             .get(workspace)
             .ok_or_else(|| Denial::new("workspace_missing", "Workspace is not open"))?;
         validate_provider(recorded, provider)?;
+        if let Some(binding) = view.workspace_bindings().get(workspace) {
+            provider.verify_binding(binding, self.journal.as_ref())?;
+        }
         let observations = provider.observe_paths(&[WorkspacePath::root()])?;
         if observations.len() != 1 || observations[0].path != WorkspacePath::root() {
             return Err(Denial::new(
@@ -305,7 +372,8 @@ impl<J: Journal, C: ContentStore> WorkspaceGuard<J, C> {
         // The provider contract is synchronous: returning means all capture I/O ended.
         let outcome = (|| {
             validate_provider(recorded, provider)?;
-            let tree = provider.capture(self.content.as_ref())?;
+            let identity = self.journal.binding_identity();
+            let tree = provider.capture(&identity, self.content.as_ref())?;
             validate_provider(recorded, provider)?;
             validate_tree_content(&tree, self.content.as_ref())?;
             let encoded = encode(&tree)?;

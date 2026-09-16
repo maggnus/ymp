@@ -6,15 +6,25 @@ use std::{
     io::Read,
     os::unix::fs::MetadataExt,
     path::Path,
+    sync::Mutex,
 };
 use ymp_domain::{Denial, Digest, Result, journal::PolicySelection, workspace::*};
-use ymp_kernel::{journal::ContentStore, ports::execution::WorkspaceProvider};
+use ymp_kernel::{
+    journal::{ContentStore, Journal},
+    ports::execution::WorkspaceProvider,
+};
 
 pub struct Direct {
     root: File,
     location: WorkspaceLocation,
     selection: PolicySelection,
     limits: CaptureLimits,
+    binding: Mutex<Option<super::binding::RootBinding>>,
+}
+struct CaptureState {
+    tree: SnapshotTree,
+    total: usize,
+    exclude_marker: bool,
 }
 fn io_error(error: impl std::fmt::Display) -> Denial {
     Denial::new("workspace_io", format!("Workspace access failed: {error}"))
@@ -76,16 +86,20 @@ impl Direct {
             location,
             selection,
             limits,
+            binding: Mutex::new(None),
         };
         provider.location()?;
         Ok(provider)
     }
-    fn entries(&self, directory: &File) -> Result<Vec<String>> {
+    fn entries(&self, directory: &File, exclude_marker: bool) -> Result<Vec<String>> {
         let mut names = vec![];
         for entry in Dir::read_from(directory).map_err(io_error)? {
             let entry = entry.map_err(io_error)?;
             let name = entry.file_name().to_str().map_err(io_error)?;
             if name == "." || name == ".." {
+                continue;
+            }
+            if exclude_marker && name == super::binding::MARKER {
                 continue;
             }
             WorkspacePath::new(name)?;
@@ -144,8 +158,7 @@ impl Direct {
         directory: &File,
         path: &WorkspacePath,
         depth: usize,
-        tree: &mut SnapshotTree,
-        total: &mut usize,
+        state: &mut CaptureState,
         store: &dyn ContentStore,
     ) -> Result<()> {
         if depth > self.limits.max_depth {
@@ -155,10 +168,14 @@ impl Direct {
             ));
         }
         let before = directory.metadata().map_err(io_error)?;
-        tree.directories.insert(path.clone(), permissions(&before)?);
-        let names = self.entries(directory)?;
+        state
+            .tree
+            .directories
+            .insert(path.clone(), permissions(&before)?);
+        let exclude_here = state.exclude_marker && path == &WorkspacePath::root();
+        let names = self.entries(directory, exclude_here)?;
         for name in &names {
-            if tree.files.len() + tree.directories.len() >= self.limits.max_entries {
+            if state.tree.files.len() + state.tree.directories.len() >= self.limits.max_entries {
                 return Err(Denial::new(
                     "capture_limit",
                     "Workspace exceeds the capture entry limit",
@@ -172,12 +189,12 @@ impl Direct {
             let mut file = self.child(directory, name)?;
             let metadata = file.metadata().map_err(io_error)?;
             if metadata.is_dir() {
-                self.walk(&file, &relative, depth + 1, tree, total, store)?;
+                self.walk(&file, &relative, depth + 1, state, store)?;
             } else {
                 let limit = self
                     .limits
                     .max_file_bytes
-                    .min(self.limits.max_total_bytes - *total);
+                    .min(self.limits.max_total_bytes - state.total);
                 if metadata.len() > limit as u64 {
                     return Err(Denial::new(
                         "capture_limit",
@@ -207,8 +224,8 @@ impl Direct {
                         "Content store returned the wrong file digest",
                     ));
                 }
-                *total += bytes.len();
-                tree.files.insert(
+                state.total += bytes.len();
+                state.tree.files.insert(
                     relative,
                     SnapshotFile {
                         digest,
@@ -218,35 +235,57 @@ impl Direct {
                 );
             }
         }
-        if names != self.entries(directory)?
+        if names != self.entries(directory, exclude_here)?
             || !same(&before, &directory.metadata().map_err(io_error)?)
         {
             return Err(changed());
         }
         Ok(())
     }
-    fn capture_once(&self, store: &dyn ContentStore) -> Result<SnapshotTree> {
+    fn capture_once(&self, store: &dyn ContentStore, exclude_marker: bool) -> Result<SnapshotTree> {
         self.location()?;
-        let mut tree = SnapshotTree {
-            files: BTreeMap::new(),
-            directories: BTreeMap::new(),
+        let mut state = CaptureState {
+            tree: SnapshotTree {
+                files: BTreeMap::new(),
+                directories: BTreeMap::new(),
+            },
+            total: 0,
+            exclude_marker,
         };
-        self.walk(
-            &self.root,
-            &WorkspacePath::root(),
-            0,
-            &mut tree,
-            &mut 0,
-            store,
-        )?;
+        self.walk(&self.root, &WorkspacePath::root(), 0, &mut state, store)?;
         self.location()?;
-        tree.validate()?;
-        Ok(tree)
+        state.tree.validate()?;
+        Ok(state.tree)
     }
 }
 impl WorkspaceProvider for Direct {
     fn selection(&self) -> &PolicySelection {
         &self.selection
+    }
+    fn bind(&self, journal: &dyn Journal) -> Result<WorkspaceBinding> {
+        let mut binding = self
+            .binding
+            .lock()
+            .map_err(|_| Denial::new("workspace_binding", "Binding state is unavailable"))?;
+        if binding.is_none() {
+            *binding = Some(super::binding::RootBinding::open(
+                Path::new(&self.location.root),
+                journal,
+                &self.limits,
+            )?);
+        }
+        let bound = binding.as_ref().expect("initialized binding");
+        bound.verify(journal)?;
+        Ok(bound.record().clone())
+    }
+    fn verify_binding(&self, expected: &WorkspaceBinding, journal: &dyn Journal) -> Result<()> {
+        if self.bind(journal)? != *expected {
+            return Err(Denial::new(
+                "workspace_binding",
+                "Provider has a different root binding",
+            ));
+        }
+        Ok(())
     }
     fn location(&self) -> Result<WorkspaceLocation> {
         let now = File::from(
@@ -396,9 +435,33 @@ impl WorkspaceProvider for Direct {
         self.location()?;
         Ok(observations)
     }
-    fn capture(&self, store: &dyn ContentStore) -> Result<SnapshotTree> {
-        let first = self.capture_once(store)?;
-        let second = self.capture_once(store)?;
+    fn capture(
+        &self,
+        journal: &Result<JournalIdentity>,
+        store: &dyn ContentStore,
+    ) -> Result<SnapshotTree> {
+        let binding = self
+            .binding
+            .lock()
+            .map_err(|_| Denial::new("workspace_binding", "Binding state is unavailable"))?;
+        let _locks = if let Some(bound) = binding.as_ref() {
+            if journal.as_ref().map_err(Clone::clone)? != &bound.record().journal {
+                return Err(Denial::new(
+                    "binding_conflict",
+                    "Capture caller is not the bound journal",
+                ));
+            }
+            let locks = super::binding::RootBinding::capture_lock(&self.location)?;
+            bound.verify_marker()?;
+            locks
+        } else {
+            super::binding::RootBinding::unbound_capture_allowed(&self.location, &self.limits)?
+        };
+        let first = self.capture_once(store, binding.is_some())?;
+        let second = self.capture_once(store, binding.is_some())?;
+        if let Some(bound) = binding.as_ref() {
+            bound.verify_marker()?;
+        }
         if first != second {
             return Err(changed());
         }

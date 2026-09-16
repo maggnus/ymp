@@ -62,7 +62,11 @@ impl WorkspaceProvider for CaptureProvider {
     fn observe_paths(&self, paths: &[WorkspacePath]) -> Result<Vec<PathObservation>> {
         self.direct.observe_paths(paths)
     }
-    fn capture(&self, store: &dyn ContentStore) -> Result<SnapshotTree> {
+    fn capture(
+        &self,
+        journal: &Result<JournalIdentity>,
+        store: &dyn ContentStore,
+    ) -> Result<SnapshotTree> {
         self.calls.fetch_add(1, Ordering::SeqCst);
         if let Some(entered) = &self.entered {
             entered.send(()).unwrap();
@@ -78,7 +82,7 @@ impl WorkspaceProvider for CaptureProvider {
                 "Synchronous capture ended unsuccessfully",
             ));
         }
-        self.direct.capture(store)
+        self.direct.capture(journal, store)
     }
 }
 #[test]

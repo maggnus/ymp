@@ -5,3 +5,5 @@
 
 pub mod copy_on_write;
 pub mod direct;
+
+pub mod binding;

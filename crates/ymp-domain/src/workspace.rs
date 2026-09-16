@@ -376,3 +376,52 @@ pub struct ObservedPathLock {
     pub lock: PathLock,
     pub observation: PathObservation,
 }
+
+/// A durable journal instance and its physical file. Copies have a different
+/// location even when their immutable store identity bytes were copied too.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct JournalIdentity {
+    pub id: Digest,
+    pub path: String,
+    pub file: FileIdentity,
+}
+impl JournalIdentity {
+    pub fn validate(&self) -> Result<()> {
+        // Use the shared absolute-path validation; this observation names a file.
+        WorkspaceLocation {
+            root: self.path.clone(),
+            device: self.file.device,
+            inode: self.file.inode,
+        }
+        .validate()?;
+        if self.file.inode == 0 {
+            return Err(Denial::new(
+                "journal_identity",
+                "Journal file identity is unavailable",
+            ));
+        }
+        Ok(())
+    }
+}
+
+/// Immutable physical-root binding. The marker is metadata, not a grant.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct WorkspaceBinding {
+    pub format: u32,
+    pub root: WorkspaceLocation,
+    pub journal: JournalIdentity,
+}
+impl WorkspaceBinding {
+    pub fn validate(&self) -> Result<()> {
+        if self.format != 1 {
+            return Err(Denial::new(
+                "binding_format",
+                "Unsupported workspace binding format",
+            ));
+        }
+        self.root.validate()?;
+        self.journal.validate()
+    }
+}

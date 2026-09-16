@@ -52,6 +52,16 @@ impl SqliteJournal {
             .map_err(sql_error)?;
         let current = read_journal(&tx, session, &self.schemas)?;
         let validated = validate_append(&current, session, expected, events, &self.schemas)?;
+        for event in events {
+            if let Event::WorkspaceBound { binding, .. } = &event.payload
+                && binding.journal != self.database.binding_identity()?
+            {
+                return Err(Denial::new(
+                    "workspace_binding",
+                    "Root binding targets another journal",
+                ));
+            }
+        }
         if ymp_kernel::workspace_locks::touches_ownership(events) {
             let inventory = read_workspace_inventory(&tx, session, &self.schemas)?;
             ymp_kernel::journal::validate_workspace_append(
@@ -139,6 +149,36 @@ impl SqliteJournal {
     }
 }
 impl Journal for SqliteJournal {
+    fn binding_identity(&self) -> Result<ymp_domain::workspace::JournalIdentity> {
+        self.database.binding_identity()
+    }
+
+    fn workspace_binding(
+        &self,
+        root: &ymp_domain::workspace::WorkspaceLocation,
+    ) -> Result<Option<ymp_domain::workspace::WorkspaceBinding>> {
+        let mut connection = self.database.connect(false)?;
+        let tx = connection.transaction().map_err(sql_error)?;
+        let mut found = None;
+        visit_journals(&tx, &self.schemas, |id, read| {
+            let view = read.view_with_schemas(&id, None, &self.schemas)?;
+            for binding in view.workspace_bindings().values().filter(|b| {
+                (b.root.device == root.device && b.root.inode == root.inode)
+                    || root_paths_overlap(&b.root.root, &root.root)
+            }) {
+                if found.as_ref().is_some_and(|known| known != binding) {
+                    return Err(Denial::new(
+                        "workspace_binding",
+                        "Conflicting persisted root bindings",
+                    ));
+                }
+                found = Some(binding.clone());
+            }
+            Ok(())
+        })?;
+        tx.commit().map_err(sql_error)?;
+        Ok(found)
+    }
     fn schemas(&self) -> &ParameterSchemas {
         &self.schemas
     }
@@ -182,11 +222,25 @@ impl Journal for SqliteJournal {
     }
 }
 
-fn read_workspace_inventory(
+fn root_paths_overlap(left: &str, right: &str) -> bool {
+    let left = left.to_ascii_lowercase();
+    let right = right.to_ascii_lowercase();
+    left == "/"
+        || right == "/"
+        || left == right
+        || left
+            .strip_prefix(&right)
+            .is_some_and(|tail| tail.starts_with('/'))
+        || right
+            .strip_prefix(&left)
+            .is_some_and(|tail| tail.starts_with('/'))
+}
+
+fn visit_journals(
     connection: &Connection,
-    session: &Id,
     schemas: &ParameterSchemas,
-) -> Result<ymp_kernel::journal::WorkspaceInventory> {
+    mut visit: impl FnMut(Id, JournalRead) -> Result<()>,
+) -> Result<()> {
     // Refuse malformed keys before loading any key into a Rust String. Never
     // filter them out: their events might retain unresolved ownership.
     for table in ["journal_heads", "journal_events", "event_content"] {
@@ -209,15 +263,26 @@ fn read_workspace_inventory(
     let ids = statement
         .query_map([], |row| row.get::<_, String>(0))
         .map_err(sql_error)?;
+    for id in ids {
+        let id = Id::new(id.map_err(sql_error)?)?;
+        let read = read_journal(connection, &id, schemas)?;
+        visit(id, read)?;
+    }
+    Ok(())
+}
+
+fn read_workspace_inventory(
+    connection: &Connection,
+    session: &Id,
+    schemas: &ParameterSchemas,
+) -> Result<ymp_kernel::journal::WorkspaceInventory> {
     let mut current = JournalRead {
         revision: 0,
         events: vec![],
     };
     let mut other = vec![];
     let mut weight = (0usize, 0usize);
-    for id in ids {
-        let id = Id::new(id.map_err(sql_error)?)?;
-        let read = read_journal(connection, &id, schemas)?;
+    visit_journals(connection, schemas, |id, read| {
         if id == *session {
             current = read;
         } else {
@@ -232,7 +297,8 @@ fn read_workspace_inventory(
                 other.push(owner);
             }
         }
-    }
+        Ok(())
+    })?;
     Ok(ymp_kernel::journal::WorkspaceInventory { current, other })
 }
 

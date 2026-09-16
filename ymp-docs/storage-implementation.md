@@ -9,18 +9,31 @@ an immutable ContentStore port. Canonical task status remains in
 `SqliteJournal::open(path, schemas)` opens or initializes one explicitly chosen
 local database. The SQLite library is bundled through rusqlite; no SQLite CLI or
 external service is required. The file has application ID `0x594d504e` and format
-version 1. Existing files are inspected read-only before persistent changes.
+version 2. Existing files are inspected read-only before persistent changes.
+Version 1 is validated and upgraded transactionally by adding the identity table;
+existing events, content bytes, links and digests are not rewritten.
 The complete table definitions, including columns, constraints, foreign keys and
 STRICT mode, must match the version. Initialization rechecks the header under an
 IMMEDIATE transaction so concurrent first openers do not initialize twice.
 
-The four tables have explicit responsibilities:
+The five tables have explicit responsibilities:
 
 - `content_values`: immutable SHA-256-addressed bytes;
 - `journal_events`: session, sequence, body digest, previous chain digest and row
   chain digest;
 - `journal_heads`: last committed sequence and chain digest per session;
-- `event_content`: mandatory content references of each event.
+- `event_content`: mandatory content references of each event;
+- `store_identity`: one immutable-by-contract OS-random identity, installed once.
+
+Openers recheck the format under the migration transaction, so concurrent upgrades
+retain the same identity. Missing or malformed identity is refused rather than
+regenerated. A handle pins both that identity and the physical file's device/inode;
+subsequent calls reject changed identities, replaced files and hard links. Copies
+retain the stored identity but have a different physical file observation, which
+root binding also checks. In-memory journals provide no durable binding identity.
+These checks detect observed changes; they do not attest against arbitrary
+concurrent pathname replacement or privileged in-place rollback of a valid database.
+The execution environment must keep application storage outside the guest's access.
 
 Sequences use eight-byte big-endian blobs, preserving unsigned ordering without
 converting through SQLite's signed integer range. Event bodies retain the

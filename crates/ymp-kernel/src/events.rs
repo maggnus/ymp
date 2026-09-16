@@ -29,6 +29,11 @@ pub struct CriteriaCommitted {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub enum Event {
+    WorkspaceBound {
+        version: u32,
+        workspace: ymp_domain::Id<ymp_domain::workspace::Workspace>,
+        binding: Box<ymp_domain::workspace::WorkspaceBinding>,
+    },
     LockChanged {
         version: u32,
         change: crate::workspace_locks::LockChange,
@@ -86,7 +91,7 @@ pub enum Event {
 impl Event {
     pub fn contents(&self) -> Result<EventContent> {
         let selections: Vec<&PolicySelection> = match self {
-            Self::LockChanged { .. } => vec![],
+            Self::LockChanged { .. } | Self::WorkspaceBound { .. } => vec![],
             Self::WorkspaceOpened { workspace, .. } => vec![&workspace.provider],
             Self::SnapshotTaken { .. } => vec![],
             Self::BudgetOpened { data, .. } => vec![&data.reporting.effective],
@@ -125,7 +130,8 @@ impl Event {
     }
     pub fn version(&self) -> u32 {
         match self {
-            Self::LockChanged { version, .. }
+            Self::WorkspaceBound { version, .. }
+            | Self::LockChanged { version, .. }
             | Self::WorkspaceOpened { version, .. }
             | Self::SnapshotTaken { version, .. }
             | Self::BudgetOpened { version, .. }

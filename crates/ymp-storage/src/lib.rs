@@ -3,10 +3,14 @@
 use rusqlite::{Connection, OpenFlags, OptionalExtension, TransactionBehavior};
 use std::{
     fs,
+    os::unix::fs::MetadataExt,
     path::{Path, PathBuf},
     time::Duration,
 };
-use ymp_domain::{Denial, Digest, Result};
+use ymp_domain::{
+    Denial, Digest, Result,
+    workspace::{FileIdentity, JournalIdentity},
+};
 
 pub mod content;
 pub mod journal;
@@ -20,7 +24,7 @@ pub const MAX_CONTENT_BYTES: usize = 32 * 1024 * 1024;
 pub const MAX_JOURNAL_BYTES: usize = 128 * 1024 * 1024;
 pub const MAX_JOURNAL_EVENTS: usize = 32_768;
 const APPLICATION_ID: i64 = 0x594d_504e;
-const FORMAT_VERSION: i64 = 1;
+const FORMAT_VERSION: i64 = 2;
 
 const SCHEMA: &str = "CREATE TABLE content_values (
                 digest TEXT PRIMARY KEY NOT NULL CHECK(length(digest)=64), bytes BLOB NOT NULL
@@ -42,9 +46,73 @@ const SCHEMA: &str = "CREATE TABLE content_values (
                 FOREIGN KEY(digest) REFERENCES content_values(digest)
             ) STRICT;";
 
+const IDENTITY_SCHEMA: &str = "CREATE TABLE store_identity (
+                singleton INTEGER PRIMARY KEY NOT NULL CHECK(singleton=1),
+                identity TEXT NOT NULL CHECK(length(identity)=64)
+            ) STRICT;";
+
+fn read_identity(connection: &Connection) -> Result<Digest> {
+    let count: i64 = connection
+        .query_row("SELECT count(*) FROM store_identity", [], |r| r.get(0))
+        .map_err(sql_error)?;
+    if count != 1 {
+        return Err(Denial::new(
+            "storage_identity",
+            "Journal identity row is missing or duplicated",
+        ));
+    }
+    let value: String = connection
+        .query_row(
+            "SELECT length(CAST(identity AS BLOB)),identity FROM store_identity WHERE singleton=1",
+            [],
+            |r| {
+                if r.get::<_, i64>(0)? != 64 {
+                    return Err(rusqlite::Error::InvalidQuery);
+                }
+                r.get(1)
+            },
+        )
+        .map_err(sql_error)?;
+    Digest::try_from(value)
+        .map_err(|_| Denial::new("storage_identity", "Journal identity is malformed"))
+}
+fn install_identity(connection: &Connection) -> Result<()> {
+    let mut bytes = [0u8; 32];
+    getrandom::fill(&mut bytes)
+        .map_err(|_| Denial::new("storage_identity", "Cannot generate a journal identity"))?;
+    let identity = Digest::of(bytes);
+    connection
+        .execute_batch(IDENTITY_SCHEMA)
+        .map_err(sql_error)?;
+    connection
+        .execute(
+            "INSERT INTO store_identity(singleton,identity) VALUES(1,?1)",
+            [identity.as_str()],
+        )
+        .map_err(sql_error)?;
+    connection
+        .pragma_update(None, "user_version", FORMAT_VERSION)
+        .map_err(sql_error)?;
+    Ok(())
+}
+fn physical_file(path: &Path) -> Result<FileIdentity> {
+    let metadata = fs::symlink_metadata(path).map_err(io_error)?;
+    if !metadata.is_file() || metadata.file_type().is_symlink() || metadata.nlink() != 1 {
+        return Err(Denial::new(
+            "storage_path",
+            "The journal must be a regular file without symbolic or hard links",
+        ));
+    }
+    Ok(FileIdentity {
+        device: metadata.dev(),
+        inode: metadata.ino(),
+    })
+}
+
 #[derive(Clone)]
 pub(crate) struct Database {
     path: PathBuf,
+    identity: JournalIdentity,
 }
 
 pub(crate) fn sql_error(error: rusqlite::Error) -> Denial {
@@ -92,13 +160,13 @@ fn validate_format(connection: &Connection) -> Result<()> {
             "This database is not a current ymp journal",
         ));
     }
-    if version != FORMAT_VERSION {
+    if version != 1 && version != FORMAT_VERSION {
         return Err(Denial::new(
             "storage_version",
             "Unsupported ymp storage format version",
         ));
     }
-    if objects != 4 {
+    if objects != if version == 1 { 4 } else { 5 } {
         return Err(Denial::new(
             "storage_format",
             "Unexpected storage schema objects",
@@ -106,6 +174,7 @@ fn validate_format(connection: &Connection) -> Result<()> {
     }
     for declaration in SCHEMA
         .split(';')
+        .chain(if version == 2 { IDENTITY_SCHEMA } else { "" }.split(';'))
         .map(str::trim)
         .filter(|sql| !sql.is_empty())
     {
@@ -130,7 +199,7 @@ fn validate_format(connection: &Connection) -> Result<()> {
         if actual.as_deref().map(normalized) != Some(normalized(declaration)) {
             return Err(Denial::new(
                 "storage_format",
-                "Storage table definitions do not match format version 1",
+                "Storage table definitions do not match the declared format",
             ));
         }
     }
@@ -140,18 +209,23 @@ fn validate_format(connection: &Connection) -> Result<()> {
         .map_err(sql_error)?
         .collect::<std::result::Result<Vec<_>, _>>()
         .map_err(sql_error)?;
-    if tables
-        != [
-            "content_values",
-            "event_content",
-            "journal_events",
-            "journal_heads",
-        ]
-    {
+    let mut expected = vec![
+        "content_values",
+        "event_content",
+        "journal_events",
+        "journal_heads",
+    ];
+    if version == 2 {
+        expected.push("store_identity");
+    }
+    if tables != expected {
         return Err(Denial::new(
             "storage_format",
-            "Storage tables do not match format version 1",
+            "Storage tables do not match the declared format",
         ));
+    }
+    if version == 2 {
+        read_identity(connection)?;
     }
     let extra: i64 = connection
         .query_row(
@@ -199,9 +273,16 @@ fn local_settings(connection: &Connection, write: bool) -> Result<()> {
 }
 fn reject_symlink(path: &Path) -> Result<()> {
     match fs::symlink_metadata(path) {
-        Ok(metadata) if metadata.file_type().is_symlink() || !metadata.is_file() => Err(
-            Denial::new("storage_path", "The database path must be a regular file"),
-        ),
+        Ok(metadata)
+            if metadata.file_type().is_symlink()
+                || !metadata.is_file()
+                || metadata.nlink() != 1 =>
+        {
+            Err(Denial::new(
+                "storage_path",
+                "The database path must be a regular file",
+            ))
+        }
         Ok(_) => Ok(()),
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
         Err(error) => Err(io_error(error)),
@@ -255,11 +336,16 @@ impl Database {
             tx.execute_batch(SCHEMA).map_err(sql_error)?;
             tx.pragma_update(None, "application_id", APPLICATION_ID)
                 .map_err(sql_error)?;
-            tx.pragma_update(None, "user_version", FORMAT_VERSION)
+            tx.pragma_update(None, "user_version", 1)
                 .map_err(sql_error)?;
         } else {
             validate_format(&tx)?;
         }
+        if header(&tx)?.1 == 1 {
+            install_identity(&tx)?;
+        }
+        validate_format(&tx)?;
+        let store_id = read_identity(&tx)?;
         tx.commit().map_err(sql_error)?;
         let mode: String = connection
             .pragma_query_value(None, "journal_mode", |r| r.get(0))
@@ -279,10 +365,30 @@ impl Database {
         fs::File::open(&parent)
             .and_then(|f| f.sync_all())
             .map_err(io_error)?;
-        Ok(Self { path })
+        let identity = JournalIdentity {
+            id: store_id,
+            path: path
+                .to_str()
+                .ok_or_else(|| Denial::new("storage_path", "Journal path must be UTF-8"))?
+                .to_owned(),
+            file: physical_file(&path)?,
+        };
+        identity.validate()?;
+        let database = Self { path, identity };
+        database.binding_identity()?;
+        Ok(database)
+    }
+    pub(crate) fn binding_identity(&self) -> Result<JournalIdentity> {
+        self.connect(false)?;
+        Ok(self.identity.clone())
     }
     pub(crate) fn connect(&self, write: bool) -> Result<Connection> {
-        reject_symlink(&self.path)?;
+        if physical_file(&self.path)? != self.identity.file {
+            return Err(Denial::new(
+                "storage_identity",
+                "Journal file was replaced; existing handles cannot adopt it",
+            ));
+        }
         let flags = if write {
             OpenFlags::SQLITE_OPEN_READ_WRITE
         } else {
@@ -295,6 +401,15 @@ impl Database {
             .busy_timeout(Duration::from_secs(5))
             .map_err(sql_error)?;
         validate_format(&connection)?;
+        if header(&connection)?.1 != FORMAT_VERSION
+            || read_identity(&connection)? != self.identity.id
+            || physical_file(&self.path)? != self.identity.file
+        {
+            return Err(Denial::new(
+                "storage_identity",
+                "Journal identity changed; existing handles cannot adopt it",
+            ));
+        }
         let mode: String = connection
             .pragma_query_value(None, "journal_mode", |r| r.get(0))
             .map_err(sql_error)?;

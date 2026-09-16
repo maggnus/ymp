@@ -409,6 +409,7 @@ dependencies = [
 name = "ymp-storage"
 version = "0.1.0"
 dependencies = [
+ "getrandom",
  "rusqlite",
  "serde_json",
  "ymp-domain",

@@ -144,7 +144,7 @@ impl WorkspaceProvider for ObservedFixture {
             })
             .collect())
     }
-    fn capture(&self, _: &dyn ContentStore) -> Result<SnapshotTree> {
+    fn capture(&self, _: &Result<JournalIdentity>, _: &dyn ContentStore) -> Result<SnapshotTree> {
         Err(Denial::new(
             "fixture",
             "This fixture supplies path observations, not captures",

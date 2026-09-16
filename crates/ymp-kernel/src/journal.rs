@@ -153,6 +153,21 @@ impl JournalRead {
 /// for commit. A denial must leave both the events and the revision unchanged.
 pub trait Journal: Send + Sync {
     fn schemas(&self) -> &ParameterSchemas;
+    fn binding_identity(&self) -> Result<ymp_domain::workspace::JournalIdentity> {
+        Err(Denial::new(
+            "journal_identity",
+            "This journal does not provide a durable physical identity",
+        ))
+    }
+    fn workspace_binding(
+        &self,
+        _root: &ymp_domain::workspace::WorkspaceLocation,
+    ) -> Result<Option<ymp_domain::workspace::WorkspaceBinding>> {
+        Err(Denial::new(
+            "workspace_binding",
+            "This journal does not provide durable root bindings",
+        ))
+    }
     fn read(&self, session: &Id) -> Result<JournalRead>;
     fn append(&self, session: &Id, expected: u64, events: &[Envelope<Event>]) -> Result<u64>;
     /// Inventory for workspace ownership preflight. Adapters must revalidate it
