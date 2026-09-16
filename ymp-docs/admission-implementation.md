@@ -1,8 +1,9 @@
 # Admission implementation notes
 
-Canonical task status is in `tasks/records/W1-0006.json`. The current checkpoint
-implements contribution, solicitation, RuntimeProxy offer and award persistence.
-Gatekeeper admission/revocation and live grant issuance are still required.
+Canonical task status is in `tasks/records/W1-0006.json`. Contribution, solicitation,
+RuntimeProxy offer, award persistence and the atomic Gatekeeper admission boundary are
+implemented. W1-0007 owns later commitment transitions; W1-0017 owns actual starts
+and completion.
 
 ## Values and provenance
 
@@ -49,6 +50,43 @@ commitment history records the award and creation references. Exact lost-acknowl
 resolution validates both packet boundaries, so matching only the first event of a
 stored atomic packet cannot be reported as a complete committed operation.
 
+## Gatekeeper admission
+
+`Gatekeeper.prepare` validates the exact recorded award, offer, contribution, source
+acceptance-contract reference, current Registry profile and task constraints. It
+rejects unsupported typed subjects until their owning services provide typed
+resolution. File access is represented by a sealed `PreparedMediation`; an empty
+declared capability set is accepted only when the recorded provider has no actual
+file capabilities and no file access is requested.
+
+The prepared attempt generates an admission nonce and a grant secret locally. The
+journal stores only the nonce, grant digest and immutable admission intent. A complete
+packet begins with the resource reservation, optionally records prepared physical path
+ownership, issues the grant, activates the Proposed commitment and ends with
+`AssignmentAdmitted`. Replay rejects incomplete or interleaved packets. Final
+capability delivery compares the complete stored intent with the sealed plan, so a
+modified packet cannot expand operations or access. A delivered plan cannot mint
+another token or handle, and restart cannot recreate the local secret.
+
+Admission counts Admitted and Running responsibility toward `parallel_limit`, preserves
+attempt limits across new contribution IDs for the same work, enforces member and pin
+limits, and allows independent producers to share a role when effective paths are
+disjoint. Every denial leaves no partial reservation, path ownership or assignment.
+A denied attempt cancels only its exact current Proposed commitment; a competing CAS
+winner is left untouched. Uncertain cancellation retains the local evidence instead
+of claiming that work was never admitted.
+
+`Gatekeeper.revoke` atomically revokes held financial and path authorities and marks
+`AssignmentRevoked`. It does not settle usage, release a workspace hold or claim that
+external effects ended. Journal capacity for revoke and later release/settlement is
+reserved before admission. Grant authorization rechecks its digest, pinned admission
+reference, operation set, expiry, reservation and path state on every request.
+
+`ymp-runtime/src/admission.rs` exposes this boundary to the application without
+starting a backend, copying credentials or inferring native model settings. Its
+application command builds cost and allowance proposals from the current view and
+passes any prepared workspace plan to the kernel; it does not bypass Gatekeeper.
+
 ## Verification and remaining work
 
 `ymp-storage/tests/arbiter.rs` exercises the real consumer over MemoryJournal and
@@ -57,11 +95,13 @@ subject refusal, offer-window timing, forged commitment data, incomplete/interle
 packets and partial acknowledgement resolution. Domain validation tests cover invalid
 probability values at construction and serialized input.
 
-Gatekeeper must still bind the exact contribution/award/contract, fresh profile and
-subject provenance, resource decisions, effective workspace permissions, assignment,
-grant secret and active commitment in one attempt-bound atomic packet. It must check
-limits and independence, cancel only the matching current Proposed commitment on a
-confirmed denial, and retain unresolved financial/workspace holds after revocation.
-Live access handles and grant secrets can be issued only after the whole packet is
-confirmed; journal data alone cannot mint a second live capability. This remains the
-W1-0006 completion boundary. W1-0017 owns actual starts, completion and recovery.
+`ymp-storage/tests/admission.rs` exercises MemoryJournal and SQLite admission, real
+mediated file ownership, no-file boundaries, stale contract pins, duplicate and
+cross-session races, capability and budget denials, parallel/member/attempt limits,
+sealed-intent tampering, lost acknowledgements, post-commit capability delivery,
+revocation and financial/path release. Capacity tests cover revoke and final
+settlement at the journal limit.
+
+The remaining W1-0006 work is final independent review and repository checks before
+recording completion. W1-0007 owns renewal, delegation and the rest of the commitment
+lifecycle; W1-0017 owns actual starts, completion and recovery.

@@ -279,6 +279,13 @@ pub trait ContentStore: Send + Sync {
     fn get(&self, digest: &Digest, limit: usize) -> Result<Vec<u8>>;
 }
 
+/// Control capacity reserved across the services participating in an admission.
+pub fn control_reserve(view: &SessionView) -> (usize, usize) {
+    let workspace = crate::workspace_locks::control_reserve(view);
+    let admission = crate::gatekeeper::control_reserve(view);
+    (workspace.0 + admission.0, workspace.1 + admission.1)
+}
+
 pub fn validate_append(
     current: &JournalRead,
     session: &Id,

@@ -39,6 +39,14 @@ impl<J: Journal> Application<J> {
         }
     }
 
+    /// Create a stable admission runtime with explicitly owned content storage.
+    pub fn admission<C: ymp_kernel::journal::ContentStore>(
+        &self,
+        content: Arc<C>,
+    ) -> crate::admission::AdmissionRuntime<J, C> {
+        crate::admission::AdmissionRuntime::new(self.journal.clone(), content)
+    }
+
     pub fn open(
         &self,
         session: Id,

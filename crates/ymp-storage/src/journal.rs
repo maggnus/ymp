@@ -72,8 +72,7 @@ impl SqliteJournal {
                 &self.schemas,
             )?;
         }
-        let (reserved_events, reserved_bytes) =
-            ymp_kernel::workspace_locks::control_reserve(&validated);
+        let (reserved_events, reserved_bytes) = ymp_kernel::journal::control_reserve(&validated);
         #[cfg(test)]
         let event_limit = self.event_limit;
         #[cfg(not(test))]

@@ -240,3 +240,258 @@ fn creation_is_denied_before_io_without_room_to_publish_and_release() {
         );
     }
 }
+
+use crate as storage;
+#[allow(dead_code)]
+#[path = "../tests/support/admission_fixture.rs"]
+mod admission_fixture;
+#[test]
+fn admitted_assignments_retain_capacity_for_cross_service_revocation_and_release() {
+    for files in [false, true] {
+        let root = Directory::new();
+        let database = Directory::new();
+        let mut sqlite =
+            SqliteJournal::open(database.database(), ParameterSchemas::default()).unwrap();
+        sqlite.event_limit = 32;
+        let journal = Arc::new(sqlite);
+        let s = admission_fixture::Setup::new(journal.clone(), &journal, &root, files);
+        let award = s.award("work");
+        let (expected, at, request) = s.request("assignment", award);
+        let mut prepared = s.gate.prepare(&s.session, expected, at, request).unwrap();
+        let admitted = s.gate.admit(&mut prepared).unwrap();
+        let registry = ymp_kernel::registry::Registry::new(journal.clone());
+        loop {
+            let view = s.gate.view(&s.session).unwrap();
+            let at = view.latest_at() + 1;
+            let prior = view.registry().unwrap().clone();
+            let input = registry
+                .prepare(&s.session, prior.input.facts.clone(), at)
+                .unwrap();
+            let responses = ymp_kernel::registry::readiness_views(&input)
+                .iter()
+                .map(|view| ymp_kernel::registry::ReadinessResponse {
+                    profile: view.profile.clone(),
+                    input: ymp_domain::Digest::of_value(view).unwrap(),
+                    proposal: ymp_domain::Proposal {
+                        value: ymp_domain::identity::Readiness::Ready,
+                        rationale: "Repeated fixture readiness".into(),
+                        basis: vec![],
+                        policy: prior.effective.policy.clone(),
+                    },
+                })
+                .collect();
+            match registry.record(
+                &s.session,
+                view.revision(),
+                at,
+                input,
+                prior.effective,
+                responses,
+            ) {
+                Ok(_) => {}
+                Err(error) => {
+                    assert_eq!(error.code, "journal_limit");
+                    break;
+                }
+            }
+        }
+        let view = s.gate.view(&s.session).unwrap();
+        let at = view.latest_at() + 1;
+        s.gate
+            .revoke(
+                &s.session,
+                view.revision(),
+                at,
+                &admitted.assignment.id,
+                "Stop near journal capacity".into(),
+            )
+            .unwrap();
+        assert!(
+            s.gate
+                .authorize(
+                    &admitted.grant,
+                    ymp_domain::assignment::TeamOperation::BoardRead,
+                    at
+                )
+                .is_err()
+        );
+        if let Some(access) = admitted.files {
+            let proof = s.gate.workspace().withdraw_mediated(&access).unwrap();
+            s.gate
+                .workspace()
+                .release(
+                    &s.session,
+                    s.gate.view(&s.session).unwrap().revision(),
+                    at,
+                    &proof,
+                )
+                .unwrap();
+        }
+        let treasury = ymp_kernel::treasury::Treasury::new(journal.clone());
+        let proof = treasury
+            .never_started(&s.session, &id("assignment"))
+            .unwrap();
+        treasury
+            .release_unstarted(
+                &s.session,
+                s.gate.view(&s.session).unwrap().revision(),
+                at,
+                &proof,
+            )
+            .unwrap();
+        let view = s.gate.view(&s.session).unwrap();
+        assert_eq!(
+            view.admission().assignments()[&id("assignment")]
+                .intent
+                .assignment
+                .state,
+            ymp_domain::assignment::AssignmentState::Revoked
+        );
+        assert_eq!(
+            view.treasury().unwrap().accounts[&id("assignment")]
+                .reservation
+                .state,
+            ymp_domain::resources::ReservationState::Released
+        );
+    }
+}
+
+#[test]
+fn financial_closure_consumes_its_reserved_slots_at_the_journal_limit() {
+    for unknown_first in [false, true] {
+        let root = Directory::new();
+        let database = Directory::new();
+        let mut sqlite =
+            SqliteJournal::open(database.database(), ParameterSchemas::default()).unwrap();
+        sqlite.event_limit = 32;
+        let journal = Arc::new(sqlite);
+        let s = admission_fixture::Setup::new(journal.clone(), &journal, &root, false);
+        let award = s.award("work");
+        let (expected, at, request) = s.request("assignment", award);
+        let mut prepared = s.gate.prepare(&s.session, expected, at, request).unwrap();
+        let admitted = s.gate.admit(&mut prepared).unwrap();
+        let registry = ymp_kernel::registry::Registry::new(journal.clone());
+        loop {
+            let view = s.gate.view(&s.session).unwrap();
+            let at = view.latest_at() + 1;
+            let prior = view.registry().unwrap().clone();
+            let input = registry
+                .prepare(&s.session, prior.input.facts.clone(), at)
+                .unwrap();
+            let responses = ymp_kernel::registry::readiness_views(&input)
+                .iter()
+                .map(|view| ymp_kernel::registry::ReadinessResponse {
+                    profile: view.profile.clone(),
+                    input: ymp_domain::Digest::of_value(view).unwrap(),
+                    proposal: ymp_domain::Proposal {
+                        value: ymp_domain::identity::Readiness::Ready,
+                        rationale: "Repeated fixture readiness".into(),
+                        basis: vec![],
+                        policy: prior.effective.policy.clone(),
+                    },
+                })
+                .collect();
+            match registry.record(
+                &s.session,
+                view.revision(),
+                at,
+                input,
+                prior.effective,
+                responses,
+            ) {
+                Ok(_) => {}
+                Err(error) => {
+                    assert_eq!(error.code, "journal_limit");
+                    break;
+                }
+            }
+        }
+        let treasury = ymp_kernel::treasury::Treasury::new(journal.clone());
+        let view = s.gate.view(&s.session).unwrap();
+        let at = view.latest_at() + 1;
+        treasury
+            .authorize(
+                &s.session,
+                view.revision(),
+                at,
+                id("assignment"),
+                id("invocation"),
+            )
+            .unwrap();
+        if unknown_first {
+            treasury
+                .observe(
+                    &s.session,
+                    s.gate.view(&s.session).unwrap().revision(),
+                    at,
+                    id("assignment"),
+                    ymp_domain::resources::Receipt {
+                        id: id("receipt"),
+                        invocation: id("invocation"),
+                        usage: ymp_domain::resources::Usage {
+                            input: 0,
+                            cache_read: 0,
+                            cache_write: 0,
+                            output: 0,
+                            reasoning: None,
+                        },
+                        coverage: ymp_domain::resources::Coverage::Unknown,
+                        cost: None,
+                    },
+                    &[],
+                )
+                .unwrap();
+        }
+        treasury
+            .observe(
+                &s.session,
+                s.gate.view(&s.session).unwrap().revision(),
+                at,
+                id("assignment"),
+                ymp_domain::resources::Receipt {
+                    id: id("receipt"),
+                    invocation: id("invocation"),
+                    usage: ymp_domain::resources::Usage {
+                        input: 5,
+                        cache_read: 0,
+                        cache_write: 0,
+                        output: 0,
+                        reasoning: None,
+                    },
+                    coverage: ymp_domain::resources::Coverage::Complete,
+                    cost: None,
+                },
+                &[],
+            )
+            .unwrap();
+        let view = s.gate.view(&s.session).unwrap();
+        let response = ymp_runtime::policies::resources::cost_response(
+            &s.cost,
+            &ymp_kernel::treasury::cost_view(&view, &id("assignment")).unwrap(),
+        )
+        .unwrap();
+        treasury
+            .settle(&s.session, view.revision(), at, id("assignment"), response)
+            .unwrap();
+        s.gate
+            .revoke(
+                &s.session,
+                s.gate.view(&s.session).unwrap().revision(),
+                at,
+                &admitted.assignment.id,
+                "After accounted execution".into(),
+            )
+            .unwrap();
+        assert_eq!(
+            s.gate
+                .view(&s.session)
+                .unwrap()
+                .treasury()
+                .unwrap()
+                .accounts[&id("assignment")]
+                .reservation
+                .state,
+            ymp_domain::resources::ReservationState::Settled
+        );
+    }
+}

@@ -639,6 +639,24 @@ impl<J: Journal, C: ContentStore> WorkspaceGuard<J, C> {
         provider: &dyn WorkspaceProvider,
         proof: &AccessEvidence,
     ) -> Result<u64> {
+        let acquisition = self.prepare_lock(session, request, provider, proof)?;
+        self.commit(
+            session,
+            expected,
+            at,
+            Event::LockChanged {
+                version: 1,
+                change: crate::workspace_locks::LockChange::Acquired(Box::new(acquisition)),
+            },
+        )
+    }
+    fn prepare_lock(
+        &self,
+        session: &Id,
+        request: LockRequest,
+        provider: &dyn WorkspaceProvider,
+        proof: &AccessEvidence,
+    ) -> Result<crate::workspace_locks::LockAcquisition> {
         let view = self.view(session)?;
         let workspace = view
             .workspaces()
@@ -690,25 +708,15 @@ impl<J: Journal, C: ContentStore> WorkspaceGuard<J, C> {
             })
             .collect();
         validate_provider(workspace, provider)?;
-        self.commit(
-            session,
-            expected,
-            at,
-            Event::LockChanged {
-                version: 1,
-                change: crate::workspace_locks::LockChange::Acquired(Box::new(
-                    crate::workspace_locks::LockAcquisition {
-                        mediated_owner: proof.mediated_owner.clone(),
-                        workspace: request.workspace,
-                        assignment: request.assignment,
-                        profile: request.profile,
-                        requested,
-                        effective,
-                        basis: proof.basis.clone(),
-                    },
-                )),
-            },
-        )
+        Ok(crate::workspace_locks::LockAcquisition {
+            mediated_owner: proof.mediated_owner.clone(),
+            workspace: request.workspace,
+            assignment: request.assignment,
+            profile: request.profile,
+            requested,
+            effective,
+            basis: proof.basis.clone(),
+        })
     }
     pub fn authorize_access(
         &self,
@@ -1253,6 +1261,29 @@ impl<J: Journal> MediatedAccess<J> {
         Ok(())
     }
 }
+/// A sealed, uncommitted access plan. Recorded metadata cannot recreate this plan
+/// or its one-time right to issue a live handle.
+/// ```compile_fail
+/// let plan: ymp_kernel::workspace_guard::PreparedMediation = serde_json::from_str("{}").unwrap();
+/// ```
+pub struct PreparedMediation {
+    session: Id,
+    issuer: Arc<()>,
+    input: Digest,
+    binding: WorkspaceBinding,
+    provider: Arc<dyn WorkspaceProvider>,
+    acquisition: crate::workspace_locks::LockAcquisition,
+    consumed: bool,
+}
+impl PreparedMediation {
+    /// Planned journal data carries no live file capability.
+    pub fn acquisition(&self) -> &crate::workspace_locks::LockAcquisition {
+        &self.acquisition
+    }
+    pub fn input(&self) -> &Digest {
+        &self.input
+    }
+}
 impl<J: Journal, C: ContentStore> WorkspaceGuard<J, C> {
     /// Creates path ownership for files-only Scripted mediation. Admission,
     /// invocation funding and execution lifecycle remain separate kernel work.
@@ -1264,6 +1295,29 @@ impl<J: Journal, C: ContentStore> WorkspaceGuard<J, C> {
         request: LockRequest,
         provider: Arc<dyn WorkspaceProvider>,
     ) -> Result<MediatedAccess<J>> {
+        let mut plan = self.prepare_mediation(session, expected, at, request, provider)?;
+        self.commit(
+            session,
+            expected,
+            at,
+            Event::LockChanged {
+                version: 1,
+                change: crate::workspace_locks::LockChange::Acquired(Box::new(
+                    plan.acquisition.clone(),
+                )),
+            },
+        )?;
+        self.complete_mediation(&mut plan)
+    }
+    /// Inspect and validate an access scope without appending ownership or exposing I/O.
+    pub fn prepare_mediation(
+        &self,
+        session: &Id,
+        expected: u64,
+        at: u64,
+        request: LockRequest,
+        provider: Arc<dyn WorkspaceProvider>,
+    ) -> Result<PreparedMediation> {
         let view = self.view(session)?;
         if view.revision() != expected {
             return Err(Denial::new(
@@ -1340,33 +1394,98 @@ impl<J: Journal, C: ContentStore> WorkspaceGuard<J, C> {
             mediated_owner: Some(owner.clone()),
             basis: vec![workspace],
         };
-        let assignment = request.assignment.clone();
-        self.lock(session, expected, at, request, provider.as_ref(), &proof)?;
-        let recorded = self.view(session)?;
-        let acquired = recorded.path_locks().get(&assignment).ok_or_else(|| {
-            Denial::new(
-                "locks_missing",
-                "Committed mediation has no recorded ownership",
-            )
-        })?;
-        if acquired.acquired.mediated_owner.as_ref() != Some(&owner) {
+        let acquisition = self.prepare_lock(session, request, provider.as_ref(), &proof)?;
+        let change = crate::workspace_locks::LockChange::Acquired(Box::new(acquisition.clone()));
+        let event = Envelope {
+            seq: expected
+                .checked_add(1)
+                .ok_or_else(|| Denial::new("revision_overflow", "Journal sequence exhausted"))?,
+            session: session.clone(),
+            at,
+            actor: Actor::Runtime,
+            policy: None,
+            input: None,
+            refs: crate::workspace_locks::attribution(&view, &change)?,
+            payload: Event::LockChanged { version: 1, change },
+        };
+        let inventory = self.journal.workspace_inventory(session)?;
+        crate::journal::validate_workspace_append(
+            &inventory,
+            session,
+            expected,
+            &[event],
+            self.journal.schemas(),
+        )?;
+        Ok(PreparedMediation {
+            session: session.clone(),
+            issuer: self.issuer.clone(),
+            input: view.digest()?,
+            binding,
+            provider,
+            acquisition,
+            consumed: false,
+        })
+    }
+    pub(crate) fn validate_prepared_mediation(&self, plan: &PreparedMediation) -> Result<()> {
+        if plan.consumed || !Arc::ptr_eq(&self.issuer, &plan.issuer) {
             return Err(Denial::new(
-                "access_owner",
-                "Another mediation attempt owns the assignment",
+                "access_plan",
+                "Access plan is consumed or belongs to another authority",
             ));
         }
-        Ok(MediatedAccess {
+        Ok(())
+    }
+    /// Issue the one live handle after matching ownership has been committed.
+    /// Validation failure leaves the plan available for a later resolution attempt.
+    pub fn complete_mediation(&self, plan: &mut PreparedMediation) -> Result<MediatedAccess<J>> {
+        if plan.consumed || !Arc::ptr_eq(&self.issuer, &plan.issuer) {
+            return Err(Denial::new(
+                "access_plan",
+                "Access plan is consumed or belongs to another authority",
+            ));
+        }
+        let view = self.view(&plan.session)?;
+        let assignment = plan.acquisition.assignment.clone();
+        let record = view.path_locks().get(&assignment).ok_or_else(|| {
+            Denial::new(
+                "locks_missing",
+                "Prepared access has no committed ownership",
+            )
+        })?;
+        if record.acquired != plan.acquisition
+            || record.revoked
+            || record.released.is_some()
+            || view.workspace_bindings().get(&record.acquired.workspace) != Some(&plan.binding)
+        {
+            return Err(Denial::new(
+                "access_plan",
+                "Recorded ownership differs from the unconsumed plan",
+            ));
+        }
+        validate_provider(
+            &view.workspaces()[&record.acquired.workspace],
+            plan.provider.as_ref(),
+        )?;
+        plan.provider
+            .verify_binding(&plan.binding, self.journal.as_ref())?;
+        let owner =
+            plan.acquisition.mediated_owner.clone().ok_or_else(|| {
+                Denial::new("access_owner", "Prepared access has no mediated owner")
+            })?;
+        let handle = MediatedAccess {
             journal: self.journal.clone(),
-            provider,
-            session: session.clone(),
+            provider: plan.provider.clone(),
+            session: plan.session.clone(),
             assignment,
             owner,
             issuer: self.issuer.clone(),
-            binding,
-            acquisition: acquired.last.clone(),
+            binding: plan.binding.clone(),
+            acquisition: record.last.clone(),
             closed: std::sync::atomic::AtomicBool::new(false),
             operation: Mutex::new(None),
-        })
+        };
+        plan.consumed = true;
+        Ok(handle)
     }
     /// Close new operations first, then wait for every admitted synchronous call.
     /// The returned evidence only covers this files-only capability.

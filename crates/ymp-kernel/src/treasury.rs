@@ -29,6 +29,8 @@ pub struct BudgetOpening {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ReserveDecision {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub admission: Option<Box<crate::gatekeeper::AdmissionIntent>>,
     pub reservation: Reservation,
     pub demand: ResourceDemand,
     pub estimate: Decision<CostEstimate>,
@@ -397,6 +399,39 @@ pub struct ReserveRequest {
     pub allowance: ResourceResponse<Allowance>,
 }
 
+pub(crate) fn prepare_reservation(
+    view: &SessionView,
+    at: u64,
+    request: ReserveRequest,
+) -> Result<ReserveDecision> {
+    let estimate = decision(
+        view,
+        "CostModel",
+        &estimate_view(view, &request.demand)?,
+        &request.estimate,
+    )?;
+    let allocation = decision(
+        view,
+        "ResourcePolicy",
+        &allowance_view(view, &request.demand, estimate.outcome.clone(), at)?,
+        &request.allowance,
+    )?;
+    let reservation = Reservation {
+        id: request.id,
+        budget: ledger(view)?.budget.id.clone(),
+        assignment: request.assignment,
+        amount: allocation.outcome.cost,
+        purpose: request.demand.kind.purpose(),
+        state: ReservationState::Held,
+    };
+    Ok(ReserveDecision {
+        admission: None,
+        reservation,
+        demand: request.demand,
+        estimate,
+        allocation,
+    })
+}
 fn selected<'a>(view: &'a SessionView, port: &str) -> Result<&'a PolicySelection> {
     view.policies()
         .get(port)
@@ -1066,6 +1101,9 @@ pub fn attribution(
             change: ReservationChange::Reserved(data),
             ..
         } => {
+            if let Some(admission) = &data.admission {
+                refs.push(admission.award.clone());
+            }
             refs.extend(data.estimate.proposal.basis.clone());
             refs.extend(data.allocation.proposal.basis.clone());
             (
@@ -1194,38 +1232,14 @@ impl<J: Journal> Treasury<J> {
         request: ReserveRequest,
     ) -> Result<u64> {
         let view = self.view(session)?;
-        let estimate = decision(
-            &view,
-            "CostModel",
-            &estimate_view(&view, &request.demand)?,
-            &request.estimate,
-        )?;
-        let allocation = decision(
-            &view,
-            "ResourcePolicy",
-            &allowance_view(&view, &request.demand, estimate.outcome.clone(), at)?,
-            &request.allowance,
-        )?;
-        let reservation = Reservation {
-            id: request.id,
-            budget: ledger(&view)?.budget.id.clone(),
-            assignment: request.assignment,
-            amount: allocation.outcome.cost,
-            purpose: request.demand.kind.purpose(),
-            state: ReservationState::Held,
-        };
+        let data = prepare_reservation(&view, at, request)?;
         self.commit(
             session,
             expected,
             at,
             Event::ReservationChanged {
                 version: 1,
-                change: ReservationChange::Reserved(Box::new(ReserveDecision {
-                    reservation,
-                    demand: request.demand,
-                    estimate,
-                    allocation,
-                })),
+                change: ReservationChange::Reserved(Box::new(data)),
             },
         )
     }

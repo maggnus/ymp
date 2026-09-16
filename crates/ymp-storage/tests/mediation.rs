@@ -800,3 +800,59 @@ fn an_open_existing_file_keeps_physical_ownership_when_moved_out_of_its_director
             .is_ok()
     );
 }
+
+#[test]
+fn prepared_scope_has_no_authority_until_commit_and_can_issue_only_one_handle() {
+    let root = support::Directory::new();
+    let database = support::Directory::new();
+    let s = Setup::new(&database, direct(&root), "session");
+    let before = s.guard.view(&s.session).unwrap();
+    let mut plan = s
+        .guard
+        .prepare_mediation(
+            &s.session,
+            s.revision(),
+            10,
+            LockRequest {
+                assignment: id("prepared"),
+                workspace: id("workspace"),
+                profile: s.profile.clone(),
+                paths: vec![(path("file"), LockMode::Write)],
+            },
+            s.provider.clone(),
+        )
+        .unwrap();
+    assert_eq!(plan.input(), &before.digest().unwrap());
+    assert_eq!(s.guard.view(&s.session).unwrap(), before);
+    assert!(s.guard.complete_mediation(&mut plan).is_err());
+    assert!(!root.0.join("file").exists());
+    let change =
+        ymp_kernel::workspace_locks::LockChange::Acquired(Box::new(plan.acquisition().clone()));
+    let event = ymp_domain::journal::Envelope {
+        seq: before.revision() + 1,
+        session: s.session.clone(),
+        at: 10,
+        actor: ymp_domain::journal::Actor::Runtime,
+        policy: None,
+        input: None,
+        refs: ymp_kernel::workspace_locks::attribution(&before, &change).unwrap(),
+        payload: ymp_kernel::events::Event::LockChanged { version: 1, change },
+    };
+    s.journal
+        .append(&s.session, before.revision(), &[event])
+        .unwrap();
+    let foreign = WorkspaceGuard::new(s.journal.clone(), Arc::new(s.journal.content_store()));
+    assert!(foreign.complete_mediation(&mut plan).is_err());
+    let handle = s.guard.complete_mediation(&mut plan).unwrap();
+    assert!(s.guard.complete_mediation(&mut plan).is_err());
+    assert!(
+        handle
+            .write(&path("file"), b"before authorization", 12)
+            .is_err()
+    );
+    s.authorize("prepared");
+    handle.write(&path("file"), b"once", 12).unwrap();
+    s.release(&handle);
+    assert!(s.guard.complete_mediation(&mut plan).is_err());
+    assert_eq!(fs::read(root.0.join("file")).unwrap(), b"once");
+}

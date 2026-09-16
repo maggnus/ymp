@@ -48,8 +48,53 @@ pub fn open_with_policies<J: Journal, C: ContentStore>(
     session: &Id,
     provider: &dyn WorkspaceProvider,
     capabilities: BTreeSet<Capability>,
-    mut selections: Vec<PolicySelection>,
+    selections: Vec<PolicySelection>,
 ) -> (WorkspaceGuard<J, C>, ExecutionProfile) {
+    let opening = open_with_options(
+        journal,
+        store,
+        session,
+        provider,
+        capabilities.clone(),
+        selections,
+        default_constraints(capabilities),
+    );
+    let Opening {
+        guard,
+        profile,
+        intake,
+        control,
+    } = opening;
+    drop((intake, control));
+    (guard, profile)
+}
+pub fn default_constraints(capabilities: BTreeSet<Capability>) -> Constraints {
+    Constraints {
+        budget: Real::new(100.0).unwrap(),
+        verification_reserve: Real::new(20.0).unwrap(),
+        deadline: None,
+        pins: Pins::unrestricted(),
+        allowed: capabilities,
+        parallel_limit: 4,
+        attempt_limit: 3,
+        max_members: 2,
+    }
+}
+pub struct Opening<J: Journal, C: ContentStore> {
+    pub guard: WorkspaceGuard<J, C>,
+    pub profile: ExecutionProfile,
+    pub intake: Intake<J>,
+    pub control: super::kernel::decision::SessionControl,
+}
+pub fn open_with_options<J: Journal, C: ContentStore>(
+    journal: Arc<J>,
+    store: Arc<C>,
+    session: &Id,
+    provider: &dyn WorkspaceProvider,
+    capabilities: BTreeSet<Capability>,
+    mut selections: Vec<PolicySelection>,
+    constraints: Constraints,
+) -> Opening<J, C> {
     let probe = PolicySelection::new(
         "ReadinessProbe",
         "StaticDependencyProbe",
@@ -58,7 +103,8 @@ pub fn open_with_policies<J: Journal, C: ContentStore>(
     )
     .unwrap();
     selections.extend([provider.selection().clone(), probe.clone()]);
-    Intake::new(journal.clone())
+    let intake = Intake::new(journal.clone());
+    let control = intake
         .open(
             session.clone(),
             1,
@@ -71,16 +117,7 @@ pub fn open_with_policies<J: Journal, C: ContentStore>(
                         clarifications: vec![],
                     },
                     contract: id("contract"),
-                    constraints: Constraints {
-                        budget: Real::new(100.0).unwrap(),
-                        verification_reserve: Real::new(20.0).unwrap(),
-                        deadline: None,
-                        pins: Pins::unrestricted(),
-                        allowed: capabilities.clone(),
-                        parallel_limit: 4,
-                        attempt_limit: 3,
-                        max_members: 2,
-                    },
+                    constraints,
                 },
                 criteria: vec![Criterion {
                     id: id("criterion"),
@@ -151,7 +188,12 @@ pub fn open_with_policies<J: Journal, C: ContentStore>(
     guard
         .open(session, 3, 3, id("workspace"), provider)
         .unwrap();
-    (guard, profile)
+    Opening {
+        guard,
+        profile,
+        intake,
+        control,
+    }
 }
 
 /// Explicit synthetic boundary data for the aggregate adapter/replay contract.

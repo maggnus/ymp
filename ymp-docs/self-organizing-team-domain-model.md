@@ -349,6 +349,14 @@ and the corresponding Proposed Commitment are one atomic packet. The domain valu
 representations of Assignment, Grant and Invocation do not themselves establish that
 admission, execution or later commitment transitions are implemented.
 
+The implemented `Gatekeeper` binds a persisted Award to one attempt-bound admission
+packet. The packet records the resource reservation, optional effective workspace lock,
+grant digest, Active commitment and AssignmentAdmitted fact under one random nonce.
+The grant secret and any prepared file capability remain local and are issued only
+after the complete packet is confirmed. A journal projection cannot mint another
+secret or capability. Revocation invalidates the grant and retains unresolved resource
+holds; it does not imply that an invocation started or that external effects ended.
+
 `PathObservation` is the implementation's recorded physical ancestry (`FileIdentity`
 for each existing component) and missing suffix for a WorkspacePath. An
 `ObservedPathLock` pairs this observation with the model's PathLock so names alone

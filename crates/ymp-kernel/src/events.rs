@@ -29,6 +29,21 @@ pub struct CriteriaCommitted {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub enum Event {
+    AssignmentRevoked {
+        version: u32,
+        assignment: ymp_domain::Id<ymp_domain::assignment::Assignment>,
+        reason: String,
+    },
+    GrantIssued {
+        version: u32,
+        nonce: Digest,
+        grant: ymp_domain::assignment::Grant,
+    },
+    AssignmentAdmitted {
+        version: u32,
+        nonce: Digest,
+        assignment: ymp_domain::Id<ymp_domain::assignment::Assignment>,
+    },
     ContributionProposed {
         version: u32,
         contribution: Box<ymp_domain::assignment::Contribution>,
@@ -111,7 +126,10 @@ pub enum Event {
 impl Event {
     pub fn contents(&self) -> Result<EventContent> {
         let selections: Vec<&PolicySelection> = match self {
-            Self::ContributionProposed { .. }
+            Self::AssignmentRevoked { .. }
+            | Self::GrantIssued { .. }
+            | Self::AssignmentAdmitted { .. }
+            | Self::ContributionProposed { .. }
             | Self::SolicitationOpened { .. }
             | Self::OfferSubmitted { .. }
             | Self::CommitmentChanged { .. } => vec![],
@@ -155,7 +173,10 @@ impl Event {
     }
     pub fn version(&self) -> u32 {
         match self {
-            Self::ContributionProposed { version, .. }
+            Self::AssignmentRevoked { version, .. }
+            | Self::GrantIssued { version, .. }
+            | Self::AssignmentAdmitted { version, .. }
+            | Self::ContributionProposed { version, .. }
             | Self::SolicitationOpened { version, .. }
             | Self::OfferSubmitted { version, .. }
             | Self::Awarded { version, .. }

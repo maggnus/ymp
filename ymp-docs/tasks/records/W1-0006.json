@@ -35,7 +35,7 @@
     "Arbiter foundation checkpoint: typed Contribution/Forecast/Assignment/Grant/Invocation and coordination values; Prob input validation and competence mapping; persisted Runtime contributions, solicitations, RuntimeProxy offers and Awarded plus Proposed Commitment as one indivisible packet. FirstOffer and a test alternative run through the actual consumer over MemoryJournal/SQLite. The source acceptance contract Ref is retained. Unsupported typed subject references are denied until their owning services supply real typed resolution; offer/award timing follows recorded inputs and P1. Exact append resolution checks both atomic packet boundaries. Independent review ACCEPT for this intermediate checkpoint; full offline build/fmt/clippy/tests, legacy scan and task check passed. See ymp-docs/admission-implementation.md. Gatekeeper admission/revocation and live capability issuance remain unimplemented, so W1-0006 stays in progress.",
     "Admission design review: prepare a sealed, non-serializable access plan without journalling or live handles; consume it once only after confirmed complete admission. Preserve original resource policy input by starting the attempt-bound packet with ReservationChanged, then optional matching LockChanged, GrantIssued, active CommitmentChanged and final AssignmentAdmitted. Strict order/nonce/assignment checks must prevent reuse of older standalone resources and incomplete/interleaved appends. Prepare the grant secret privately and persist only its digest. Confirmed post-commit capability-delivery failure is not an admission denial; journal data cannot recreate a second live handle/secret. No-files requires enforceable absence of file access, not merely empty declared needs. CAS conflicts cannot cancel another admission; only the exact current Proposed commitment may be cancelled on a confirmed denial. Memory no-files consumer plus explicit synthetic scoped-plan conformance is acceptable; real filesystem admission and cross-session atomicity require SQLite/WorkspaceGuard integration."
   ],
-  "revision": 7,
+  "revision": 8,
   "history": [
     {
       "revision": 1,
@@ -85,6 +85,13 @@
       "actor": "codex",
       "status": "in_progress",
       "note": "Arbiter foundation committed on main as 0d1df42 after independent acceptance and full checks. Now extracting sealed preparation of workspace access from its one-time post-commit handle issuance for Gatekeeper atomic admission. No assignment/grant admission is delivered yet."
+    },
+    {
+      "revision": 8,
+      "at": "2026-09-16T12:02:17.789841Z",
+      "actor": "codex",
+      "status": "in_progress",
+      "note": "Gatekeeper candidate now atomically validates and records resource reservation, optional effective workspace lock, one-time grant digest, Active commitment and AssignmentAdmitted under an attempt nonce. Runtime AdmissionRuntime connects policy proposals and sealed workspace preparation. Revocation retains unresolved financial/path holds. Fifteen admission tests and full workspace suite pass; Clippy, build, fmt, legacy scan and task check pass. Independent final review is still required before completion."
     }
   ]
 }

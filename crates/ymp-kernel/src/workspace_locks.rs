@@ -222,7 +222,12 @@ pub fn apply(
                 .ok_or_else(|| Denial::new("workspace_missing", "Workspace is not open"))?;
             validate_profile(view, acquisition)?;
             basis(view, &acquisition.basis)?;
-            if locks.contains_key(&acquisition.assignment)
+            if view
+                .admission()
+                .assignments()
+                .values()
+                .any(|record| record.intent.assignment.id.erased() == acquisition.assignment)
+                || locks.contains_key(&acquisition.assignment)
                 || acquisition.requested.is_empty()
                 || acquisition.effective.is_empty()
                 || acquisition.requested.len() > 256

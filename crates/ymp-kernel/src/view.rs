@@ -34,6 +34,7 @@ pub struct SessionView {
     registry: Option<Box<crate::registry::PoolRecorded>>,
     treasury: Option<Box<crate::treasury::TreasuryView>>,
     coordination: crate::arbiter::CoordinationView,
+    admission: crate::gatekeeper::AdmissionView,
     workspaces: BTreeMap<Id<ymp_domain::workspace::Workspace>, ymp_domain::workspace::Workspace>,
     snapshots: BTreeMap<Id<ymp_domain::workspace::Snapshot>, ymp_domain::workspace::Snapshot>,
     path_locks: BTreeMap<Id, crate::workspace_locks::AssignmentLocks>,
@@ -60,6 +61,7 @@ impl SessionView {
             registry: None,
             treasury: None,
             coordination: crate::arbiter::CoordinationView::default(),
+            admission: crate::gatekeeper::AdmissionView::default(),
             workspaces: BTreeMap::new(),
             snapshots: BTreeMap::new(),
             path_locks: BTreeMap::new(),
@@ -90,6 +92,9 @@ impl SessionView {
         &self,
     ) -> &BTreeMap<Id<ymp_domain::workspace::Snapshot>, ymp_domain::workspace::Snapshot> {
         &self.snapshots
+    }
+    pub fn admission(&self) -> &crate::gatekeeper::AdmissionView {
+        &self.admission
     }
     pub fn coordination(&self) -> &crate::arbiter::CoordinationView {
         &self.coordination
@@ -209,14 +214,45 @@ impl SessionView {
             self.resolve(reference)?;
         }
         self.coordination.check_next(&event.payload)?;
+        let admission = crate::gatekeeper::apply(self, event)?;
         match &event.payload {
+            Event::AssignmentRevoked { assignment, .. } => {
+                self.validate_base_complete()?;
+                if event.policy.is_some()
+                    || event.input.is_some()
+                    || event.refs != crate::gatekeeper::revocation_refs(self, assignment)?
+                {
+                    return Err(Denial::new(
+                        "revocation_attribution",
+                        "Revocation basis differs from recorded authority",
+                    ));
+                }
+            }
+            Event::GrantIssued { .. } | Event::AssignmentAdmitted { .. } => {
+                self.validate_base_complete()?;
+                if event.policy.is_some()
+                    || event.input.is_some()
+                    || event.refs != crate::gatekeeper::attribution(self)?
+                {
+                    return Err(Denial::new(
+                        "admission_attribution",
+                        "Admission references disagree",
+                    ));
+                }
+            }
             Event::ContributionProposed { .. }
             | Event::SolicitationOpened { .. }
             | Event::OfferSubmitted { .. }
             | Event::Awarded { .. }
             | Event::CommitmentChanged { .. } => {
-                if !matches!(event.payload, Event::CommitmentChanged { .. }) {
-                    self.validate_complete()?;
+                if !matches!(
+                    event.payload,
+                    Event::CommitmentChanged {
+                        change: crate::arbiter::CommitmentChange::Proposed(_),
+                        ..
+                    }
+                ) {
+                    self.validate_base_complete()?;
                 }
                 self.coordination = crate::arbiter::apply(self, event, schemas)?;
                 if let Event::ContributionProposed { contribution, .. } = &event.payload {
@@ -248,7 +284,7 @@ impl SessionView {
             }
 
             Event::LockChanged { change, .. } => {
-                self.validate_complete()?;
+                self.validate_base_complete()?;
                 if event.policy.is_some()
                     || event.input.is_some()
                     || event.refs != crate::workspace_locks::attribution(self, change)?
@@ -353,7 +389,7 @@ impl SessionView {
             | Event::ReservationChanged { .. }
             | Event::ReceiptSettled { .. }
             | Event::ReportingStarted { .. } => {
-                self.validate_complete()?;
+                self.validate_base_complete()?;
                 let (policy, input, refs) = crate::treasury::attribution(&event.payload)?;
                 if event.policy != policy || event.input != input || event.refs != refs {
                     return Err(Denial::new(
@@ -544,6 +580,9 @@ impl SessionView {
                 self.decisions.push((**decision).clone());
             }
         }
+        if let Some(admission) = admission {
+            self.admission = admission;
+        }
         self.references.insert(event.reference()?);
         self.revision = event.seq;
         self.latest_at = self.latest_at.max(event.at);
@@ -568,6 +607,10 @@ impl SessionView {
     }
 
     pub(crate) fn validate_complete(&self) -> Result<()> {
+        self.admission.complete()?;
+        self.validate_base_complete()
+    }
+    fn validate_base_complete(&self) -> Result<()> {
         self.coordination.complete()?;
         if let Some(book) = &self.treasury {
             let task = self

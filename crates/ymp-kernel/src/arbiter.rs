@@ -35,6 +35,16 @@ pub struct Awarded {
 }
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum CommitmentChange {
+    Cancelled {
+        commitment: Id<Commitment>,
+        award: Ref,
+        reason: String,
+    },
+    Activated {
+        nonce: Digest,
+        commitment: Id<Commitment>,
+        lease: Lease,
+    },
     Proposed(Commitment),
 }
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize)]
@@ -214,6 +224,26 @@ pub(crate) fn attribution(
                     .clone(),
             );
         }
+        Event::CommitmentChanged {
+            change:
+                CommitmentChange::Cancelled {
+                    commitment, award, ..
+                },
+            ..
+        } => {
+            refs.push(award.clone());
+            refs.push(
+                book.commitments
+                    .get(commitment)
+                    .and_then(|value| value.history.last())
+                    .ok_or_else(|| Denial::new("commitment_missing", "No proposed commitment"))?
+                    .clone(),
+            );
+        }
+        Event::CommitmentChanged {
+            change: CommitmentChange::Activated { .. },
+            ..
+        } => refs.extend(crate::gatekeeper::attribution(view)?),
         Event::CommitmentChanged {
             change: CommitmentChange::Proposed(_),
             ..
@@ -439,6 +469,70 @@ pub(crate) fn apply(
                     at: event.at,
                 },
             );
+        }
+        Event::CommitmentChanged {
+            change:
+                CommitmentChange::Cancelled {
+                    commitment,
+                    award,
+                    reason,
+                },
+            ..
+        } => {
+            ymp_domain::require_text(reason, 4096)?;
+            let source = book
+                .awards
+                .values()
+                .find(|value| value.reference == *award)
+                .ok_or_else(|| {
+                    Denial::new("award_missing", "No matching award for cancellation")
+                })?;
+            let solicitation = source.value.decision.outcome.solicitation.clone();
+            if source.value.commitment.id != *commitment
+                || book.solicitations[&solicitation].value.state != SolicitationState::Awarded
+            {
+                return Err(Denial::new(
+                    "commitment_basis",
+                    "Cancellation differs from the current award",
+                ));
+            }
+            let current = book
+                .commitments
+                .get_mut(commitment)
+                .ok_or_else(|| Denial::new("commitment_missing", "No Proposed commitment"))?;
+            if current.state != CommitmentState::Proposed {
+                return Err(Denial::new(
+                    "commitment_state",
+                    "Only this award's Proposed commitment can be cancelled by admission",
+                ));
+            }
+            current.state = CommitmentState::Cancelled(reason.clone());
+            current.history.push(reference.clone());
+            let solicitation = book.solicitations.get_mut(&solicitation).unwrap();
+            solicitation.value.state = SolicitationState::Withdrawn;
+            solicitation.reference = reference;
+            solicitation.at = event.at;
+        }
+        Event::CommitmentChanged {
+            change:
+                CommitmentChange::Activated {
+                    commitment, lease, ..
+                },
+            ..
+        } => {
+            let current = book
+                .commitments
+                .get_mut(commitment)
+                .ok_or_else(|| Denial::new("commitment_missing", "No Proposed commitment"))?;
+            if current.state != CommitmentState::Proposed {
+                return Err(Denial::new(
+                    "commitment_state",
+                    "Only a Proposed commitment may activate",
+                ));
+            }
+            current.state = CommitmentState::Active;
+            current.lease = lease.clone();
+            current.history.push(reference);
         }
         Event::CommitmentChanged {
             change: CommitmentChange::Proposed(commitment),
