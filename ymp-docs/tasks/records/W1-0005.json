@@ -34,9 +34,10 @@
     "Independent design review: native cwd is not confinement; an unconfined writer must be denied rather than given an artificial root scope. Path ownership needs physical/case/Unicode/ancestor alias treatment and one atomic coordinator across sessions/processes/stores. Holds persist after coordinator exit. A constrained alternative must mediate real operations and drain admitted operations before issuing withdrawal evidence. Direct double capture detects changes but is not an atomic filesystem snapshot; final check/result capture must be quiescent under the completed guard.",
     "Ownership review ACCEPT after fixing orphan-head omission, requested-read capability enforcement and aggregate-history/control-capacity issues. SQLite inventories the union of heads/events/content links, rejects malformed session keys before loading strings, and retains only bounded active ownership from other sessions. All SQLite appends protect remaining authorization/revocation/release slots and bytes. Tests cover orphan owners, oversized keys, two-process conflict serialization, retained revocation and a small event limit that still permits authorize/revoke/release. Remaining integration work: protected physical-root binding across independent stores; actual mediated operations and drain-before-withdrawal evidence. Capture read holds are supplied by the following checkpoint. Keep W1-0005 in progress until these are implemented and independently accepted.",
     "CaptureRead checkpoint: LockChanged starts an observed root Read hold with a per-attempt OS-random owner; SnapshotTaken v2 atomically publishes and ends it, or CaptureAborted records ended synchronous I/O without a snapshot. Bounded local completion evidence retries commit only, survives CAS/lost ACK within its Guard, and cannot be reconstructed by a fresh Guard for unresolved I/O. Failed foreign/absent begins are cleaned locally without aborting another owner, including deferred resolution after read unavailability. Historical SnapshotTaken v1 remains replayable/resolvable but cannot be newly appended; exact resolution still checks a complete preceding prefix. Independent review ACCEPT after nonce, prefix, cleanup and delta-replay fixes. Tests cover writer exclusion, completion faults without recapture, two Guard races including exact-match resolution, own lost begin ACK, abandonment, restart, historical replay and 64 local cleanup attempts in both read modes. Full W1-0005 still requires protected root binding and the actual mediated provider.",
-    "Root-binding checkpoint independently accepted and verified: SQLite format2 identity with transactional v1 migration preserves existing history/content; handles reject changed UUIDs, replaced files and hard links. Immutable root markers bind both logical and physical journal identities. WorkspaceGuard records WorkspaceBound; marker installation is no-replace and synchronized, nested bindings are refused, and copied stores cannot adopt the root. Unbound previews exclude bound descendants and block new descendant bindings during I/O; capture also checks caller identity under the provider binding mutex. Identity, root-binding, process/concurrency and full workspace checks passed. This does not supply execution authority: the actual mediated filesystem provider remains required before W1-0005 completion."
+    "Root-binding checkpoint independently accepted and verified: SQLite format2 identity with transactional v1 migration preserves existing history/content; handles reject changed UUIDs, replaced files and hard links. Immutable root markers bind both logical and physical journal identities. WorkspaceGuard records WorkspaceBound; marker installation is no-replace and synchronized, nested bindings are refused, and copied stores cannot adopt the root. Unbound previews exclude bound descendants and block new descendant bindings during I/O; capture also checks caller identity under the provider binding mutex. Identity, root-binding, process/concurrency and full workspace checks passed. This does not supply execution authority: the actual mediated filesystem provider remains required before W1-0005 completion.",
+    "Mediated access worktree checkpoint (not committed or accepted): FileAccess binds full WorkspaceBinding, acquired scope and freshly observed actual target; Direct validates FD identities, metadata exclusion, bounded I/O and exclusive creation. ReadOnly executes real reads via the same consumer. Twelve storage mediation tests pass: actual scopes/modes, alias/metadata/limit rejection, wrong-root forwarding, existing/missing topology replacement, cross-session operations, revoke/drain/release/restart, panic uncertainty, and process-capability rejection. Full offline workspace tests passed before the final actual-target change; current focused tests pass. Independent review still requires durable ownership publication for created files: local identity continuity cannot identify an originally-missing file moved into another directory scope. Implement journaled pending creation plus a short shared resolution/create/physical-publication coordinator, publish created inode ownership before data I/O, and retain pending uncertainty across crash/storage failure. Keep directory scopes and real leaf creation; do not narrow the task to avoid this case. No native execution claimed."
   ],
-  "revision": 11,
+  "revision": 13,
   "history": [
     {
       "revision": 1,
@@ -114,6 +115,20 @@
       "actor": "codex",
       "status": "in_progress",
       "note": "Root binding is committed on main as 917534e and independently accepted. The remaining W1-0005 implementation is mediated file access with metadata protection and drain-before-release. Markdown progress now refreshes from canonical records and shows this current work."
+    },
+    {
+      "revision": 12,
+      "at": "2026-09-16T00:46:23.963408Z",
+      "actor": "codex",
+      "status": "in_progress",
+      "note": "Mediated file access now passes ten real-filesystem integration tests. Independent review accepted full root binding and existing scope-anchor checks, but demonstrated an originally-missing path replacement gap. Closing that gap before final verification and completion; task remains in progress."
+    },
+    {
+      "revision": 13,
+      "at": "2026-09-16T00:52:39.444930Z",
+      "actor": "codex",
+      "status": "in_progress",
+      "note": "Twelve real-filesystem mediation tests now pass, including moved existing files under another directory scope. Final completion still requires durable ownership for newly created files and coordinated pending-create recovery; independent review remains open."
     }
   ]
 }
