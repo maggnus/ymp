@@ -2,7 +2,7 @@
 
 Generated from the canonical JSON records in [`records/`](records/) by `python3 ymp-docs/tasks/manage.py progress --write`. Task write commands and `make tasks-progress` refresh it; do not edit statuses here.
 
-Tasks: 45 (6 done, 0 in progress, 27 open, 12 paused or blocked, 0 rejected). Times are Hong Kong time (UTC+08:00). Last record change: 2026-09-16 09:14.
+Tasks: 45 (6 done, 1 in progress, 26 open, 12 paused or blocked, 0 rejected). Times are Hong Kong time (UTC+08:00). Last record change: 2026-09-16 09:14.
 
 | Mark | Meaning |
 | :---: | --- |
@@ -16,16 +16,24 @@ Tasks: 45 (6 done, 0 in progress, 27 open, 12 paused or blocked, 0 rejected). Ti
 
 | Wave | Done | In progress | Open | Paused or blocked | Rejected | Total | Done % |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| [W1](#wave-w1) | 6 | 0 | 1 | 12 | 0 | 19 | 32% |
+| [W1](#wave-w1) | 6 | 1 | 0 | 12 | 0 | 19 | 32% |
 | [W2](#wave-w2) | 0 | 0 | 4 | 0 | 0 | 4 | 0% |
 | [W3](#wave-w3) | 0 | 0 | 9 | 0 | 0 | 9 | 0% |
 | [W4](#wave-w4) | 0 | 0 | 3 | 0 | 0 | 3 | 0% |
 | [W5](#wave-w5) | 0 | 0 | 5 | 0 | 0 | 5 | 0% |
 | [W6](#wave-w6) | 0 | 0 | 5 | 0 | 0 | 5 | 0% |
 
+## Current work
+
+### W1-0006 — [~] in_progress
+
+Admit contributions atomically with grants, reservations and active commitments. Owner: codex; revision 4; updated 2026-09-16 09:14 by codex.
+
+Claimed by codex.
+
 ## Wave W1
 
-6 of 19 done; 0 in progress; 12 paused or blocked.
+6 of 19 done; 1 in progress; 12 paused or blocked.
 
 | Status | Task | Title | Area | State | Depends on | Owner | Updated (HKT) | Rev | Evidence |
 | :---: | --- | --- | --- | --- | --- | --- | --- | ---: | --- |
@@ -34,7 +42,7 @@ Tasks: 45 (6 done, 0 in progress, 27 open, 12 paused or blocked, 0 rejected). Ti
 | [x] | [W1-0003](records/W1-0003.json) | Resolve native agents and execution profiles through a trusted Registry | identity | done | W1-0001 ✓, W1-0002 ✓ | codex | 2026-09-16 04:25 | 7 | commit [`33fe98a`](https://github.com/maggnus/ymp/commit/33fe98acdc0d4b1012132443fa21d58b2fa79fda) |
 | [x] | [W1-0004](records/W1-0004.json) | Charge invocations while protecting verification and policy-derived reporting capacity | resources | done | W1-0001 ✓, W1-0002 ✓, W1-0003 ✓ | codex | 2026-09-16 06:01 | 7 | commit [`960fc18`](https://github.com/maggnus/ymp/commit/960fc18223a24ebb8d794dcdfa2581ec5cb85282) |
 | [x] | [W1-0005](records/W1-0005.json) | Capture direct workspace snapshots and enforce assignment path ownership | workspace | done | W1-0001 ✓, W1-0003 ✓, W1-0016 ✓ | codex | 2026-09-16 09:14 | 15 | commit [`0cff1e9`](https://github.com/maggnus/ymp/commit/0cff1e979a4585df21d866f09136d3a85761f4b1) |
-| [ ] | [W1-0006](records/W1-0006.json) | Admit contributions atomically with grants, reservations and active commitments | execution | planned | W1-0002 ✓, W1-0003 ✓, W1-0004 ✓, W1-0005 ✓, W1-0016 ✓ | — | 2026-09-16 01:05 | 3 | — |
+| [~] | [W1-0006](records/W1-0006.json) | Admit contributions atomically with grants, reservations and active commitments | execution | in_progress | W1-0002 ✓, W1-0003 ✓, W1-0004 ✓, W1-0005 ✓, W1-0016 ✓ | codex | 2026-09-16 09:14 | 4 | — |
 | [=] | [W1-0007](records/W1-0007.json) | Complete commitment leases, release and delegation without losing accepted work | coordination | planned (blocked) | W1-0006 | — | 2026-09-16 01:05 | 3 | — |
 | [=] | [W1-0008](records/W1-0008.json) | Submit immutable result versions bound to attempts and exact workspace snapshots | results | planned (blocked) | W1-0005 ✓, W1-0006, W1-0007, W1-0017 | — | 2026-09-16 01:05 | 3 | — |
 | [=] | [W1-0009](records/W1-0009.json) | Run versioned checks against immutable snapshots and record attributable check runs | verification | planned (blocked) | W1-0002 ✓, W1-0005 ✓, W1-0006 | — | 2026-09-16 03:07 | 6 | — |

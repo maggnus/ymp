@@ -5,7 +5,7 @@
   "title": "Admit contributions atomically with grants, reservations and active commitments",
   "type": "implementation",
   "priority": 106,
-  "status": "planned",
+  "status": "in_progress",
   "depends_on": [
     "W1-0002",
     "W1-0003",
@@ -13,7 +13,7 @@
     "W1-0005",
     "W1-0016"
   ],
-  "owner": null,
+  "owner": "codex",
   "goal": "Create the trusted admission boundary that turns an attributable contribution and award into bounded authority without partially granting resources or responsibility.",
   "scope": [
     "Implement Contribution/Forecast/CostEstimate, Assignment, Grant, Invocation and active Commitment/Lease values needed by admission. Use typed ContributionKind and RoleKind; preserve subject/criterion targets and proposed_by Runtime or Agent(Assignment). Validate the committed Award’s solicitation/offer/profile/subject before execution.",
@@ -33,7 +33,7 @@
     "A minimal W1 Arbiter open/submit/award path with one RuntimeProxy offer is real persisted behavior, not a free-floating fabricated Award. W3-0003 adds all voluntary offer/deadline/reopen branches; agent-callable transport is W3-0001.",
     "Bootstrap Plan contributions can have no committed criterion targets yet. Admission validates committed facts and typed subject references; W1-0008/0010 later supply real result/acceptance producers. W1-0007 owns the rest of P2 lifecycle. Role/Grant/Assignment IDs remain distinct from Invocation/native session."
   ],
-  "revision": 3,
+  "revision": 4,
   "history": [
     {
       "revision": 1,
@@ -55,6 +55,13 @@
       "actor": "owner",
       "status": "planned",
       "note": "Start decision 2026-09-16: W1 scheduled; readiness follows dependencies."
+    },
+    {
+      "revision": 4,
+      "at": "2026-09-16T01:14:28.157203Z",
+      "actor": "codex",
+      "status": "in_progress",
+      "note": "Claimed by codex."
     }
   ]
 }
