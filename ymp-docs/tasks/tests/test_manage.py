@@ -722,16 +722,26 @@ class ManageCliTests(unittest.TestCase):
         self.write_record(record("W1-0006", status="rejected"))
         self.write_record(record("W1-0007", status="owner_question"))
         self.write_record(record("W2-0001", status="new", dependencies=["W1-0006"]))
+        urgent = record("W1-0008", status="in_progress", owner="codex")
+        urgent["priority"] = 1
+        self.write_record(urgent)
         first = self.run_cli("progress").stdout
+        rows = [line.split(" | ")[1] for line in first.splitlines() if line.startswith("| [") and "](records/" in line]
+        self.assertEqual(
+            rows,
+            [f"[W1-000{n}](records/W1-000{n}.json)" for n in range(1, 9)] + ["[W2-0001](records/W2-0001.json)"],
+        )
+        self.assertLess(first.index("### W1-0002 —"), first.index("### W1-0005 —"))
+        self.assertLess(first.index("### W1-0007 —"), first.index("### W1-0008 —"))
         self.assertEqual(first, self.run_cli("progress").stdout)
         self.assertFalse((self.root / "PROGRESS.md").exists())
         self.assertIn("Last record change: 2026-09-15 08:02.", first)
-        self.assertIn("| [W1](#wave-w1) | 1 | 1 | 1 | 3 | 1 | 7 | 14% |", first)
+        self.assertIn("| [W1](#wave-w1) | 1 | 2 | 1 | 3 | 1 | 8 | 12% |", first)
         self.assertIn("| [W2](#wave-w2) | 0 | 0 | 1 | 0 | 0 | 1 | 0% |", first)
         self.assertIn("### W1-0002 — [~] in_progress", first)
         self.assertIn(
             "| [x] | [W1-0001](records/W1-0001.json) | Task W1-0001 | test | done | — | codex "
-            "| 2026-09-15 08:02 | 2 | commit `adc78d1` |",
+            "| 2026-09-15 08:02 | 2 | commit [`adc78d1`](https://github.com/maggnus/ymp/commit/adc78d190c023192d158259756fc86f31ca4fd59) |",
             first,
         )
         self.assertIn(
@@ -747,12 +757,21 @@ class ManageCliTests(unittest.TestCase):
         self.assertIn("| [ ] | [W2-0001](records/W2-0001.json) | Task W2-0001 | test | new | W1-0006 ✗ |", first)
         self.assertNotIn("`2026091", first)
         written = self.run_cli("progress", "--write").stdout
-        self.assertIn("Refreshed PROGRESS.md: 8 tasks", written)
+        self.assertIn("Refreshed PROGRESS.md: 9 tasks", written)
         self.assertEqual((self.root / "PROGRESS.md").read_text(), first)
         self.assertEqual([path.name for path in self.root.iterdir() if path.name.startswith(".PROGRESS")], [])
 
     def test_progress_distinguishes_commit_references_and_orders_real_instants(self) -> None:
-        first = record("W1-0001", evidence=["snapshot " + "a" * 64, "commit abc1234", "https://example.test/repo/commit/def5678"])
+        first = record(
+            "W1-0001",
+            evidence=[
+                "snapshot " + "a" * 64,
+                "commit abc1234",
+                "https://example.test/repo/commit/def5678",
+                "960fc18223a24ebb8d794dcdfa2581ec5cb85282",
+                "digest " + "b" * 39 + "; run " + "c" * 41,
+            ],
+        )
         first["history"][-1]["at"] = "2026-09-16T00:00:00+08:00"
         second = record("W1-0002")
         second["history"][-1]["at"] = "2026-09-15T23:00:00Z"
@@ -761,9 +780,14 @@ class ManageCliTests(unittest.TestCase):
         text = self.run_cli("progress").stdout
         self.assertIn("Last record change: 2026-09-16 07:00", text)
         self.assertIn("snapshot " + "a" * 64, text)
-        self.assertNotIn("commit `aaaaaaa`", text)
-        self.assertIn("commit `abc1234`", text)
-        self.assertIn("commit `def5678`", text)
+        self.assertNotIn("`aaaaaaa`", text)
+        self.assertIn("commit [`abc1234`](https://github.com/maggnus/ymp/commit/abc1234)", text)
+        self.assertIn("commit [`def5678`](https://github.com/maggnus/ymp/commit/def5678)", text)
+        self.assertIn(
+            "commit [`960fc18`](https://github.com/maggnus/ymp/commit/960fc18223a24ebb8d794dcdfa2581ec5cb85282)", text
+        )
+        self.assertNotIn("`bbbbbbb`", text)
+        self.assertNotIn("`ccccccc`", text)
         self.assertIn("`new` is unscheduled", text)
 
     def test_progress_timestamp_overflow_cannot_mask_a_successful_record_write(self) -> None:
@@ -793,7 +817,7 @@ class ManageCliTests(unittest.TestCase):
         self.assertEqual(json.loads(finished.stdout)["revision"], 3)
         text = progress.read_text()
         self.assertIn("| [x] | [W1-0001](records/W1-0001.json) |", text)
-        self.assertIn("`0123456`", text)
+        self.assertIn("commit [`0123456`](https://github.com/maggnus/ymp/commit/0123456789abcdef0123456789abcdef01234567)", text)
         draft = record("W1-0002", dependencies=["W1-0001"])
         for field in ("id", "revision", "history"):
             draft.pop(field)

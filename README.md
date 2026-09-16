@@ -44,7 +44,8 @@ the facts worth keeping from it are collected in [legacy lessons](ymp-docs/legac
 ## Development tasks
 
 Read [task progress in Markdown](ymp-docs/tasks/PROGRESS.md): per-wave tables with
-`[ ]`, `[x]`, `[~]`, `[!]` and `[=]` marks, Hong Kong timestamps and evidence commits.
+`[ ]`, `[x]`, `[~]`, `[!]` and `[=]` marks, Hong Kong timestamps and links to the
+evidence commits on GitHub.
 Task write commands and `make all-checks` regenerate it; `make tasks-progress`
 regenerates it on demand after the canonical task records change any other way.
 

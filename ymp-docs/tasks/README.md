@@ -14,7 +14,8 @@ Open [PROGRESS.md](PROGRESS.md) for the generated Markdown view of task status:
 a wave summary, the latest recorded update for active tasks, and one table per wave
 with a status mark, title, area, state, dependencies, owner, last change and the
 evidence references. Explicit `commit <hash>` references and Git commit URLs are
-shown with shortened hashes; other evidence remains labeled as evidence.
+shown as shortened hashes that link to the commit in the GitHub repository
+(`https://github.com/maggnus/ymp`); other evidence remains labeled as evidence.
 Marks are `[ ]` not started (including unscheduled `new`), `[x]` done, `[~]` in
 progress, `[!]` rejected, and `[=]` paused, waiting for the owner, or planned with
 unfinished dependencies. Timestamps are Hong Kong time (UTC+08:00); a dependency is

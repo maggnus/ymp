@@ -81,7 +81,9 @@ PROGRESS_MARKS = {
 }
 PROGRESS_COLUMNS = ("done", "active", "open", "held", "rejected")
 COMMIT_PATTERN = re.compile(r"(?:\bcommit\b\s*[:=]?\s*`?|/commits?/)([0-9a-f]{7,64})(?![0-9a-f])", re.IGNORECASE)
+BARE_COMMIT_PATTERN = re.compile(r"(?<![0-9a-zA-Z])([0-9a-f]{40})(?![0-9a-zA-Z])")
 SHORT_COMMIT_CHARS = 7
+COMMIT_URL = "https://github.com/maggnus/ymp/commit/{commit}"
 
 
 class TaskError(Exception):
@@ -959,13 +961,18 @@ def progress_time(value: str) -> str:
 
 
 def commit_references(record: dict[str, Any]) -> list[str]:
-    references: list[str] = []
+    """Distinct commit hashes named in evidence, the longest spelling per short prefix."""
+    references: dict[str, str] = {}
     for item in record["evidence"]:
-        for match in COMMIT_PATTERN.findall(item):
+        for match in [*COMMIT_PATTERN.findall(item), *BARE_COMMIT_PATTERN.findall(item)]:
             short = match[:SHORT_COMMIT_CHARS]
-            if short not in references:
-                references.append(short)
-    return references
+            if len(match) > len(references.get(short, "")):
+                references[short] = match
+    return list(references.values())
+
+
+def commit_link(commit: str) -> str:
+    return f"commit [`{commit[:SHORT_COMMIT_CHARS]}`]({COMMIT_URL.format(commit=commit)})"
 
 
 def progress_cell(text: str) -> str:
@@ -988,7 +995,7 @@ def progress_dependencies(record: dict[str, Any], records: dict[str, dict[str, A
 
 
 def render_progress(records: dict[str, dict[str, Any]]) -> str:
-    tasks = sorted(records.values(), key=sort_key)
+    tasks = sorted(records.values(), key=lambda record: task_id_parts(record["id"]))
     kinds = {record["id"]: progress_kind(record, records) for record in tasks}
     counts = collections.Counter(kinds.values())
     lines = [
@@ -1066,7 +1073,7 @@ def render_progress(records: dict[str, dict[str, Any]]) -> str:
             evidence = []
             for reference in record["evidence"]:
                 commits = commit_references({"evidence": [reference]})
-                evidence.append(", ".join(f"commit `{commit}`" for commit in commits) if commits else progress_cell(truncate(reference, SUMMARY_TEXT_CHARS)))
+                evidence.append(", ".join(commit_link(commit) for commit in commits) if commits else progress_cell(truncate(reference, SUMMARY_TEXT_CHARS)))
             evidence_text = "; ".join(evidence) or "—"
             lines.append(
                 f"| {PROGRESS_MARKS[kind]} "
