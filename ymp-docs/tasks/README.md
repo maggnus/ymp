@@ -8,6 +8,26 @@ authority.
 Use Python 3.11 or newer. `manage.py` uses only the standard library and does not
 access application data, providers, models, credentials, or the network.
 
+## Readable progress
+
+Open [PROGRESS.md](PROGRESS.md) for the generated Markdown view of task status:
+a wave summary, the latest recorded update for active tasks, and one table per wave
+with a status mark, title, area, state, dependencies, owner, last change and the
+evidence references. Explicit `commit <hash>` references and Git commit URLs are
+shown with shortened hashes; other evidence remains labeled as evidence.
+Marks are `[ ]` not started (including unscheduled `new`), `[x]` done, `[~]` in
+progress, `[!]` rejected, and `[=]` paused, waiting for the owner, or planned with
+unfinished dependencies. Timestamps are Hong Kong time (UTC+08:00); a dependency is
+followed by `✓` when done and `✗` when rejected. Dates outside the representable
+Hong Kong display range retain their original timestamp with an explicit label.
+
+The write commands (`create`, `update`, `claim`, `status`) rewrite the file
+atomically after each successful record change, `make all-checks` refreshes it, and
+`make tasks-progress` (`manage.py progress --write`) refreshes it on demand after
+records change any other way. The file is a presentation of the canonical JSON
+records, not an independently edited status source; never change its statuses by
+hand, and commit it together with the records.
+
 ## Waves and record paths
 
 Each task has an ID such as `W1-0001`, `W1-0002`, or `W2-0001` and lives directly
@@ -85,7 +105,8 @@ this directory.
 | `deps ID` | Transitive dependency summaries ordered by distance and ID. |
 | `history ID` | History entries, newest first. |
 | `summary` | Status counts grouped separately by wave, area, and task type. |
-| `render` | A bounded Markdown overview on standard output. It does not write an index or cache. |
+| `render` | A bounded Markdown overview, including latest active-task updates, on standard output. It does not write an index or cache. |
+| `progress` | The complete human-readable progress tables on standard output; `--write` rewrites `PROGRESS.md` in the task root atomically under the writer lock. It is unpaginated and meant for the generated file, not for reading the register from an agent. |
 | `check` | Validate schemas, stable paths, revision/history consistency, and the complete dependency graph. |
 
 `list`, `deps`, and `history` default to 20 results and accept at most 100.
@@ -101,7 +122,8 @@ display size, and history notes are shortened to 1,000 display characters. These
 display limits do not alter canonical records.
 
 Read commands scan the JSON files but do not create the writer lock or modify
-records. Examples:
+records; `progress --write` takes the writer lock and rewrites only `PROGRESS.md`.
+Examples:
 
 ```sh
 python3 ymp-docs/tasks/manage.py next --wave W1
@@ -112,6 +134,7 @@ python3 ymp-docs/tasks/manage.py deps W1-0008 --limit 20 --offset 0
 python3 ymp-docs/tasks/manage.py history W1-0003 --limit 20 --offset 0
 python3 ymp-docs/tasks/manage.py summary
 python3 ymp-docs/tasks/manage.py render --limit 20
+python3 ymp-docs/tasks/manage.py progress --write
 python3 ymp-docs/tasks/manage.py check
 ```
 

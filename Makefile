@@ -13,7 +13,7 @@ ARGS ?=
 .DEFAULT_GOAL := help
 .PHONY: help build fmt fmt-check clippy test doc verify run clean legacy-scan \
         tasks-check tasks-next tasks-list tasks-show tasks-deps tasks-history tasks-summary tasks-render \
-        tasks-claim tasks-status tasks-test all-checks
+        tasks-claim tasks-status tasks-test tasks-progress all-checks
 
 help: ## List targets
 	@printf 'Targets:\n'
@@ -81,6 +81,9 @@ tasks-summary: ## Status counts by wave, area and type
 tasks-render: ## Bounded Markdown overview on stdout
 	$(TASKS) render --limit 20
 
+tasks-progress: ## Refresh ymp-docs/tasks/PROGRESS.md (record writes and all-checks refresh it too)
+	$(TASKS) progress --write
+
 tasks-claim: ## Claim a ready task: make tasks-claim ID=W1-0001 REV=4
 	@test -n "$(ID)" && test -n "$(REV)" || { echo 'usage: make tasks-claim ID=W1-0001 REV=4 [OWNER=name]'; exit 2; }
 	$(TASKS) claim $(ID) --owner $(OWNER) --expect-revision $(REV)
@@ -92,8 +95,9 @@ tasks-status: ## Record a status change: make tasks-status ID=… STATE=… REV=
 tasks-test: ## Test the task tool itself (required before changing the workflow)
 	python3 -m unittest discover -s ymp-docs/tasks/tests -v
 	$(TASKS) render --limit 20 >/dev/null
+	$(TASKS) progress >/dev/null
 
 # ---- Everything CONTRIBUTING.md asks for before submitting a change ----
 
-all-checks: tasks-test tasks-check verify ## Task-tool tests, register check and the four Cargo checks
+all-checks: tasks-test tasks-check tasks-progress verify ## Task-tool tests, register check, PROGRESS.md refresh and the four Cargo checks
 	@printf 'all-checks: task register and workspace checks passed\n'

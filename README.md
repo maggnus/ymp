@@ -43,6 +43,11 @@ the facts worth keeping from it are collected in [legacy lessons](ymp-docs/legac
 
 ## Development tasks
 
+Read [task progress in Markdown](ymp-docs/tasks/PROGRESS.md): per-wave tables with
+`[ ]`, `[x]`, `[~]`, `[!]` and `[=]` marks, Hong Kong timestamps and evidence commits.
+Task write commands and `make all-checks` regenerate it; `make tasks-progress`
+regenerates it on demand after the canonical task records change any other way.
+
 Use the [development workflow](ymp-docs/development-tasks.md) and
 [task guide](ymp-docs/tasks/README.md). Status lives in individual records under
 `ymp-docs/tasks/records/`; planning does not start implementation.

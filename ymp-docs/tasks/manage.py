@@ -13,7 +13,7 @@ import re
 import sys
 import tempfile
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Iterator
 
@@ -70,6 +70,18 @@ MAX_SHOW_CHARS = 50_000
 SUMMARY_TEXT_CHARS = 180
 DETAIL_TEXT_CHARS = 1_000
 MAX_SLUG_CHARS = 64
+PROGRESS_FILE = "PROGRESS.md"
+PROGRESS_ZONE = timezone(timedelta(hours=8), "HKT")
+PROGRESS_MARKS = {
+    "open": "[ ]",
+    "done": "[x]",
+    "active": "[~]",
+    "rejected": "[!]",
+    "held": "[=]",
+}
+PROGRESS_COLUMNS = ("done", "active", "open", "held", "rejected")
+COMMIT_PATTERN = re.compile(r"(?:\bcommit\b\s*[:=]?\s*`?|/commits?/)([0-9a-f]{7,64})(?![0-9a-f])", re.IGNORECASE)
+SHORT_COMMIT_CHARS = 7
 
 
 class TaskError(Exception):
@@ -568,6 +580,7 @@ def create_task(store: TaskStore, args: argparse.Namespace) -> None:
         proposed[candidate["id"]] = candidate
         validate_records(proposed)
         path = store.write_record(candidate, create=True)
+        refresh_progress(store, proposed)
     emit_json({"created": candidate["id"], "revision": 1, "path": str(path.relative_to(store.root))})
 
 
@@ -592,6 +605,7 @@ def update_task(store: TaskStore, args: argparse.Namespace) -> None:
         proposed[args.id] = candidate
         validate_records(proposed)
         store.write_record(candidate)
+        refresh_progress(store, proposed)
     emit_json({"updated": args.id, "revision": candidate["revision"]})
 
 
@@ -618,6 +632,7 @@ def claim_task(store: TaskStore, args: argparse.Namespace) -> None:
         proposed[args.id] = candidate
         validate_records(proposed)
         store.write_record(candidate)
+        refresh_progress(store, proposed)
     emit_json({"claimed": args.id, "owner": owner, "revision": candidate["revision"]})
 
 
@@ -649,6 +664,7 @@ def status_task(store: TaskStore, args: argparse.Namespace) -> None:
         proposed[args.id] = candidate
         validate_records(proposed)
         store.write_record(candidate)
+        refresh_progress(store, proposed)
     emit_json(
         {
             "status": args.state,
@@ -883,6 +899,29 @@ def command_render(records: dict[str, dict[str, Any]], args: argparse.Namespace)
         if counts[status]:
             print(f"| `{status}` | {counts[status]} |")
     print()
+    if selected:
+        print("## Wave progress")
+        print()
+        print("| Wave | Done | Total | In progress |")
+        print("| --- | ---: | ---: | ---: |")
+        for wave in sorted({task_id_parts(record["id"])[0] for record in selected}):
+            members = [record for record in records.values() if task_id_parts(record["id"])[0] == wave]
+            done = sum(record["status"] == "done" for record in members)
+            running = sum(record["status"] == "in_progress" for record in members)
+            print(f"| W{wave} | {done} | {len(members)} | {running} |")
+        print()
+    active = [record for record in selected if record["status"] in {"in_progress", "owner_question", "paused"}]
+    if active:
+        print("## Current work")
+        print()
+        for record in active:
+            latest = record["history"][-1]
+            print(f"### {record['id']} — `{record['status']}`")
+            print()
+            print(f"Revision {record['revision']}; updated {latest['at']}.")
+            print()
+            print(truncate(latest["note"], 1_000))
+            print()
     print(f"## Tasks ({metadata['returned']} shown of {metadata['total']}, offset {metadata['offset']})")
     print()
     for record in selected:
@@ -894,6 +933,193 @@ def command_render(records: dict[str, dict[str, Any]], args: argparse.Namespace)
     if metadata["next_offset"] is not None:
         print()
         print(f"Output truncated. Continue with `render --offset {metadata['next_offset']} --limit {args.limit}`.")
+
+
+def progress_kind(record: dict[str, Any], records: dict[str, dict[str, Any]]) -> str:
+    status = record["status"]
+    if status == "done":
+        return "done"
+    if status == "rejected":
+        return "rejected"
+    if status == "in_progress":
+        return "active"
+    if status in {"paused", "owner_question"}:
+        return "held"
+    if status == "planned" and unfinished_dependencies(record, records):
+        return "held"
+    return "open"
+
+
+def progress_time(value: str) -> str:
+    moment = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    try:
+        return moment.astimezone(PROGRESS_ZONE).strftime("%Y-%m-%d %H:%M")
+    except OverflowError:
+        return f"{value} (outside HKT display range)"
+
+
+def commit_references(record: dict[str, Any]) -> list[str]:
+    references: list[str] = []
+    for item in record["evidence"]:
+        for match in COMMIT_PATTERN.findall(item):
+            short = match[:SHORT_COMMIT_CHARS]
+            if short not in references:
+                references.append(short)
+    return references
+
+
+def progress_cell(text: str) -> str:
+    return " ".join(text.split()).replace("|", "\\|") or "—"
+
+
+def progress_state(record: dict[str, Any], kind: str) -> str:
+    if record["status"] == "planned" and kind == "held":
+        return "planned (blocked)"
+    return record["status"]
+
+
+def progress_dependencies(record: dict[str, Any], records: dict[str, dict[str, Any]]) -> str:
+    cells = []
+    for dependency in record["depends_on"]:
+        status = records[dependency]["status"]
+        suffix = " ✓" if status == "done" else " ✗" if status == "rejected" else ""
+        cells.append(f"{dependency}{suffix}")
+    return ", ".join(cells) or "—"
+
+
+def render_progress(records: dict[str, dict[str, Any]]) -> str:
+    tasks = sorted(records.values(), key=sort_key)
+    kinds = {record["id"]: progress_kind(record, records) for record in tasks}
+    counts = collections.Counter(kinds.values())
+    lines = [
+        "# Development task progress",
+        "",
+        "Generated from the canonical JSON records in [`records/`](records/) by "
+        "`python3 ymp-docs/tasks/manage.py progress --write`. Task write commands "
+        "and `make tasks-progress` refresh it; do not edit statuses here.",
+        "",
+    ]
+    overview = (
+        f"Tasks: {len(tasks)} ({counts['done']} done, {counts['active']} in progress, "
+        f"{counts['open']} open, {counts['held']} paused or blocked, {counts['rejected']} rejected). "
+        "Times are Hong Kong time (UTC+08:00)."
+    )
+    latest = max((record["history"][-1]["at"] for record in tasks), key=lambda value: datetime.fromisoformat(value.replace("Z", "+00:00")), default=None)
+    if latest is not None:
+        overview += f" Last record change: {progress_time(latest)}."
+    lines += [overview, ""]
+    lines += [
+        "| Mark | Meaning |",
+        "| :---: | --- |",
+        f"| {PROGRESS_MARKS['open']} | not started (`new` is unscheduled; `planned` is ready only when dependencies are done) |",
+        f"| {PROGRESS_MARKS['done']} | done |",
+        f"| {PROGRESS_MARKS['active']} | in progress |",
+        f"| {PROGRESS_MARKS['rejected']} | rejected |",
+        f"| {PROGRESS_MARKS['held']} | paused or blocked (`paused`, `owner_question`, or `planned` with unfinished dependencies) |",
+        "",
+    ]
+    if not tasks:
+        lines += ["No tasks are recorded.", ""]
+        return "\n".join(lines)
+    waves = sorted({task_id_parts(record["id"])[0] for record in tasks})
+    members = {wave: [record for record in tasks if task_id_parts(record["id"])[0] == wave] for wave in waves}
+    lines += [
+        "## Waves",
+        "",
+        "| Wave | Done | In progress | Open | Paused or blocked | Rejected | Total | Done % |",
+        "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
+    ]
+    for wave in waves:
+        wave_counts = collections.Counter(kinds[record["id"]] for record in members[wave])
+        total = len(members[wave])
+        percent = round(100 * wave_counts["done"] / total)
+        cells = " | ".join(str(wave_counts[kind]) for kind in PROGRESS_COLUMNS)
+        lines.append(f"| [W{wave}](#wave-w{wave}) | {cells} | {total} | {percent}% |")
+    lines.append("")
+    attention = [record for record in tasks if record["status"] in {"in_progress", "owner_question", "paused"}]
+    if attention:
+        lines += ["## Current work", ""]
+        for record in attention:
+            entry = record["history"][-1]
+            lines += [
+                f"### {record['id']} — {PROGRESS_MARKS[kinds[record['id']]]} {record['status']}",
+                "",
+                f"{progress_cell(record['title'])}. Owner: {record['owner'] or '—'}; "
+                f"revision {record['revision']}; updated {progress_time(entry['at'])} by {progress_cell(entry['actor'])}.",
+                "",
+                truncate(entry["note"], DETAIL_TEXT_CHARS),
+                "",
+            ]
+    for wave in waves:
+        wave_counts = collections.Counter(kinds[record["id"]] for record in members[wave])
+        lines += [
+            f"## Wave W{wave}",
+            "",
+            f"{wave_counts['done']} of {len(members[wave])} done; {wave_counts['active']} in progress; "
+            f"{wave_counts['held']} paused or blocked.",
+            "",
+            "| Status | Task | Title | Area | State | Depends on | Owner | Updated (HKT) | Rev | Evidence |",
+            "| :---: | --- | --- | --- | --- | --- | --- | --- | ---: | --- |",
+        ]
+        for record in members[wave]:
+            kind = kinds[record["id"]]
+            evidence = []
+            for reference in record["evidence"]:
+                commits = commit_references({"evidence": [reference]})
+                evidence.append(", ".join(f"commit `{commit}`" for commit in commits) if commits else progress_cell(truncate(reference, SUMMARY_TEXT_CHARS)))
+            evidence_text = "; ".join(evidence) or "—"
+            lines.append(
+                f"| {PROGRESS_MARKS[kind]} "
+                f"| [{record['id']}](records/{record['id']}.json) "
+                f"| {progress_cell(truncate(record['title'], SUMMARY_TEXT_CHARS))} "
+                f"| {progress_cell(record['area'])} "
+                f"| {progress_state(record, kind)} "
+                f"| {progress_dependencies(record, records)} "
+                f"| {progress_cell(record['owner'] or '')} "
+                f"| {progress_time(record['history'][-1]['at'])} "
+                f"| {record['revision']} "
+                f"| {evidence_text} |"
+            )
+        lines.append("")
+    return "\n".join(lines)
+
+
+def write_progress(store: TaskStore, document: str) -> Path:
+    destination = store.root / PROGRESS_FILE
+    if destination.is_symlink():
+        raise TaskError(f"{PROGRESS_FILE} must not be a symlink: {destination}")
+    descriptor, temporary_name = tempfile.mkstemp(prefix=f".{PROGRESS_FILE}.tmp-", dir=store.root, text=True)
+    temporary = Path(temporary_name)
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+            handle.write(document)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, destination)
+    except BaseException:
+        temporary.unlink(missing_ok=True)
+        raise
+    return destination
+
+
+def refresh_progress(store: TaskStore, records: dict[str, dict[str, Any]]) -> None:
+    """Keep PROGRESS.md current after a record write without failing the write itself."""
+    try:
+        write_progress(store, render_progress(records))
+    except Exception as error:
+        # A derived presentation must never turn an already committed record
+        # update into an apparent failed mutation.
+        print(f"warning: {PROGRESS_FILE} was not refreshed: {error}", file=sys.stderr)
+
+
+def command_progress(store: TaskStore, args: argparse.Namespace) -> None:
+    if not args.write:
+        sys.stdout.write(render_progress(store.load()))
+        return
+    with store.writer_lock():
+        records = store.load()
+        path = write_progress(store, render_progress(records))
+    print(f"Refreshed {path.relative_to(store.root)}: {len(records)} tasks")
 
 
 def add_page_arguments(parser: argparse.ArgumentParser, *, default: int = DEFAULT_PAGE) -> None:
@@ -973,6 +1199,13 @@ def build_parser() -> argparse.ArgumentParser:
     status_parser.add_argument("--actor")
     status_parser.add_argument("--evidence", action="append")
 
+    progress_parser = commands.add_parser(
+        "progress", help="human-readable Markdown progress tables; --write refreshes PROGRESS.md"
+    )
+    progress_parser.add_argument(
+        "--write", action="store_true", help=f"atomically rewrite {PROGRESS_FILE} in the task root"
+    )
+
     check_parser = commands.add_parser("check", help="validate every canonical record")
     check_parser.add_argument("--json", action="store_true")
     return parser
@@ -991,6 +1224,9 @@ def run(args: argparse.Namespace) -> None:
         return
     if args.command == "status":
         status_task(store, args)
+        return
+    if args.command == "progress":
+        command_progress(store, args)
         return
 
     records = store.load()

@@ -91,7 +91,9 @@ a `rejected` status alone does not establish that cleanup occurred.
 - `deps ID` and `history ID` provide paginated detail. Dependency output contains
   summaries, not the bodies of all prerequisite tasks.
 - `summary` groups counts by wave, area and task type. `render` emits a bounded Markdown
-  overview to stdout; no generated status document is a second source of truth.
+  overview to stdout, and `progress --write` regenerates the human-readable
+  `PROGRESS.md` tables (write commands do this automatically); no generated status
+  document is a second source of truth.
 - Read commands support bounded limits and offsets, and machine-readable JSON
   where useful. Report total matches and how to retrieve the next page. Cap list,
   dependency and history page sizes at 100; default to 20. A long title or note

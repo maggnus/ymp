@@ -498,6 +498,19 @@ class ManageCliTests(unittest.TestCase):
         self.assertLess(len(rendered), 2_000)
         self.assertIn("truncated", rendered)
 
+    def test_render_includes_the_latest_active_update_from_records(self) -> None:
+        self.write_record(record("W1-0001", status="in_progress", owner="codex", note="Snapshot checks passed; root binding remains.", revision=2))
+        self.write_record(record("W1-0002", note="Planned detail stays out of current work."))
+        rendered = self.run_cli("render").stdout
+        self.assertIn("| W1 | 0 | 2 | 1 |", rendered)
+        self.assertIn("## Current work", rendered)
+        self.assertIn("### W1-0001 — `in_progress`", rendered)
+        self.assertIn("Revision 2; updated", rendered)
+        self.assertIn("Snapshot checks passed; root binding remains.", rendered)
+        self.assertNotIn("Planned detail stays out of current work.", rendered)
+        page = self.run_cli("render", "--offset", "1", "--limit", "1").stdout
+        self.assertNotIn("## Current work", page)
+
     def test_read_commands_do_not_modify_the_task_root(self) -> None:
         self.write_record(record("W1-0001"))
         before = {
@@ -513,6 +526,7 @@ class ManageCliTests(unittest.TestCase):
             ("history", "W1-0001"),
             ("summary",),
             ("render",),
+            ("progress",),
             ("check",),
         ):
             self.run_cli(*command)
@@ -690,6 +704,123 @@ class ManageCliTests(unittest.TestCase):
         unknown = self.run_cli("show", "W1-9999", expected=3)
         self.assertIn("unknown task W1-9999", unknown.stderr)
         self.assertNotIn("Traceback", too_large.stderr + unknown.stderr)
+
+    def test_progress_tables_use_marks_hong_kong_time_and_evidence_commits(self) -> None:
+        self.write_record(
+            record(
+                "W1-0001",
+                status="done",
+                owner="codex",
+                evidence=["Commit adc78d190c023192d158259756fc86f31ca4fd59 in main; checked on 20260915."],
+                revision=2,
+            )
+        )
+        self.write_record(record("W1-0002", status="in_progress", owner="codex", dependencies=["W1-0001"]))
+        self.write_record(record("W1-0003", dependencies=["W1-0002"], title="Blocked | by two"))
+        self.write_record(record("W1-0004"))
+        self.write_record(record("W1-0005", status="paused"))
+        self.write_record(record("W1-0006", status="rejected"))
+        self.write_record(record("W1-0007", status="owner_question"))
+        self.write_record(record("W2-0001", status="new", dependencies=["W1-0006"]))
+        first = self.run_cli("progress").stdout
+        self.assertEqual(first, self.run_cli("progress").stdout)
+        self.assertFalse((self.root / "PROGRESS.md").exists())
+        self.assertIn("Last record change: 2026-09-15 08:02.", first)
+        self.assertIn("| [W1](#wave-w1) | 1 | 1 | 1 | 3 | 1 | 7 | 14% |", first)
+        self.assertIn("| [W2](#wave-w2) | 0 | 0 | 1 | 0 | 0 | 1 | 0% |", first)
+        self.assertIn("### W1-0002 — [~] in_progress", first)
+        self.assertIn(
+            "| [x] | [W1-0001](records/W1-0001.json) | Task W1-0001 | test | done | — | codex "
+            "| 2026-09-15 08:02 | 2 | commit `adc78d1` |",
+            first,
+        )
+        self.assertIn(
+            "| [~] | [W1-0002](records/W1-0002.json) | Task W1-0002 | test | in_progress | W1-0001 ✓ | codex "
+            "| 2026-09-15 08:01 | 1 | — |",
+            first,
+        )
+        self.assertIn("| [=] | [W1-0003](records/W1-0003.json) | Blocked \\| by two | test | planned (blocked) | W1-0002 | — |", first)
+        self.assertIn("| [ ] | [W1-0004](records/W1-0004.json) | Task W1-0004 | test | planned | — | — |", first)
+        self.assertIn("| [=] | [W1-0005](records/W1-0005.json) | Task W1-0005 | test | paused |", first)
+        self.assertIn("| [!] | [W1-0006](records/W1-0006.json) | Task W1-0006 | test | rejected |", first)
+        self.assertIn("| [=] | [W1-0007](records/W1-0007.json) | Task W1-0007 | test | owner_question |", first)
+        self.assertIn("| [ ] | [W2-0001](records/W2-0001.json) | Task W2-0001 | test | new | W1-0006 ✗ |", first)
+        self.assertNotIn("`2026091", first)
+        written = self.run_cli("progress", "--write").stdout
+        self.assertIn("Refreshed PROGRESS.md: 8 tasks", written)
+        self.assertEqual((self.root / "PROGRESS.md").read_text(), first)
+        self.assertEqual([path.name for path in self.root.iterdir() if path.name.startswith(".PROGRESS")], [])
+
+    def test_progress_distinguishes_commit_references_and_orders_real_instants(self) -> None:
+        first = record("W1-0001", evidence=["snapshot " + "a" * 64, "commit abc1234", "https://example.test/repo/commit/def5678"])
+        first["history"][-1]["at"] = "2026-09-16T00:00:00+08:00"
+        second = record("W1-0002")
+        second["history"][-1]["at"] = "2026-09-15T23:00:00Z"
+        self.write_record(first)
+        self.write_record(second)
+        text = self.run_cli("progress").stdout
+        self.assertIn("Last record change: 2026-09-16 07:00", text)
+        self.assertIn("snapshot " + "a" * 64, text)
+        self.assertNotIn("commit `aaaaaaa`", text)
+        self.assertIn("commit `abc1234`", text)
+        self.assertIn("commit `def5678`", text)
+        self.assertIn("`new` is unscheduled", text)
+
+    def test_progress_timestamp_overflow_cannot_mask_a_successful_record_write(self) -> None:
+        value = record("W1-0001")
+        value["history"][-1]["at"] = "9999-12-31T23:59:59Z"
+        self.write_record(value)
+        self.write_record(record("W1-0002"))
+        result = self.run_cli("claim", "W1-0002", "--owner", "worker", "--expect-revision", "1")
+        self.assertEqual(json.loads(result.stdout)["revision"], 2)
+        self.assertNotIn("Traceback", result.stderr)
+        self.assertIn("outside HKT display range", (self.root / "PROGRESS.md").read_text())
+
+    def test_record_writes_refresh_the_progress_document(self) -> None:
+        self.write_record(record("W1-0001"))
+        progress = self.root / "PROGRESS.md"
+        self.assertFalse(progress.exists())
+        claimed = self.run_cli("claim", "W1-0001", "--owner", "worker-a", "--expect-revision", "1")
+        self.assertEqual(json.loads(claimed.stdout)["revision"], 2)
+        self.assertIn(
+            "| [~] | [W1-0001](records/W1-0001.json) | Task W1-0001 | test | in_progress | — | worker-a |",
+            progress.read_text(),
+        )
+        finished = self.run_cli(
+            "status", "W1-0001", "done", "--expect-revision", "2", "--note", "Finished.",
+            "--evidence", "Commit 0123456789abcdef0123456789abcdef01234567 in main",
+        )
+        self.assertEqual(json.loads(finished.stdout)["revision"], 3)
+        text = progress.read_text()
+        self.assertIn("| [x] | [W1-0001](records/W1-0001.json) |", text)
+        self.assertIn("`0123456`", text)
+        draft = record("W1-0002", dependencies=["W1-0001"])
+        for field in ("id", "revision", "history"):
+            draft.pop(field)
+        created = self.run_cli("create", "--wave", "W1", "--file", str(self.write_input("draft.json", draft)))
+        self.assertEqual(json.loads(created.stdout)["created"], "W1-0002")
+        self.assertIn("| [ ] | [W1-0002](records/W1-0002.json) | Task W1-0002 | test | planned | W1-0001 ✓ |", progress.read_text())
+        patch = self.write_input("patch.json", {"title": "Renamed through update"})
+        updated = self.run_cli("update", "W1-0002", "--file", str(patch), "--expect-revision", "1", "--note", "Renamed.")
+        self.assertEqual(json.loads(updated.stdout)["revision"], 2)
+        text = progress.read_text()
+        self.assertIn("| Renamed through update |", text)
+        self.assertEqual(text, self.run_cli("progress").stdout)
+        self.assertEqual([path.name for path in self.root.iterdir() if path.name.startswith(".PROGRESS")], [])
+
+    def test_symlinked_progress_document_is_not_followed(self) -> None:
+        self.write_record(record("W1-0001"))
+        target = Path(self.temporary.name) / "elsewhere.md"
+        target.write_text("keep\n")
+        (self.root / "PROGRESS.md").symlink_to(target)
+        result = self.run_cli("claim", "W1-0001", "--owner", "worker-a", "--expect-revision", "1")
+        self.assertEqual(json.loads(result.stdout)["revision"], 2)
+        self.assertIn("PROGRESS.md was not refreshed", result.stderr)
+        self.assertNotIn("Traceback", result.stderr)
+        self.assertEqual(target.read_text(), "keep\n")
+        self.assertTrue((self.root / "PROGRESS.md").is_symlink())
+        refused = self.run_cli("progress", "--write", expected=3)
+        self.assertIn("must not be a symlink", refused.stderr)
 
 
 if __name__ == "__main__":

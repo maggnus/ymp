@@ -70,6 +70,11 @@ updates and retain its expected-revision checks. The roadmap describes product
 outcomes and links to records; do not maintain duplicate status labels there.
 Task ownership is cooperative development coordination, not runtime authority.
 Do not record speculative progress as completion or create another task database.
+The task write commands (`create`, `update`, `claim`, `status`) and `make all-checks`
+refresh the generated Markdown presentation at `ymp-docs/tasks/PROGRESS.md`; run
+`make tasks-progress` after changing records any other way, and commit the refreshed
+file with the records. Never edit its statuses by hand; the JSON records remain the
+only authoritative source.
 
 Use these exact development-task commands from the repository root:
 
@@ -84,6 +89,7 @@ Before committing changes to the task workflow itself, also run:
 ```sh
 python3 -m unittest discover -s ymp-docs/tasks/tests -v
 python3 ymp-docs/tasks/manage.py render --limit 20 >/dev/null
+python3 ymp-docs/tasks/manage.py progress >/dev/null
 ```
 
 ## Standing authorization for native experiments
