@@ -36,7 +36,7 @@
     "Admission design review: prepare a sealed, non-serializable access plan without journalling or live handles; consume it once only after confirmed complete admission. Preserve original resource policy input by starting the attempt-bound packet with ReservationChanged, then optional matching LockChanged, GrantIssued, active CommitmentChanged and final AssignmentAdmitted. Strict order/nonce/assignment checks must prevent reuse of older standalone resources and incomplete/interleaved appends. Prepare the grant secret privately and persist only its digest. Confirmed post-commit capability-delivery failure is not an admission denial; journal data cannot recreate a second live handle/secret. No-files requires enforceable absence of file access, not merely empty declared needs. CAS conflicts cannot cancel another admission; only the exact current Proposed commitment may be cancelled on a confirmed denial. Memory no-files consumer plus explicit synthetic scoped-plan conformance is acceptable; real filesystem admission and cross-session atomicity require SQLite/WorkspaceGuard integration.",
     "Gatekeeper candidate committed on main as 2af2032. The kernel now validates an attempt-bound AdmissionIntent against the exact Award, offer, source acceptance contract, Registry profile, task pins/capabilities, workspace boundary, resource decisions, lease and commitment. It prepares resources from the current view, includes optional PreparedMediation ownership, creates a local secret whose digest is persisted, and commits ReservationChanged + optional LockChanged + GrantIssued + Active CommitmentChanged + AssignmentAdmitted as one packet under a random nonce. The replay projection rejects incomplete/interleaved packets. Final issuance compares the complete stored intent, pinned admission reference and binding before returning the one-time GrantToken/handle; restart cannot recreate local capability. Revocation atomically invalidates financial/path authority and Assignment while retaining unresolved holds and un-settled usage. Capacity reserves cover revoke and later release/settlement; dedicated tests pass at journal limits. AdmissionRuntime connects current CostModel/ResourcePolicy proposals and WorkspaceGuard plans without starting a backend. Fifteen admission integration tests pass, including MemoryJournal/SQLite, real mediated paths, no-file actual-capability boundary, stale pins, cross-session conflict, limits, self-consistent packet tampering, lost acknowledgements, cancellation race, post-commit delivery, revocation and application wiring. Full workspace tests, build, fmt, Clippy, legacy-scan and task check pass. Independent review accepted all prior W1-0006 checkpoints but hit provider usage limit before final review; keep task in progress until final independent review is available. W1-0007 owns later commitment lifecycle; W1-0017 owns actual execution lifecycle."
   ],
-  "revision": 9,
+  "revision": 10,
   "history": [
     {
       "revision": 1,
@@ -100,6 +100,13 @@
       "actor": "codex",
       "status": "in_progress",
       "note": "Gatekeeper implementation is committed on main as 2af2032 and all repository checks pass. The candidate covers atomic resource/path/grant/commitment/assignment admission, one-time local capability delivery, CAS-safe cancellation, revoke and capacity reservations. Independent review accepted prior checkpoints but is unavailable for final review due provider usage limit; task remains in progress pending that review."
+    },
+    {
+      "revision": 10,
+      "at": "2026-09-16T12:04:34.705292Z",
+      "actor": "codex",
+      "status": "in_progress",
+      "note": "Full Gatekeeper candidate is committed on main as 2af2032. Fifteen admission integration tests pass, including complete intent pinning, no-file actual-capability checks, limits, cross-session conflicts, CAS-safe cancellation, lost acknowledgements, post-commit delivery, revoke and capacity. Full cargo test workspace, build, fmt, Clippy, legacy-scan and task check pass. Independent reviewer accepted all prior checkpoints and then hit provider usage limit before final whole-package review; keep in_progress until that independent review is available."
     }
   ]
 }
