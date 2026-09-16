@@ -55,7 +55,26 @@ pub enum ContributionKind {
     Narrate,
     Judge,
 }
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+pub enum Competence {
+    Planning,
+    CheckDesign,
+    Implementation,
+    Verification,
+    Research,
+    Synthesis,
+}
 impl ContributionKind {
+    pub fn competence(self) -> Competence {
+        match self {
+            Self::Plan | Self::Decompose | Self::Clarify => Competence::Planning,
+            Self::DesignChecks => Competence::CheckDesign,
+            Self::Produce | Self::Alternative | Self::Integrate => Competence::Implementation,
+            Self::Verify | Self::Review | Self::Judge => Competence::Verification,
+            Self::Research | Self::Diagnose => Competence::Research,
+            Self::Narrate | Self::Curate => Competence::Synthesis,
+        }
+    }
     pub fn purpose(self) -> Purpose {
         match self {
             Self::Produce | Self::Alternative | Self::Integrate => Purpose::Production,

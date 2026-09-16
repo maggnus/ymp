@@ -90,6 +90,18 @@ pub struct ExecutionProfile {
     pub family: Option<String>,
     pub effort: Option<String>,
 }
+impl ExecutionProfile {
+    pub fn validate(&self) -> Result<()> {
+        require_text(&self.model, 256)?;
+        for value in [&self.provider_version, &self.family, &self.effort]
+            .into_iter()
+            .flatten()
+        {
+            require_text(value, 256)?;
+        }
+        Ok(())
+    }
+}
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum DiscoverySource {
     Native,

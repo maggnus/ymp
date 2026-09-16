@@ -22,6 +22,7 @@ use ymp_domain::{
 pub struct SessionView {
     session: Id,
     revision: u64,
+    latest_at: u64,
     opened: bool,
     policies: BTreeMap<String, PolicySelection>,
     method: Option<Method>,
@@ -32,6 +33,7 @@ pub struct SessionView {
     criteria: Vec<Criterion>,
     registry: Option<Box<crate::registry::PoolRecorded>>,
     treasury: Option<Box<crate::treasury::TreasuryView>>,
+    coordination: crate::arbiter::CoordinationView,
     workspaces: BTreeMap<Id<ymp_domain::workspace::Workspace>, ymp_domain::workspace::Workspace>,
     snapshots: BTreeMap<Id<ymp_domain::workspace::Snapshot>, ymp_domain::workspace::Snapshot>,
     path_locks: BTreeMap<Id, crate::workspace_locks::AssignmentLocks>,
@@ -46,6 +48,7 @@ impl SessionView {
         Self {
             session,
             revision: 0,
+            latest_at: 0,
             opened: false,
             policies: BTreeMap::new(),
             method: None,
@@ -56,6 +59,7 @@ impl SessionView {
             criteria: Vec::new(),
             registry: None,
             treasury: None,
+            coordination: crate::arbiter::CoordinationView::default(),
             workspaces: BTreeMap::new(),
             snapshots: BTreeMap::new(),
             path_locks: BTreeMap::new(),
@@ -87,6 +91,9 @@ impl SessionView {
     ) -> &BTreeMap<Id<ymp_domain::workspace::Snapshot>, ymp_domain::workspace::Snapshot> {
         &self.snapshots
     }
+    pub fn coordination(&self) -> &crate::arbiter::CoordinationView {
+        &self.coordination
+    }
     pub fn treasury(&self) -> Option<&crate::treasury::TreasuryView> {
         self.treasury.as_deref()
     }
@@ -107,6 +114,10 @@ impl SessionView {
     }
     pub fn session(&self) -> &Id {
         &self.session
+    }
+    /// Latest timestamp already represented in this journal projection.
+    pub fn latest_at(&self) -> u64 {
+        self.latest_at
     }
     pub fn revision(&self) -> u64 {
         self.revision
@@ -197,7 +208,21 @@ impl SessionView {
         for reference in &event.refs {
             self.resolve(reference)?;
         }
+        self.coordination.check_next(&event.payload)?;
         match &event.payload {
+            Event::ContributionProposed { .. }
+            | Event::SolicitationOpened { .. }
+            | Event::OfferSubmitted { .. }
+            | Event::Awarded { .. }
+            | Event::CommitmentChanged { .. } => {
+                if !matches!(event.payload, Event::CommitmentChanged { .. }) {
+                    self.validate_complete()?;
+                }
+                self.coordination = crate::arbiter::apply(self, event, schemas)?;
+                if let Event::ContributionProposed { contribution, .. } = &event.payload {
+                    self.references.insert(contribution.reference()?);
+                }
+            }
             Event::WorkspaceBound {
                 workspace, binding, ..
             } => {
@@ -521,6 +546,7 @@ impl SessionView {
         }
         self.references.insert(event.reference()?);
         self.revision = event.seq;
+        self.latest_at = self.latest_at.max(event.at);
         Ok(())
     }
     fn validate_intake_note(&self, event: &Envelope<Event>) -> Result<()> {
@@ -542,6 +568,7 @@ impl SessionView {
     }
 
     pub(crate) fn validate_complete(&self) -> Result<()> {
+        self.coordination.complete()?;
         if let Some(book) = &self.treasury {
             let task = self
                 .task

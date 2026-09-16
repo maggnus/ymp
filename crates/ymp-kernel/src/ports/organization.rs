@@ -1,2 +1,7 @@
-//! Placeholder: no behavior yet. Owner: VolunteerPolicy, AwardPolicy, TeamPolicy, ProfilePolicy, ReviewerPolicy, SelectionPolicy, DisputePolicy (W1-0013, W3, W4).
-//! Created by owner decision on 2026-09-16; see ymp-docs/project-worktree.md.
+//! Award strategy boundary. Participant bidding and team strategy ports follow in W3.
+use crate::arbiter::AwardView;
+use ymp_domain::{Proposal, Result, coordination::Award, journal::PolicySelection};
+pub trait AwardPolicy: Send + Sync {
+    fn selection(&self) -> &PolicySelection;
+    fn award(&self, view: &AwardView) -> Result<Proposal<Award>>;
+}

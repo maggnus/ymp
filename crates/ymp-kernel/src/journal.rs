@@ -22,6 +22,10 @@ impl Default for ParameterSchemas {
         Self {
             validators: BTreeMap::from([
                 (
+                    ("AwardPolicy".into(), "FirstOffer".into(), "1".into()),
+                    validate_first_offer as ParameterValidator,
+                ),
+                (
                     ("WorkspaceProvider".into(), "Direct".into(), "1".into()),
                     validate_direct as ParameterValidator,
                 ),
@@ -52,6 +56,15 @@ impl Default for ParameterSchemas {
             ]),
         }
     }
+}
+fn validate_first_offer(selection: &PolicySelection) -> Result<()> {
+    if selection.parameters != serde_json::json!({}) {
+        return Err(Denial::new(
+            "policy_parameters",
+            "FirstOffer version 1 has no parameters",
+        ));
+    }
+    Ok(())
 }
 fn validate_direct(selection: &PolicySelection) -> Result<()> {
     let limits: ymp_domain::workspace::CaptureLimits =
@@ -241,6 +254,13 @@ pub fn resolve_append(
     if current.revision >= end {
         let stored = &current.events[offset..offset + events.len()];
         if encode(&stored)? == encode(&events)? {
+            if end < current.revision {
+                JournalRead {
+                    revision: end,
+                    events: current.events[..offset + events.len()].to_vec(),
+                }
+                .view_with_schemas(session, None, schemas)?;
+            }
             return Ok(AppendResolution::Committed(end));
         }
     }

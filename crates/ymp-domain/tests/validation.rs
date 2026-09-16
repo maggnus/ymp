@@ -111,3 +111,21 @@ fn finite_reals_preserve_their_exact_bits_and_digest_through_json() {
         );
     }
 }
+
+#[test]
+fn probabilities_reject_out_of_range_values_at_construction_and_input() {
+    for value in [f64::NAN, f64::INFINITY, f64::NEG_INFINITY, -0.1, 1.01] {
+        assert!(ymp_domain::Prob::new(value).is_err());
+    }
+    for json in ["-0.1", "1.01", "null", "\"0.5\""] {
+        assert!(serde_json::from_str::<ymp_domain::Prob>(json).is_err());
+    }
+    for value in [0.0, 0.5, 1.0] {
+        let probability = ymp_domain::Prob::new(value).unwrap();
+        assert_eq!(
+            serde_json::from_str::<ymp_domain::Prob>(&serde_json::to_string(&probability).unwrap())
+                .unwrap(),
+            probability
+        );
+    }
+}

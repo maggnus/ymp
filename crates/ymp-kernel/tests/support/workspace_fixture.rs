@@ -40,6 +40,16 @@ pub fn open_with_capabilities<J: Journal, C: ContentStore>(
     provider: &dyn WorkspaceProvider,
     capabilities: BTreeSet<Capability>,
 ) -> (WorkspaceGuard<J, C>, ExecutionProfile) {
+    open_with_policies(journal, store, session, provider, capabilities, vec![])
+}
+pub fn open_with_policies<J: Journal, C: ContentStore>(
+    journal: Arc<J>,
+    store: Arc<C>,
+    session: &Id,
+    provider: &dyn WorkspaceProvider,
+    capabilities: BTreeSet<Capability>,
+    mut selections: Vec<PolicySelection>,
+) -> (WorkspaceGuard<J, C>, ExecutionProfile) {
     let probe = PolicySelection::new(
         "ReadinessProbe",
         "StaticDependencyProbe",
@@ -47,6 +57,7 @@ pub fn open_with_capabilities<J: Journal, C: ContentStore>(
         serde_json::json!({}),
     )
     .unwrap();
+    selections.extend([provider.selection().clone(), probe.clone()]);
     Intake::new(journal.clone())
         .open(
             session.clone(),
@@ -81,7 +92,7 @@ pub fn open_with_capabilities<J: Journal, C: ContentStore>(
                     needs_class: BTreeSet::new(),
                 }],
             },
-            vec![provider.selection().clone(), probe.clone()],
+            selections,
         )
         .unwrap();
     let registry = Registry::new(journal.clone());

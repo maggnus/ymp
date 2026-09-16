@@ -53,7 +53,7 @@ ymp/
     │   │   ├── resources.rs        # W1-0004: Budget, PriceBook, Reservation, Receipt, Allowance
     │   │   ├── workspace.rs        # W1-0005: Workspace, PathLock, Snapshot, Artifact
     │   │   ├── assignment.rs       # W1-0006: Contribution, Assignment, Grant, Invocation
-    │   │   ├── coordination.rs     # W1-0007: Commitment, Lease; W3: Board, Notice, Offer, Objection
+    │   │   ├── coordination.rs     # W1-0006: admission/award foundations; W1-0007: commitment lifecycle; W3: collaboration
     │   │   ├── plan.rs             # W1-0008: Plan, WorkItem, Attempt
     │   │   ├── result.rs           # W1-0008: ResultVersion
     │   │   ├── verification.rs     # W1-0009: Check, CheckSpec, CheckRun; W1-0019: Evidence, Review

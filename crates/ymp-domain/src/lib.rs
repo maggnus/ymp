@@ -127,6 +127,36 @@ impl<'de, T> Deserialize<'de> for Id<T> {
     }
 }
 
+/// A finite probability validated at construction and deserialization.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Serialize, Deserialize)]
+#[serde(try_from = "f64", into = "f64")]
+pub struct Prob(task::Real);
+impl Prob {
+    pub fn new(value: f64) -> Result<Self> {
+        if !(0.0..=1.0).contains(&value) {
+            return Err(Denial::new(
+                "probability",
+                "Probability must be finite and within zero and one",
+            ));
+        }
+        Ok(Self(task::Real::new(value)?))
+    }
+    pub fn get(self) -> f64 {
+        self.0.get()
+    }
+}
+impl TryFrom<f64> for Prob {
+    type Error = Denial;
+    fn try_from(value: f64) -> Result<Self> {
+        Self::new(value)
+    }
+}
+impl From<Prob> for f64 {
+    fn from(value: Prob) -> Self {
+        value.get()
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(try_from = "String", into = "String")]
 pub struct Digest(String);

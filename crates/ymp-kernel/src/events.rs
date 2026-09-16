@@ -29,6 +29,26 @@ pub struct CriteriaCommitted {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub enum Event {
+    ContributionProposed {
+        version: u32,
+        contribution: Box<ymp_domain::assignment::Contribution>,
+    },
+    SolicitationOpened {
+        version: u32,
+        solicitation: Box<ymp_domain::coordination::Solicitation>,
+    },
+    OfferSubmitted {
+        version: u32,
+        offer: Box<ymp_domain::coordination::Offer>,
+    },
+    Awarded {
+        version: u32,
+        data: Box<crate::arbiter::Awarded>,
+    },
+    CommitmentChanged {
+        version: u32,
+        change: crate::arbiter::CommitmentChange,
+    },
     WorkspaceBound {
         version: u32,
         workspace: ymp_domain::Id<ymp_domain::workspace::Workspace>,
@@ -91,6 +111,11 @@ pub enum Event {
 impl Event {
     pub fn contents(&self) -> Result<EventContent> {
         let selections: Vec<&PolicySelection> = match self {
+            Self::ContributionProposed { .. }
+            | Self::SolicitationOpened { .. }
+            | Self::OfferSubmitted { .. }
+            | Self::CommitmentChanged { .. } => vec![],
+            Self::Awarded { data, .. } => vec![&data.decision.effective],
             Self::LockChanged { .. } | Self::WorkspaceBound { .. } => vec![],
             Self::WorkspaceOpened { workspace, .. } => vec![&workspace.provider],
             Self::SnapshotTaken { .. } => vec![],
@@ -130,7 +155,12 @@ impl Event {
     }
     pub fn version(&self) -> u32 {
         match self {
-            Self::WorkspaceBound { version, .. }
+            Self::ContributionProposed { version, .. }
+            | Self::SolicitationOpened { version, .. }
+            | Self::OfferSubmitted { version, .. }
+            | Self::Awarded { version, .. }
+            | Self::CommitmentChanged { version, .. }
+            | Self::WorkspaceBound { version, .. }
             | Self::LockChanged { version, .. }
             | Self::WorkspaceOpened { version, .. }
             | Self::SnapshotTaken { version, .. }

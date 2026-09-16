@@ -341,6 +341,14 @@ entity Workspace { id; kind: Direct | IsolatedCopy(base: Id<Snapshot>); root: Pa
 value PathLock { path: Path; mode: Read | Write; holder: Id<Assignment> }
 ```
 
+The Rust `ContributionSubject` preserves subject kind and a versioned Ref;
+`ContributionRecord` retains the original acceptance contract reference so unchanged
+criterion IDs cannot hide changed meanings. `CoordinationView` is a read-only journal
+projection of contributions, solicitations, offers, awards and commitments. Awarded
+and the corresponding Proposed Commitment are one atomic packet. The domain value
+representations of Assignment, Grant and Invocation do not themselves establish that
+admission, execution or later commitment transitions are implemented.
+
 `PathObservation` is the implementation's recorded physical ancestry (`FileIdentity`
 for each existing component) and missing suffix for a WorkspacePath. An
 `ObservedPathLock` pairs this observation with the model's PathLock so names alone
