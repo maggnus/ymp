@@ -43,6 +43,10 @@ The [result consumer](ymp-docs/result-implementation.md) records an explicit
 one-item plan and immutable production candidates with continuously protected
 before/after snapshots. Abandoned attempts and candidate bytes remain available
 after restart; submission does not establish acceptance.
+The [evidence consumer](ymp-docs/evidence-implementation.md) derives attributed
+evidence from recorded checks and independent reviews. One applicability contract
+checks the expected result, criterion/check versions and environment throughout
+review dependencies. Belief and acceptance remain separate work.
 The remaining modules are placeholders under
 [the proposed layout](ymp-docs/project-worktree.md). The executable still has no
 interactive or task-execution behavior.

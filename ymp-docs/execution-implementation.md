@@ -68,8 +68,8 @@ authority nor acceptance.
 
 Heartbeat has a real progress consumer. CheckRun progress resolves an exact
 retained run, responsibility target and workspace. EvidenceAdded and
-ResultSubmitted observations are retained but cannot renew a commitment until
-their owning kernel facts exist. Replaying one progress observation cannot renew
+ResultSubmitted observations are retained; their lease-renewal integration remains
+pending even when the underlying facts exist. Replaying one progress observation cannot renew
 the lease twice.
 
 ## Evidence and limits

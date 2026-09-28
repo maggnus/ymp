@@ -29,6 +29,14 @@ pub struct CriteriaCommitted {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub enum Event {
+    EvidenceRecorded {
+        version: u32,
+        data: Box<crate::acceptance::EvidenceRecorded>,
+    },
+    ReviewRecorded {
+        version: u32,
+        data: Box<crate::acceptance::ReviewRecorded>,
+    },
     PlanCommitted {
         version: u32,
         data: Box<crate::results::PlanRecord>,
@@ -170,6 +178,7 @@ pub enum Event {
 impl Event {
     pub fn contents(&self) -> Result<EventContent> {
         let selections: Vec<&PolicySelection> = match self {
+            Self::EvidenceRecorded { .. } | Self::ReviewRecorded { .. } => vec![],
             Self::PlanCommitted { .. }
             | Self::AttemptStarted { .. }
             | Self::ResultSubmitted { .. }
@@ -210,6 +219,11 @@ impl Event {
             | Self::AssumptionRecorded { .. } => vec![],
         };
         let mut content = EventContent::default();
+        if let Self::EvidenceRecorded { data, .. } = self
+            && let Some(environment) = &data.scope.environment
+        {
+            content.required.insert(environment.clone());
+        }
         if let Self::ResultSubmitted { result, .. } = self {
             content
                 .required
@@ -245,6 +259,9 @@ impl Event {
     }
     pub fn version(&self) -> u32 {
         match self {
+            Self::EvidenceRecorded { version, .. } | Self::ReviewRecorded { version, .. } => {
+                *version
+            }
             Self::PlanCommitted { version, .. }
             | Self::AttemptStarted { version, .. }
             | Self::ResultSubmitted { version, .. }

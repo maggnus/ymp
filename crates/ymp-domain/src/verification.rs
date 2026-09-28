@@ -1,4 +1,4 @@
-//! Executable checks and attributed observations; no acceptance or evidence decisions.
+//! Checks, evidence and attributed reviews; no acceptance decisions.
 use crate::{
     Denial, Digest, Id, Ref, Result,
     assignment::{Assignment, ErrorClass},
@@ -201,5 +201,129 @@ impl CheckRun {
             id: self.id.erased(),
             version: Digest::of_value(self)?,
         })
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum Polarity {
+    Supports,
+    Contradicts,
+}
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Discrimination {
+    pub baseline_fails: Option<bool>,
+    pub candidate_passes: bool,
+    pub mutation_score: Option<crate::task::Real>,
+}
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Evidence {
+    pub id: Id<Evidence>,
+    pub criterion: Id<Criterion>,
+    pub result: Option<Id<crate::result::ResultVersion>>,
+    pub class: crate::task::EvidenceClass,
+    pub independence: Independence,
+    pub runs: Vec<Id<CheckRun>>,
+    pub discrimination: Discrimination,
+    pub author: Option<Id<crate::identity::Agent>>,
+    pub polarity: Polarity,
+}
+impl Evidence {
+    pub fn validate(&self) -> Result<()> {
+        if self.runs.len() > 128
+            || self.runs.iter().collect::<BTreeSet<_>>().len() != self.runs.len()
+            || self
+                .discrimination
+                .mutation_score
+                .is_some_and(|score| !(0.0..=1.0).contains(&score.get()))
+        {
+            return Err(Denial::new(
+                "evidence",
+                "Evidence has duplicate runs or invalid discrimination",
+            ));
+        }
+        Ok(())
+    }
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ReviewVerdict {
+    Approve,
+    Reject,
+    NeedsEvidence,
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum FindingSeverity {
+    Blocking,
+    Advisory,
+}
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Finding {
+    pub criterion: Option<Id<Criterion>>,
+    pub text: String,
+    pub severity: FindingSeverity,
+    pub proposed_check: Option<CheckSpec>,
+}
+impl Finding {
+    pub fn validate(&self) -> Result<()> {
+        crate::require_text(&self.text, 4096)?;
+        if let Some(spec) = &self.proposed_check {
+            match spec {
+                CheckSpec::Command {
+                    program,
+                    args,
+                    inputs,
+                } if program == &WorkspacePath::root()
+                    || inputs.contains(&WorkspacePath::root())
+                    || inputs.len() > 1024
+                    || args.len() > 256
+                    || args.iter().any(|a| a.len() > 16_384 || a.contains('\0')) =>
+                {
+                    return Err(Denial::new(
+                        "finding_check",
+                        "Suggested command exceeds bounded check syntax",
+                    ));
+                }
+                CheckSpec::ExactBytes { path, .. } if path == &WorkspacePath::root() => {
+                    return Err(Denial::new(
+                        "finding_check",
+                        "Suggested byte check must name a file",
+                    ));
+                }
+                _ => {}
+            }
+        }
+        Ok(())
+    }
+}
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Review {
+    pub id: Id<Review>,
+    pub result: Id<crate::result::ResultVersion>,
+    pub reviewer: Id<crate::identity::Agent>,
+    pub profile: crate::identity::ExecutionProfile,
+    pub verdict: ReviewVerdict,
+    pub findings: Vec<Finding>,
+    pub basis: Vec<Id<Evidence>>,
+}
+impl Review {
+    pub fn validate(&self) -> Result<()> {
+        self.profile.validate()?;
+        if self.reviewer != self.profile.agent
+            || self.findings.len() > 256
+            || self.basis.len() > 128
+            || self.basis.iter().collect::<BTreeSet<_>>().len() != self.basis.len()
+        {
+            return Err(Denial::new(
+                "review",
+                "Invalid reviewer, findings or repeated evidence",
+            ));
+        }
+        for finding in &self.findings {
+            finding.validate()?;
+        }
+        Ok(())
     }
 }

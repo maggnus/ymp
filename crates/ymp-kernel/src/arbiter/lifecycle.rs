@@ -1102,6 +1102,13 @@ fn projected_completion(
         ));
     }
     match (&input.fact, cancel, &contribution.subject) {
+        (
+            CompletionFact::NonArtifactCompleted,
+            false,
+            Some(ymp_domain::assignment::ContributionSubject::ResultVersion(_)),
+        ) if contribution.kind == ymp_domain::assignment::ContributionKind::Review => {
+            Ok(CommitmentState::Discharged)
+        }
         (CompletionFact::NonArtifactCompleted, false, None)
             if !matches!(
                 contribution.kind,

@@ -95,6 +95,10 @@ pub(crate) fn subject_item<'a>(
     let Some(subject) = &contribution.subject else {
         return Ok(None);
     };
+    if matches!(subject, ContributionSubject::ResultVersion(_)) {
+        review_subject(view, contribution)?;
+        return Ok(None);
+    }
     let ContributionSubject::WorkItem(reference) = subject else {
         return Err(Denial::new(
             "subject_unsupported",
@@ -121,6 +125,35 @@ pub(crate) fn subject_item<'a>(
         ));
     }
     Ok(Some(item))
+}
+pub(crate) fn review_subject<'a>(
+    view: &'a SessionView,
+    contribution: &Contribution,
+) -> Result<Option<&'a ResultVersion>> {
+    let Some(ContributionSubject::ResultVersion(reference)) = &contribution.subject else {
+        return Ok(None);
+    };
+    if contribution.kind != ContributionKind::Review {
+        return Err(Denial::new(
+            "subject_unsupported",
+            "Only Review supports a ResultVersion subject here",
+        )
+        .with_ref(reference.clone()));
+    }
+    let result = view
+        .results()
+        .results
+        .values()
+        .find(|r| r.reference().is_ok_and(|r| r == *reference))
+        .ok_or_else(|| Denial::new("review_subject", "No exact retained result for review"))?;
+    let item = &view.results().items[&result.item];
+    if contribution.targets != item.targets {
+        return Err(Denial::new(
+            "review_subject",
+            "Only review of the exact result and all its targets is available",
+        ));
+    }
+    Ok(Some(result))
 }
 pub(crate) fn validate_admission(view: &SessionView, contribution: &Contribution) -> Result<()> {
     if let Some(item) = subject_item(view, contribution)?

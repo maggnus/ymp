@@ -5,12 +5,12 @@
   "title": "Bind attributed evidence and reviews to immutable results",
   "type": "implementation",
   "priority": 109,
-  "status": "planned",
+  "status": "in_progress",
   "depends_on": [
     "W1-0008",
     "W1-0009"
   ],
-  "owner": null,
+  "owner": "codex",
   "goal": "Turn recorded check runs and reviewer verdicts into attributed Evidence bound to the exact result version, criterion, check version and environment, with the applicability rules shared by A7, A8 and claim audit.",
   "scope": [
     "Implement Evidence with criterion/result, EvidenceClass StaticRead/Executed/Browser/ExternalData/Inspection, Independence, run references, Discrimination and Supports/Contradicts polarity, created only by AcceptanceAuthority.evidence from W1-0009 CheckRuns against a W1-0008 ResultVersion.",
@@ -29,7 +29,7 @@
     "Created 2026-09-16 by splitting the original W1-0009. Proposed modules: Evidence and Review in crates/ymp-domain/src/verification.rs and the evidence part of crates/ymp-kernel/src/acceptance.rs. W1-0008 supplies immutable ResultVersions; W1-0009 supplies CheckRuns.",
     "Do not compute belief, grades or acceptance here; W1-0010 owns A7/A8 and consumes this task’s applicability contract."
   ],
-  "revision": 2,
+  "revision": 6,
   "history": [
     {
       "revision": 1,
@@ -44,6 +44,34 @@
       "actor": "owner",
       "status": "planned",
       "note": "Start decision 2026-09-16: W1 scheduled; readiness follows dependencies."
+    },
+    {
+      "revision": 3,
+      "at": "2026-09-28T09:04:43.121952Z",
+      "actor": "codex",
+      "status": "in_progress",
+      "note": "Claimed by codex."
+    },
+    {
+      "revision": 4,
+      "at": "2026-09-28T09:45:23.951302Z",
+      "actor": "codex",
+      "status": "in_progress",
+      "note": "R1(7/10) RETURN recorded 28/09 17:44 — Independent review found that expected check/environment context was not propagated through Review and derived Inspection bases. Added one explicit ApplicabilityContext shared by every evidence/review source traversal; a changed assessment environment must exclude the entire dependent chain while preserving recorded statements. Existing real-candidate scenario had passed before this directed correction; targeted confirmation follows."
+    },
+    {
+      "revision": 5,
+      "at": "2026-09-28T10:01:26.021180Z",
+      "actor": "codex",
+      "status": "in_progress",
+      "note": "R2(9/10) ACCEPT recorded 28/09 18:00 — Independent review confirmed that one consumer-selected applicability context reaches every Evidence/Review/Inspection dependency. The positive real-candidate scenario passed (111.67 s); removing Review-to-Evidence traversal produced exit 101 specifically at the changed-environment Review assertion. Documentation and unsupported source/acceptance boundaries were reviewed. Clippy and diff checks passed; full make verify remains in progress."
+    },
+    {
+      "revision": 6,
+      "at": "2026-09-28T10:06:42.457957Z",
+      "actor": "codex",
+      "status": "in_progress",
+      "note": "Post-review verification 28/09 18:06 — Full workspace tests exposed an existing unsupported-subject assertion: Produce with ResultVersion must still return subject_unsupported. The narrow Review-only guard now runs before result lookup; the independent reviewer confirmed the correction, and cargo test -p ymp-storage --offline --test arbiter exited 0 (2 tests). Final make verify restarted after formatting; no completion is claimed yet."
     }
   ]
 }

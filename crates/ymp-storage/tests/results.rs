@@ -10,12 +10,28 @@ mod admission_fixture;
 #[path = "../../ymp-kernel/tests/support/workspace_fixture.rs"]
 mod fixture;
 use admission_fixture::Setup;
-use std::{collections::BTreeSet, sync::Arc};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    sync::Arc,
+};
 use ymp_domain::{
-    Digest, Id, assignment::*, coordination::*, journal::Capability, plan::*, resources::*,
-    result::*, task::Real, workspace::*,
+    Digest, Id, Proposal, Ref,
+    assignment::*,
+    coordination::*,
+    journal::{Capability, PolicySelection},
+    plan::*,
+    resources::*,
+    result::*,
+    task::{EvidenceClass, Real},
+    verification::*,
+    workspace::*,
 };
 use ymp_kernel::{
+    acceptance::{
+        AcceptanceAuthority, ApplicabilityContext, EvidenceRecorded, EvidenceRequest,
+        RegisterCheck, ReviewRequest, RunCheck, applicable_evidence, evidence_applicable,
+        review_applicable,
+    },
     gatekeeper::Gatekeeper,
     journal::{Journal, ParameterSchemas},
     ports::{execution::ExecutionBackend, resources::CostModel},
@@ -23,6 +39,7 @@ use ymp_kernel::{
 };
 use ymp_runtime::{
     backends::scripted::{Scripted, ScriptedStep},
+    checks::{process::ProcessRunner, retained::RetainedBytes},
     clock::ManualClock,
     execution_host::{ExecutionHost, ExecutionStatus},
     policies::award::FirstOffer,
@@ -35,7 +52,9 @@ fn finish(
     host: &ExecutionHost<SqliteJournal, ymp_storage::content::SqliteContent>,
     live: &mut ymp_runtime::execution_host::LiveInvocation<SqliteJournal>,
 ) {
-    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(15);
+    // Invocation deadlines use ManualClock. This separate watchdog only detects
+    // stalled test orchestration while debug SQLite replays the growing history.
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(45);
     while host.poll(live).unwrap() != ExecutionStatus::Finished {
         assert!(
             std::time::Instant::now() < deadline,
@@ -86,7 +105,16 @@ fn producer_candidate_retains_bytes_and_abandoned_retry_keeps_distinct_history()
             release_delta: Real::new(1.0).unwrap(),
         })
         .unwrap(),
-        vec![backend.selection().clone()],
+        vec![
+            backend.selection().clone(),
+            PolicySelection::new(
+                "VerificationDesigner",
+                "ExplicitVisible",
+                "1",
+                serde_json::json!({}),
+            )
+            .unwrap(),
+        ],
     );
     // The fixture's replacement gate only reads state to build proposals; all
     // real grants, file handles and consumers retain the original issuer.
@@ -95,6 +123,10 @@ fn producer_candidate_retains_bytes_and_abandoned_retry_keeps_distinct_history()
         Gatekeeper::new(journal.clone(), Arc::new(journal.content_store())),
     ));
     let results = Results::new(journal.clone(), gate.clone()).unwrap();
+    let authority = s.intake.acceptance(Arc::new(journal.content_store()));
+    let expected = register_bytes(&s, &authority, "expected-bytes", b"candidate");
+    let contradicted = register_bytes(&s, &authority, "contradicted-bytes", b"baseline");
+    let mut prior_evidence: Option<EvidenceRecorded> = None;
     s.files = false;
     let award = s.award("planning");
     let (revision, at, mut request) = s.request("planner", award);
@@ -326,6 +358,56 @@ fn producer_candidate_retains_bytes_and_abandoned_retry_keeps_distinct_history()
         assert_eq!(result.profile, s.profile);
         assert_eq!(result.before, before);
         assert_eq!(result.after, after);
+        let supporting = check_evidence(&s, &authority, &result, &expected, number);
+        let view = gate.view(&s.session).unwrap();
+        assert_eq!(supporting.evidence.class, EvidenceClass::Executed);
+        assert_eq!(supporting.evidence.independence, Independence::Trusted);
+        assert_eq!(
+            supporting.evidence.discrimination.baseline_fails,
+            Some(true)
+        );
+        assert!(supporting.evidence.discrimination.candidate_passes);
+        assert!(supporting.evidence.discrimination.mutation_score.is_none());
+        assert!(evidence_applicable(&view, &supporting, &assessment(&supporting)).unwrap());
+        assert_eq!(
+            applicable_evidence(&view, &assessment(&supporting)).unwrap(),
+            vec![&supporting]
+        );
+        let mut other_environment = assessment(&supporting);
+        other_environment.environments.insert(
+            supporting.scope.check.clone().unwrap(),
+            BTreeSet::from([Digest::of(b"another environment")]),
+        );
+        assert!(
+            applicable_evidence(&view, &other_environment)
+                .unwrap()
+                .is_empty()
+        );
+        if let Some(prior) = &prior_evidence {
+            assert!(!evidence_applicable(&view, prior, &assessment(&supporting)).unwrap());
+            assert!(view.evidence().contains_key(&prior.evidence.id));
+        }
+        prior_evidence = Some(supporting.clone());
+        if number == 1 {
+            check_negative_sources(
+                &s,
+                &authority,
+                &result,
+                &expected,
+                &contradicted,
+                &supporting,
+            );
+            record_independent_review(
+                &mut s,
+                &gate,
+                &host,
+                &clock,
+                &authority,
+                &result,
+                &supporting,
+            );
+        }
+        let at = gate.view(&s.session).unwrap().latest_at();
         let view = gate.view(&s.session).unwrap();
         assert_eq!(
             view.results().items()[&id("item")].state,
@@ -393,5 +475,395 @@ fn producer_candidate_retains_bytes_and_abandoned_retry_keeps_distinct_history()
         ymp_kernel::arbiter::Arbiter::new(journal.clone())
             .tick(gate.as_ref(), &s.session, expired_at)
             .unwrap();
+    }
+}
+
+type Authority = AcceptanceAuthority<SqliteJournal, ymp_storage::content::SqliteContent>;
+fn register_bytes(
+    s: &Setup<SqliteJournal>,
+    authority: &Authority,
+    name: &str,
+    bytes: &[u8],
+) -> Check {
+    let view = s.gate.view(&s.session).unwrap();
+    let policy = PolicySelection::new(
+        "VerificationDesigner",
+        "ExplicitVisible",
+        "1",
+        serde_json::json!({}),
+    )
+    .unwrap();
+    let mut check = Check {
+        id: id(name),
+        criterion: id("criterion"),
+        criterion_version: view.criteria()[0].reference().unwrap().version,
+        spec: CheckSpec::ExactBytes {
+            path: WorkspacePath::new("file").unwrap(),
+            digest: Digest::of(bytes),
+        },
+        author: CheckAuthor::User,
+        independence: Independence::Trusted,
+        visibility: CheckVisibility::Visible,
+        needs: BTreeSet::from([Capability::ReadFiles]),
+        verifier: None,
+        version: Digest::of(b"pending"),
+    };
+    check.version = check.content_version().unwrap();
+    authority
+        .register_check(
+            &s.control,
+            RegisterCheck {
+                expected_revision: view.revision(),
+                at: view.latest_at() + 1,
+                proposal: Proposal {
+                    value: check,
+                    rationale: "Explicit content criterion".into(),
+                    basis: vec![],
+                    policy: policy.policy.clone(),
+                },
+                effective: policy,
+            },
+        )
+        .unwrap()
+}
+fn recorded_run(
+    s: &Setup<SqliteJournal>,
+    authority: &Authority,
+    name: &str,
+    check: &Check,
+    target: &Id<Snapshot>,
+    role: CheckRunRole,
+    runner: &dyn ymp_kernel::ports::checks::CheckRunner,
+) -> CheckRun {
+    let view = s.gate.view(&s.session).unwrap();
+    authority
+        .run(
+            &s.control,
+            RunCheck {
+                expected_revision: view.revision(),
+                at: view.latest_at() + 1,
+                id: id(name),
+                check: check.reference(),
+                target: target.clone(),
+                role,
+            },
+            runner,
+        )
+        .unwrap()
+}
+fn evidence_request(
+    s: &Setup<SqliteJournal>,
+    name: &str,
+    result: &ResultVersion,
+    runs: Vec<Id<CheckRun>>,
+    reviews: Vec<Id<Review>>,
+) -> EvidenceRequest {
+    let view = s.gate.view(&s.session).unwrap();
+    EvidenceRequest {
+        expected_revision: view.revision(),
+        at: view.latest_at() + 1,
+        id: id(name),
+        criterion: view.criteria()[0].reference().unwrap(),
+        result: result.reference().unwrap(),
+        runs,
+        reviews,
+    }
+}
+fn check_evidence(
+    s: &Setup<SqliteJournal>,
+    authority: &Authority,
+    result: &ResultVersion,
+    check: &Check,
+    number: usize,
+) -> EvidenceRecorded {
+    let baseline = recorded_run(
+        s,
+        authority,
+        &format!("baseline-{number}"),
+        check,
+        &result.before,
+        CheckRunRole::Baseline,
+        &RetainedBytes,
+    );
+    let candidate = recorded_run(
+        s,
+        authority,
+        &format!("candidate-{number}"),
+        check,
+        &result.after,
+        CheckRunRole::Candidate,
+        &RetainedBytes,
+    );
+    authority
+        .evidence(
+            &s.control,
+            evidence_request(
+                s,
+                &format!("support-{number}"),
+                result,
+                vec![baseline.id, candidate.id],
+                vec![],
+            ),
+        )
+        .unwrap()
+}
+fn check_negative_sources(
+    s: &Setup<SqliteJournal>,
+    authority: &Authority,
+    result: &ResultVersion,
+    check: &Check,
+    negative: &Check,
+    supporting: &EvidenceRecorded,
+) {
+    let other = recorded_run(
+        s,
+        authority,
+        "other-snapshot",
+        check,
+        &result.before,
+        CheckRunRole::Candidate,
+        &RetainedBytes,
+    );
+    assert_eq!(
+        authority
+            .evidence(
+                &s.control,
+                evidence_request(s, "wrong-snapshot", result, vec![other.id], vec![])
+            )
+            .unwrap_err()
+            .code,
+        "evidence_run"
+    );
+    let failed = recorded_run(
+        s,
+        authority,
+        "failed-candidate",
+        negative,
+        &result.after,
+        CheckRunRole::Candidate,
+        &RetainedBytes,
+    );
+    let evidence = authority
+        .evidence(
+            &s.control,
+            evidence_request(s, "contradiction", result, vec![failed.id], vec![]),
+        )
+        .unwrap();
+    assert_eq!(evidence.evidence.polarity, Polarity::Contradicts);
+    let view = s.gate.view(&s.session).unwrap();
+    assert!(!evidence_applicable(&view, &evidence, &assessment(supporting)).unwrap());
+    let runner = ProcessRunner::new(CheckLimits {
+        timeout_ms: 1000,
+        output_bytes: 4096,
+    })
+    .unwrap();
+    let baseline = recorded_run(
+        s,
+        authority,
+        "other-environment",
+        check,
+        &result.before,
+        CheckRunRole::Baseline,
+        &runner,
+    );
+    assert_eq!(
+        authority
+            .evidence(
+                &s.control,
+                evidence_request(
+                    s,
+                    "mixed-environments",
+                    result,
+                    vec![id("candidate-1"), baseline.id],
+                    vec![]
+                )
+            )
+            .unwrap_err()
+            .code,
+        "evidence_environment"
+    );
+    let mut forged = supporting.clone();
+    forged.evidence.class = EvidenceClass::Browser;
+    assert!(
+        !evidence_applicable(
+            &s.gate.view(&s.session).unwrap(),
+            &forged,
+            &assessment(supporting)
+        )
+        .unwrap()
+    );
+}
+fn reviewer_request(
+    s: &mut Setup<SqliteJournal>,
+    gate: &Gatekeeper<SqliteJournal, ymp_storage::content::SqliteContent>,
+    name: &str,
+    result: &Ref,
+) -> (u64, u64, ymp_kernel::gatekeeper::AdmissionRequest) {
+    let award = s.award_kind(
+        name,
+        ContributionKind::Review,
+        BTreeSet::from([Capability::ReadFiles]),
+        Some(ContributionSubject::ResultVersion(result.clone())),
+    );
+    let files = s.files;
+    s.files = false;
+    let (revision, at, mut request) = s.request_with_gate(gate, name, award, "file");
+    s.files = files;
+    request.role = RoleKind::Reviewer;
+    request.access = BTreeSet::from([Capability::ReadFiles]);
+    request.files = Some(
+        gate.workspace()
+            .prepare_mediation(
+                &s.session,
+                revision,
+                at,
+                ymp_kernel::workspace_guard::LockRequest {
+                    assignment: id(name),
+                    workspace: id("workspace"),
+                    profile: s.profile.clone(),
+                    paths: vec![(WorkspacePath::new("file").unwrap(), LockMode::Read)],
+                },
+                s.provider.clone(),
+            )
+            .unwrap(),
+    );
+    (revision, at, request)
+}
+fn record_independent_review(
+    s: &mut Setup<SqliteJournal>,
+    gate: &Arc<Gatekeeper<SqliteJournal, ymp_storage::content::SqliteContent>>,
+    host: &ExecutionHost<SqliteJournal, ymp_storage::content::SqliteContent>,
+    clock: &ManualClock,
+    authority: &Authority,
+    result: &ResultVersion,
+    supporting: &EvidenceRecorded,
+) {
+    let (revision, at, request) =
+        reviewer_request(s, gate, "self-review", &result.reference().unwrap());
+    let mut denied = gate.prepare(&s.session, revision, at, request).unwrap();
+    assert_eq!(
+        gate.admit(&mut denied).err().unwrap().code,
+        "review_independence"
+    );
+    let original = s.profile.clone();
+    s.switch_to_new_agent("independent-reviewer");
+    let (revision, at, request) =
+        reviewer_request(s, gate, "review-assignment", &result.reference().unwrap());
+    let mut admission = gate.prepare(&s.session, revision, at, request).unwrap();
+    let reviewer = gate.admit(&mut admission).unwrap();
+    let view = gate.view(&s.session).unwrap();
+    let review = authority
+        .review(
+            gate,
+            &reviewer.grant,
+            ReviewRequest {
+                expected_revision: view.revision(),
+                at,
+                id: id("review"),
+                result: result.reference().unwrap(),
+                criteria: vec![view.criteria()[0].reference().unwrap()],
+                verdict: ReviewVerdict::Approve,
+                findings: vec![Finding {
+                    criterion: Some(id("criterion")),
+                    text: "The byte comparison covers the submitted file".into(),
+                    severity: FindingSeverity::Advisory,
+                    proposed_check: Some(CheckSpec::ExactBytes {
+                        path: WorkspacePath::new("file").unwrap(),
+                        digest: Digest::of(b"candidate"),
+                    }),
+                }],
+                basis: vec![supporting.evidence.id.clone()],
+            },
+        )
+        .unwrap();
+    assert_eq!(review.review.reviewer, s.profile.agent);
+    assert_ne!(review.review.reviewer, result.producer);
+    let inspection = authority
+        .evidence(
+            &s.control,
+            evidence_request(
+                s,
+                "inspection",
+                result,
+                vec![],
+                vec![review.review.id.clone()],
+            ),
+        )
+        .unwrap();
+    assert_eq!(inspection.evidence.class, EvidenceClass::Inspection);
+    assert_eq!(
+        inspection.evidence.independence,
+        Independence::IndependentVisible
+    );
+    assert!(inspection.evidence.runs.is_empty());
+    assert!(!inspection.evidence.discrimination.candidate_passes);
+    let view = gate.view(&s.session).unwrap();
+    let context = assessment(supporting);
+    assert!(review_applicable(&view, &review, &context).unwrap());
+    assert!(evidence_applicable(&view, &inspection, &context).unwrap());
+    let mut changed = context.clone();
+    changed.environments.insert(
+        supporting.scope.check.clone().unwrap(),
+        BTreeSet::from([Digest::of(b"changed assessment environment")]),
+    );
+    assert!(!review_applicable(&view, &review, &changed).unwrap());
+    assert!(!evidence_applicable(&view, &inspection, &changed).unwrap());
+    assert!(!evidence_applicable(&view, supporting, &changed).unwrap());
+    assert!(view.reviews().contains_key(&review.review.id));
+    assert!(view.results().items()[&result.item].accepted.is_none());
+    // Raw adapter data cannot promote a review statement to Trusted evidence.
+    let mut event = s
+        .journal
+        .read(&s.session)
+        .unwrap()
+        .events
+        .last()
+        .unwrap()
+        .clone();
+    event.seq = view.revision() + 1;
+    event.input = Some(view.digest().unwrap());
+    if let ymp_kernel::events::Event::EvidenceRecorded { data, .. } = &mut event.payload {
+        data.evidence.id = id("forged-trust");
+        data.evidence.independence = Independence::Trusted;
+    } else {
+        panic!("Expected evidence event");
+    }
+    assert_eq!(
+        s.journal
+            .append(&s.session, view.revision(), &[event])
+            .unwrap_err()
+            .code,
+        "evidence_attribution"
+    );
+    assert_eq!(gate.view(&s.session).unwrap(), view);
+    clock.advance_to(view.latest_at()).unwrap();
+    let mut live = host
+        .attach(
+            reviewer,
+            id("review-call"),
+            id("review-receipt"),
+            Prompt {
+                text: "Review the exact retained candidate".into(),
+                basis: vec![result.reference().unwrap()],
+            },
+        )
+        .unwrap();
+    host.start(&mut live).unwrap();
+    finish(host, &mut live);
+    assert_eq!(
+        gate.view(&s.session).unwrap().coordination().commitments()[&id("review-assignment")].state,
+        CommitmentState::Discharged
+    );
+    s.profile = original;
+}
+
+fn assessment(evidence: &EvidenceRecorded) -> ApplicabilityContext {
+    ApplicabilityContext {
+        result: evidence.scope.result.clone(),
+        criteria: BTreeSet::from([evidence.scope.criterion.clone()]),
+        environments: BTreeMap::from([(
+            evidence.scope.check.clone().unwrap(),
+            BTreeSet::from([evidence.scope.environment.clone().unwrap()]),
+        )]),
     }
 }

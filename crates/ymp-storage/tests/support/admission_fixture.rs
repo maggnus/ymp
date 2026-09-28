@@ -199,9 +199,6 @@ impl<J: Journal> Setup<J> {
         self.award_subject(name, None)
     }
     pub(super) fn award_subject(&self, name: &str, subject: Option<ContributionSubject>) -> Ref {
-        let arbiter = Arbiter::new(self.journal.clone());
-        let view = self.gate.view(&self.session).unwrap();
-        let at = view.latest_at() + 1;
         let kind = if self.files {
             ContributionKind::Produce
         } else {
@@ -212,6 +209,18 @@ impl<J: Journal> Setup<J> {
         } else {
             BTreeSet::new()
         };
+        self.award_kind(name, kind, needs, subject)
+    }
+    pub(super) fn award_kind(
+        &self,
+        name: &str,
+        kind: ContributionKind,
+        needs: BTreeSet<Capability>,
+        subject: Option<ContributionSubject>,
+    ) -> Ref {
+        let arbiter = Arbiter::new(self.journal.clone());
+        let view = self.gate.view(&self.session).unwrap();
+        let at = view.latest_at() + 1;
         let forecast = Forecast {
             p_success: Prob::new(0.5).unwrap(),
             delta_belief: BTreeMap::new(),

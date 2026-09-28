@@ -1,4 +1,5 @@
 //! Kernel-owned registration and execution of versioned visible checks.
+mod evidence;
 use crate::{
     decision::{DecisionConsumer, SessionControl},
     events::Event,
@@ -8,6 +9,11 @@ use crate::{
     view::SessionView,
     workspace_guard::WorkspaceGuard,
 };
+pub use evidence::{
+    ApplicabilityContext, EvidenceRecorded, EvidenceRequest, EvidenceScope, ReviewRecorded,
+    ReviewRequest, applicable_evidence, evidence_applicable, review_applicable,
+};
+pub(crate) use evidence::{validate_evidence, validate_review};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use ymp_domain::{

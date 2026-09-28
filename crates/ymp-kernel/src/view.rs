@@ -40,6 +40,8 @@ pub struct SessionView {
     admission: crate::gatekeeper::AdmissionView,
     execution: crate::execution::ExecutionView,
     results: crate::results::ResultsView,
+    evidence: BTreeMap<Id<ymp_domain::verification::Evidence>, crate::acceptance::EvidenceRecorded>,
+    reviews: BTreeMap<Id<ymp_domain::verification::Review>, crate::acceptance::ReviewRecorded>,
     workspaces: BTreeMap<Id<ymp_domain::workspace::Workspace>, ymp_domain::workspace::Workspace>,
     snapshots: BTreeMap<Id<ymp_domain::workspace::Snapshot>, ymp_domain::workspace::Snapshot>,
     path_locks: BTreeMap<Id, crate::workspace_locks::AssignmentLocks>,
@@ -71,6 +73,8 @@ impl SessionView {
             admission: crate::gatekeeper::AdmissionView::default(),
             execution: crate::execution::ExecutionView::default(),
             results: crate::results::ResultsView::default(),
+            evidence: BTreeMap::new(),
+            reviews: BTreeMap::new(),
             workspaces: BTreeMap::new(),
             snapshots: BTreeMap::new(),
             path_locks: BTreeMap::new(),
@@ -110,6 +114,17 @@ impl SessionView {
     }
     pub fn results(&self) -> &crate::results::ResultsView {
         &self.results
+    }
+    pub fn evidence(
+        &self,
+    ) -> &BTreeMap<Id<ymp_domain::verification::Evidence>, crate::acceptance::EvidenceRecorded>
+    {
+        &self.evidence
+    }
+    pub fn reviews(
+        &self,
+    ) -> &BTreeMap<Id<ymp_domain::verification::Review>, crate::acceptance::ReviewRecorded> {
+        &self.reviews
     }
     pub fn coordination(&self) -> &crate::arbiter::CoordinationView {
         &self.coordination
@@ -243,6 +258,20 @@ impl SessionView {
         let admission = crate::gatekeeper::apply(self, event)?;
         let results = crate::results::apply(self, event)?;
         match &event.payload {
+            Event::EvidenceRecorded { data, .. } => {
+                self.validate_complete()?;
+                crate::acceptance::validate_evidence(self, event, data)?;
+                self.references.insert(data.reference()?);
+                self.evidence
+                    .insert(data.evidence.id.clone(), (**data).clone());
+            }
+            Event::ReviewRecorded { data, .. } => {
+                self.validate_complete()?;
+                crate::acceptance::validate_review(self, event, data)?;
+                self.references.insert(data.reference()?);
+                self.reviews
+                    .insert(data.review.id.clone(), (**data).clone());
+            }
             Event::PlanCommitted { .. }
             | Event::AttemptStarted { .. }
             | Event::ResultSubmitted { .. }

@@ -556,6 +556,21 @@ The Rust exit value is optional when no normal process exit exists.
 `VerificationDesigner/ExplicitVisible` records an already-authored visible
 proposal with its effective parameters; it does not implement hidden check design.
 
+`EvidenceRecorded` retains the model's Evidence with its exact `EvidenceScope`
+(result, criterion, check and environment references), review-source references
+and observation time. `ReviewRecorded` binds Review to its actual Assignment and
+criterion versions. These are implementation provenance, not additional grades or
+acceptance decisions. Performed Command and ExactBytes checks produce Executed
+evidence for the particular check; ExactBytes provides no observation of candidate
+program startup. Review statements produce Inspection without a passing CheckRun.
+
+`ApplicabilityContext` is the consumer's expected result, criterion references and
+environment set per exact check. The shared applicability traversal validates
+canonical records and propagates that same context through every Review/Evidence
+basis. Review assessment includes all result criteria; A8 groups the selected
+evidence by criterion afterwards. This realizes the existing A7/A8/A11 applicability
+rule without silently choosing a latest result or environment from history.
+
 ### 3.7. Resources
 
 ```text

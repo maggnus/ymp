@@ -236,13 +236,53 @@ pub(crate) fn validate_intent(
     crate::results::validate_admission(view, &contribution.value)?;
     if matches!(
         assignment.role,
-        RoleKind::Reviewer | RoleKind::FinalReviewer | RoleKind::Advocate
+        RoleKind::FinalReviewer | RoleKind::Advocate
     ) {
         return Err(Denial::new(
             "subject_unavailable",
             "Typed result/work-item provenance is required before admitting this subject or review",
         )
         .with_ref(contribution.reference.clone()));
+    }
+    if assignment.role == RoleKind::Reviewer {
+        let result =
+            crate::results::review_subject(view, &contribution.value)?.ok_or_else(|| {
+                Denial::new(
+                    "subject_unavailable",
+                    "Reviewer needs an exact retained result",
+                )
+            })?;
+        if assignment.agent == result.producer {
+            return Err(Denial::new(
+                "review_independence",
+                "The producer cannot review its own result",
+            ));
+        }
+        for criterion in view
+            .criteria()
+            .iter()
+            .filter(|c| contribution.value.targets.contains(&c.id))
+        {
+            for (class, capability) in [
+                (
+                    ymp_domain::task::EvidenceClass::Executed,
+                    Capability::RunProcess,
+                ),
+                (
+                    ymp_domain::task::EvidenceClass::Browser,
+                    Capability::Browser,
+                ),
+            ] {
+                if criterion.needs_class.contains(&class)
+                    && !assignment.access.contains(&capability)
+                {
+                    return Err(Denial::new(
+                        "review_capabilities",
+                        "Reviewer lacks the execution capability required by this criterion",
+                    ));
+                }
+            }
+        }
     }
     let pool = view
         .registry()

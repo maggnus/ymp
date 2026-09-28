@@ -79,12 +79,14 @@ the caller retains the same plan and uses its Prepared/Committed/Delivered state
 
 Heartbeat renewal has a real authenticated consumer. W1-0017 connects CheckRun
 progress to an exact recorded check, responsibility target and workspace.
-EvidenceAdded and ResultSubmitted still refuse unsupported references until their
-owning kernel observations exist.
+EvidenceAdded and ResultSubmitted renewal integration remains pending. Recording
+their kernel facts does not by itself make them supported renewal sources.
 
 Public discharge and cancel connect resolution, the shared typed transition
 consumer and terminal packet preparation. W1-0017 connects confirmed bounded
 non-artifact completion with settled accounting and scoped cessation to discharge.
+W1-0019 includes completed Reviewer work bound to its exact ResultVersion subject;
+that transition discharges the review responsibility, not the artifact producer.
 Other unsupported completion/cancellation sources return commitment_basis_unsupported.
 The pure consumer validates session,
 assignment, contribution, original contract, exact artifact subject, covered
