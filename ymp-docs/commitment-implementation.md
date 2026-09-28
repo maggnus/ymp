@@ -96,10 +96,10 @@ They create no InvocationEnded, AcceptanceRecorded, satisfied ledger or plan fac
 in a production journal.
 
 The [execution implementation](execution-implementation.md) describes the actual
-non-artifact consumer. Artifact acceptance remains W1-0010/W1-0014, and
-plan/criterion producers retain their owning tasks. Their production transitions
-are not claimed as integrated. P2 consumer contracts do not establish delivered
-result acceptance or native execution.
+non-artifact consumer. [W1-0010](acceptance-implementation.md) connects exact
+committed artifact acceptance to the original producer's commitment. Plan/criterion
+producers retain their owning tasks. Their production transitions and native
+execution are not claimed as integrated.
 
 ## Verification
 

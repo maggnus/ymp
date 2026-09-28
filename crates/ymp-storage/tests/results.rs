@@ -1,4 +1,6 @@
 //! An actual producer's immutable candidate survives later workspace edits.
+#[path = "support/acceptance_fixture.rs"]
+mod acceptance_checks;
 mod support;
 use support::Directory;
 use ymp_kernel as kernel;
@@ -34,7 +36,10 @@ use ymp_kernel::{
     },
     gatekeeper::Gatekeeper,
     journal::{Journal, ParameterSchemas},
-    ports::{execution::ExecutionBackend, resources::CostModel},
+    ports::{
+        execution::ExecutionBackend, experience::CreditPolicy, planning::BeliefModel,
+        resources::CostModel,
+    },
     results::Results,
 };
 use ymp_runtime::{
@@ -107,6 +112,14 @@ fn producer_candidate_retains_bytes_and_abandoned_retry_keeps_distinct_history()
         .unwrap(),
         vec![
             backend.selection().clone(),
+            ymp_runtime::policies::belief::LikelihoodRatioTable::standard()
+                .unwrap()
+                .selection()
+                .clone(),
+            ymp_runtime::policies::credit::ConfirmedOnly::new()
+                .unwrap()
+                .selection()
+                .clone(),
             PolicySelection::new(
                 "VerificationDesigner",
                 "ExplicitVisible",
@@ -397,16 +410,17 @@ fn producer_candidate_retains_bytes_and_abandoned_retry_keeps_distinct_history()
                 &contradicted,
                 &supporting,
             );
-            record_independent_review(
-                &mut s,
-                &gate,
-                &host,
-                &clock,
-                &authority,
-                &result,
-                &supporting,
-            );
         }
+        record_independent_review(
+            &mut s,
+            &gate,
+            &host,
+            &clock,
+            &authority,
+            &result,
+            &supporting,
+            number,
+        );
         let at = gate.view(&s.session).unwrap().latest_at();
         let view = gate.view(&s.session).unwrap();
         assert_eq!(
@@ -442,9 +456,40 @@ fn producer_candidate_retains_bytes_and_abandoned_retry_keeps_distinct_history()
                 .unwrap(),
             b"candidate"
         );
+        acceptance_checks::decide(&s, &gate, &authority, &result, &supporting, number);
+        if number == 2 {
+            assert!(
+                results
+                    .abandon(
+                        &attempt,
+                        gate.view(&s.session).unwrap().latest_at(),
+                        "Cannot reopen accepted work".into()
+                    )
+                    .is_err()
+            );
+            let reopened =
+                SqliteJournal::open(database.database(), ParameterSchemas::default()).unwrap();
+            let view = reopened.view(&s.session, None).unwrap();
+            assert_eq!(
+                view.results().items()[&id("item")].accepted.as_ref(),
+                Some(&result.id)
+            );
+            assert_eq!(
+                view.results().attempts()[attempt.id()].attempt.outcome,
+                AttemptOutcome::Accepted
+            );
+            assert_eq!(
+                view.coordination().commitments()[&id(&name)].state,
+                CommitmentState::Discharged
+            );
+            assert_eq!(view.acceptances().len(), 2);
+            continue;
+        }
+        let at = gate.view(&s.session).unwrap().latest_at();
         results
             .abandon(&attempt, at, "Preserve this candidate and retry".into())
             .unwrap();
+        acceptance_checks::abandoned(&s, &authority, &supporting);
         let reopened =
             SqliteJournal::open(database.database(), ParameterSchemas::default()).unwrap();
         let view = reopened.view(&s.session, None).unwrap();
@@ -729,6 +774,7 @@ fn reviewer_request(
     );
     (revision, at, request)
 }
+#[allow(clippy::too_many_arguments)]
 fn record_independent_review(
     s: &mut Setup<SqliteJournal>,
     gate: &Arc<Gatekeeper<SqliteJournal, ymp_storage::content::SqliteContent>>,
@@ -737,20 +783,32 @@ fn record_independent_review(
     authority: &Authority,
     result: &ResultVersion,
     supporting: &EvidenceRecorded,
+    number: usize,
 ) {
-    let (revision, at, request) =
-        reviewer_request(s, gate, "self-review", &result.reference().unwrap());
+    let (revision, at, request) = reviewer_request(
+        s,
+        gate,
+        &format!("self-review-{number}"),
+        &result.reference().unwrap(),
+    );
     let mut denied = gate.prepare(&s.session, revision, at, request).unwrap();
     assert_eq!(
         gate.admit(&mut denied).err().unwrap().code,
         "review_independence"
     );
     let original = s.profile.clone();
-    s.switch_to_new_agent("independent-reviewer");
-    let (revision, at, request) =
-        reviewer_request(s, gate, "review-assignment", &result.reference().unwrap());
+    s.switch_to_new_agent(&format!("independent-reviewer-{number}"));
+    let (revision, at, request) = reviewer_request(
+        s,
+        gate,
+        &format!("review-assignment-{number}"),
+        &result.reference().unwrap(),
+    );
     let mut admission = gate.prepare(&s.session, revision, at, request).unwrap();
     let reviewer = gate.admit(&mut admission).unwrap();
+    if number == 1 {
+        acceptance_checks::prior_guard(s, gate, authority, &reviewer.grant, result, at);
+    }
     let view = gate.view(&s.session).unwrap();
     let review = authority
         .review(
@@ -758,8 +816,8 @@ fn record_independent_review(
             &reviewer.grant,
             ReviewRequest {
                 expected_revision: view.revision(),
-                at,
-                id: id("review"),
+                at: view.latest_at(),
+                id: id(&format!("review-{number}")),
                 result: result.reference().unwrap(),
                 criteria: vec![view.criteria()[0].reference().unwrap()],
                 verdict: ReviewVerdict::Approve,
@@ -783,7 +841,7 @@ fn record_independent_review(
             &s.control,
             evidence_request(
                 s,
-                "inspection",
+                &format!("inspection-{number}"),
                 result,
                 vec![],
                 vec![review.review.id.clone()],
@@ -840,8 +898,8 @@ fn record_independent_review(
     let mut live = host
         .attach(
             reviewer,
-            id("review-call"),
-            id("review-receipt"),
+            id(&format!("review-call-{number}")),
+            id(&format!("review-receipt-{number}")),
             Prompt {
                 text: "Review the exact retained candidate".into(),
                 basis: vec![result.reference().unwrap()],
@@ -851,7 +909,9 @@ fn record_independent_review(
     host.start(&mut live).unwrap();
     finish(host, &mut live);
     assert_eq!(
-        gate.view(&s.session).unwrap().coordination().commitments()[&id("review-assignment")].state,
+        gate.view(&s.session).unwrap().coordination().commitments()
+            [&id(&format!("review-assignment-{number}"))]
+            .state,
         CommitmentState::Discharged
     );
     s.profile = original;

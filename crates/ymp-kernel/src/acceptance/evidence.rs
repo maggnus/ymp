@@ -21,7 +21,31 @@ pub struct EvidenceScope {
 pub struct ApplicabilityContext {
     pub result: Ref,
     pub criteria: BTreeSet<Ref>,
+    #[serde(with = "environments")]
     pub environments: BTreeMap<Ref, BTreeSet<Digest>>,
+}
+// JSON object keys cannot represent the versioned Ref key. A sorted sequence
+// preserves the exact check/environment binding in acceptance and ledger events.
+mod environments {
+    use super::*;
+    pub fn serialize<S: serde::Serializer>(
+        value: &BTreeMap<Ref, BTreeSet<Digest>>,
+        serializer: S,
+    ) -> std::result::Result<S::Ok, S::Error> {
+        value.iter().collect::<Vec<_>>().serialize(serializer)
+    }
+    pub fn deserialize<'de, D: serde::Deserializer<'de>>(
+        deserializer: D,
+    ) -> std::result::Result<BTreeMap<Ref, BTreeSet<Digest>>, D::Error> {
+        let pairs = Vec::<(Ref, BTreeSet<Digest>)>::deserialize(deserializer)?;
+        let mut result = BTreeMap::new();
+        for (check, environments) in pairs {
+            if result.insert(check, environments).is_some() {
+                return Err(serde::de::Error::custom("Duplicate assessment check"));
+            }
+        }
+        Ok(result)
+    }
 }
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]

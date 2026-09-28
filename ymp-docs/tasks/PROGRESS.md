@@ -2,7 +2,7 @@
 
 Generated from the canonical JSON records in [`records/`](records/) by `python3 ymp-docs/tasks/manage.py progress --write`. Task write commands and `make tasks-progress` refresh it; do not edit statuses here.
 
-Tasks: 45 (12 done, 0 in progress, 28 open, 5 paused or blocked, 0 rejected). Times are Hong Kong time (UTC+08:00). Last record change: 2026-09-28 18:13.
+Tasks: 45 (12 done, 1 in progress, 27 open, 5 paused or blocked, 0 rejected). Times are Hong Kong time (UTC+08:00). Last record change: 2026-09-28 19:13.
 
 | Mark | Meaning |
 | :---: | --- |
@@ -16,16 +16,24 @@ Tasks: 45 (12 done, 0 in progress, 28 open, 5 paused or blocked, 0 rejected). Ti
 
 | Wave | Done | In progress | Open | Paused or blocked | Rejected | Total | Done % |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| [W1](#wave-w1) | 12 | 0 | 2 | 5 | 0 | 19 | 63% |
+| [W1](#wave-w1) | 12 | 1 | 1 | 5 | 0 | 19 | 63% |
 | [W2](#wave-w2) | 0 | 0 | 4 | 0 | 0 | 4 | 0% |
 | [W3](#wave-w3) | 0 | 0 | 9 | 0 | 0 | 9 | 0% |
 | [W4](#wave-w4) | 0 | 0 | 3 | 0 | 0 | 3 | 0% |
 | [W5](#wave-w5) | 0 | 0 | 5 | 0 | 0 | 5 | 0% |
 | [W6](#wave-w6) | 0 | 0 | 5 | 0 | 0 | 5 | 0% |
 
+## Current work
+
+### W1-0010 — [~] in_progress
+
+Compute criterion satisfaction and independent acceptance from the recorded evidence. Owner: codex; revision 7; updated 2026-09-28 19:13 by codex.
+
+Final make verify exited 0: legacy scan and all four required offline Cargo checks. Task-register validation and git diff --check passed. Independent final review confirmed R1(9/10) ACCEPT after documentation and persisted context inspection. Acceptance criteria verified at the actual Scripted/SQLite consumer; native, hidden/mutation, external/consequence and observation coverage remains explicitly unclaimed in acceptance-implementation.md.
+
 ## Wave W1
 
-12 of 19 done; 0 in progress; 5 paused or blocked.
+12 of 19 done; 1 in progress; 5 paused or blocked.
 
 | Status | Task | Title | Area | State | Depends on | Owner | Updated (HKT) | Rev | Evidence |
 | :---: | --- | --- | --- | --- | --- | --- | --- | ---: | --- |
@@ -38,7 +46,7 @@ Tasks: 45 (12 done, 0 in progress, 28 open, 5 paused or blocked, 0 rejected). Ti
 | [x] | [W1-0007](records/W1-0007.json) | Complete commitment leases, release and delegation without losing accepted work | coordination | done | W1-0006 ✓ | codex | 2026-09-28 10:53 | 6 | commit [`d7ea328`](https://github.com/maggnus/ymp/commit/d7ea328a) |
 | [x] | [W1-0008](records/W1-0008.json) | Submit immutable result versions bound to attempts and exact workspace snapshots | results | done | W1-0005 ✓, W1-0006 ✓, W1-0007 ✓, W1-0017 ✓ | codex | 2026-09-28 17:04 | 6 | 9ef44a81; ymp-docs/result-implementation.md; crates/ymp-storage/tests/results.rs |
 | [x] | [W1-0009](records/W1-0009.json) | Run versioned checks against immutable snapshots and record attributable check runs | verification | done | W1-0002 ✓, W1-0005 ✓, W1-0006 ✓ | codex | 2026-09-28 14:47 | 10 | commit [`ede5495`](https://github.com/maggnus/ymp/commit/ede54952) |
-| [ ] | [W1-0010](records/W1-0010.json) | Compute criterion satisfaction and independent acceptance from the recorded evidence | acceptance | planned | W1-0009 ✓, W1-0019 ✓ | — | 2026-09-16 01:05 | 4 | — |
+| [~] | [W1-0010](records/W1-0010.json) | Compute criterion satisfaction and independent acceptance from the recorded evidence | acceptance | in_progress | W1-0009 ✓, W1-0019 ✓ | codex | 2026-09-28 19:13 | 7 | — |
 | [=] | [W1-0011](records/W1-0011.json) | Extract criteria and select minimal criterion-directed work through admitted strategies | planning | planned (blocked) | W1-0002 ✓, W1-0006 ✓, W1-0008 ✓, W1-0010 | — | 2026-09-16 01:05 | 3 | — |
 | [=] | [W1-0012](records/W1-0012.json) | Diagnose stalls and perform bounded recovery without discarding verified work | progress | planned (blocked) | W1-0007 ✓, W1-0019 ✓, W1-0010, W1-0011 | — | 2026-09-16 01:05 | 4 | — |
 | [=] | [W1-0013](records/W1-0013.json) | Finalize the integrated result and deliver an evidence-audited report | reporting | planned (blocked) | W1-0006 ✓, W1-0008 ✓, W1-0019 ✓, W1-0010, W1-0011, W1-0012 | — | 2026-09-16 01:05 | 4 | — |

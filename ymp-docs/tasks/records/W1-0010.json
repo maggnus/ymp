@@ -5,12 +5,12 @@
   "title": "Compute criterion satisfaction and independent acceptance from the recorded evidence",
   "type": "implementation",
   "priority": 110,
-  "status": "planned",
+  "status": "in_progress",
   "depends_on": [
     "W1-0009",
     "W1-0019"
   ],
-  "owner": null,
+  "owner": "codex",
   "goal": "Make AcceptanceAuthority apply A7 and A8 exactly, distinguishing independent approval, criterion satisfaction and strength of confirmation.",
   "scope": [
     "Implement Acceptance Accepted/Rejected(reason), per-criterion grades and required-criterion minimum grade. Filter reviews/evidence for applicability to this result, criterion/check versions and run environment before polarity or grading; applicable Contradicts Executed/Browser/ExternalData defeats approval. Require a Reviewer distinct from the actual producer.",
@@ -33,7 +33,7 @@
     "Retain BeliefModel, default LikelihoodRatioTable prior=0.5 and subject:Ref. An experimental prior must mean present criterion/result satisfaction, never future assignment success. Filter applicability before polarity, count correlated support once and require nonempty applicable Supports coverage. A7 acceptance, A8 satisfaction and CreditPolicy remain distinct.",
     "Select materially different BeliefModel implementations through the same consumer with recoverable parameters/basis. Implement both CreditPolicy variants as selectable policy values here; W5-0001 consumes them for real observations. W1-0013 handles final aggregates."
   ],
-  "revision": 4,
+  "revision": 7,
   "history": [
     {
       "revision": 1,
@@ -62,6 +62,27 @@
       "actor": "owner",
       "status": "planned",
       "note": "Start decision 2026-09-16: W1 scheduled; readiness follows dependencies."
+    },
+    {
+      "revision": 5,
+      "at": "2026-09-28T10:16:25.172551Z",
+      "actor": "codex",
+      "status": "in_progress",
+      "note": "Claimed by codex."
+    },
+    {
+      "revision": 6,
+      "at": "2026-09-28T11:11:25.923889Z",
+      "actor": "codex",
+      "status": "in_progress",
+      "note": "R1(9/10) ACCEPT from independent acceptance_review after review of A7/A8 authority, current candidate invalidation, exact Acceptance-to-P2 provenance, parameter/prior consistency and persisted environment context. Real Scripted producer/check/review/ledger/acceptance/P2 integration passed (233.81s); numeric guard removal failed with exit 101 and restored guard passed. Required full make verify is running; no native inference, hidden checks, delayed consequences or observations claimed."
+    },
+    {
+      "revision": 7,
+      "at": "2026-09-28T11:13:06.918628Z",
+      "actor": "codex",
+      "status": "in_progress",
+      "note": "Final make verify exited 0: legacy scan and all four required offline Cargo checks. Task-register validation and git diff --check passed. Independent final review confirmed R1(9/10) ACCEPT after documentation and persisted context inspection. Acceptance criteria verified at the actual Scripted/SQLite consumer; native, hidden/mutation, external/consequence and observation coverage remains explicitly unclaimed in acceptance-implementation.md."
     }
   ]
 }

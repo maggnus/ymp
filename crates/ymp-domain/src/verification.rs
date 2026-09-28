@@ -1,4 +1,4 @@
-//! Checks, evidence and attributed reviews; no acceptance decisions.
+//! Checks, evidence, reviews and separately graded acceptance and criterion assessment.
 use crate::{
     Denial, Digest, Id, Ref, Result,
     assignment::{Assignment, ErrorClass},
@@ -323,6 +323,223 @@ impl Review {
         }
         for finding in &self.findings {
             finding.validate()?;
+        }
+        Ok(())
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ConfirmationBasis {
+    TrustedCheck,
+    ExternalData,
+    Consequences,
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ConfirmationGrade {
+    Refuted,
+    Unconfirmed,
+    Discriminated,
+    Confirmed(ConfirmationBasis),
+}
+impl ConfirmationGrade {
+    pub fn rank(self) -> u8 {
+        match self {
+            Self::Refuted => 0,
+            Self::Unconfirmed => 1,
+            Self::Discriminated => 2,
+            Self::Confirmed(_) => 3,
+        }
+    }
+}
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum AcceptanceDecision {
+    Accepted,
+    Rejected(String),
+}
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum AcceptanceSubject {
+    ResultVersion(Id<crate::result::ResultVersion>),
+    FinalAggregate(Id),
+}
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Acceptance {
+    pub id: Id<Acceptance>,
+    pub subject: AcceptanceSubject,
+    pub decision: AcceptanceDecision,
+    pub grades: BTreeMap<Id<Criterion>, ConfirmationGrade>,
+    pub grade: ConfirmationGrade,
+    pub basis: Vec<Ref>,
+    pub at: u64,
+}
+impl Acceptance {
+    pub fn reference(&self) -> Result<Ref> {
+        Ok(Ref {
+            id: self.id.erased(),
+            version: Digest::of_value(self)?,
+        })
+    }
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum LedgerStatus {
+    Unmet,
+    Supported,
+    Satisfied,
+    Contradicted,
+}
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct LedgerEntry {
+    pub status: LedgerStatus,
+    pub belief: crate::Prob,
+    pub evidence: Vec<Id<Evidence>>,
+    pub stimulus: crate::task::Real,
+    pub unmet_since: u64,
+    pub changed: u64,
+}
+impl LedgerEntry {
+    pub fn initial(at: u64) -> Result<Self> {
+        Ok(Self {
+            status: LedgerStatus::Unmet,
+            belief: crate::Prob::new(0.5)?,
+            evidence: vec![],
+            stimulus: crate::task::Real::new(1.0)?,
+            unmet_since: at,
+            changed: at,
+        })
+    }
+    pub fn updated(
+        &self,
+        status: LedgerStatus,
+        belief: crate::Prob,
+        mut evidence: Vec<Id<Evidence>>,
+        at: u64,
+    ) -> Self {
+        evidence.sort();
+        evidence.dedup();
+        Self {
+            status,
+            belief,
+            changed: if status != self.status || belief != self.belief || evidence != self.evidence
+            {
+                at
+            } else {
+                self.changed
+            },
+            unmet_since: if self.status == LedgerStatus::Satisfied
+                && status != LedgerStatus::Satisfied
+            {
+                at
+            } else {
+                self.unmet_since
+            },
+            evidence,
+            stimulus: self.stimulus,
+        }
+    }
+}
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CriteriaLedger {
+    pub session: Id,
+    pub entries: BTreeMap<Id<Criterion>, LedgerEntry>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct AssessmentRules {
+    pub mutation_threshold: crate::Prob,
+}
+pub fn discriminating(evidence: &Evidence, criterion: &Criterion, rules: &AssessmentRules) -> bool {
+    evidence.discrimination.candidate_passes
+        && (criterion.kind != crate::task::CriterionKind::NewBehavior
+            || evidence.discrimination.baseline_fails == Some(true))
+        && evidence
+            .discrimination
+            .mutation_score
+            .is_none_or(|score| score.get() >= rules.mutation_threshold.get())
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct BeliefThresholds {
+    pub behavior: crate::Prob,
+    pub quality: crate::Prob,
+    pub support: crate::Prob,
+}
+impl BeliefThresholds {
+    pub fn validate(&self) -> Result<()> {
+        if self.support.get() <= 0.0 || self.support > self.behavior || self.support > self.quality
+        {
+            return Err(Denial::new(
+                "belief_thresholds",
+                "Support must be positive and no greater than satisfaction thresholds",
+            ));
+        }
+        Ok(())
+    }
+    pub fn for_criterion(&self, criterion: &Criterion) -> crate::Prob {
+        if criterion.kind == crate::task::CriterionKind::Quality {
+            self.quality
+        } else {
+            self.behavior
+        }
+    }
+}
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct LikelihoodRatioParameters {
+    pub trusted: crate::task::Real,
+    pub external: crate::task::Real,
+    pub hidden: crate::task::Real,
+    pub independent: crate::task::Real,
+    pub inspection: crate::task::Real,
+    pub producer: crate::task::Real,
+    pub static_read: crate::task::Real,
+    pub thresholds: BeliefThresholds,
+}
+impl LikelihoodRatioParameters {
+    pub fn validate(&self) -> Result<()> {
+        self.thresholds.validate()?;
+        if [
+            self.trusted,
+            self.external,
+            self.hidden,
+            self.independent,
+            self.inspection,
+            self.producer,
+            self.static_read,
+        ]
+        .iter()
+        .any(|value| value.get() <= 0.0 || value.get() > 1_000_000.0)
+        {
+            return Err(Denial::new(
+                "likelihood_ratio",
+                "Likelihood ratios must be positive and bounded",
+            ));
+        }
+        Ok(())
+    }
+}
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct StrongestSupportParameters {
+    pub prior: crate::Prob,
+    pub trusted: crate::Prob,
+    pub independent: crate::Prob,
+    pub inspection: crate::Prob,
+    pub producer: crate::Prob,
+    pub static_read: crate::Prob,
+    pub thresholds: BeliefThresholds,
+}
+impl StrongestSupportParameters {
+    pub fn validate(&self) -> Result<()> {
+        self.thresholds.validate()?;
+        if self.prior.get() <= 0.0 || self.prior.get() >= 1.0 {
+            return Err(Denial::new(
+                "belief_prior",
+                "A prior must lie strictly between zero and one",
+            ));
         }
         Ok(())
     }

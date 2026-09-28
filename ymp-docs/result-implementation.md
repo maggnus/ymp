@@ -2,7 +2,8 @@
 
 Canonical status remains in `tasks/records/W1-0008.json`. This slice connects an
 explicit one-item Plan to actual production, retained snapshots and ResultVersion
-submission. Model-generated planning and result acceptance remain separate work.
+submission. Model-generated planning remains separate work; independent acceptance
+is connected by [W1-0010](acceptance-implementation.md).
 
 ## Plan and production scope
 
@@ -68,8 +69,8 @@ discharge an artifact commitment.
 Abandoned retains its candidate, if any, and reopens unaccepted work. It does not
 imply P2 Discharged or Cancelled. A retry still obeys responsibility/resource rules;
 the integration scenario expires the original lease before admitting the same
-producer again. Accepted/Rejected are domain outcomes reserved for W1-0010's
-independent acceptance consumer, not implemented transitions in this slice.
+producer again. W1-0010 adds Accepted/Rejected transitions through the independent
+acceptance consumer and permits explicit abandonment of a rejected candidate.
 
 ## Evidence and remaining coverage
 
@@ -81,7 +82,7 @@ foreign consumers, premature submission, wrong retained digests and rewritten
 candidates. Removing the baseline ownership guard makes the stale-snapshot
 assertion fail.
 
-Native execution, accepted/rejected transitions, general graphs, recovery of a
+Native execution, general graphs, recovery of a
 lost PreparedAttempt, parallel result capture and injected after-capture
 publication failures have not been exercised by this scenario. Failure handling
 and control-reserve calculations receive independent review; that does not

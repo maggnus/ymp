@@ -1,4 +1,5 @@
-//! Kernel-owned registration and execution of versioned visible checks.
+//! Kernel-owned checks, applicable evidence, independent acceptance and criterion assessment.
+mod decisions;
 mod evidence;
 use crate::{
     decision::{DecisionConsumer, SessionControl},
@@ -9,6 +10,8 @@ use crate::{
     view::SessionView,
     workspace_guard::WorkspaceGuard,
 };
+pub(crate) use decisions::validate_acceptance;
+pub use decisions::{AcceptanceRecorded, AcceptanceRequest, CreditResponse, credit_input};
 pub use evidence::{
     ApplicabilityContext, EvidenceRecorded, EvidenceRequest, EvidenceScope, ReviewRecorded,
     ReviewRequest, applicable_evidence, evidence_applicable, review_applicable,

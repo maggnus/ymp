@@ -571,6 +571,29 @@ basis. Review assessment includes all result criteria; A8 groups the selected
 evidence by criterion afterwards. This realizes the existing A7/A8/A11 applicability
 rule without silently choosing a latest result or environment from history.
 
+The Rust A8 mapping uses `BeliefView` for the kernel-filtered input, `PriorBasis`
+for applicable recorded statements and their polarity, and `BeliefPrior` for a
+criterion/result-scoped probability with rationale and supporting references.
+`BeliefUpdate` carries the proposed LedgerEntry and prior; `BeliefResponse` binds
+that proposal to its input digest. These expose experimental assumptions without
+letting a strategy authorize satisfaction. `BeliefThresholds`,
+`LikelihoodRatioParameters` and `StrongestSupportParameters` retain effective
+numeric settings. `StrongestSupport` is the experimental maximum-support
+implementation: it does not multiply weak groups, and its explicit prior is
+uncalibrated. The default LikelihoodRatioTable remains A8's neutral-prior rule.
+
+`AssessmentRules` records the mutation threshold used by a particular assessment.
+`LedgerRecorded` retains its context, rules and policy-attributed decisions;
+`LedgerView` projects entries and their criterion/result references while keeping
+the assessment history. The current ledger excludes abandoned or superseded
+candidates using the WorkItem's accepted pointer or recorded attempt order.
+`AcceptanceRecorded` retains the A7 decision, exact result/attempt, assessment
+contract, context, rules and CreditPolicy decision. `CreditResponse` binds the
+credit proposal to the acceptance input. The concrete `ConfirmedOnly` and
+`IncludeDiscriminated` policies implement the two credit variants in section 5.6;
+their eligibility is separate from an actual Observation. These mappings retain
+the model's existing authority and decision boundaries rather than adding roles.
+
 ### 3.7. Resources
 
 ```text

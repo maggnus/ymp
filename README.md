@@ -29,16 +29,17 @@ revocation retains unresolved financial and workspace holds. Admission itself
 does not start an execution backend.
 The [commitment lifecycle](ymp-docs/commitment-implementation.md) adds bounded
 renewal, expiration, release/reopening and delegation while retaining unresolved
-holds. Actual completion and acceptance facts connect through their owning tasks.
+holds. Execution and acceptance consumers connect actual completion facts below.
 The [visible check consumer](ymp-docs/check-execution.md) registers versioned
 checks and retains Command/ExactBytes runs against immutable snapshots. Command
-execution currently uses the documented macOS no-fork profile; result acceptance
-and native agent execution remain separate work.
+execution currently uses the documented macOS no-fork profile; native agent
+execution remains separate work.
 The [bounded execution host](ymp-docs/execution-implementation.md) runs admitted
 Scripted assignments, records output and usage, handles cancellation and settles
 receipts. Confirmed non-artifact completion discharges its commitment; artifact
-acceptance and native agent execution remain separate work. Unresolved execution
-stays blocked after restart instead of starting again.
+completion uses the acceptance consumer below. Native agent execution remains
+separate work. Unresolved execution stays blocked after restart instead of
+starting again.
 The [result consumer](ymp-docs/result-implementation.md) records an explicit
 one-item plan and immutable production candidates with continuously protected
 before/after snapshots. Abandoned attempts and candidate bytes remain available
@@ -46,7 +47,11 @@ after restart; submission does not establish acceptance.
 The [evidence consumer](ymp-docs/evidence-implementation.md) derives attributed
 evidence from recorded checks and independent reviews. One applicability contract
 checks the expected result, criterion/check versions and environment throughout
-review dependencies. Belief and acceptance remain separate work.
+review dependencies.
+The [assessment and acceptance consumer](ymp-docs/acceptance-implementation.md)
+records replaceable belief calculations separately from independent acceptance
+and confirmation grades. Accepted candidates discharge exactly their producer's
+artifact commitment; rejected candidates and earlier assessments remain retained.
 The remaining modules are placeholders under
 [the proposed layout](ymp-docs/project-worktree.md). The executable still has no
 interactive or task-execution behavior.

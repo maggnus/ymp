@@ -497,6 +497,28 @@ pub(crate) fn apply(view: &SessionView, event: &Envelope<Event>) -> Result<Resul
         return Ok(next);
     }
     match &event.payload {
+        Event::AcceptanceRecorded { data, .. } => {
+            // SessionView validates A7 and exact attempt provenance before this projection.
+            let record = next
+                .attempts
+                .get_mut(&data.attempt)
+                .ok_or_else(|| Denial::new("acceptance_attempt", "No accepted attempt"))?;
+            let item = next.items.get_mut(&record.attempt.item).unwrap();
+            match &data.acceptance.decision {
+                ymp_domain::verification::AcceptanceDecision::Accepted => {
+                    let result = record.attempt.result.clone().ok_or_else(|| {
+                        Denial::new("acceptance_result", "Attempt has no candidate")
+                    })?;
+                    record.attempt.outcome = AttemptOutcome::Accepted;
+                    item.state = WorkState::Accepted;
+                    item.accepted = Some(result);
+                }
+                ymp_domain::verification::AcceptanceDecision::Rejected(reason) => {
+                    record.attempt.outcome = AttemptOutcome::Rejected(reason.clone());
+                    item.state = WorkState::Failed;
+                }
+            }
+        }
         Event::PlanCommitted { data, .. } => {
             validate_plan(view, data, event.at)?;
             next.plans.insert(data.plan.id.clone(), (**data).clone());
@@ -532,7 +554,7 @@ pub(crate) fn apply(view: &SessionView, event: &Envelope<Event>) -> Result<Resul
                 .ok_or_else(|| Denial::new("attempt_missing", "No attempt"))?;
             if !matches!(
                 record.attempt.outcome,
-                AttemptOutcome::Pending | AttemptOutcome::Submitted
+                AttemptOutcome::Pending | AttemptOutcome::Submitted | AttemptOutcome::Rejected(_)
             ) || next.items[&record.attempt.item].accepted.is_some()
                 || view.admission().assignments()[&record.attempt.assignment]
                     .intent

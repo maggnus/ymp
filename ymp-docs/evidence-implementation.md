@@ -2,7 +2,8 @@
 
 Canonical status remains in `tasks/records/W1-0019.json`. AcceptanceAuthority now
 records evidence and independent review statements for an exact retained result.
-Belief, grades, acceptance and criteria-ledger transitions remain W1-0010.
+The [W1-0010 consumer](acceptance-implementation.md) adds belief, grades,
+acceptance and criteria-ledger transitions using this same applicability contract.
 
 ## Evidence sources
 

@@ -1031,6 +1031,64 @@ enum CompletionFact {
 }
 fn resolve_completion(view: &SessionView, source: &Ref) -> Result<CompletionProjection> {
     view.resolve(source)?;
+    if let Some(accepted) = view
+        .acceptances()
+        .values()
+        .find(|a| a.acceptance.reference().is_ok_and(|r| r == *source))
+    {
+        use ymp_domain::{
+            plan::AttemptOutcome,
+            verification::{AcceptanceDecision, AcceptanceSubject},
+        };
+        crate::ledger::validate_context(view, &accepted.context)?;
+        let AcceptanceSubject::ResultVersion(id) = &accepted.acceptance.subject else {
+            return Err(unsupported_basis(source));
+        };
+        let result = view
+            .results()
+            .results()
+            .get(id)
+            .ok_or_else(|| unsupported_basis(source))?;
+        let attempt = view
+            .results()
+            .attempts()
+            .get(&accepted.attempt)
+            .ok_or_else(|| unsupported_basis(source))?;
+        let item = &view.results().items()[&result.item];
+        let assignment = &view.admission().assignments()[&attempt.attempt.assignment]
+            .intent
+            .assignment;
+        let contribution = &view.coordination().contributions[&assignment.contribution];
+        if accepted.acceptance.decision != AcceptanceDecision::Accepted
+            || accepted.result != result.reference()?
+            || accepted.contract != view.contract().unwrap().reference()
+            || attempt.attempt.outcome != AttemptOutcome::Accepted
+            || attempt.attempt.result.as_ref() != Some(id)
+            || attempt.attempt.item != result.item
+            || item.accepted.as_ref() != Some(id)
+            || assignment.agent != result.producer
+            || assignment.profile != result.profile
+            || contribution.contract != view.results().plans()[&item.plan].contract
+            || contribution.value.subject.as_ref().map(|s| s.reference())
+                != Some(&item.reference()?)
+        {
+            return Err(Denial::new(
+                "commitment_basis",
+                "Acceptance is rejected, stale or belongs to another production responsibility",
+            )
+            .with_ref(source.clone()));
+        }
+        return Ok(CompletionProjection {
+            session: view.session().clone(),
+            assignment: assignment.id.clone(),
+            contribution: contribution.value.id.clone(),
+            contract: contribution.contract.clone(),
+            source: source.clone(),
+            fact: CompletionFact::ArtifactAccepted {
+                subject: item.reference()?,
+            },
+        });
+    }
     let invocation = view
         .execution()
         .invocations()

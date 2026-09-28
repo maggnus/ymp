@@ -1,2 +1,6 @@
-//! Placeholder: no behavior yet. Owner: CreditPolicy, ReputationModel, CalibrationScorer, KnowledgeCurator, RetrievalPolicy, TrialPolicy, ConsequenceSource (W1-0010, W5).
-//! Created by owner decision on 2026-09-16; see ymp-docs/project-worktree.md.
+//! Eligibility proposals; actual competence observations remain separate work.
+use ymp_domain::{Proposal, Result, journal::PolicySelection, verification::ConfirmationGrade};
+pub trait CreditPolicy {
+    fn selection(&self) -> &PolicySelection;
+    fn creditable(&self, grade: ConfirmationGrade) -> Result<Proposal<bool>>;
+}

@@ -22,6 +22,30 @@ impl Default for ParameterSchemas {
         Self {
             validators: BTreeMap::from([
                 (
+                    (
+                        "BeliefModel".into(),
+                        "LikelihoodRatioTable".into(),
+                        "1".into(),
+                    ),
+                    validate_likelihood as ParameterValidator,
+                ),
+                (
+                    ("BeliefModel".into(), "StrongestSupport".into(), "1".into()),
+                    validate_strongest as ParameterValidator,
+                ),
+                (
+                    ("CreditPolicy".into(), "ConfirmedOnly".into(), "1".into()),
+                    validate_no_parameters as ParameterValidator,
+                ),
+                (
+                    (
+                        "CreditPolicy".into(),
+                        "IncludeDiscriminated".into(),
+                        "1".into(),
+                    ),
+                    validate_no_parameters as ParameterValidator,
+                ),
+                (
                     ("ExecutionBackend".into(), "Scripted".into(), "1".into()),
                     validate_scripted as ParameterValidator,
                 ),
@@ -80,6 +104,16 @@ impl Default for ParameterSchemas {
             ]),
         }
     }
+}
+fn validate_likelihood(selection: &PolicySelection) -> Result<()> {
+    let parameters: ymp_domain::verification::LikelihoodRatioParameters =
+        ymp_domain::journal::decode(&encode(&selection.parameters)?)?;
+    parameters.validate()
+}
+fn validate_strongest(selection: &PolicySelection) -> Result<()> {
+    let parameters: ymp_domain::verification::StrongestSupportParameters =
+        ymp_domain::journal::decode(&encode(&selection.parameters)?)?;
+    parameters.validate()
 }
 fn validate_scripted(selection: &PolicySelection) -> Result<()> {
     if !selection.parameters.as_object().is_some_and(|value| {

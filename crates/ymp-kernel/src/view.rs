@@ -40,6 +40,9 @@ pub struct SessionView {
     admission: crate::gatekeeper::AdmissionView,
     execution: crate::execution::ExecutionView,
     results: crate::results::ResultsView,
+    ledger: crate::ledger::LedgerView,
+    acceptances:
+        BTreeMap<Id<ymp_domain::verification::Acceptance>, crate::acceptance::AcceptanceRecorded>,
     evidence: BTreeMap<Id<ymp_domain::verification::Evidence>, crate::acceptance::EvidenceRecorded>,
     reviews: BTreeMap<Id<ymp_domain::verification::Review>, crate::acceptance::ReviewRecorded>,
     workspaces: BTreeMap<Id<ymp_domain::workspace::Workspace>, ymp_domain::workspace::Workspace>,
@@ -73,6 +76,8 @@ impl SessionView {
             admission: crate::gatekeeper::AdmissionView::default(),
             execution: crate::execution::ExecutionView::default(),
             results: crate::results::ResultsView::default(),
+            ledger: crate::ledger::LedgerView::default(),
+            acceptances: BTreeMap::new(),
             evidence: BTreeMap::new(),
             reviews: BTreeMap::new(),
             workspaces: BTreeMap::new(),
@@ -114,6 +119,15 @@ impl SessionView {
     }
     pub fn results(&self) -> &crate::results::ResultsView {
         &self.results
+    }
+    pub fn ledger_state(&self) -> &crate::ledger::LedgerView {
+        &self.ledger
+    }
+    pub fn acceptances(
+        &self,
+    ) -> &BTreeMap<Id<ymp_domain::verification::Acceptance>, crate::acceptance::AcceptanceRecorded>
+    {
+        &self.acceptances
     }
     pub fn evidence(
         &self,
@@ -254,10 +268,28 @@ impl SessionView {
             self.resolve(reference)?;
         }
         self.coordination.check_next(&event.payload)?;
+        if let Event::AcceptanceRecorded { data, .. } = &event.payload {
+            self.validate_complete()?;
+            crate::acceptance::validate_acceptance(self, event, data, schemas)?;
+        }
         let execution = crate::execution::apply(self, event)?;
         let admission = crate::gatekeeper::apply(self, event)?;
         let results = crate::results::apply(self, event)?;
         match &event.payload {
+            Event::LedgerUpdated { data, .. } => {
+                self.validate_complete()?;
+                self.ledger = crate::ledger::apply(self, event, data, schemas)?;
+                let effective = &data.decisions.values().next().unwrap().effective;
+                self.policies
+                    .insert("BeliefModel".into(), effective.clone());
+            }
+            Event::AcceptanceRecorded { data, .. } => {
+                self.references.insert(data.acceptance.reference()?);
+                self.acceptances
+                    .insert(data.acceptance.id.clone(), (**data).clone());
+                self.policies
+                    .insert("CreditPolicy".into(), data.credit.effective.clone());
+            }
             Event::EvidenceRecorded { data, .. } => {
                 self.validate_complete()?;
                 crate::acceptance::validate_evidence(self, event, data)?;
