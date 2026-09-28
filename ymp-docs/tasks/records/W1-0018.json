@@ -5,7 +5,7 @@
   "title": "Build the native Codex backend and discovery for accountable sessions",
   "type": "implementation",
   "priority": 113,
-  "status": "in_progress",
+  "status": "done",
   "depends_on": [
     "W1-0003",
     "W1-0017"
@@ -32,9 +32,10 @@
   ],
   "evidence": [
     "fc6d7d56",
-    "ymp-docs/codex-implementation.md"
+    "ymp-docs/codex-implementation.md",
+    "git:aad168d6"
   ],
-  "revision": 13,
+  "revision": 14,
   "history": [
     {
       "revision": 1,
@@ -126,6 +127,13 @@
       "actor": "codex",
       "status": "in_progress",
       "note": "CodexAppServer v2 repair accepted by independent R1 (9/10). Required effective local Code Mode host and disabled in-process fallback preserve empty environments and mediated InvocationFiles; v1 schema/method bytes stay readable and cannot satisfy v2 attribution. Native discovery/start checks the helper chosen by supported0.156.1 packaging, refuses a denied preferred file and ambiguous legacy resource layout. Focused protocol consumer3 passed6.25s, helper layout regression passed, actual metadata-only consumer passed1.83s with seven offerings and zero turns. Full make verify passed with optimization1/assertions/overflow enabled; all nine Dispatcher scenarios passed139.51s. No new native inference was run during the repair; v2 native file-tool execution remains for the next bounded pilot. Ready to commit before canonical completion."
+    },
+    {
+      "revision": 14,
+      "at": "2026-09-28T20:11:56.973937Z",
+      "actor": "codex",
+      "status": "done",
+      "note": "Versioned local Code Mode host repair committed on main in aad168d6; reachability verified. Independent review and all required checks passed. Supported helper availability, effective host/fallback guards, v1/v2 attribution and unchanged file/stop/accounting boundaries are recorded. Actual native file-tool use under v2 remains explicit future pilot evidence, not a claim of this metadata/protocol validation."
     }
   ]
 }
