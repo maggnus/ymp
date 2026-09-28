@@ -74,7 +74,7 @@ fn attempt<'a>(
     }
     Ok(attempt)
 }
-fn grade(
+pub(crate) fn grade(
     criterion: &ymp_domain::task::Criterion,
     evidence: &[&EvidenceRecorded],
     rules: &AssessmentRules,
@@ -196,7 +196,7 @@ pub fn acceptance_value(
 pub fn credit_input(acceptance: &Acceptance) -> Result<Digest> {
     Digest::of_value(&(acceptance.reference()?, acceptance.grade))
 }
-fn validate_credit(acceptance: &Acceptance, decision: &Decision<bool>) -> Result<()> {
+pub(crate) fn validate_credit(acceptance: &Acceptance, decision: &Decision<bool>) -> Result<()> {
     decision.proposal.validate()?;
     let allowed = match decision.effective.policy.implementation.as_str() {
         "ConfirmedOnly" => matches!(acceptance.grade, ConfirmationGrade::Confirmed(_)),

@@ -1,6 +1,7 @@
 //! Kernel-owned checks, applicable evidence, independent acceptance and criterion assessment.
-mod decisions;
-mod evidence;
+pub(crate) mod decisions;
+pub(crate) mod evidence;
+pub(crate) mod subjects;
 use crate::{
     decision::{DecisionConsumer, SessionControl},
     events::Event,
@@ -77,6 +78,18 @@ impl<J: Journal, C: ContentStore> AcceptanceAuthority<J, C> {
             ));
         }
         Ok(())
+    }
+    pub fn finalize(
+        &self,
+        owner: &SessionControl,
+        request: AcceptanceRequest,
+    ) -> Result<crate::finalization::FinalAcceptance> {
+        crate::finalization::Finalization::new(
+            self.journal.clone(),
+            self.content.clone(),
+            self.owner.shared(),
+        )
+        .accept(owner, request)
     }
     pub fn register_check(&self, owner: &SessionControl, request: RegisterCheck) -> Result<Check> {
         let session = self.owner.authorize(owner)?;

@@ -5,7 +5,7 @@
   "title": "Finalize the integrated result and deliver an evidence-audited report",
   "type": "implementation",
   "priority": 113,
-  "status": "planned",
+  "status": "in_progress",
   "depends_on": [
     "W1-0006",
     "W1-0008",
@@ -14,7 +14,7 @@
     "W1-0011",
     "W1-0012"
   ],
-  "owner": null,
+  "owner": "codex",
   "goal": "Deliver a report that explains the checked result, unmet criteria, assumptions and uncertainty, with independent final acceptance on the actual integrated snapshot.",
   "scope": [
     "Implement CriteriaProjection+JournalDigest ContextComposer: assignment targets, criterion text, permitted visible checks, relevant decision/evidence refs and bounded history, with attributable profile/instructions. Use actual projection boundaries; hidden content filtering is extended in W2-0001.",
@@ -35,7 +35,7 @@
     "ResourcePolicy.reporting_reserve from W1-0004 supplies protected Budget capacity without a mandatory Constraints/TUI field. Narrator and one correction are bounded Reporting assignments; DeterministicReport is a selectable alternative and the zero-call fallback after stop or unavailable/unfunded narration. Account narration expenses before ReportDelivered.",
     "A11 blocks only work that can still change the aggregate. Apply the same evidence applicability as A7/A8; final review excludes the aggregate producer union. Fallback explains recorded results, unknowns and unmet criteria and never replaces an unfinished task artifact."
   ],
-  "revision": 4,
+  "revision": 7,
   "history": [
     {
       "revision": 1,
@@ -64,6 +64,27 @@
       "actor": "owner",
       "status": "planned",
       "note": "Start decision 2026-09-16: W1 scheduled; readiness follows dependencies."
+    },
+    {
+      "revision": 5,
+      "at": "2026-09-28T13:36:05.056465Z",
+      "actor": "codex",
+      "status": "in_progress",
+      "note": "Claimed by codex."
+    },
+    {
+      "revision": 6,
+      "at": "2026-09-28T15:21:51.499364Z",
+      "actor": "codex",
+      "status": "in_progress",
+      "note": "Independent code and documentation review: R1(9/10) ACCEPT. Stable Direct final scope, canonical fence, paid independent final review, fresh conclusive check evidence, exact A8 context, delivery-time claim audit, sticky stop, pending narration authority, one correction and honest accounting reviewed. Actual Scripted paths passed: final review/narrator/correction/delivery 302.10s; failed Narrator to deterministic report 9.86s; scoped effects/stop report 2.56s. Removing sticky Stop caused the intended red result in 1.90s and was restored. Full final make verify is running; later narrow fixes and the mismatched causal-environment assertion are not yet claimed verified by that run. Native inference, automatic Dispatcher, merge, Browser/Property and learning remain outside this delivery."
+    },
+    {
+      "revision": 7,
+      "at": "2026-09-28T15:40:21.249308Z",
+      "actor": "codex",
+      "status": "in_progress",
+      "note": "Final make verify exited 0: legacy scan and all four required offline workspace checks passed. Final code evidence: report scenarios 298.60s (including mismatched causal environment), scoped capture/stop report 2.56s, planning 93.56s, progress/recovery 501.63s, result/acceptance 240.62s, restart and remaining workspace tests green. Independent code/documentation review R1(9/10) ACCEPT; doc precision corrections applied; staged diff and task-register checks passed. Ready to commit the implementation; completion will be recorded only after its commit is reachable from main. W1-0018 is independently ready and claimed in its separate owned worktree; no native inference or product experiment has begun."
     }
   ]
 }

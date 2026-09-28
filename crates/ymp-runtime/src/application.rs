@@ -31,6 +31,12 @@ pub struct Application<J: Journal> {
     registry: Registry<J>,
 }
 impl<J: Journal> Application<J> {
+    pub fn finalization<C: ymp_kernel::journal::ContentStore>(
+        &self,
+        content: Arc<C>,
+    ) -> ymp_kernel::finalization::Finalization<J, C> {
+        self.intake.finalization(content)
+    }
     pub fn progress(&self) -> ymp_kernel::progress::Progress<J> {
         self.intake.progress()
     }

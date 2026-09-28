@@ -63,6 +63,13 @@ stalls, diagnoses actual failures and applies bounded check repair, reviewed
 replacement, retry, researcher diagnosis and stop actions. It preserves accepted
 results and spent resources and enforces diagnosis before profile growth in
 sessions using progress strategies.
+The [finalization and reporting consumer](ymp-docs/finalization-implementation.md)
+captures a protected Direct target, reruns checks and records an independent paid
+final review. It audits bounded narration, permits one accounted correction and
+delivers facts without a model call after stop or narration failure. Reports retain
+unmet criteria, assumptions, expenses and uncertainty. These consumers are exercised
+with Scripted execution; native integration and the full session loop remain
+separate work.
 The remaining modules are placeholders under
 [the proposed layout](ymp-docs/project-worktree.md). The executable still has no
 interactive or task-execution behavior.

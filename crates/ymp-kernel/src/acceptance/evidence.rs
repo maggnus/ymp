@@ -3,7 +3,6 @@ use super::*;
 use std::collections::{BTreeMap, BTreeSet};
 use ymp_domain::{
     assignment::{Assignment, ContributionKind, ContributionSubject},
-    result::ResultVersion,
     task::{Criterion, EvidenceClass},
 };
 
@@ -99,12 +98,8 @@ pub struct ReviewRequest {
     pub findings: Vec<Finding>,
     pub basis: Vec<Id<Evidence>>,
 }
-fn result<'a>(view: &'a SessionView, reference: &Ref) -> Result<&'a ResultVersion> {
-    view.results()
-        .results()
-        .values()
-        .find(|r| r.reference().is_ok_and(|r| r == *reference))
-        .ok_or_else(|| Denial::new("evidence_result", "No exact retained result version"))
+fn result(view: &SessionView, reference: &Ref) -> Result<super::subjects::Subject> {
+    super::subjects::resolve(view, reference)
 }
 fn criterion<'a>(view: &'a SessionView, reference: &Ref) -> Result<&'a Criterion> {
     view.criteria()
@@ -125,9 +120,9 @@ fn current_check<'a>(view: &'a SessionView, reference: &Ref) -> Option<&'a Check
             })
     })
 }
-fn targets(view: &SessionView, result: &ResultVersion) -> Result<Vec<Ref>> {
-    let item = &view.results().items()[&result.item];
-    item.targets
+fn targets(view: &SessionView, result: &super::subjects::Subject) -> Result<Vec<Ref>> {
+    result
+        .targets
         .iter()
         .map(|id| {
             view.criteria()
@@ -143,7 +138,7 @@ fn targets(view: &SessionView, result: &ResultVersion) -> Result<Vec<Ref>> {
 fn source_independence(
     view: &SessionView,
     check: &Check,
-    result: &ResultVersion,
+    result: &super::subjects::Subject,
 ) -> Result<(Independence, Option<Id<ymp_domain::identity::Agent>>)> {
     match &check.author {
         CheckAuthor::User => Ok((Independence::Trusted, None)),
@@ -158,7 +153,7 @@ fn source_independence(
                 .intent
                 .assignment;
             Ok((
-                if author.agent == result.producer {
+                if result.producers.contains(&author.agent) {
                     Independence::ProducerAuthored
                 } else {
                     check.independence
@@ -171,7 +166,7 @@ fn source_independence(
 fn bound_run<'a>(
     view: &'a SessionView,
     id: &Id<CheckRun>,
-    result: &ResultVersion,
+    result: &super::subjects::Subject,
     role: CheckRunRole,
     check: &Check,
 ) -> Result<&'a CheckRun> {
@@ -180,7 +175,9 @@ fn bound_run<'a>(
         .get(id)
         .ok_or_else(|| Denial::new("evidence_run", "No recorded check run"))?;
     let snapshot = if role == CheckRunRole::Baseline {
-        &result.before
+        result.before.as_ref().ok_or_else(|| {
+            Denial::new("evidence_baseline", "This subject has no single baseline")
+        })?
     } else {
         &result.after
     };
@@ -204,10 +201,7 @@ fn bound_run<'a>(
 fn derive_evidence(view: &SessionView, request: &EvidenceRequest) -> Result<EvidenceRecorded> {
     let result = result(view, &request.result)?;
     let criterion = criterion(view, &request.criterion)?;
-    if !view.results().items()[&result.item]
-        .targets
-        .contains(&criterion.id)
-    {
+    if !result.targets.contains(&criterion.id) {
         return Err(Denial::new(
             "evidence_target",
             "Criterion is outside this result's work definition",
@@ -255,7 +249,8 @@ fn derive_evidence(view: &SessionView, request: &EvidenceRequest) -> Result<Evid
                     "Check covers another criterion version",
                 ));
             }
-            let candidate = bound_run(view, &candidate.id, result, CheckRunRole::Candidate, check)?;
+            let candidate =
+                bound_run(view, &candidate.id, &result, CheckRunRole::Candidate, check)?;
             let polarity = match candidate.outcome {
                 CheckOutcome::Pass => Polarity::Supports,
                 CheckOutcome::Fail => Polarity::Contradicts,
@@ -270,7 +265,7 @@ fn derive_evidence(view: &SessionView, request: &EvidenceRequest) -> Result<Evid
                 .iter()
                 .find(|r| r.role == CheckRunRole::Baseline)
                 .map(|run| {
-                    let run = bound_run(view, &run.id, result, CheckRunRole::Baseline, check)?;
+                    let run = bound_run(view, &run.id, &result, CheckRunRole::Baseline, check)?;
                     if run.env != candidate.env {
                         return Err(Denial::new(
                             "evidence_environment",
@@ -285,7 +280,7 @@ fn derive_evidence(view: &SessionView, request: &EvidenceRequest) -> Result<Evid
                 })
                 .transpose()?
                 .flatten();
-            let (independence, author) = source_independence(view, check, result)?;
+            let (independence, author) = source_independence(view, check, &result)?;
             // Executed describes this specific programmatic CheckRun. ExactBytes
             // proves a byte comparison, not that the candidate program was run.
             (
@@ -303,6 +298,62 @@ fn derive_evidence(view: &SessionView, request: &EvidenceRequest) -> Result<Evid
                 vec![],
             )
         } else if request.runs.is_empty() && request.reviews.len() == 1 {
+            if let Some(review) = view
+                .finalization()
+                .reviews
+                .iter()
+                .find(|r| r.verdict.id == request.reviews[0])
+            {
+                let context = crate::finalization::context(
+                    view.finalization()
+                        .aggregate
+                        .as_ref()
+                        .ok_or_else(|| Denial::new("final_scope", "No final scope"))?,
+                )?;
+                if request.result != review.verdict.aggregate
+                    || !crate::finalization::review::applicable(view, review, &context)?
+                {
+                    return Err(Denial::new(
+                        "evidence_review",
+                        "Final review is not applicable",
+                    ));
+                }
+                let polarity = match review.verdict.verdict {
+                    ReviewVerdict::Approve => Polarity::Supports,
+                    ReviewVerdict::Reject => Polarity::Contradicts,
+                    ReviewVerdict::NeedsEvidence => {
+                        return Err(Denial::new(
+                            "evidence_inconclusive",
+                            "Final review requests evidence",
+                        ));
+                    }
+                };
+                return Ok(EvidenceRecorded {
+                    evidence: Evidence {
+                        id: request.id.clone(),
+                        criterion: criterion.id.clone(),
+                        result: None,
+                        class: EvidenceClass::Inspection,
+                        independence: Independence::IndependentVisible,
+                        runs: vec![],
+                        discrimination: Discrimination {
+                            baseline_fails: None,
+                            candidate_passes: false,
+                            mutation_score: None,
+                        },
+                        author: Some(review.reviewer.clone()),
+                        polarity,
+                    },
+                    scope: EvidenceScope {
+                        result: request.result.clone(),
+                        criterion: request.criterion.clone(),
+                        check: None,
+                        environment: None,
+                    },
+                    reviews: vec![review.reference()?],
+                    at: request.at,
+                });
+            }
             let review = view
                 .reviews()
                 .get(&request.reviews[0])
@@ -348,7 +399,7 @@ fn derive_evidence(view: &SessionView, request: &EvidenceRequest) -> Result<Evid
     let evidence = Evidence {
         id: request.id.clone(),
         criterion: criterion.id.clone(),
-        result: Some(result.id.clone()),
+        result: result.result.clone(),
         class,
         independence,
         runs,
@@ -464,6 +515,16 @@ fn sources_current(
                         }
                     }
                     (None, None) if evidence.reviews.len() == 1 => {
+                        if let Some(review) = view.finalization().reviews.iter().find(|r| {
+                            r.reference()
+                                .is_ok_and(|reference| reference == evidence.reviews[0])
+                        }) {
+                            if review.verdict.aggregate != scope.result {
+                                return Ok(false);
+                            }
+                            pending.push(Source::Review(review.verdict.id.clone()));
+                            continue;
+                        }
                         let Some(review) = view
                             .reviews()
                             .values()
@@ -483,17 +544,44 @@ fn sources_current(
                 if !review_seen.insert(id.clone()) {
                     continue;
                 }
+                if let Some(review) = view
+                    .finalization()
+                    .reviews
+                    .iter()
+                    .find(|r| r.verdict.id == id)
+                {
+                    let Ok(subject) = result(view, &review.verdict.aggregate) else {
+                        return Ok(false);
+                    };
+                    if review.verdict.aggregate != context.result
+                        || subject.producers.contains(&review.reviewer)
+                        || review.criteria.iter().cloned().collect::<BTreeSet<_>>()
+                            != context.criteria
+                    {
+                        return Ok(false);
+                    }
+                    for id in &review.verdict.basis {
+                        let Some(evidence) = view.evidence().get(id) else {
+                            return Ok(false);
+                        };
+                        if evidence.scope.result != context.result {
+                            return Ok(false);
+                        }
+                        pending.push(Source::Evidence(id.clone()));
+                    }
+                    continue;
+                }
                 let Some(review) = view.reviews().get(&id) else {
                     return Ok(false);
                 };
                 let Ok(result) = result(view, &review.result) else {
                     return Ok(false);
                 };
-                let Ok(criteria) = targets(view, result) else {
+                let Ok(criteria) = targets(view, &result) else {
                     return Ok(false);
                 };
                 if review.result != context.result
-                    || review.review.reviewer == result.producer
+                    || result.producers.contains(&review.review.reviewer)
                     || review.criteria != criteria
                     || !review
                         .criteria
@@ -537,7 +625,7 @@ fn recorded_context(view: &SessionView, reference: &Ref) -> Result<Applicability
     }
     Ok(ApplicabilityContext {
         result: reference.clone(),
-        criteria: targets(view, result)?.into_iter().collect(),
+        criteria: targets(view, &result)?.into_iter().collect(),
         environments,
     })
 }
@@ -548,12 +636,12 @@ fn derive_review(
 ) -> Result<ReviewRecorded> {
     let result = result(view, &request.result)?;
     let contribution = &view.coordination().contributions()[&assignment.contribution];
-    let criteria = targets(view, result)?;
+    let criteria = targets(view, &result)?;
     if assignment.role != RoleKind::Reviewer
         || contribution.value.kind != ContributionKind::Review
         || contribution.value.subject
             != Some(ContributionSubject::ResultVersion(request.result.clone()))
-        || assignment.agent == result.producer
+        || result.producers.contains(&assignment.agent)
         || request.criteria != criteria
         || contribution.contract != view.contract().unwrap().reference()
         || request
@@ -583,7 +671,12 @@ fn derive_review(
     }
     let review = Review {
         id: request.id.clone(),
-        result: result.id.clone(),
+        result: result.result.clone().ok_or_else(|| {
+            Denial::new(
+                "review_subject",
+                "Final review has its own paid provenance consumer",
+            )
+        })?,
         reviewer: assignment.agent.clone(),
         profile: assignment.profile.clone(),
         verdict: request.verdict,
@@ -649,6 +742,14 @@ pub(crate) fn validate_evidence(
         .reviews
         .iter()
         .map(|reference| {
+            if let Some(review) = view
+                .finalization()
+                .reviews
+                .iter()
+                .find(|r| r.reference().is_ok_and(|r| r == *reference))
+            {
+                return Ok(review.verdict.id.clone());
+            }
             view.reviews()
                 .values()
                 .find(|r| r.reference().is_ok_and(|r| r == *reference))
@@ -777,4 +878,12 @@ impl<J: Journal, C: ContentStore> AcceptanceAuthority<J, C> {
         self.append(token.session(), view.revision(), event)?;
         Ok(data)
     }
+}
+
+pub(crate) fn final_review_applicable(
+    view: &SessionView,
+    id: &Id<Review>,
+    context: &ApplicabilityContext,
+) -> Result<bool> {
+    sources_current(view, vec![Source::Review(id.clone())], context)
 }

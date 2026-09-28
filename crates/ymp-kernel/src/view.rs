@@ -43,6 +43,7 @@ pub struct SessionView {
     ledger: crate::ledger::LedgerView,
     planning: crate::plans::PlanningState,
     progress: crate::progress::ProgressState,
+    finalization: crate::finalization::FinalizationState,
     acceptances:
         BTreeMap<Id<ymp_domain::verification::Acceptance>, crate::acceptance::AcceptanceRecorded>,
     evidence: BTreeMap<Id<ymp_domain::verification::Evidence>, crate::acceptance::EvidenceRecorded>,
@@ -81,6 +82,7 @@ impl SessionView {
             ledger: crate::ledger::LedgerView::default(),
             planning: crate::plans::PlanningState::default(),
             progress: crate::progress::ProgressState::default(),
+            finalization: crate::finalization::FinalizationState::default(),
             acceptances: BTreeMap::new(),
             evidence: BTreeMap::new(),
             reviews: BTreeMap::new(),
@@ -123,6 +125,9 @@ impl SessionView {
     }
     pub fn results(&self) -> &crate::results::ResultsView {
         &self.results
+    }
+    pub fn finalization(&self) -> &crate::finalization::FinalizationState {
+        &self.finalization
     }
     pub fn progress(&self) -> &crate::progress::ProgressState {
         &self.progress
@@ -179,6 +184,12 @@ impl SessionView {
         &self.check_runs
     }
     pub fn status(&self) -> Option<SessionStatus> {
+        if self.finalization.stopped {
+            return Some(SessionStatus::Cancelled);
+        }
+        if let Some(report) = &self.finalization.delivered {
+            return Some(report.outcome.clone());
+        }
         self.task.as_ref().map(|_| SessionStatus::Intake)
     }
     pub fn session(&self) -> &Id {
@@ -282,6 +293,7 @@ impl SessionView {
         for reference in &event.refs {
             self.resolve(reference)?;
         }
+        self.finalization.check_next(&event.payload)?;
         self.progress.check_next(&event.payload)?;
         self.coordination.check_next(&event.payload)?;
         if let Event::AcceptanceRecorded { data, .. } = &event.payload {
@@ -295,6 +307,33 @@ impl SessionView {
         let admission = crate::gatekeeper::apply(self, event)?;
         let results = crate::results::apply(self, event)?;
         match &event.payload {
+            Event::FinalizationRecorded { data, .. } => {
+                self.validate_complete()?;
+                let state = crate::finalization::apply(self, event, data, schemas)?;
+                if let crate::finalization::FinalizationRecorded::Captured(aggregate) =
+                    data.as_ref()
+                {
+                    self.references.insert(aggregate.reference()?);
+                }
+                if let crate::finalization::FinalizationRecorded::Reviewed(review) = data.as_ref() {
+                    self.references.insert(review.reference()?);
+                    self.references.insert(review.assignment.clone());
+                }
+                if let crate::finalization::FinalizationRecorded::Accepted(acceptance) =
+                    data.as_ref()
+                {
+                    self.references.insert(acceptance.acceptance.reference()?);
+                }
+                if let crate::finalization::FinalizationRecorded::Delivered(report) = data.as_ref()
+                {
+                    self.references.insert(report.reference()?);
+                }
+                if let Some(selection) = data.selection() {
+                    self.policies
+                        .insert(selection.policy.port.clone(), selection.clone());
+                }
+                self.finalization = state;
+            }
             Event::ProgressRecorded { data, .. } => {
                 self.validate_complete()?;
                 let state = crate::progress::apply(self, event, data, schemas)?;
@@ -886,6 +925,11 @@ impl SessionView {
         }
         self.references.insert(event.reference()?);
         self.results = results;
+        if let Event::ContributionProposed { contribution, .. } = &event.payload
+            && self.finalization.pending_work.as_ref() == Some(contribution.as_ref())
+        {
+            self.finalization.pending_work = None;
+        }
         self.progress = crate::progress::observe(self, event)?;
         self.revision = event.seq;
         self.latest_at = self.latest_at.max(event.at);
@@ -910,6 +954,7 @@ impl SessionView {
     }
 
     pub(crate) fn validate_complete(&self) -> Result<()> {
+        self.finalization.complete()?;
         self.progress.complete()?;
         self.execution.complete()?;
         self.results.complete()?;

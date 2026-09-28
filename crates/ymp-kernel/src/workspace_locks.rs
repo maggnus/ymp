@@ -552,6 +552,20 @@ impl WorkspaceOwnership {
                 locks.push((holder, capture.started.clone(), vec![path]));
             }
         }
+        if let Some((reference, fence)) = &view.finalization().fence {
+            locks.push((
+                fence.holder.clone(),
+                reference.clone(),
+                vec![ObservedPathLock {
+                    lock: PathLock {
+                        path: WorkspacePath::root(),
+                        mode: LockMode::Read,
+                        holder: fence.holder.clone(),
+                    },
+                    observation: fence.observation.clone(),
+                }],
+            ));
+        }
         Self {
             session: view.session().clone(),
             pending: view
@@ -569,6 +583,46 @@ impl WorkspaceOwnership {
                 .collect(),
             locks,
         }
+    }
+    /// Final capture has no assignment exemption: every overlapping writer matters.
+    pub fn finalization_effects(&self, target: &PathObservation) -> Result<()> {
+        let absolute = format!(
+            "/{}",
+            target
+                .existing
+                .iter()
+                .skip(1)
+                .map(|part| part.name.as_str())
+                .chain(target.missing.iter().map(String::as_str))
+                .collect::<Vec<_>>()
+                .join("/")
+        );
+        for (root, reference) in &self.pending {
+            if target.existing.iter().any(|part| {
+                part.identity.device == root.device && part.identity.inode == root.inode
+            }) || root.root == absolute
+                || root.root.starts_with(&(absolute.clone() + "/"))
+            {
+                return Err(Denial::new(
+                    "effects_uncertain",
+                    "Pending file creation overlaps the final target",
+                )
+                .with_ref(reference.clone()));
+            }
+        }
+        for (_, reference, paths) in &self.locks {
+            if paths
+                .iter()
+                .any(|path| path.lock.mode == LockMode::Write && path.observation.overlaps(target))
+            {
+                return Err(Denial::new(
+                    "effects_uncertain",
+                    "Unreleased write authority overlaps the final target",
+                )
+                .with_ref(reference.clone()));
+            }
+        }
+        Ok(())
     }
     /// Check a freshly observed operation target against retained physical owners.
     pub fn validate_operation(
@@ -784,7 +838,9 @@ pub fn touches_ownership(events: &[Envelope<Event>]) -> bool {
     events.iter().any(|e| {
         matches!(
             e.payload,
-            Event::LockChanged { .. } | Event::SnapshotTaken { version: 2, .. }
+            Event::LockChanged { .. }
+                | Event::SnapshotTaken { version: 2, .. }
+                | Event::FinalizationRecorded { .. }
         )
     })
 }

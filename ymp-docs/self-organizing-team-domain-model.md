@@ -653,6 +653,37 @@ reviewer statement; `ReplacementApproval` binds it to a completed, accounted
 independent Reviewer invocation. These values implement A9's reviewed replacement
 without granting an adapter authority or treating generic approval as check review.
 
+The Rust A11 mapping makes `FinalAggregate` an immutable value containing the exact
+session, snapshot, contract, criterion/check/environment versions, accepted sources,
+producer union and optional common baseline. `FinalSource` binds a retained result
+to its Acceptance; `FinalCheck` binds a check to its expected environment.
+`FinalFence` retains the scoped physical read ownership from capture through report
+delivery. These realize the existing final subject and stable-workspace requirement;
+they do not introduce a production ResultVersion or fabricate a merge.
+`Continuation` records owner authority to continue, its absence or a sticky stop.
+`FinalReview` binds the final verdict to the exact aggregate and accounted independent
+FinalReviewer invocation; `FinalAcceptance` retains its A7 context and credit decision.
+
+`ContextInput` contains the actual Assignment, attributed untrusted instructions,
+visible target criteria/checks and bounded journal references. `RetainedContext`
+adds digest-checked snapshot bytes within a finite prompt budget. `ContextRecorded`
+retains the selected ContextComposer decision consumed at dispatch. `CompactContext`
+is an experimental alternative using check references instead of full definitions;
+`LeastUsedReviewer` selects the eligible non-producer with the fewest prior reviews,
+instead of the stable identity ordering of `AnyNonProducer`.
+
+`ReportDraft` and `DraftClaim` contain proposed typed assertions and wording before
+audit; `ClaimInput` is the exact applicable evidence projection. `ConservativeAudit`
+is an experimental ClaimAuditor that excludes execution and causal statements even
+when EvidenceClassRules permits them. `NarrativeWork` binds initial narration or
+its one correction to the prepared report, profile, estimate and audit basis.
+`ReportPrepared`, `NarrativeRecorded` and `AuditRecorded` retain those decisions;
+`ReportDelivered` adds kernel-derived current outcome, retained work, criteria and
+`AccountingSummary` to the model's Report and audited Claims. `FinalizationRecorded`
+and `FinalizationState` retain and project these transitions. `Finalization` is the
+owner-authorized implementation consumer exposed by Application. These are concrete
+provenance mappings for A11, not additional roles or independent runtime authority.
+
 ### 3.7. Resources
 
 ```text

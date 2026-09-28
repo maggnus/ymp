@@ -2,7 +2,7 @@
 
 Generated from the canonical JSON records in [`records/`](records/) by `python3 ymp-docs/tasks/manage.py progress --write`. Task write commands and `make tasks-progress` refresh it; do not edit statuses here.
 
-Tasks: 45 (15 done, 0 in progress, 28 open, 2 paused or blocked, 0 rejected). Times are Hong Kong time (UTC+08:00). Last record change: 2026-09-28 21:35.
+Tasks: 45 (15 done, 2 in progress, 26 open, 2 paused or blocked, 0 rejected). Times are Hong Kong time (UTC+08:00). Last record change: 2026-09-28 23:40.
 
 | Mark | Meaning |
 | :---: | --- |
@@ -16,16 +16,30 @@ Tasks: 45 (15 done, 0 in progress, 28 open, 2 paused or blocked, 0 rejected). Ti
 
 | Wave | Done | In progress | Open | Paused or blocked | Rejected | Total | Done % |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| [W1](#wave-w1) | 15 | 0 | 2 | 2 | 0 | 19 | 79% |
+| [W1](#wave-w1) | 15 | 2 | 0 | 2 | 0 | 19 | 79% |
 | [W2](#wave-w2) | 0 | 0 | 4 | 0 | 0 | 4 | 0% |
 | [W3](#wave-w3) | 0 | 0 | 9 | 0 | 0 | 9 | 0% |
 | [W4](#wave-w4) | 0 | 0 | 3 | 0 | 0 | 3 | 0% |
 | [W5](#wave-w5) | 0 | 0 | 5 | 0 | 0 | 5 | 0% |
 | [W6](#wave-w6) | 0 | 0 | 5 | 0 | 0 | 5 | 0% |
 
+## Current work
+
+### W1-0013 — [~] in_progress
+
+Finalize the integrated result and deliver an evidence-audited report. Owner: codex; revision 7; updated 2026-09-28 23:40 by codex.
+
+Final make verify exited 0: legacy scan and all four required offline workspace checks passed. Final code evidence: report scenarios 298.60s (including mismatched causal environment), scoped capture/stop report 2.56s, planning 93.56s, progress/recovery 501.63s, result/acceptance 240.62s, restart and remaining workspace tests green. Independent code/documentation review R1(9/10) ACCEPT; doc precision corrections applied; staged diff and task-register checks passed. Ready to commit the implementation; completion will be recorded only after its commit is reachable from main. W1-0018 is independently ready and claimed in its separate owned worktree; no native inference or product experiment has begun.
+
+### W1-0018 — [~] in_progress
+
+Build the native Codex backend and discovery for accountable sessions. Owner: codex; revision 7; updated 2026-09-28 23:28 by codex.
+
+Claimed by codex.
+
 ## Wave W1
 
-15 of 19 done; 0 in progress; 2 paused or blocked.
+15 of 19 done; 2 in progress; 2 paused or blocked.
 
 | Status | Task | Title | Area | State | Depends on | Owner | Updated (HKT) | Rev | Evidence |
 | :---: | --- | --- | --- | --- | --- | --- | --- | ---: | --- |
@@ -41,12 +55,12 @@ Tasks: 45 (15 done, 0 in progress, 28 open, 2 paused or blocked, 0 rejected). Ti
 | [x] | [W1-0010](records/W1-0010.json) | Compute criterion satisfaction and independent acceptance from the recorded evidence | acceptance | done | W1-0009 ✓, W1-0019 ✓ | codex | 2026-09-28 19:13 | 8 | d0b102ef; ymp-docs/acceptance-implementation.md; crates/ymp-storage/tests/results.rs; crates/ymp-runtime/tests/belief.rs |
 | [x] | [W1-0011](records/W1-0011.json) | Extract criteria and select minimal criterion-directed work through admitted strategies | planning | done | W1-0002 ✓, W1-0006 ✓, W1-0008 ✓, W1-0010 ✓ | codex | 2026-09-28 20:03 | 8 | df97ee3b; ymp-docs/planning-implementation.md; crates/ymp-storage/tests/planning.rs; crates/ymp-kernel/tests/replay.rs |
 | [x] | [W1-0012](records/W1-0012.json) | Diagnose stalls and perform bounded recovery without discarding verified work | progress | done | W1-0007 ✓, W1-0019 ✓, W1-0010 ✓, W1-0011 ✓ | codex | 2026-09-28 21:35 | 8 | ba307435; ymp-docs/progress-implementation.md; crates/ymp-storage/tests/progress.rs; crates/ymp-runtime/tests/progress.rs |
-| [ ] | [W1-0013](records/W1-0013.json) | Finalize the integrated result and deliver an evidence-audited report | reporting | planned | W1-0006 ✓, W1-0008 ✓, W1-0019 ✓, W1-0010 ✓, W1-0011 ✓, W1-0012 ✓ | — | 2026-09-16 01:05 | 4 | — |
+| [~] | [W1-0013](records/W1-0013.json) | Finalize the integrated result and deliver an evidence-audited report | reporting | in_progress | W1-0006 ✓, W1-0008 ✓, W1-0019 ✓, W1-0010 ✓, W1-0011 ✓, W1-0012 ✓ | codex | 2026-09-28 23:40 | 7 | — |
 | [=] | [W1-0014](records/W1-0014.json) | Run and recover the minimal accountable producer-reviewer session | session | planned (blocked) | W1-0007 ✓, W1-0011 ✓, W1-0012 ✓, W1-0013, W1-0018 | — | 2026-09-28 21:21 | 4 | — |
 | [=] | [W1-0015](records/W1-0015.json) | Expose the accountable session through a simple interactive Ratatui interface | interface | planned (blocked) | W1-0014 | — | 2026-09-16 03:19 | 8 | — |
 | [x] | [W1-0016](records/W1-0016.json) | Persist the new Journal and content-addressed payloads across restart | persistence | done | W1-0001 ✓ | codex | 2026-09-16 04:56 | 9 | commit [`07db5fa`](https://github.com/maggnus/ymp/commit/07db5fa45ad10a94e5560c711b7be0274eb5d1c9) |
 | [x] | [W1-0017](records/W1-0017.json) | Execute admitted assignments through a new host and Scripted backend | execution | done | W1-0006 ✓, W1-0007 ✓, W1-0016 ✓ | codex | 2026-09-28 16:18 | 7 | 8de8e73a; ymp-docs/execution-implementation.md; crates/ymp-storage/tests/execution.rs |
-| [ ] | [W1-0018](records/W1-0018.json) | Build the native Codex backend and discovery for accountable sessions | providers | planned | W1-0003 ✓, W1-0017 ✓ | codex | 2026-09-28 19:13 | 6 | — |
+| [~] | [W1-0018](records/W1-0018.json) | Build the native Codex backend and discovery for accountable sessions | providers | in_progress | W1-0003 ✓, W1-0017 ✓ | codex | 2026-09-28 23:28 | 7 | — |
 | [x] | [W1-0019](records/W1-0019.json) | Bind attributed evidence and reviews to immutable results | verification | done | W1-0008 ✓, W1-0009 ✓ | codex | 2026-09-28 18:13 | 7 | 3689ad59; ymp-docs/evidence-implementation.md; crates/ymp-storage/tests/results.rs |
 
 ## Wave W2

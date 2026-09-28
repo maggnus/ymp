@@ -9,4 +9,5 @@ pub mod experience;
 pub mod organization;
 pub mod planning;
 pub mod progress;
+pub mod reporting;
 pub mod resources;

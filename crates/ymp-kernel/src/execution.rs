@@ -162,6 +162,7 @@ fn dispatch_tail(data: &InvocationDispatch) -> Vec<Event> {
 }
 fn validate_dispatch(view: &SessionView, data: &InvocationDispatch, at: u64) -> Result<()> {
     crate::progress::validate_dispatch(view, data)?;
+    crate::finalization::validate_dispatch(view, data)?;
     crate::results::validate_dispatch(view, &data.assignment)?;
     data.prompt.validate()?;
     data.settings.validate()?;
@@ -908,6 +909,7 @@ impl<J: Journal, C: ContentStore> Execution<J, C> {
     pub fn allowed(&self, token: &GrantToken, invocation: &Id<Invocation>, at: u64) -> Result<()> {
         let view = self.view(token.session())?;
         let source = record(&view, invocation)?;
+        crate::finalization::execution_allowed(&view, &source.dispatch.assignment)?;
         let assignment = self.gate.authorize_snapshot(token, None, at, &view)?;
         let task = view
             .task()

@@ -373,6 +373,16 @@ impl<J: Journal> Setup<J> {
         award: Ref,
         path: &str,
     ) -> (u64, u64, AdmissionRequest) {
+        self.request_with_files(gate, name, award, path, self.files)
+    }
+    pub(super) fn request_with_files(
+        &self,
+        gate: &Gatekeeper<J, SqliteContent>,
+        name: &str,
+        award: Ref,
+        path: &str,
+        write_files: bool,
+    ) -> (u64, u64, AdmissionRequest) {
         let view = gate.view(&self.session).unwrap();
         let at = view.latest_at() + 1;
         let source = view
@@ -412,12 +422,12 @@ impl<J: Journal> Setup<J> {
                 renew_on: BTreeSet::new(),
                 renewals_left: 0,
             });
-        let access = if self.files {
+        let access = if write_files {
             BTreeSet::from([Capability::ReadFiles, Capability::WriteFiles])
         } else {
             BTreeSet::new()
         };
-        let files = if self.files {
+        let files = if write_files {
             Some(
                 gate.workspace()
                     .prepare_mediation(
@@ -446,7 +456,7 @@ impl<J: Journal> Setup<J> {
             AdmissionRequest {
                 assignment: id(name),
                 award,
-                role: if self.files {
+                role: if write_files {
                     RoleKind::Producer
                 } else {
                     RoleKind::Planner

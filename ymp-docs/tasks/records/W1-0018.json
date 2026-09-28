@@ -5,7 +5,7 @@
   "title": "Build the native Codex backend and discovery for accountable sessions",
   "type": "implementation",
   "priority": 113,
-  "status": "planned",
+  "status": "in_progress",
   "depends_on": [
     "W1-0003",
     "W1-0017"
@@ -31,7 +31,7 @@
     "Codex and Scripted run the shared execution contract through actual consumers. Native-run evidence, if separately authorized and collected, records exact runtime version/settings/observations and is not conflated with fixture behavior."
   ],
   "evidence": [],
-  "revision": 6,
+  "revision": 7,
   "history": [
     {
       "revision": 1,
@@ -74,6 +74,13 @@
       "actor": "codex",
       "status": "planned",
       "note": "No implementation started. Completing W1-0010 unlocked higher-priority W1-0011; return this task to the planned queue to preserve the authoritative next order. Only read-only protocol documentation and installed CLI version/help were inspected."
+    },
+    {
+      "revision": 7,
+      "at": "2026-09-28T15:28:32.483721Z",
+      "actor": "codex",
+      "status": "in_progress",
+      "note": "Claimed by codex."
     }
   ]
 }

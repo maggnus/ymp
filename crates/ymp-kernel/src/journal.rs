@@ -22,6 +22,62 @@ impl Default for ParameterSchemas {
         Self {
             validators: BTreeMap::from([
                 (
+                    ("NarrativeComposer".into(), "Narrator".into(), "1".into()),
+                    validate_narrative as ParameterValidator,
+                ),
+                (
+                    (
+                        "NarrativeComposer".into(),
+                        "DeterministicReport".into(),
+                        "1".into(),
+                    ),
+                    validate_narrative as ParameterValidator,
+                ),
+                (
+                    (
+                        "ClaimAuditor".into(),
+                        "EvidenceClassRules".into(),
+                        "1".into(),
+                    ),
+                    validate_no_parameters as ParameterValidator,
+                ),
+                (
+                    (
+                        "ClaimAuditor".into(),
+                        "ConservativeAudit".into(),
+                        "1".into(),
+                    ),
+                    validate_no_parameters as ParameterValidator,
+                ),
+                (
+                    (
+                        "ContextComposer".into(),
+                        "CriteriaProjection".into(),
+                        "1".into(),
+                    ),
+                    validate_context_parameters as ParameterValidator,
+                ),
+                (
+                    (
+                        "ContextComposer".into(),
+                        "CompactContext".into(),
+                        "1".into(),
+                    ),
+                    validate_context_parameters as ParameterValidator,
+                ),
+                (
+                    ("ReviewerPolicy".into(), "AnyNonProducer".into(), "1".into()),
+                    validate_no_parameters as ParameterValidator,
+                ),
+                (
+                    (
+                        "ReviewerPolicy".into(),
+                        "LeastUsedReviewer".into(),
+                        "1".into(),
+                    ),
+                    validate_no_parameters as ParameterValidator,
+                ),
+                (
                     ("ProgressMonitor".into(), "EvidenceDelta".into(), "1".into()),
                     validate_monitor as ParameterValidator,
                 ),
@@ -616,4 +672,28 @@ fn validate_escalation(s: &PolicySelection) -> Result<()> {
     let p: crate::ports::progress::EscalationParameters =
         ymp_domain::journal::decode(&encode(&s.parameters)?)?;
     p.validate()
+}
+
+fn validate_context_parameters(selection: &PolicySelection) -> Result<()> {
+    let p: crate::ports::reporting::ContextParameters =
+        ymp_domain::journal::decode(&encode(&selection.parameters)?)?;
+    if p.history_limit > 16 {
+        return Err(Denial::new(
+            "context_parameters",
+            "Context history is bounded to sixteen references",
+        ));
+    }
+    Ok(())
+}
+
+fn validate_narrative(selection: &PolicySelection) -> Result<()> {
+    let p: crate::finalization::NarrativeParameters =
+        ymp_domain::journal::decode(&encode(&selection.parameters)?)?;
+    if p.max_claims == 0 || p.max_claims > 128 || p.max_text < 256 || p.max_text > 4096 {
+        return Err(Denial::new(
+            "narrative_parameters",
+            "Narration needs finite claim and text limits",
+        ));
+    }
+    Ok(())
 }

@@ -41,18 +41,17 @@ pub struct LedgerRequest {
     pub responses: BTreeMap<Id<Criterion>, BeliefResponse>,
 }
 pub fn validate_context(view: &SessionView, context: &ApplicabilityContext) -> Result<()> {
-    let result = view
-        .results()
-        .results()
-        .values()
-        .find(|r| r.reference().is_ok_and(|r| r == context.result))
-        .ok_or_else(|| {
-            Denial::new(
-                "assessment_result",
-                "No exact retained result for assessment",
-            )
-        })?;
-    let targets = &view.results().items()[&result.item].targets;
+    let subject = crate::acceptance::subjects::resolve(view, &context.result)?;
+    let targets = &subject.targets;
+    if subject.result.is_none()
+        && *context
+            != crate::finalization::context(view.finalization().aggregate.as_ref().unwrap())?
+    {
+        return Err(Denial::new(
+            "final_context",
+            "Final assessment must cover its exact immutable check environments",
+        ));
+    }
     let criteria = targets
         .iter()
         .map(|id| {
@@ -98,6 +97,14 @@ pub fn validate_context(view: &SessionView, context: &ApplicabilityContext) -> R
     Ok(())
 }
 fn current_subject(view: &SessionView, subject: &Ref) -> bool {
+    if let Some(aggregate) = view
+        .finalization()
+        .aggregate
+        .as_ref()
+        .filter(|a| a.reference().is_ok_and(|r| r == *subject))
+    {
+        return crate::finalization::aggregate_current(view, aggregate).is_ok();
+    }
     let Some(result) = view.results().results().values().find(|result| {
         result
             .reference()
@@ -214,6 +221,19 @@ pub fn inputs(
                 source: review.reference()?,
                 polarity,
             });
+        }
+        for review in &view.finalization().reviews {
+            if crate::finalization::review::applicable(view, review, context)? {
+                let polarity = match review.verdict.verdict {
+                    ReviewVerdict::Approve => Polarity::Supports,
+                    ReviewVerdict::Reject => Polarity::Contradicts,
+                    ReviewVerdict::NeedsEvidence => continue,
+                };
+                prior_basis.push(PriorBasis {
+                    source: review.reference()?,
+                    polarity,
+                });
+            }
         }
         inputs.insert(
             criterion.id.clone(),

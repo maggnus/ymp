@@ -40,6 +40,16 @@ pub struct Intake<J: Journal> {
     decisions: DecisionConsumer<J>,
 }
 impl<J: Journal> Intake<J> {
+    pub fn finalization<C: crate::journal::ContentStore>(
+        &self,
+        content: Arc<C>,
+    ) -> crate::finalization::Finalization<J, C> {
+        crate::finalization::Finalization::new(
+            self.journal.clone(),
+            content,
+            self.decisions.shared(),
+        )
+    }
     pub fn progress(&self) -> crate::progress::Progress<J> {
         crate::progress::Progress::new(self.journal.clone(), self.decisions.shared())
     }

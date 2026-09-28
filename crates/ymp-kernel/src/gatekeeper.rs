@@ -235,10 +235,8 @@ pub(crate) fn validate_intent(
     }
     crate::results::validate_admission(view, &contribution.value)?;
     crate::progress::validate_admission(view, intent)?;
-    if matches!(
-        assignment.role,
-        RoleKind::FinalReviewer | RoleKind::Advocate
-    ) {
+    crate::finalization::validate_admission(view, intent)?;
+    if matches!(assignment.role, RoleKind::Advocate) {
         return Err(Denial::new(
             "subject_unavailable",
             "Typed result/work-item provenance is required before admitting this subject or review",

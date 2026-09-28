@@ -29,6 +29,10 @@ pub struct CriteriaCommitted {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub enum Event {
+    FinalizationRecorded {
+        version: u32,
+        data: Box<crate::finalization::FinalizationRecorded>,
+    },
     ProgressRecorded {
         version: u32,
         data: Box<crate::progress::ProgressRecorded>,
@@ -194,6 +198,7 @@ pub enum Event {
 impl Event {
     pub fn contents(&self) -> Result<EventContent> {
         let selections: Vec<&PolicySelection> = match self {
+            Self::FinalizationRecorded { data, .. } => data.selection().into_iter().collect(),
             Self::ProgressRecorded { data, .. } => data.selection().into_iter().collect(),
             Self::PlanningRecorded { data, .. } => data.selection().into_iter().collect(),
             Self::LedgerUpdated { data, .. } => {
@@ -241,6 +246,16 @@ impl Event {
             | Self::AssumptionRecorded { .. } => vec![],
         };
         let mut content = EventContent::default();
+        if let Self::FinalizationRecorded { data, .. } = self
+            && let crate::finalization::FinalizationRecorded::Captured(aggregate) = data.as_ref()
+        {
+            for check in &aggregate.checks {
+                let bytes = ymp_domain::journal::encode(&check.environment)?;
+                let digest = Digest::of(&bytes);
+                content.required.insert(digest.clone());
+                content.attached.insert(digest, bytes);
+            }
+        }
         if let Self::EvidenceRecorded { data, .. } = self
             && let Some(environment) = &data.scope.environment
         {
@@ -281,7 +296,8 @@ impl Event {
     }
     pub fn version(&self) -> u32 {
         match self {
-            Self::ProgressRecorded { version, .. }
+            Self::FinalizationRecorded { version, .. }
+            | Self::ProgressRecorded { version, .. }
             | Self::PlanningRecorded { version, .. }
             | Self::LedgerUpdated { version, .. }
             | Self::AcceptanceRecorded { version, .. } => *version,
