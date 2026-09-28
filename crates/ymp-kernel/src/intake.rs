@@ -66,6 +66,37 @@ impl<J: Journal> Intake<J> {
             self.decisions.shared(),
         )
     }
+    pub fn recover(&self, session: &Id) -> Result<SessionControl> {
+        self.decisions.recover(session)
+    }
+    pub fn session_control(
+        &self,
+        control: &SessionControl,
+        at: u64,
+        change: crate::session::SessionChange,
+    ) -> Result<ymp_domain::Ref> {
+        self.decisions.change_session(control, at, change)
+    }
+    pub fn owner_session(&self, control: &SessionControl) -> Result<Id> {
+        self.decisions.authorize(control)
+    }
+    pub fn recover_attempt<C: crate::journal::ContentStore>(
+        &self,
+        control: &SessionControl,
+        results: &crate::results::Results<J, C>,
+        id: &Id<ymp_domain::plan::Attempt>,
+    ) -> Result<crate::results::PreparedAttempt> {
+        let session = self.decisions.authorize(control)?;
+        results.recover_attempt(&self.journal, &session, id)
+    }
+    pub fn recover_budget(
+        &self,
+        control: &SessionControl,
+        treasury: &crate::treasury::Treasury<J>,
+    ) -> Result<crate::treasury::BudgetControl> {
+        let session = self.decisions.authorize(control)?;
+        treasury.recover_control(&self.journal, &session)
+    }
     pub fn new(journal: Arc<J>) -> Self {
         Self {
             decisions: DecisionConsumer::new(journal.clone()),

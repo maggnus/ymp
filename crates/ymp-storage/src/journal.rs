@@ -51,75 +51,7 @@ impl SqliteJournal {
             .transaction_with_behavior(TransactionBehavior::Immediate)
             .map_err(sql_error)?;
         let current = read_journal(&tx, session, &self.schemas)?;
-        let validated = validate_append(&current, session, expected, events, &self.schemas)?;
-        for event in events {
-            if let Event::WorkspaceBound { binding, .. } = &event.payload
-                && binding.journal != self.database.binding_identity()?
-            {
-                return Err(Denial::new(
-                    "workspace_binding",
-                    "Root binding targets another journal",
-                ));
-            }
-        }
-        if ymp_kernel::workspace_locks::touches_ownership(events) {
-            let inventory = read_workspace_inventory(&tx, session, &self.schemas)?;
-            ymp_kernel::journal::validate_workspace_append(
-                &inventory,
-                session,
-                expected,
-                events,
-                &self.schemas,
-            )?;
-        }
-        let (reserved_events, reserved_bytes) = ymp_kernel::journal::control_reserve(&validated);
-        #[cfg(test)]
-        let event_limit = self.event_limit;
-        #[cfg(not(test))]
-        let event_limit = MAX_JOURNAL_EVENTS;
-        if validated.revision() + reserved_events as u64 > event_limit as u64 {
-            return Err(Denial::new(
-                "journal_limit",
-                "Journal exceeds its event limit",
-            ));
-        }
-        let mut prior = match current.events.last() {
-            None => chain_start(session)?,
-            Some(_) => {
-                head(&tx, session)?
-                    .ok_or_else(|| Denial::new("storage_corrupt", "Journal head is missing"))?
-                    .1
-            }
-        };
-        for event in events {
-            let bytes = encode(event)?;
-            let payload = Digest::of(&bytes);
-            put_content(&tx, &payload, &bytes)?;
-            let content = event.payload.contents()?;
-            for (digest, value) in &content.attached {
-                put_content(&tx, digest, value)?;
-            }
-            for digest in &content.required {
-                read_content(&tx, digest, MAX_CONTENT_BYTES)?;
-            }
-            let chain = chain_digest(session, event.seq, &payload, &prior)?;
-            tx.execute("INSERT INTO journal_events(session,seq,payload,prior,chain) VALUES(?1,?2,?3,?4,?5)",params![session.as_str(),event.seq.to_be_bytes().as_slice(),payload.as_str(),prior.as_str(),chain.as_str()]).map_err(sql_error)?;
-            for digest in &content.required {
-                tx.execute(
-                    "INSERT INTO event_content(session,seq,digest) VALUES(?1,?2,?3)",
-                    params![
-                        session.as_str(),
-                        event.seq.to_be_bytes().as_slice(),
-                        digest.as_str()
-                    ],
-                )
-                .map_err(sql_error)?;
-            }
-            prior = chain;
-        }
-        tx.execute("INSERT INTO journal_heads(session,last_seq,chain) VALUES(?1,?2,?3) ON CONFLICT(session) DO UPDATE SET last_seq=excluded.last_seq,chain=excluded.chain",params![session.as_str(),validated.revision().to_be_bytes().as_slice(),prior.as_str()]).map_err(sql_error)?;
-        // Apply read limits to the resulting state before making it durable.
-        check_limits(&tx, session, reserved_bytes)?;
+        let revision = self.write_batch(&tx, &current, session, expected, events)?;
         #[cfg(test)]
         match self.fault.load(std::sync::atomic::Ordering::SeqCst) {
             1 => {
@@ -144,10 +76,108 @@ impl SqliteJournal {
             4 => std::process::exit(82),
             _ => {}
         }
+        Ok(revision)
+    }
+    fn write_batch(
+        &self,
+        tx: &Connection,
+        current: &JournalRead,
+        session: &Id,
+        expected: u64,
+        events: &[Envelope<Event>],
+    ) -> Result<u64> {
+        let validated = validate_append(current, session, expected, events, &self.schemas)?;
+        for event in events {
+            if let Event::WorkspaceBound { binding, .. } = &event.payload
+                && binding.journal != self.database.binding_identity()?
+            {
+                return Err(Denial::new(
+                    "workspace_binding",
+                    "Root binding targets another journal",
+                ));
+            }
+        }
+        if ymp_kernel::workspace_locks::touches_ownership(events) {
+            let inventory = read_workspace_inventory(tx, session, &self.schemas)?;
+            ymp_kernel::journal::validate_workspace_append(
+                &inventory,
+                session,
+                expected,
+                events,
+                &self.schemas,
+            )?;
+        }
+        let (reserved_events, reserved_bytes) = ymp_kernel::journal::control_reserve(&validated);
+        #[cfg(test)]
+        let event_limit = self.event_limit;
+        #[cfg(not(test))]
+        let event_limit = MAX_JOURNAL_EVENTS;
+        if validated.revision() + reserved_events as u64 > event_limit as u64 {
+            return Err(Denial::new(
+                "journal_limit",
+                "Journal exceeds its event limit",
+            ));
+        }
+        let mut prior = match current.events.last() {
+            None => chain_start(session)?,
+            Some(_) => {
+                head(tx, session)?
+                    .ok_or_else(|| Denial::new("storage_corrupt", "Journal head is missing"))?
+                    .1
+            }
+        };
+        for event in events {
+            let bytes = encode(event)?;
+            let payload = Digest::of(&bytes);
+            put_content(tx, &payload, &bytes)?;
+            let content = event.payload.contents()?;
+            for (digest, value) in &content.attached {
+                put_content(tx, digest, value)?;
+            }
+            for digest in &content.required {
+                read_content(tx, digest, MAX_CONTENT_BYTES)?;
+            }
+            let chain = chain_digest(session, event.seq, &payload, &prior)?;
+            tx.execute("INSERT INTO journal_events(session,seq,payload,prior,chain) VALUES(?1,?2,?3,?4,?5)",params![session.as_str(),event.seq.to_be_bytes().as_slice(),payload.as_str(),prior.as_str(),chain.as_str()]).map_err(sql_error)?;
+            for digest in &content.required {
+                tx.execute(
+                    "INSERT INTO event_content(session,seq,digest) VALUES(?1,?2,?3)",
+                    params![
+                        session.as_str(),
+                        event.seq.to_be_bytes().as_slice(),
+                        digest.as_str()
+                    ],
+                )
+                .map_err(sql_error)?;
+            }
+            prior = chain;
+        }
+        tx.execute("INSERT INTO journal_heads(session,last_seq,chain) VALUES(?1,?2,?3) ON CONFLICT(session) DO UPDATE SET last_seq=excluded.last_seq,chain=excluded.chain",params![session.as_str(),validated.revision().to_be_bytes().as_slice(),prior.as_str()]).map_err(sql_error)?;
+        // Apply read limits to the resulting state before making it durable.
+        check_limits(tx, session, reserved_bytes)?;
         Ok(validated.revision())
     }
 }
 impl Journal for SqliteJournal {
+    fn session_control(
+        &self,
+        session: &Id,
+        at: u64,
+        change: ymp_kernel::session::SessionChange,
+    ) -> Result<ymp_domain::Ref> {
+        let mut connection = self.database.connect(true)?;
+        let tx = connection
+            .transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(sql_error)?;
+        let current = read_journal(&tx, session, &self.schemas)?;
+        let (events, reference) =
+            ymp_kernel::session::control_events(&current, session, at, change, &self.schemas)?;
+        if !events.is_empty() {
+            self.write_batch(&tx, &current, session, current.revision, &events)?;
+        }
+        tx.commit().map_err(sql_error)?;
+        Ok(reference)
+    }
     fn binding_identity(&self) -> Result<ymp_domain::workspace::JournalIdentity> {
         self.database.binding_identity()
     }
@@ -163,7 +193,7 @@ impl Journal for SqliteJournal {
             let view = read.view_with_schemas(&id, None, &self.schemas)?;
             for binding in view.workspace_bindings().values().filter(|b| {
                 (b.root.device == root.device && b.root.inode == root.inode)
-                    || root_paths_overlap(&b.root.root, &root.root)
+                    || ymp_kernel::journal::root_paths_overlap(&b.root.root, &root.root)
             }) {
                 if found.as_ref().is_some_and(|known| known != binding) {
                     return Err(Denial::new(
@@ -219,20 +249,6 @@ impl Journal for SqliteJournal {
             )),
         }
     }
-}
-
-fn root_paths_overlap(left: &str, right: &str) -> bool {
-    let left = left.to_ascii_lowercase();
-    let right = right.to_ascii_lowercase();
-    left == "/"
-        || right == "/"
-        || left == right
-        || left
-            .strip_prefix(&right)
-            .is_some_and(|tail| tail.starts_with('/'))
-        || right
-            .strip_prefix(&left)
-            .is_some_and(|tail| tail.starts_with('/'))
 }
 
 fn visit_journals(

@@ -606,7 +606,10 @@ fn sources_current(
 }
 // Recording a statement validates its declared sources, without choosing a future
 // assessment environment. A7/A8/report consumers must pass their own context.
-fn recorded_context(view: &SessionView, reference: &Ref) -> Result<ApplicabilityContext> {
+pub(crate) fn recorded_context(
+    view: &SessionView,
+    reference: &Ref,
+) -> Result<ApplicabilityContext> {
     let result = result(view, reference)?;
     let mut environments: BTreeMap<Ref, BTreeSet<Digest>> = BTreeMap::new();
     for evidence in view
@@ -629,7 +632,7 @@ fn recorded_context(view: &SessionView, reference: &Ref) -> Result<Applicability
         environments,
     })
 }
-fn derive_review(
+pub(crate) fn derive_review(
     view: &SessionView,
     assignment: &Assignment,
     request: &ReviewRequest,

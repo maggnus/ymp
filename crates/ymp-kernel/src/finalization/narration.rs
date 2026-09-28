@@ -40,7 +40,7 @@ pub(crate) fn validate_work(view: &SessionView, data: &NarrativeWork) -> Result<
             "Narration work must retain the actual selected policy",
         ));
     }
-    if view.finalization().stopped
+    if view.owner_stopped()
         || view.finalization().control != Some(Continuation::Continue)
         || view.finalization().delivered.is_some()
         || !prepared.narrated
@@ -144,7 +144,7 @@ pub(crate) fn validate_admission(
     })?;
     continuing_work(view, data)?;
     if view.finalization().control != Some(Continuation::Continue)
-        || view.finalization().stopped
+        || view.owner_stopped()
         || view.finalization().delivered.is_some()
         || intent.assignment.profile != data.profile
         || intent.assignment.access != std::collections::BTreeSet::from([Capability::ReadFiles])
@@ -185,7 +185,7 @@ pub(crate) fn purpose(view: &SessionView, assignment: &Assignment) -> Result<ser
     )
 }
 pub(crate) fn paid_output(view: &SessionView, invocation: &Id<Invocation>) -> Result<String> {
-    if view.finalization().stopped || view.finalization().control != Some(Continuation::Continue) {
+    if view.owner_stopped() || view.finalization().control != Some(Continuation::Continue) {
         return Err(Denial::new(
             "narrator_unavailable",
             "Stopped or unauthorized reporting uses deterministic facts",
@@ -360,7 +360,7 @@ impl<J: Journal, C: ContentStore> Finalization<J, C> {
 
 pub(crate) fn continuing_work(view: &SessionView, data: &NarrativeWork) -> Result<()> {
     let (reference, prepared) = report::prepared(view)?;
-    if view.finalization().stopped
+    if view.owner_stopped()
         || view.finalization().control != Some(Continuation::Continue)
         || view.finalization().delivered.is_some()
         || !prepared.narrated

@@ -40,7 +40,7 @@ macro_rules! reviewer {
                         stringify!($name)
                     )
                     .into(),
-                    basis: vec![input.aggregate.clone()],
+                    basis: vec![input.subject.clone()],
                     policy: self.selection.policy.clone(),
                 })
             }

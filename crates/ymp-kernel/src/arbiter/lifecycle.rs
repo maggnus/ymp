@@ -1165,7 +1165,13 @@ fn projected_completion(
             CompletionFact::NonArtifactCompleted,
             false,
             Some(ymp_domain::assignment::ContributionSubject::ResultVersion(_)),
-        ) if contribution.kind == ymp_domain::assignment::ContributionKind::Review => {
+        ) if matches!(
+            contribution.kind,
+            ymp_domain::assignment::ContributionKind::Review
+                | ymp_domain::assignment::ContributionKind::Verify
+                | ymp_domain::assignment::ContributionKind::Diagnose
+        ) =>
+        {
             Ok(CommitmentState::Discharged)
         }
         (CompletionFact::NonArtifactCompleted, false, None)

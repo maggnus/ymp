@@ -2,7 +2,7 @@
 
 Generated from the canonical JSON records in [`records/`](records/) by `python3 ymp-docs/tasks/manage.py progress --write`. Task write commands and `make tasks-progress` refresh it; do not edit statuses here.
 
-Tasks: 45 (17 done, 1 in progress, 26 open, 1 paused or blocked, 0 rejected). Times are Hong Kong time (UTC+08:00). Last record change: 2026-09-29 00:39.
+Tasks: 45 (17 done, 1 in progress, 26 open, 1 paused or blocked, 0 rejected). Times are Hong Kong time (UTC+08:00). Last record change: 2026-09-29 03:02.
 
 | Mark | Meaning |
 | :---: | --- |
@@ -27,9 +27,9 @@ Tasks: 45 (17 done, 1 in progress, 26 open, 1 paused or blocked, 0 rejected). Ti
 
 ### W1-0014 — [~] in_progress
 
-Run and recover the minimal accountable producer-reviewer session. Owner: codex; revision 6; updated 2026-09-29 00:39 by codex.
+Run and recover the minimal accountable producer-reviewer session. Owner: codex; revision 9; updated 2026-09-29 03:02 by codex.
 
-Claimed by codex.
+Stable integration accepted by independent R1 review (9/10). Final make verify passed: legacy scan, offline build, fmt, Clippy with denied warnings, workspace and documentation tests. Test optimization level 1 retained debug assertions and overflow checks. Seven Dispatcher scenarios passed together in 165.26 s, covering full Memory/SQLite session and reopening, cancellation, actual check failure despite approval, unavailable final reviewer, real verification-capacity shortage, Retry and AddVerifier. Session controls passed in 0.75 s; final report in 40.44 s; results in 33.13 s. Earlier combined Retry hit only its external 120 s test watchdog; increasing that watchdog to 240 s changed no runtime limit and restored the full run. A7 negative control failed when its guard was removed, then passed after restoration. Timely-completion-after-expiry and final narrow narrator interruption cuts were independently reviewed but not separately reproduced. No native inference. Ready to commit; not … [truncated; 1048 characters]
 
 ## Wave W1
 
@@ -50,7 +50,7 @@ Claimed by codex.
 | [x] | [W1-0011](records/W1-0011.json) | Extract criteria and select minimal criterion-directed work through admitted strategies | planning | done | W1-0002 ✓, W1-0006 ✓, W1-0008 ✓, W1-0010 ✓ | codex | 2026-09-28 20:03 | 8 | df97ee3b; ymp-docs/planning-implementation.md; crates/ymp-storage/tests/planning.rs; crates/ymp-kernel/tests/replay.rs |
 | [x] | [W1-0012](records/W1-0012.json) | Diagnose stalls and perform bounded recovery without discarding verified work | progress | done | W1-0007 ✓, W1-0019 ✓, W1-0010 ✓, W1-0011 ✓ | codex | 2026-09-28 21:35 | 8 | ba307435; ymp-docs/progress-implementation.md; crates/ymp-storage/tests/progress.rs; crates/ymp-runtime/tests/progress.rs |
 | [x] | [W1-0013](records/W1-0013.json) | Finalize the integrated result and deliver an evidence-audited report | reporting | done | W1-0006 ✓, W1-0008 ✓, W1-0019 ✓, W1-0010 ✓, W1-0011 ✓, W1-0012 ✓ | codex | 2026-09-28 23:40 | 8 | d77ba2bc |
-| [~] | [W1-0014](records/W1-0014.json) | Run and recover the minimal accountable producer-reviewer session | session | in_progress | W1-0007 ✓, W1-0011 ✓, W1-0012 ✓, W1-0013 ✓, W1-0018 ✓ | codex | 2026-09-29 00:39 | 6 | — |
+| [~] | [W1-0014](records/W1-0014.json) | Run and recover the minimal accountable producer-reviewer session | session | in_progress | W1-0007 ✓, W1-0011 ✓, W1-0012 ✓, W1-0013 ✓, W1-0018 ✓ | codex | 2026-09-29 03:02 | 9 | ymp-docs/session-implementation.md; crates/ymp-storage/tests/dispatcher.rs; crates/ymp-storage/tests/session.rs |
 | [=] | [W1-0015](records/W1-0015.json) | Expose the accountable session through a simple interactive Ratatui interface | interface | planned (blocked) | W1-0014 | — | 2026-09-16 03:19 | 8 | — |
 | [x] | [W1-0016](records/W1-0016.json) | Persist the new Journal and content-addressed payloads across restart | persistence | done | W1-0001 ✓ | codex | 2026-09-16 04:56 | 9 | commit [`07db5fa`](https://github.com/maggnus/ymp/commit/07db5fa45ad10a94e5560c711b7be0274eb5d1c9) |
 | [x] | [W1-0017](records/W1-0017.json) | Execute admitted assignments through a new host and Scripted backend | execution | done | W1-0006 ✓, W1-0007 ✓, W1-0016 ✓ | codex | 2026-09-28 16:18 | 7 | 8de8e73a; ymp-docs/execution-implementation.md; crates/ymp-storage/tests/execution.rs |

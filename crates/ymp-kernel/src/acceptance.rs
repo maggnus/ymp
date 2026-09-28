@@ -1,6 +1,8 @@
 //! Kernel-owned checks, applicable evidence, independent acceptance and criterion assessment.
 pub(crate) mod decisions;
 pub(crate) mod evidence;
+pub(crate) mod paid_review;
+pub use paid_review::{CandidateVerdict, PaidReviewRecorded};
 pub(crate) mod subjects;
 use crate::{
     decision::{DecisionConsumer, SessionControl},

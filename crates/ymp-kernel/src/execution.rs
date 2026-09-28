@@ -163,6 +163,12 @@ fn dispatch_tail(data: &InvocationDispatch) -> Vec<Event> {
     events
 }
 fn validate_dispatch(view: &SessionView, data: &InvocationDispatch, at: u64) -> Result<()> {
+    if view.owner_stopped() {
+        return Err(Denial::new(
+            "session_stopped",
+            "Owner stop forbids new invocation dispatch",
+        ));
+    }
     crate::progress::validate_dispatch(view, data)?;
     crate::finalization::validate_dispatch(view, data)?;
     crate::results::validate_dispatch(view, &data.assignment)?;
@@ -715,7 +721,7 @@ pub fn limit_reason(
     }
     Ok(None)
 }
-pub(crate) fn closed(view: &SessionView, assignment: &Id<Assignment>) -> bool {
+pub fn closed(view: &SessionView, assignment: &Id<Assignment>) -> bool {
     view.execution().invocations.values().any(|record| {
         record.dispatch.assignment.id == *assignment
             && record.backend_terminal.is_some()
@@ -969,6 +975,12 @@ impl<J: Journal, C: ContentStore> Execution<J, C> {
     }
     pub fn allowed(&self, token: &GrantToken, invocation: &Id<Invocation>, at: u64) -> Result<()> {
         let view = self.view(token.session())?;
+        if view.owner_stopped() {
+            return Err(Denial::new(
+                "session_stopped",
+                "Owner stop forbids further work",
+            ));
+        }
         let source = record(&view, invocation)?;
         crate::finalization::execution_allowed(&view, &source.dispatch.assignment)?;
         let assignment = self.gate.authorize_snapshot(token, None, at, &view)?;

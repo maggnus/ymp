@@ -325,7 +325,7 @@ impl TreasuryView {
         amount: CostUnits,
     ) -> Result<()> {
         let purpose = demand.kind.purpose();
-        if view.status() == Some(SessionStatus::Cancelled) {
+        if view.owner_stopped() {
             return Err(Denial::new(
                 "user_stop",
                 "A stopped session cannot admit paid work",
@@ -813,7 +813,7 @@ pub(crate) fn apply(view: &SessionView, event: &Envelope<Event>) -> Result<Treas
                     invocation,
                 } => {
                     let entry = account(&book, reservation)?;
-                    if view.status() == Some(SessionStatus::Cancelled) {
+                    if view.owner_stopped() {
                         return Err(Denial::new(
                             "user_stop",
                             "A stopped session cannot authorize an invocation",
@@ -1051,7 +1051,7 @@ pub(crate) fn apply(view: &SessionView, event: &Envelope<Event>) -> Result<Treas
         }
         Event::ReportingStarted { mode, .. } => {
             let mut book = ledger(view)?.clone();
-            if *mode == ReportingMode::Narrated && view.status() == Some(SessionStatus::Cancelled) {
+            if *mode == ReportingMode::Narrated && view.owner_stopped() {
                 return Err(Denial::new(
                     "user_stop",
                     "A stopped session permits only deterministic reporting",
@@ -1424,6 +1424,18 @@ impl<J: Journal> Treasury<J> {
                 },
             },
         )
+    }
+    pub(crate) fn recover_control(&self, journal: &Arc<J>, session: &Id) -> Result<BudgetControl> {
+        if !Arc::ptr_eq(&self.journal, journal) || self.view(session)?.treasury().is_none() {
+            return Err(Denial::new(
+                "owner_authority",
+                "Recover only the existing budget of this owner journal",
+            ));
+        }
+        Ok(BudgetControl {
+            session: session.clone(),
+            issuer: self.issuer.clone(),
+        })
     }
     pub(crate) fn require_control(
         &self,

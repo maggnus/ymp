@@ -53,6 +53,7 @@ pub enum FinalizationRecorded {
     Audit(Box<AuditRecorded>),
     Delivered(Box<ReportDelivered>),
     Reviewer(Box<ReviewerRecorded>),
+    CandidateReviewer(Box<ReviewerRecorded>),
     Reviewed(Box<FinalReview>),
     Accepted(Box<FinalAcceptance>),
     Policy {
@@ -106,7 +107,9 @@ pub(crate) fn refs(data: &FinalizationRecorded) -> Vec<Ref> {
             }
             refs
         }
-        FinalizationRecorded::Reviewer(data) => data.decision.proposal.basis.clone(),
+        FinalizationRecorded::Reviewer(data) | FinalizationRecorded::CandidateReviewer(data) => {
+            data.decision.proposal.basis.clone()
+        }
         FinalizationRecorded::Reviewed(data) => {
             let mut refs = vec![
                 data.verdict.aggregate.clone(),
@@ -331,7 +334,7 @@ pub(crate) fn apply(
                 || view.treasury().is_none_or(|t| t.reporting_mode.is_none())
                 || data.narrated
                     && (view.finalization().control != Some(Continuation::Continue)
-                        || view.finalization().stopped
+                        || view.owner_stopped()
                         || view.treasury().unwrap().reporting_mode
                             != Some(ymp_domain::resources::ReportingMode::Narrated))
             {
@@ -361,6 +364,9 @@ pub(crate) fn apply(
             }
             next.delivered = Some((**data).clone());
             next.fence = None;
+        }
+        FinalizationRecorded::CandidateReviewer(data) => {
+            review::validate_candidate_reviewer(view, data)?
         }
         FinalizationRecorded::Reviewer(data) => {
             review::validate_reviewer(view, data)?;
@@ -412,7 +418,7 @@ pub(crate) fn apply(
             );
         }
         FinalizationRecorded::Control(control) => {
-            if next.stopped && *control == Continuation::Continue {
+            if view.owner_stopped() && *control == Continuation::Continue {
                 return Err(Denial::new(
                     "continuation_stopped",
                     "A stopped finalization cannot silently resume paid work",
@@ -431,7 +437,8 @@ pub(crate) fn apply(
             }
         }
         FinalizationRecorded::Started(fence) => {
-            if next.control != Some(Continuation::Continue)
+            if view.owner_stopped()
+                || next.control != Some(Continuation::Continue)
                 || next.fence.is_some()
                 || view.treasury().is_some_and(|t| t.reporting_mode.is_some())
             {
@@ -486,7 +493,7 @@ pub(crate) fn apply(
         FinalizationRecorded::Captured(data) => {
             if next.aggregate.is_some()
                 || next.control != Some(Continuation::Continue)
-                || next.stopped
+                || view.owner_stopped()
                 || view.treasury().is_some_and(|t| t.reporting_mode.is_some())
             {
                 return Err(Denial::new(
@@ -726,7 +733,7 @@ impl FinalizationRecorded {
         match self {
             Self::Policy { effective, .. } => Some(effective),
             Self::Context(data) => Some(&data.decision.effective),
-            Self::Reviewer(data) => Some(&data.decision.effective),
+            Self::Reviewer(data) | Self::CandidateReviewer(data) => Some(&data.decision.effective),
             Self::Narrative(data) => Some(&data.decision.effective),
             Self::Audit(data) => data.decisions.first().map(|d| &d.effective),
             Self::Accepted(data) => Some(&data.credit.effective),
@@ -765,6 +772,13 @@ pub(crate) fn execution_allowed(
     view: &SessionView,
     assignment: &ymp_domain::assignment::Assignment,
 ) -> Result<()> {
+    if view.owner_stopped() {
+        return Err(Denial::new(
+            "session_stopped",
+            "Owner stop forbids a new model call",
+        ));
+    }
+
     if assignment.role == ymp_domain::assignment::RoleKind::Narrator
         && view.policies().contains_key("NarrativeComposer")
     {

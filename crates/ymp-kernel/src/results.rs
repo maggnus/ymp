@@ -751,6 +751,42 @@ impl<J: Journal, C: ContentStore> Results<J, C> {
         self.append(token.session(), expected, &events)?;
         plan.reference()
     }
+    pub(crate) fn recover_attempt(
+        &self,
+        journal: &Arc<J>,
+        session: &Id,
+        id: &Id<Attempt>,
+    ) -> Result<PreparedAttempt> {
+        if !Arc::ptr_eq(&self.journal, journal) {
+            return Err(Denial::new(
+                "attempt_owner",
+                "Recovery names another journal",
+            ));
+        }
+        let history = self.journal.read(session)?;
+        let view = history.view_with_schemas(session, None, self.journal.schemas())?;
+        if !view.results().attempts().contains_key(id) {
+            return Err(Denial::new(
+                "attempt_missing",
+                "No retained attempt to recover",
+            ));
+        }
+        let (event, data) = history
+            .events
+            .iter()
+            .find_map(|e| match &e.payload {
+                Event::AttemptStarted { data, .. } if &data.attempt.id == id => Some((e, data)),
+                _ => None,
+            })
+            .ok_or_else(|| Denial::new("attempt_missing", "Original attempt record is missing"))?;
+        Ok(PreparedAttempt {
+            issuer: self.issuer.clone(),
+            session: session.clone(),
+            expected: event.seq - 1,
+            events: vec![event.clone()],
+            data: (**data).clone(),
+        })
+    }
     pub fn prepare_attempt(
         &self,
         token: &GrantToken,
@@ -956,7 +992,7 @@ impl<J: Journal, C: ContentStore> Results<J, C> {
     }
 }
 
-pub(crate) fn plan_current(view: &SessionView, plan: &Id<Plan>) -> Result<bool> {
+pub fn plan_current(view: &SessionView, plan: &Id<Plan>) -> Result<bool> {
     let Some((task, criteria)) = view.results().scopes.get(plan) else {
         return Ok(false);
     };

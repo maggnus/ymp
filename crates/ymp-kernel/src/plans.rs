@@ -17,7 +17,7 @@ use ymp_domain::{
     task::*,
 };
 
-mod contributions;
+pub(crate) mod contributions;
 pub use contributions::contribution_input;
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -129,7 +129,39 @@ pub fn paid_input(
         .receipt
         .as_ref()
         .ok_or_else(|| Denial::new("planner_receipt", "No settled Planner receipt"))?;
-    let input: PlanningPrompt = decode(record.dispatch.prompt.text.as_bytes())?;
+    let (input, legacy): (PlanningPrompt, bool) = if let Ok(input) =
+        decode(record.dispatch.prompt.text.as_bytes())
+    {
+        (input, true)
+    } else {
+        let context = view
+            .finalization()
+            .history
+            .iter()
+            .find_map(|(_, event)| match event {
+                crate::finalization::FinalizationRecorded::Context(context)
+                    if context.input.assignment == *original
+                        && context.decision.outcome == record.dispatch.prompt =>
+                {
+                    Some(context.as_ref())
+                }
+                _ => None,
+            })
+            .ok_or_else(|| {
+                Denial::new(
+                    "planning_context",
+                    "Planner requires its exact recorded role context",
+                )
+            })?;
+        if context.input.purpose["operation"] != "planning" || context.input.purpose["port"] != port
+        {
+            return Err(Denial::new(
+                "planning_context",
+                "Planner context names another operation",
+            ));
+        }
+        (decode(&encode(&context.input.purpose["planning"])?)?, false)
+    };
     let expected: PlanningPrompt = decode(prompt(view, port)?.text.as_bytes())?;
     if restored != *original
         || original.session != *view.session()
@@ -146,7 +178,7 @@ pub fn paid_input(
         || account.invocation.as_ref() != Some(&invocation.erased())
         || account.settlement.as_ref().map(|s| &s.receipt) != Some(receipt)
         || input != expected
-        || record.dispatch.prompt.basis != vec![input.contract.clone()]
+        || (legacy && record.dispatch.prompt.basis != vec![input.contract.clone()])
         || view.planning().consumed.contains(invocation)
     {
         return Err(Denial::new(
@@ -194,7 +226,10 @@ fn paid_validate<T: Clone + PartialEq + Serialize>(
 }
 pub fn extracted(input: &PaidPlanningView) -> Result<IntakeOutput> {
     let mut output: IntakeOutput = decode(input.output.as_bytes())?;
-    if output.criteria.is_empty() || output.criteria.len() > 128 || output.questions.len() > 32 {
+    if (output.criteria.is_empty() && input.prompt.criteria.is_empty())
+        || output.criteria.len() > 128
+        || output.questions.len() > 32
+    {
         return Err(Denial::new(
             "criteria_extraction",
             "Extraction must contain bounded atomic criteria and questions",
@@ -499,6 +534,21 @@ pub fn references(data: &PlanningRecorded) -> Vec<Ref> {
 impl<J: Journal> Plans<J> {
     pub(crate) fn new(journal: Arc<J>, owner: DecisionConsumer<J>) -> Self {
         Self { journal, owner }
+    }
+    pub fn eligible(
+        &self,
+        session: &Id,
+        needs: &BTreeSet<ymp_domain::journal::Capability>,
+        producer: Option<&Id<ymp_domain::identity::Agent>>,
+    ) -> Result<BTreeSet<Id<ymp_domain::identity::Agent>>> {
+        let view = self.journal.view(session, None)?;
+        if view.task().is_none() {
+            return Err(Denial::new(
+                "task_missing",
+                "No task for assignment selection",
+            ));
+        }
+        Ok(contributions::available(&view, needs, producer))
     }
     pub fn prompt(&self, session: &Id, port: &str) -> Result<Prompt> {
         prompt(&self.journal.view(session, None)?, port)

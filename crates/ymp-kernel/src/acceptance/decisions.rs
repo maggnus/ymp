@@ -126,6 +126,43 @@ pub fn acceptance_value(
 ) -> Result<Acceptance> {
     ledger::validate_context(view, context)?;
     let result = result(view, &context.result)?;
+    let snapshot = &view.snapshots()[&result.after];
+    let evidence = applicable_evidence(view, context)?;
+    for run in view.check_runs().values() {
+        let Some(check) = view.checks().get(&run.check) else {
+            continue;
+        };
+        let applies = run.role == CheckRunRole::Candidate
+            && run.target == result.after
+            && run.target_version == snapshot.reference()?.version
+            && check.version == run.check_version
+            && view.contract().unwrap().checks.contains(&check.id.erased())
+            && context
+                .criteria
+                .iter()
+                .any(|c| c.id == check.criterion.erased() && c.version == check.criterion_version)
+            && context
+                .environments
+                .get(&check.reference())
+                .is_some_and(|expected| expected.contains(&run.env));
+        if applies
+            && !matches!(run.outcome, CheckOutcome::Error(_))
+            && !evidence.iter().any(|e| e.evidence.runs.contains(&run.id))
+        {
+            return Err(Denial::new("candidate_evidence_pending","Publish canonical evidence for the existing conclusive candidate check before acceptance").with_ref(run.reference()?));
+        }
+    }
+    acceptance_value_v1(view, id, context, rules, at)
+}
+fn acceptance_value_v1(
+    view: &SessionView,
+    id: Id<Acceptance>,
+    context: &ApplicabilityContext,
+    rules: &AssessmentRules,
+    at: u64,
+) -> Result<Acceptance> {
+    ledger::validate_context(view, context)?;
+    let result = result(view, &context.result)?;
     attempt(view, result)?;
     let evidence = applicable_evidence(view, context)?;
     let reviews = view
@@ -228,7 +265,12 @@ pub(crate) fn validate_acceptance(
     data: &AcceptanceRecorded,
     schemas: &crate::journal::ParameterSchemas,
 ) -> Result<()> {
-    let expected = acceptance_value(
+    let assess = if event.payload.version() == 1 {
+        acceptance_value_v1
+    } else {
+        acceptance_value
+    };
+    let expected = assess(
         view,
         data.acceptance.id.clone(),
         &data.context,
@@ -420,7 +462,7 @@ impl<J: Journal, C: ContentStore> AcceptanceAuthority<J, C> {
             input: Some(view.digest()?),
             refs,
             payload: Event::AcceptanceRecorded {
-                version: 1,
+                version: 2,
                 data: Box::new(data.clone()),
             },
         };

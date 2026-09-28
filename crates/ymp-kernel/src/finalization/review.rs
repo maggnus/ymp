@@ -106,7 +106,7 @@ pub struct FinalAcceptance {
 }
 pub(crate) fn final_phase(view: &SessionView) -> Result<&FinalAggregate> {
     if view.finalization().control != Some(Continuation::Continue)
-        || view.finalization().stopped
+        || view.owner_stopped()
         || view.treasury().is_some_and(|t| t.reporting_mode.is_some())
     {
         return Err(Denial::new(
@@ -199,14 +199,83 @@ pub(crate) fn reviewer_input(view: &SessionView) -> Result<ReviewerInput> {
     }
     Ok(ReviewerInput {
         journal: view.digest()?,
-        aggregate: aggregate.reference()?,
+        subject: aggregate.reference()?,
         producers: aggregate.producers.clone(),
         candidates,
     })
 }
+pub(crate) fn candidate_reviewer_input(view: &SessionView, result: &Ref) -> Result<ReviewerInput> {
+    let candidate = view
+        .results()
+        .results()
+        .values()
+        .find(|r| r.reference().as_ref() == Ok(result))
+        .ok_or_else(|| Denial::new("review_subject", "No exact candidate"))?;
+    let mut needs = BTreeSet::from([Capability::ReadFiles]);
+    for criterion in view.criteria().iter().filter(|c| {
+        view.results().items()[&candidate.item]
+            .targets
+            .contains(&c.id)
+    }) {
+        if criterion
+            .needs_class
+            .contains(&ymp_domain::task::EvidenceClass::Executed)
+        {
+            needs.insert(Capability::RunProcess);
+        }
+        if criterion
+            .needs_class
+            .contains(&ymp_domain::task::EvidenceClass::Browser)
+        {
+            needs.insert(Capability::Browser);
+        }
+    }
+    let eligible = crate::plans::contributions::available(view, &needs, Some(&candidate.producer));
+    let candidates = view
+        .registry()
+        .ok_or_else(|| Denial::new("registry_missing", "No pool"))?
+        .decisions
+        .iter()
+        .filter(|d| d.outcome == Readiness::Ready && eligible.contains(&d.profile.agent))
+        .map(|d| ReviewerCandidate {
+            profile: d.profile.clone(),
+            prior_reviews: view
+                .reviews()
+                .values()
+                .filter(|r| r.review.reviewer == d.profile.agent)
+                .count(),
+        })
+        .collect();
+    Ok(ReviewerInput {
+        journal: view.digest()?,
+        subject: result.clone(),
+        producers: BTreeSet::from([candidate.producer.clone()]),
+        candidates,
+    })
+}
+pub(crate) fn validate_candidate_reviewer(
+    view: &SessionView,
+    data: &ReviewerRecorded,
+) -> Result<()> {
+    if data.input != candidate_reviewer_input(view, &data.input.subject)? {
+        return Err(Denial::new(
+            "candidate_reviewer",
+            "Candidate choice differs from current exact scope",
+        ));
+    }
+    validate_choice(view, data)
+}
 pub(crate) fn validate_reviewer(view: &SessionView, data: &ReviewerRecorded) -> Result<()> {
-    if data.input != reviewer_input(view)?
-        || data.decision.input != Digest::of_value(&data.input)?
+    if data.input != reviewer_input(view)? {
+        return Err(Denial::new(
+            "final_reviewer",
+            "Final choice differs from aggregate scope",
+        ));
+    }
+    validate_choice(view, data)
+}
+fn validate_choice(view: &SessionView, data: &ReviewerRecorded) -> Result<()> {
+    if data.decision.input != Digest::of_value(&data.input)?
         || view.policies().get("ReviewerPolicy") != Some(&data.decision.effective)
         || data.decision.proposal.policy != data.decision.effective.policy
         || data.decision.proposal.value != data.decision.outcome
@@ -253,6 +322,45 @@ pub(crate) fn validate_admission(
     view: &SessionView,
     intent: &crate::gatekeeper::AdmissionIntent,
 ) -> Result<()> {
+    if intent.assignment.role == RoleKind::Reviewer && view.session_state().definition.is_some() {
+        let contribution =
+            &view.coordination().contributions()[&intent.assignment.contribution].value;
+        let Some(ymp_domain::assignment::ContributionSubject::ResultVersion(result)) =
+            &contribution.subject
+        else {
+            return Err(Denial::new(
+                "candidate_reviewer",
+                "Review requires exact subject",
+            ));
+        };
+        let choice = view
+            .finalization()
+            .history
+            .iter()
+            .rev()
+            .find_map(|(r, e)| {
+                if let FinalizationRecorded::CandidateReviewer(c) = e {
+                    (c.input.subject == *result).then_some((r, c))
+                } else {
+                    None
+                }
+            })
+            .ok_or_else(|| Denial::new("candidate_reviewer", "No independent reviewer decision"))?;
+        if choice.1.decision.outcome.as_ref() != Some(&intent.assignment.agent)
+            || !choice
+                .1
+                .input
+                .candidates
+                .iter()
+                .any(|c| c.profile == intent.assignment.profile)
+            || !contribution.basis.contains(choice.0)
+        {
+            return Err(Denial::new(
+                "candidate_reviewer",
+                "Admission must preserve its selected independent reviewer",
+            ));
+        }
+    }
     if intent.assignment.role != RoleKind::FinalReviewer {
         return Ok(());
     }
@@ -503,6 +611,36 @@ pub(crate) fn acceptance_value(
     })
 }
 impl<J: Journal, C: ContentStore> Finalization<J, C> {
+    pub fn candidate_reviewer_input(&self, session: &Id, result: &Ref) -> Result<ReviewerInput> {
+        candidate_reviewer_input(&self.journal.view(session, None)?, result)
+    }
+    pub fn record_candidate_reviewer(
+        &self,
+        owner: &SessionControl,
+        expected: u64,
+        at: u64,
+        input: ReviewerInput,
+        proposal: ymp_domain::Proposal<Option<Id<Agent>>>,
+    ) -> Result<Ref> {
+        let session = self.owner.authorize(owner)?;
+        let view = self.journal.view(&session, None)?;
+        let data = ReviewerRecorded {
+            decision: Decision {
+                input: Digest::of_value(&input)?,
+                outcome: proposal.value.clone(),
+                proposal,
+                effective: view.policies()["ReviewerPolicy"].clone(),
+                selection_change: None,
+            },
+            input,
+        };
+        self.append(
+            owner,
+            expected,
+            at,
+            FinalizationRecorded::CandidateReviewer(Box::new(data)),
+        )
+    }
     pub fn reviewer_input(&self, session: &Id) -> Result<ReviewerInput> {
         reviewer_input(&self.journal.view(session, None)?)
     }

@@ -842,10 +842,31 @@ pub(crate) fn validate_dispatch(
     if let Some(work) = view.progress().work(&data.assignment.contribution)
         && data.prompt != work.prompt
     {
-        return Err(Denial::new(
-            "recovery_context",
-            "Recovery must receive its exact recorded failure context",
-        ));
+        let wrapped = view.finalization().history.iter().any(|(_, event)| {
+            if let crate::finalization::FinalizationRecorded::Context(context) = event {
+                context.input.assignment == data.assignment
+                    && context.decision.outcome == data.prompt
+                    && context.input.purpose.get("recovery")
+                        == ymp_domain::journal::decode::<serde_json::Value>(
+                            work.prompt.text.as_bytes(),
+                        )
+                        .ok()
+                        .as_ref()
+                    && work
+                        .prompt
+                        .basis
+                        .iter()
+                        .all(|r| data.prompt.basis.contains(r))
+            } else {
+                false
+            }
+        });
+        if !wrapped {
+            return Err(Denial::new(
+                "recovery_context",
+                "Recovery must preserve its exact recorded failure context, directly or in a validated attributed role projection",
+            ));
+        }
     }
     Ok(())
 }

@@ -156,7 +156,7 @@ fn same_work(left: &Contribution, right: &Contribution) -> bool {
         _ => false,
     }
 }
-pub(crate) fn unresolved(view: &SessionView, record: &AdmissionRecord) -> bool {
+pub fn unresolved(view: &SessionView, record: &AdmissionRecord) -> bool {
     match record.intent.assignment.state {
         AssignmentState::Finished => false,
         AssignmentState::Admitted | AssignmentState::Running => true,
@@ -184,6 +184,13 @@ pub(crate) fn validate_intent(
     funding: &ReserveDecision,
     at: u64,
 ) -> Result<()> {
+    if view.owner_stopped() {
+        return Err(Denial::new(
+            "session_stopped",
+            "Owner stop forbids a new assignment",
+        ));
+    }
+
     intent.assignment.validate()?;
     let assignment = &intent.assignment;
     crate::arbiter::validate_delegation(view, intent, at)?;

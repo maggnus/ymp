@@ -401,16 +401,6 @@ fn producer_candidate_retains_bytes_and_abandoned_retry_keeps_distinct_history()
             assert!(view.evidence().contains_key(&prior.evidence.id));
         }
         prior_evidence = Some(supporting.clone());
-        if number == 1 {
-            check_negative_sources(
-                &s,
-                &authority,
-                &result,
-                &expected,
-                &contradicted,
-                &supporting,
-            );
-        }
         record_independent_review(
             &mut s,
             &gate,
@@ -421,6 +411,16 @@ fn producer_candidate_retains_bytes_and_abandoned_retry_keeps_distinct_history()
             &supporting,
             number,
         );
+        if number == 1 {
+            check_negative_sources(
+                &s,
+                &authority,
+                &result,
+                &expected,
+                &contradicted,
+                &supporting,
+            );
+        }
         let at = gate.view(&s.session).unwrap().latest_at();
         let view = gate.view(&s.session).unwrap();
         assert_eq!(
@@ -688,6 +688,35 @@ fn check_negative_sources(
         CheckRunRole::Candidate,
         &RetainedBytes,
     );
+    let before = s.gate.view(&s.session).unwrap();
+    assert!(
+        before
+            .reviews()
+            .values()
+            .any(|r| r.result == result.reference().unwrap()
+                && r.review.verdict == ReviewVerdict::Approve
+                && r.review.reviewer != result.producer)
+    );
+    let mut exact = assessment(supporting);
+    exact
+        .environments
+        .insert(negative.reference(), BTreeSet::from([failed.env.clone()]));
+    assert_eq!(
+        authority
+            .acceptance_value(
+                &s.session,
+                id("fail-before-evidence"),
+                &exact,
+                &AssessmentRules {
+                    mutation_threshold: ymp_domain::Prob::new(0.8).unwrap()
+                },
+                before.latest_at() + 1
+            )
+            .unwrap_err()
+            .code,
+        "candidate_evidence_pending"
+    );
+    assert_eq!(s.gate.view(&s.session).unwrap(), before);
     let evidence = authority
         .evidence(
             &s.control,

@@ -15,8 +15,22 @@ use ymp_domain::{
 pub struct SessionControl {
     session: Id,
     consumer: Arc<()>,
+    stopped: std::sync::atomic::AtomicBool,
 }
 
+impl SessionControl {
+    pub fn session(&self) -> &Id {
+        &self.session
+    }
+    pub fn stopped(&self) -> bool {
+        self.stopped.load(std::sync::atomic::Ordering::SeqCst)
+    }
+    /// Irreversible for this local handle; an explicit Continue issues a new handle.
+    pub fn stop_local(&self) {
+        self.stopped
+            .store(true, std::sync::atomic::Ordering::SeqCst);
+    }
+}
 pub struct MethodDecision {
     pub expected_revision: u64,
     pub at: u64,
@@ -69,6 +83,33 @@ impl<J: Journal> DecisionConsumer<J> {
         self.open_events(session, &[event])
     }
 
+    /// Trusted local owner recovery; this API is not exposed through participant ports.
+    pub fn recover(&self, session: &Id) -> Result<SessionControl> {
+        let view = self.journal.view(session, None)?;
+        if !view.opened() || view.task().is_none() {
+            return Err(Denial::new(
+                "session_missing",
+                "Recovery needs an existing owner task",
+            ));
+        }
+        Ok(SessionControl {
+            session: session.clone(),
+            consumer: self.control.clone(),
+            stopped: std::sync::atomic::AtomicBool::new(view.owner_stopped()),
+        })
+    }
+    pub fn change_session(
+        &self,
+        control: &SessionControl,
+        at: u64,
+        change: crate::session::SessionChange,
+    ) -> Result<ymp_domain::Ref> {
+        let session = self.authorize(control)?;
+        if change == crate::session::SessionChange::Stop {
+            control.stop_local();
+        }
+        self.journal.session_control(&session, at, change)
+    }
     pub(crate) fn authorize(&self, control: &SessionControl) -> Result<Id> {
         if !Arc::ptr_eq(&control.consumer, &self.control) {
             return Err(Denial::new(
@@ -96,6 +137,7 @@ impl<J: Journal> DecisionConsumer<J> {
         Ok(SessionControl {
             session,
             consumer: self.control.clone(),
+            stopped: std::sync::atomic::AtomicBool::new(false),
         })
     }
 

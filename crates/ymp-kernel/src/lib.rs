@@ -19,6 +19,7 @@ pub mod ports;
 pub mod progress;
 pub mod registry;
 pub mod results;
+pub mod session;
 pub mod treasury;
 pub mod view;
 pub mod workspace_guard;

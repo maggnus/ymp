@@ -27,7 +27,11 @@
     "Interrupt/reopen amid execution or reporting preserves committed work/accounting and does not repeat native starts, settlement or report delivery. A stopped session starts no final-review/narrator/learning call, unresolved effects block only conflicting scopes, and repeated unrelated events cannot starve user stop. The session runs over MemoryJournal and SqliteJournal.",
     "The complete producer/reviewer session connects real A7 artifact acceptance to P2 discharge and actual non-artifact completion to its own discharge. It never requires fabricated acceptance/provenance to demonstrate lifecycle completion."
   ],
-  "evidence": [],
+  "evidence": [
+    "ymp-docs/session-implementation.md",
+    "crates/ymp-storage/tests/dispatcher.rs",
+    "crates/ymp-storage/tests/session.rs"
+  ],
   "context": [
     "Authority: ymp-docs/self-organizing-team-domain-model.md, section 4 (Dispatcher), A1/A3/A5/A6/A11/A13, P2, build stages 1–5 and intent.md interactive-session outcomes. Use the approved model with 811a872 semantics and the greenfield baseline in 0c61ff1 and §5.8 for experimental strategy boundaries. Other documents and existing names explain implementation facts only.",
     "Greenfield: create this behavior in the new implementation. Paths below are PROPOSED target modules under the layout owned by W1-0001; only completed prerequisite tasks supply implementation. Prior source, APIs, fixtures and delivery claims are not a baseline.",
@@ -39,7 +43,7 @@
     "Current ContributionPolicy selects Verify/Diagnose/DesignChecks for a retained candidate, not Review. The fixed A1 workflow must explicitly admit independent candidate review and connect Review -> A7 -> producer P2 before final aggregate capture; A8 Satisfied alone is not an accepted source. Keep that required call ordering outside strategy claims and do not accept a normal provider exit as artifact acceptance.",
     "Recovery/control seams confirmed by read-only preparation: new Application/DecisionConsumer and Treasury cannot yet recover original SessionControl/BudgetControl; completed retained production cannot be submitted after losing PreparedAttempt/issuer; Host.recover only observes unresolved work and must not duplicate it. Implement trusted continuation from recorded facts without new grants or budget reset. MemoryJournal currently has no binding_identity/workspace_binding, so its full Direct scenario needs an honest in-memory identity/binding implementation instead of bypassing WorkspaceGuard. Durable owner stop needs atomic current-revision ordering or equivalent evidence of no starvation; repeated optimistic CAS retries alone are insufficient. Preserve Host.cancel immediate local stopped flag and mediated withdrawal even when journal writes fail."
   ],
-  "revision": 6,
+  "revision": 9,
   "history": [
     {
       "revision": 1,
@@ -82,6 +86,27 @@
       "actor": "codex",
       "status": "in_progress",
       "note": "Claimed by codex."
+    },
+    {
+      "revision": 7,
+      "at": "2026-09-28T17:01:02.209443Z",
+      "actor": "codex",
+      "status": "in_progress",
+      "note": "First control/recovery slice is implemented in isolated branch codex/w1-0014, based on delivered prerequisites. Focused consumer passed in 0.46s using real Memory identity binding and SQLite: admitted authority, atomic current-state Stop at an advanced revision, retained financial/path holds, idempotent Stop, new Application Observe/Continue, old Grant still revoked, unchanged budget, Continue denied after ReportingStarted. Independent read closed Continue-dedup, Memory binding/identity and direct finalization-stop findings. Storage locking/transaction atomicity is code-reviewed; a concurrent append/stop scenario remains unexecuted. Paid ordinary Review, typed Verify/Diagnose completion, retained attempt recovery, Dispatcher and full acceptance remain pending. No native inference or product experiment has begun."
+    },
+    {
+      "revision": 8,
+      "at": "2026-09-28T18:30:55.623776Z",
+      "actor": "codex",
+      "status": "in_progress",
+      "note": "Integration milestones observed, not final delivery: paid candidate review/recovered attempt scenario passed37.17s; actual A7 Fail-before-Evidence case passed31.84s. Removing the A7 guard produced a false Accepted(Confirmed(TrustedCheck)) and test failure8.01s; restored source passed34.16s. Dispatcher reached paid intake/plan on Memory+SQLite6.04s, then final acceptance/ReportDelivered with six reconciled calls85.81s; typed Verify variant had seven reconciled calls113.61s. Active paused Planner stop on both journals delivered Cancelled deterministic report with exactly one invocation2.01s. Unavailable independent FinalReviewer recorded exact Blocked(final_review_pending), retained acceptance and accounted narration29.46s. ReviewerPolicy attribution, version-bound owner check inputs and new Report-only recovery are being connected with expiry, true verification-capacity and Retry/AddVerifier paths. Original requirements/capabilities are not weakened; A6 process/browser access remains literal. Full current-code restart/failure scenarios, concurrent stop and combined mandatory verification are still pending. No native model experiment has started."
+    },
+    {
+      "revision": 9,
+      "at": "2026-09-28T19:02:06.714860Z",
+      "actor": "codex",
+      "status": "in_progress",
+      "note": "Stable integration accepted by independent R1 review (9/10). Final make verify passed: legacy scan, offline build, fmt, Clippy with denied warnings, workspace and documentation tests. Test optimization level 1 retained debug assertions and overflow checks. Seven Dispatcher scenarios passed together in 165.26 s, covering full Memory/SQLite session and reopening, cancellation, actual check failure despite approval, unavailable final reviewer, real verification-capacity shortage, Retry and AddVerifier. Session controls passed in 0.75 s; final report in 40.44 s; results in 33.13 s. Earlier combined Retry hit only its external 120 s test watchdog; increasing that watchdog to 240 s changed no runtime limit and restored the full run. A7 negative control failed when its guard was removed, then passed after restoration. Timely-completion-after-expiry and final narrow narrator interruption cuts were independently reviewed but not separately reproduced. No native inference. Ready to commit; not done until implementation is reachable from main."
     }
   ]
 }

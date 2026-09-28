@@ -43,6 +43,18 @@ pub struct AdmissionRuntime<J: Journal, C: ContentStore> {
     journal: Arc<J>,
 }
 impl<J: Journal, C: ContentStore> AdmissionRuntime<J, C> {
+    pub(crate) fn require_journal(&self, journal: &Arc<J>) -> Result<()> {
+        if !Arc::ptr_eq(journal, &self.journal) {
+            return Err(Denial::new(
+                "owner_authority",
+                "Admission belongs to another owner journal",
+            ));
+        }
+        Ok(())
+    }
+    pub fn gatekeeper(&self) -> &Arc<Gatekeeper<J, C>> {
+        &self.gatekeeper
+    }
     pub fn results(&self) -> Result<ymp_kernel::results::Results<J, C>> {
         ymp_kernel::results::Results::new(self.journal.clone(), self.gatekeeper.clone())
     }

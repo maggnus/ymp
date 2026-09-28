@@ -46,7 +46,11 @@ pub fn context_prompt(input: &ContextInput, compact: bool) -> Result<Prompt> {
     prompt.validate()?;
     Ok(prompt)
 }
-pub(crate) fn input(view: &SessionView, assignment: &Id<Assignment>) -> Result<ContextInput> {
+pub(crate) fn input(
+    view: &SessionView,
+    assignment: &Id<Assignment>,
+    scoped_role: bool,
+) -> Result<ContextInput> {
     let record = view
         .admission()
         .assignments()
@@ -108,7 +112,74 @@ pub(crate) fn input(view: &SessionView, assignment: &Id<Assignment>) -> Result<C
         record.references.last().unwrap().clone(),
         view.contract().unwrap().reference(),
     ];
-    let purpose = match a.role {
+    let mut purpose = match a.role {
+        RoleKind::Planner if scoped_role && view.session_state().definition.is_some() => {
+            let port = if view
+                .planning()
+                .history
+                .iter()
+                .any(|(_, record)| matches!(record, crate::plans::PlanningRecorded::Intake(_)))
+            {
+                "Planner"
+            } else {
+                "IntakePolicy"
+            };
+            if contribution.value.targets != view.criteria().iter().map(|c| c.id.clone()).collect()
+            {
+                return Err(Denial::new(
+                    "planning_scope",
+                    "The initial Planner targets the complete contract",
+                ));
+            }
+            let planning: crate::ports::planning::PlanningPrompt =
+                ymp_domain::journal::decode(crate::plans::prompt(view, port)?.text.as_bytes())?;
+            serde_json::json!({"operation":"planning","port":port,"planning":planning,"session":view.session(),"assignment":a.id,"visible_checks":view.session_state().definition.as_ref().unwrap().1.checks,
+                "response":if port=="IntakePolicy"{"Return only IntakeOutput JSON: criteria [{id,text,kind NewBehavior/Regression/Constraint,weight,required,needs_class [],origin User}], questions [{question,p_misinterpretation,rework_cost,assumption,reason}]. Derive only atomic missing requirements; kernel replaces origin with the actual paid assignment. Preserve existing user criteria by not repeating them. Return criteria:[] when supplied criteria are complete. Visible checks bind only their exact recorded criterion versions; additional requirements without supplied checks need owner clarification."}else{"Return only PlanDefinition JSON: plan {id,session,version:1,items:[item_id],rationale,author:assignment}, items [{id,plan:plan_id,title,targets:[all criterion IDs],deps:[],needs:[ReadFiles,WriteFiles],writes:[explicit relative file paths],state:Open,attempts:[],accepted:null,parent:null}]. Propose exactly one work item and cover every current criterion."}})
+        }
+
+        RoleKind::Producer if scoped_role => {
+            let attempt = view.results().pending_for(&a.id).ok_or_else(|| {
+                Denial::new(
+                    "attempt_missing",
+                    "Producer context requires its protected attempt",
+                )
+            })?;
+            let item = &view.results().items()[&attempt.attempt.item];
+            basis.push(item.reference()?);
+            snapshots.push(view.snapshots()[&attempt.before].reference()?);
+            serde_json::json!({"operation":"production","item":item,"response":"Perform only the authorized file work through mediated tools. Return a concise factual summary; completion does not establish acceptance."})
+        }
+        RoleKind::Verifier | RoleKind::Researcher
+            if scoped_role
+                && matches!(
+                    contribution.value.subject,
+                    Some(ymp_domain::assignment::ContributionSubject::ResultVersion(
+                        _
+                    ))
+                ) =>
+        {
+            let reference = contribution.value.subject.as_ref().unwrap().reference();
+            let result = view
+                .results()
+                .results()
+                .values()
+                .find(|r| r.reference().as_ref() == Ok(reference))
+                .ok_or_else(|| Denial::new("context_result", "No retained candidate"))?;
+            snapshots.extend([
+                view.snapshots()[&result.before].reference()?,
+                view.snapshots()[&result.after].reference()?,
+            ]);
+            basis.push(reference.clone());
+            serde_json::json!({"operation":"candidate_verification","result":reference,"response":"Inspect the exact retained candidate and visible checks. Return factual findings, distinguish observed results from uncertainty; kernel check execution and acceptance remain separate."})
+        }
+        RoleKind::Reviewer if scoped_role => {
+            let (result, scoped_snapshots, scoped_evidence, purpose) =
+                crate::acceptance::paid_review::purpose(view, a)?;
+            basis.push(result);
+            snapshots.extend(scoped_snapshots);
+            evidence.extend(scoped_evidence);
+            purpose
+        }
         RoleKind::FinalReviewer => {
             let aggregate = view
                 .finalization()
@@ -128,6 +199,25 @@ pub(crate) fn input(view: &SessionView, assignment: &Id<Assignment>) -> Result<C
         }
         _ => serde_json::json!({"operation":"assignment","role":a.role}),
     };
+    if scoped_role && let Some(work) = view.progress().work(&a.contribution) {
+        if work.prompt.basis.iter().any(|reference| {
+            view.check_runs().values().any(|run| {
+                run.reference().as_ref() == Ok(reference)
+                    && view.checks()[&run.check].visibility != CheckVisibility::Visible
+            })
+        }) {
+            return Err(Denial::new(
+                "recovery_context_hidden",
+                "Automatic recovery cannot disclose hidden verification inputs",
+            ));
+        }
+        if a.role == RoleKind::Researcher {
+            purpose = serde_json::json!({"operation":"recovery_research","response":"Inspect the exact bounded diagnostic context; return factual findings and uncertainty without claiming new executable evidence."});
+        }
+        purpose["recovery"] =
+            ymp_domain::journal::decode::<serde_json::Value>(work.prompt.text.as_bytes())?;
+        basis.extend(work.prompt.basis.iter().cloned());
+    }
     let history: Vec<_> = view
         .planning()
         .history
@@ -189,7 +279,21 @@ pub(crate) fn validate(view: &SessionView, data: &ContextRecorded) -> Result<()>
             ));
         }
     }
-    if projected != input(view, &data.input.assignment.id)?
+    if projected
+        != input(
+            view,
+            &data.input.assignment.id,
+            matches!(
+                data.input.purpose["operation"].as_str(),
+                Some(
+                    "candidate_review"
+                        | "planning"
+                        | "production"
+                        | "candidate_verification"
+                        | "recovery_research"
+                )
+            ),
+        )?
         || data.decision.input != Digest::of_value(&data.input)?
         || view.policies().get("ContextComposer") != Some(&data.decision.effective)
         || data.decision.proposal.policy != data.decision.effective.policy
@@ -212,7 +316,7 @@ pub(crate) fn validate(view: &SessionView, data: &ContextRecorded) -> Result<()>
 impl<J: Journal, C: ContentStore> Finalization<J, C> {
     pub fn context_input(&self, session: &Id, assignment: &Id<Assignment>) -> Result<ContextInput> {
         let view = self.journal.view(session, None)?;
-        let mut input = input(&view, assignment)?;
+        let mut input = input(&view, assignment, true)?;
         let mut remaining = 8192;
         for reference in &input.snapshots {
             let snapshot = view

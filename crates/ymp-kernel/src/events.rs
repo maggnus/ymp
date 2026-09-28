@@ -29,6 +29,10 @@ pub struct CriteriaCommitted {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub enum Event {
+    SessionChanged {
+        version: u32,
+        change: crate::session::SessionChange,
+    },
     FinalizationRecorded {
         version: u32,
         data: Box<crate::finalization::FinalizationRecorded>,
@@ -52,6 +56,10 @@ pub enum Event {
     EvidenceRecorded {
         version: u32,
         data: Box<crate::acceptance::EvidenceRecorded>,
+    },
+    PaidReviewRecorded {
+        version: u32,
+        data: Box<crate::acceptance::PaidReviewRecorded>,
     },
     ReviewRecorded {
         version: u32,
@@ -198,6 +206,7 @@ pub enum Event {
 impl Event {
     pub fn contents(&self) -> Result<EventContent> {
         let selections: Vec<&PolicySelection> = match self {
+            Self::SessionChanged { .. } => vec![],
             Self::FinalizationRecorded { data, .. } => data.selection().into_iter().collect(),
             Self::ProgressRecorded { data, .. } => data.selection().into_iter().collect(),
             Self::PlanningRecorded { data, .. } => data.selection().into_iter().collect(),
@@ -205,7 +214,9 @@ impl Event {
                 data.decisions.values().map(|d| &d.effective).collect()
             }
             Self::AcceptanceRecorded { data, .. } => vec![&data.credit.effective],
-            Self::EvidenceRecorded { .. } | Self::ReviewRecorded { .. } => vec![],
+            Self::EvidenceRecorded { .. }
+            | Self::ReviewRecorded { .. }
+            | Self::PaidReviewRecorded { .. } => vec![],
             Self::PlanCommitted { .. }
             | Self::AttemptStarted { .. }
             | Self::ResultSubmitted { .. }
@@ -296,14 +307,15 @@ impl Event {
     }
     pub fn version(&self) -> u32 {
         match self {
-            Self::FinalizationRecorded { version, .. }
+            Self::SessionChanged { version, .. }
+            | Self::FinalizationRecorded { version, .. }
             | Self::ProgressRecorded { version, .. }
             | Self::PlanningRecorded { version, .. }
             | Self::LedgerUpdated { version, .. }
             | Self::AcceptanceRecorded { version, .. } => *version,
-            Self::EvidenceRecorded { version, .. } | Self::ReviewRecorded { version, .. } => {
-                *version
-            }
+            Self::EvidenceRecorded { version, .. }
+            | Self::ReviewRecorded { version, .. }
+            | Self::PaidReviewRecorded { version, .. } => *version,
             Self::PlanCommitted { version, .. }
             | Self::AttemptStarted { version, .. }
             | Self::ResultSubmitted { version, .. }

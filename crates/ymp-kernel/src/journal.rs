@@ -403,6 +403,19 @@ impl JournalRead {
 /// for commit. A denial must leave both the events and the revision unchanged.
 pub trait Journal: Send + Sync {
     fn schemas(&self) -> &ParameterSchemas;
+    /// Atomically order a trusted user control against the current state.
+    fn session_control(
+        &self,
+        _session: &Id,
+        _at: u64,
+        _change: crate::session::SessionChange,
+    ) -> Result<ymp_domain::Ref> {
+        Err(Denial::new(
+            "control_unavailable",
+            "Journal does not support atomic owner controls",
+        ))
+    }
+
     fn binding_identity(&self) -> Result<ymp_domain::workspace::JournalIdentity> {
         Err(Denial::new(
             "journal_identity",
@@ -519,8 +532,20 @@ pub fn control_reserve(view: &SessionView) -> (usize, usize) {
     let execution = crate::execution::control_reserve(view);
     let results = view.results().control_reserve();
     (
-        workspace.0 + admission.0 + execution.0 + results,
-        workspace.1 + admission.1 + execution.1 + results * 65_536,
+        workspace.0
+            + admission.0
+            + execution.0
+            + results
+            + usize::from(view.session_state().control.is_some() && !view.session_state().stopped),
+        workspace.1
+            + admission.1
+            + execution.1
+            + results * 65_536
+            + if view.session_state().control.is_some() && !view.session_state().stopped {
+                4096
+            } else {
+                0
+            },
     )
 }
 
@@ -558,6 +583,12 @@ pub fn validate_append(
             return Err(Denial::new(
                 "commitment_terms",
                 "New admission requires recorded award lifecycle terms",
+            ));
+        }
+        if matches!(event.payload, Event::AcceptanceRecorded { version: 1, .. }) {
+            return Err(Denial::new(
+                "acceptance_version",
+                "Version 1 acceptance is replay-only; new decisions require canonical existing check evidence",
             ));
         }
         if matches!(event.payload, Event::SnapshotTaken { version: 1, .. }) {
@@ -711,4 +742,19 @@ fn validate_codex(selection: &PolicySelection) -> Result<()> {
     let parameters: crate::ports::execution::CodexParameters =
         ymp_domain::journal::decode(&ymp_domain::journal::encode(value)?)?;
     parameters.validate()
+}
+
+/// Conservative path overlap used by durable and in-memory physical bindings.
+pub fn root_paths_overlap(left: &str, right: &str) -> bool {
+    let left = left.to_ascii_lowercase();
+    let right = right.to_ascii_lowercase();
+    left == "/"
+        || right == "/"
+        || left == right
+        || left
+            .strip_prefix(&right)
+            .is_some_and(|tail| tail.starts_with('/'))
+        || right
+            .strip_prefix(&left)
+            .is_some_and(|tail| tail.starts_with('/'))
 }

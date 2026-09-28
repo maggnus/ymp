@@ -61,7 +61,9 @@ pub struct ReviewerCandidate {
 #[serde(deny_unknown_fields)]
 pub struct ReviewerInput {
     pub journal: Digest,
-    pub aggregate: Ref,
+    /// Historical wire name remains unchanged for replay.
+    #[serde(rename = "aggregate")]
+    pub subject: Ref,
     pub producers: BTreeSet<Id<Agent>>,
     pub candidates: Vec<ReviewerCandidate>,
 }

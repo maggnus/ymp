@@ -303,6 +303,32 @@ entity WorkItem {                       -- subtask aimed at criteria
 enum  WorkState = Open | Committed | Running | InReview | Accepted | Failed | Blocked | Superseded
 ```
 
+The Rust session-control mapping uses `SessionChange` for trusted Stop, explicit
+Continue and a recorded phase from the existing SessionStatus values.
+`SessionState` projects those control facts. The kernel forms a stop packet from
+the current journal state under the storage adapter's write lock or transaction;
+it revokes old authority without claiming release of unresolved effects or cost.
+`RecoveryConsumed` binds advancement after recovery work to one exact completed
+invocation reference. Its retained consumption prevents an earlier recovery step
+from repeatedly clearing a later blocked phase.
+`RecoveryIntent` distinguishes observation, a new explicit continuation and a
+deterministic-only report request.
+`RecoveredSession` carries newly issued local owner and budget controls for the
+same retained session, never a revived Grant or a new budget. These values make
+the existing A1 and section 3.9 user-control guarantees concrete; they do not add
+an agent role or a second authority model. Finalization's sticky stop and an
+already started reporting/delivery phase cannot be reopened by Continue.
+
+`SessionDefinition` records the owner's workspace, version-bound `VisibleCheck`
+inputs, assessment rules and finite offer window for the fixed session workflow.
+It is retained input, not a second store of runtime status. `SessionStart` supplies
+that input together with intake, Registry facts and accounting choices.
+`SessionPolicies` groups the concrete strategy ports actually consumed by this
+workflow. `Tick` describes one transient Dispatcher result; canonical progress
+continues to come from Journal. These mappings implement A1's call ordering and
+P1's existing offer-window parameter without moving business authority into the
+Dispatcher.
+
 The Rust `WorkItem.reference` identifies its immutable definition, excluding
 state, attempt history and the accepted reference. `PlanRecord` retains the exact
 Plan definition and original acceptance contract; `AttemptRecord` binds an Attempt
@@ -644,6 +670,21 @@ credit proposal to the acceptance input. The concrete `ConfirmedOnly` and
 `IncludeDiscriminated` policies implement the two credit variants in section 5.6;
 their eligibility is separate from an actual Observation. These mappings retain
 the model's existing authority and decision boundaries rather than adding roles.
+
+The paid ordinary-review mapping uses `CandidateVerdict` for the reviewer's bounded
+structured response and `PaidReviewRecorded` for its exact original Assignment,
+admission, completion, receipt and prompt references together with ReviewRecorded.
+This lets the kernel consume a completed, accounted reviewer after its grant was
+revoked; it does not revive that grant or change historical ReviewRecorded values.
+`CandidateReviewer` records the same ReviewerPolicy decision for an exact candidate
+scope before admission. `ReviewerInput.subject` identifies the ResultVersion or
+FinalAggregate checked by its owning consumer; the serialized key remains
+`aggregate` to preserve earlier input bytes and digests.
+New candidate AcceptanceRecorded writes use version 2: an already performed
+conclusive Candidate run in the exact expected context requires canonical Evidence
+before A7. Error and inapplicable runs do not trigger this prerequisite. This
+implements R-6 without requiring new checks or Satisfied status. Version 1 remains
+historically replayable and cannot be used for new append operations.
 
 The Rust A9 mapping uses `ProgressInput`, `DiagnosisInput` and `EscalationInput`
 for the exact recorded inputs of the three ports. `ProgressAssessment` contains

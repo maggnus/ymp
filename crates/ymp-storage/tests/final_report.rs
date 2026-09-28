@@ -96,6 +96,16 @@ impl ExecutionBackend for Backend {
                 path: WorkspacePath::new("file")?,
                 bytes: b"candidate".to_vec(),
             }),
+            RoleKind::Reviewer => {
+                let prompt: serde_json::Value = serde_json::from_str(&r.prompt.text).unwrap();
+                let data = prompt.as_array().unwrap();
+                let purpose = data.last().unwrap();
+                let refs: Vec<Ref> = serde_json::from_value(data[7].clone()).unwrap();
+                let verdict=CandidateVerdict {id:id("candidate-review"),result:serde_json::from_value(purpose["result"].clone()).unwrap(),criteria:serde_json::from_value(purpose["criteria"].clone()).unwrap(),verdict:ReviewVerdict::Approve,findings:vec![],basis:refs.into_iter().map(|r|id(r.id.as_str())).collect(),rationale:"Inspect the exact retained candidate through the admitted independent reviewer".into()};
+                steps.push(ScriptedStep::Emit(BackendObservation::Output(
+                    serde_json::to_string(&verdict).unwrap(),
+                )));
+            }
             RoleKind::FinalReviewer => {
                 let prompt: serde_json::Value = serde_json::from_str(&r.prompt.text).unwrap();
                 let aggregate: FinalAggregate = serde_json::from_value(
@@ -560,6 +570,11 @@ fn final_scope_requires_fresh_evidence_and_an_independent_paid_review() {
         },
     );
     let at = gate.view(&s.session).unwrap().latest_at();
+    let results = Results::new(journal.clone(), gate.clone()).unwrap();
+    let attempt = s
+        .intake
+        .recover_attempt(&s.control, &results, attempt.id())
+        .unwrap();
     let result = results
         .submit(
             &attempt,
@@ -615,21 +630,18 @@ fn final_scope_requires_fresh_evidence_and_an_independent_paid_review() {
         vec![],
         true,
     );
+    let original_assignment = reviewed.assignment.reference().unwrap();
+    let input = finalizer
+        .context_input(&s.session, &reviewed.assignment.id)
+        .unwrap();
     let view = gate.view(&s.session).unwrap();
-    authority
-        .review(
-            &gate,
-            &reviewed.grant,
-            ReviewRequest {
-                expected_revision: view.revision(),
-                at: view.latest_at(),
-                id: id("candidate-review"),
-                result: result.reference().unwrap(),
-                criteria: vec![view.criteria()[0].reference().unwrap()],
-                verdict: ReviewVerdict::Approve,
-                findings: vec![],
-                basis: vec![evidence.evidence.id.clone()],
-            },
+    let prompt = finalizer
+        .record_context(
+            &s.control,
+            view.revision(),
+            view.latest_at() + 1,
+            input.clone(),
+            composer.prompt(&input).unwrap(),
         )
         .unwrap();
     execute(
@@ -639,11 +651,33 @@ fn final_scope_requires_fresh_evidence_and_an_independent_paid_review() {
         &clock,
         reviewed,
         "candidate-review",
-        Prompt {
-            text: "Review the retained candidate".into(),
-            basis: vec![result.reference().unwrap()],
-        },
+        prompt,
     );
+    let view = gate.view(&s.session).unwrap();
+    assert!(view.resolve(&original_assignment).is_err());
+    let review = authority
+        .consume_review(
+            &s.control,
+            view.revision(),
+            view.latest_at() + 1,
+            &id("call-candidate-review"),
+        )
+        .unwrap();
+    let view = gate.view(&s.session).unwrap();
+    view.resolve(&original_assignment).unwrap();
+    assert_eq!(review.review.basis, vec![evidence.evidence.id.clone()]);
+    assert_eq!(
+        authority
+            .consume_review(
+                &s.control,
+                view.revision(),
+                view.latest_at() + 99,
+                &id("call-candidate-review")
+            )
+            .unwrap(),
+        review
+    );
+    assert_eq!(gate.view(&s.session).unwrap().revision(), view.revision());
     let view = gate.view(&s.session).unwrap();
     let context = ApplicabilityContext {
         result: result.reference().unwrap(),

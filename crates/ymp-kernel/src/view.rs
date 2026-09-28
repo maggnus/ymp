@@ -44,6 +44,7 @@ pub struct SessionView {
     planning: crate::plans::PlanningState,
     progress: crate::progress::ProgressState,
     finalization: crate::finalization::FinalizationState,
+    session_state: crate::session::SessionState,
     acceptances:
         BTreeMap<Id<ymp_domain::verification::Acceptance>, crate::acceptance::AcceptanceRecorded>,
     evidence: BTreeMap<Id<ymp_domain::verification::Evidence>, crate::acceptance::EvidenceRecorded>,
@@ -83,6 +84,7 @@ impl SessionView {
             planning: crate::plans::PlanningState::default(),
             progress: crate::progress::ProgressState::default(),
             finalization: crate::finalization::FinalizationState::default(),
+            session_state: crate::session::SessionState::default(),
             acceptances: BTreeMap::new(),
             evidence: BTreeMap::new(),
             reviews: BTreeMap::new(),
@@ -183,6 +185,12 @@ impl SessionView {
     ) -> &BTreeMap<Id<ymp_domain::verification::CheckRun>, ymp_domain::verification::CheckRun> {
         &self.check_runs
     }
+    pub fn session_state(&self) -> &crate::session::SessionState {
+        &self.session_state
+    }
+    pub fn owner_stopped(&self) -> bool {
+        self.session_state.stopped || self.finalization.stopped
+    }
     pub fn status(&self) -> Option<SessionStatus> {
         if self.finalization.stopped {
             return Some(SessionStatus::Cancelled);
@@ -190,7 +198,13 @@ impl SessionView {
         if let Some(report) = &self.finalization.delivered {
             return Some(report.outcome.clone());
         }
-        self.task.as_ref().map(|_| SessionStatus::Intake)
+        if self.session_state.stopped {
+            return Some(SessionStatus::Cancelled);
+        }
+        self.session_state
+            .phase
+            .clone()
+            .or_else(|| self.task.as_ref().map(|_| SessionStatus::Intake))
     }
     pub fn session(&self) -> &Id {
         &self.session
@@ -265,6 +279,7 @@ impl SessionView {
                 Event::SnapshotTaken { version: 2, .. }
                     | Event::PlanCommitted { version: 2, .. }
                     | Event::MethodChosen { version: 2, .. }
+                    | Event::AcceptanceRecorded { version: 2, .. }
             )
         {
             return Err(Denial::new(
@@ -307,6 +322,10 @@ impl SessionView {
         let admission = crate::gatekeeper::apply(self, event)?;
         let results = crate::results::apply(self, event)?;
         match &event.payload {
+            Event::SessionChanged { change, .. } => {
+                self.validate_complete()?;
+                self.session_state = crate::session::apply(self, event, change)?;
+            }
             Event::FinalizationRecorded { data, .. } => {
                 self.validate_complete()?;
                 let state = crate::finalization::apply(self, event, data, schemas)?;
@@ -426,6 +445,13 @@ impl SessionView {
                 self.references.insert(data.reference()?);
                 self.evidence
                     .insert(data.evidence.id.clone(), (**data).clone());
+            }
+            Event::PaidReviewRecorded { data, .. } => {
+                crate::acceptance::paid_review::validate(self, event, data)?;
+                self.references.insert(data.assignment.clone());
+                self.references.insert(data.review.reference()?);
+                self.reviews
+                    .insert(data.review.review.id.clone(), data.review.clone());
             }
             Event::ReviewRecorded { data, .. } => {
                 self.validate_complete()?;

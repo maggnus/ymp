@@ -288,6 +288,24 @@ pub(super) fn decide(
         )
         .unwrap();
     assert_eq!(recorded.acceptance, acceptance);
+    let current = s.journal.read(&s.session).unwrap();
+    let view = gate.view(&s.session).unwrap();
+    let mut downgrade=current.events.iter().rev().find(|event|matches!(&event.payload,ymp_kernel::events::Event::AcceptanceRecorded{data,..} if data.acceptance.id==acceptance.id)).unwrap().clone();
+    if let ymp_kernel::events::Event::AcceptanceRecorded { version, .. } = &mut downgrade.payload {
+        assert_eq!(*version, 2);
+        *version = 1;
+    }
+    downgrade.seq = view.revision() + 1;
+    downgrade.at = view.latest_at() + 1;
+    downgrade.input = Some(view.digest().unwrap());
+    assert_eq!(
+        s.journal
+            .append(&s.session, view.revision(), &[downgrade])
+            .unwrap_err()
+            .code,
+        "acceptance_version"
+    );
+    assert_eq!(gate.view(&s.session).unwrap(), view);
     let basis = acceptance.reference().unwrap();
     let arbiter = Arbiter::new(s.journal.clone());
     let view = gate.view(&s.session).unwrap();

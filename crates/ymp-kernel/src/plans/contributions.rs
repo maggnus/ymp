@@ -6,7 +6,7 @@ use ymp_domain::{
     resources::{CostEstimate, Difficulty},
     verification::LedgerStatus,
 };
-fn available(
+pub(crate) fn available(
     view: &SessionView,
     needs: &BTreeSet<Capability>,
     producer: Option<&Id<ymp_domain::identity::Agent>>,
@@ -28,7 +28,7 @@ fn available(
                 .map(|m| m.agent.clone())
                 .collect::<BTreeSet<_>>()
         })
-        .unwrap_or_default();
+        .unwrap_or_else(|| pool.outcome.eligible.clone());
     let busy: BTreeSet<_> = view
         .admission()
         .assignments()

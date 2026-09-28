@@ -32,6 +32,7 @@ struct Credentials<J: Journal> {
     assignment: Assignment,
     grant: GrantToken,
     files: Option<Arc<MediatedAccess<J>>>,
+    owner: Option<Arc<ymp_kernel::decision::SessionControl>>,
 }
 struct Files<J: Journal, C: ContentStore> {
     execution: Arc<Execution<J, C>>,
@@ -41,6 +42,14 @@ struct Files<J: Journal, C: ContentStore> {
 }
 impl<J: Journal, C: ContentStore> InvocationFiles for Files<J, C> {
     fn read(&self, path: &WorkspacePath, limit: usize) -> Result<Vec<u8>> {
+        if self
+            .credentials
+            .owner
+            .as_ref()
+            .is_some_and(|owner| owner.stopped())
+        {
+            return Err(Denial::new("session_stopped", "Owner stopped local work"));
+        }
         let at = self.clock.now()?;
         self.execution
             .allowed(&self.credentials.grant, &self.invocation, at)?;
@@ -51,6 +60,14 @@ impl<J: Journal, C: ContentStore> InvocationFiles for Files<J, C> {
             .read(path, limit, at)
     }
     fn write(&self, path: &WorkspacePath, bytes: &[u8]) -> Result<()> {
+        if self
+            .credentials
+            .owner
+            .as_ref()
+            .is_some_and(|owner| owner.stopped())
+        {
+            return Err(Denial::new("session_stopped", "Owner stopped local work"));
+        }
         let at = self.clock.now()?;
         self.execution
             .allowed(&self.credentials.grant, &self.invocation, at)?;
@@ -70,7 +87,13 @@ struct Control<J: Journal, C: ContentStore> {
 }
 impl<J: Journal, C: ContentStore> InvocationControl for Control<J, C> {
     fn before_inference(&self) -> Result<()> {
-        if self.stopped.load(Ordering::SeqCst) {
+        if self.stopped.load(Ordering::SeqCst)
+            || self
+                .credentials
+                .owner
+                .as_ref()
+                .is_some_and(|owner| owner.stopped())
+        {
             return Err(Denial::new(
                 "invocation_stopped",
                 "Host stopped before native inference",
@@ -137,6 +160,13 @@ impl<J: Journal> LiveInvocation<J> {
     pub fn session(&self) -> &Id {
         self.credentials.grant.session()
     }
+    pub(crate) fn cleanup_pending(&self) -> bool {
+        self.withdrawal.is_some()
+            || self.capture_retry
+            || self.withdrawal_proof.is_some()
+            || self.receipt_call.is_some()
+            || self.pending_receipt.is_some()
+    }
     pub fn dispatched(&self) -> bool {
         self.attempted
     }
@@ -157,6 +187,7 @@ pub struct ExecutionHost<J: Journal, C: ContentStore> {
     cost: Arc<dyn CostModel>,
     clock: Arc<dyn Clock>,
     issuer: Arc<()>,
+    owner: Option<Arc<ymp_kernel::decision::SessionControl>>,
 }
 fn call<T: Send + 'static>(operation: impl FnOnce() -> T + Send + 'static) -> Result<Receiver<T>> {
     let (sender, receiver) = sync_channel(1);
@@ -193,7 +224,12 @@ impl<J: Journal + 'static, C: ContentStore + 'static> ExecutionHost<J, C> {
             cost,
             clock,
             issuer: Arc::new(()),
+            owner: None,
         })
+    }
+    pub(crate) fn controlled(mut self, owner: Arc<ymp_kernel::decision::SessionControl>) -> Self {
+        self.owner = Some(owner);
+        self
     }
     pub fn attach(
         &self,
@@ -202,6 +238,16 @@ impl<J: Journal + 'static, C: ContentStore + 'static> ExecutionHost<J, C> {
         receipt: Id<Receipt>,
         prompt: Prompt,
     ) -> Result<LiveInvocation<J>> {
+        if self
+            .owner
+            .as_ref()
+            .is_some_and(|owner| owner.session() != admitted.grant.session() || owner.stopped())
+        {
+            return Err(Denial::new(
+                "owner_authority",
+                "Controlled host belongs to another or stopped session",
+            ));
+        }
         let canonical = self
             .execution
             .validate_admitted(&admitted, &id, self.clock.now()?)?;
@@ -211,6 +257,7 @@ impl<J: Journal + 'static, C: ContentStore + 'static> ExecutionHost<J, C> {
                 assignment: canonical,
                 grant: admitted.grant,
                 files: admitted.files.map(Arc::new),
+                owner: self.owner.clone(),
             }),
             id,
             receipt,
@@ -275,6 +322,12 @@ impl<J: Journal + 'static, C: ContentStore + 'static> ExecutionHost<J, C> {
     }
     pub fn start(&self, live: &mut LiveInvocation<J>) -> Result<()> {
         self.own(live)?;
+        if self.owner.as_ref().is_some_and(|owner| owner.stopped()) {
+            return Err(Denial::new(
+                "session_stopped",
+                "Owner stopped before dispatch",
+            ));
+        }
         if live.attempted || live.stopped.load(Ordering::SeqCst) {
             return Err(Denial::new(
                 "invocation_duplicate",
@@ -331,6 +384,7 @@ impl<J: Journal + 'static, C: ContentStore + 'static> ExecutionHost<J, C> {
                         "Host stopped before backend call",
                     ));
                 }
+                control.before_inference()?;
                 execution.allowed(&credentials.grant, &dispatch.invocation, called_at)?;
                 backend.start(&ExecutionRequest {
                     control,
@@ -1000,6 +1054,12 @@ impl<J: Journal + 'static, C: ContentStore + 'static> ExecutionHost<J, C> {
     }
     fn poll_inner(&self, live: &mut LiveInvocation<J>) -> Result<ExecutionStatus> {
         self.own(live)?;
+        if self.owner.as_ref().is_some_and(|owner| owner.stopped())
+            && !live.stopped.load(Ordering::SeqCst)
+        {
+            self.cancel(live)?;
+        }
+
         if let Err(error) = self.clock.now() {
             live.stopped.store(true, Ordering::SeqCst);
             live.pending_stop

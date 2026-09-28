@@ -177,11 +177,15 @@ pub fn narrative_input(view: &SessionView, source: Option<String>) -> Result<Nar
         report: prepared.id.clone(),
         final_acceptance: acceptance,
         aggregate: aggregate.cloned(),
-        outcome: view
-            .finalization()
-            .outcome
-            .clone()
-            .unwrap_or(SessionStatus::Finalizing),
+        outcome: if view.owner_stopped() {
+            SessionStatus::Cancelled
+        } else {
+            view.finalization()
+                .outcome
+                .clone()
+                .or_else(|| view.session_state().phase.clone())
+                .unwrap_or(SessionStatus::Finalizing)
+        },
         unmet,
         source,
         basis,
@@ -486,7 +490,7 @@ pub(crate) fn validate_narrative(view: &SessionView, data: &NarrativeRecorded) -
     )?;
     match data.decision.effective.policy.implementation.as_str() {
         "Narrator" => {
-            if view.finalization().stopped
+            if view.owner_stopped()
                 || view.finalization().control != Some(Continuation::Continue)
                 || !prepared(view)?.1.narrated
             {
@@ -763,7 +767,7 @@ impl<J: Journal, C: ContentStore> Finalization<J, C> {
             .get("NarrativeComposer")
             .ok_or_else(|| Denial::new("policy_selection", "No NarrativeComposer selected"))?;
         let may_narrate = view.finalization().control == Some(Continuation::Continue)
-            && !view.finalization().stopped
+            && !view.owner_stopped()
             && selected.policy.implementation == "Narrator"
             && book.reporting_plan.narration.is_some()
             && book
