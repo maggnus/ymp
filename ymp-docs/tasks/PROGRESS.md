@@ -2,7 +2,7 @@
 
 Generated from the canonical JSON records in [`records/`](records/) by `python3 ymp-docs/tasks/manage.py progress --write`. Task write commands and `make tasks-progress` refresh it; do not edit statuses here.
 
-Tasks: 45 (11 done, 1 in progress, 27 open, 6 paused or blocked, 0 rejected). Times are Hong Kong time (UTC+08:00). Last record change: 2026-09-28 18:06.
+Tasks: 45 (12 done, 0 in progress, 28 open, 5 paused or blocked, 0 rejected). Times are Hong Kong time (UTC+08:00). Last record change: 2026-09-28 18:13.
 
 | Mark | Meaning |
 | :---: | --- |
@@ -16,24 +16,16 @@ Tasks: 45 (11 done, 1 in progress, 27 open, 6 paused or blocked, 0 rejected). Ti
 
 | Wave | Done | In progress | Open | Paused or blocked | Rejected | Total | Done % |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| [W1](#wave-w1) | 11 | 1 | 1 | 6 | 0 | 19 | 58% |
+| [W1](#wave-w1) | 12 | 0 | 2 | 5 | 0 | 19 | 63% |
 | [W2](#wave-w2) | 0 | 0 | 4 | 0 | 0 | 4 | 0% |
 | [W3](#wave-w3) | 0 | 0 | 9 | 0 | 0 | 9 | 0% |
 | [W4](#wave-w4) | 0 | 0 | 3 | 0 | 0 | 3 | 0% |
 | [W5](#wave-w5) | 0 | 0 | 5 | 0 | 0 | 5 | 0% |
 | [W6](#wave-w6) | 0 | 0 | 5 | 0 | 0 | 5 | 0% |
 
-## Current work
-
-### W1-0019 — [~] in_progress
-
-Bind attributed evidence and reviews to immutable results. Owner: codex; revision 6; updated 2026-09-28 18:06 by codex.
-
-Post-review verification 28/09 18:06 — Full workspace tests exposed an existing unsupported-subject assertion: Produce with ResultVersion must still return subject_unsupported. The narrow Review-only guard now runs before result lookup; the independent reviewer confirmed the correction, and cargo test -p ymp-storage --offline --test arbiter exited 0 (2 tests). Final make verify restarted after formatting; no completion is claimed yet.
-
 ## Wave W1
 
-11 of 19 done; 1 in progress; 6 paused or blocked.
+12 of 19 done; 0 in progress; 5 paused or blocked.
 
 | Status | Task | Title | Area | State | Depends on | Owner | Updated (HKT) | Rev | Evidence |
 | :---: | --- | --- | --- | --- | --- | --- | --- | ---: | --- |
@@ -46,16 +38,16 @@ Post-review verification 28/09 18:06 — Full workspace tests exposed an existin
 | [x] | [W1-0007](records/W1-0007.json) | Complete commitment leases, release and delegation without losing accepted work | coordination | done | W1-0006 ✓ | codex | 2026-09-28 10:53 | 6 | commit [`d7ea328`](https://github.com/maggnus/ymp/commit/d7ea328a) |
 | [x] | [W1-0008](records/W1-0008.json) | Submit immutable result versions bound to attempts and exact workspace snapshots | results | done | W1-0005 ✓, W1-0006 ✓, W1-0007 ✓, W1-0017 ✓ | codex | 2026-09-28 17:04 | 6 | 9ef44a81; ymp-docs/result-implementation.md; crates/ymp-storage/tests/results.rs |
 | [x] | [W1-0009](records/W1-0009.json) | Run versioned checks against immutable snapshots and record attributable check runs | verification | done | W1-0002 ✓, W1-0005 ✓, W1-0006 ✓ | codex | 2026-09-28 14:47 | 10 | commit [`ede5495`](https://github.com/maggnus/ymp/commit/ede54952) |
-| [=] | [W1-0010](records/W1-0010.json) | Compute criterion satisfaction and independent acceptance from the recorded evidence | acceptance | planned (blocked) | W1-0009 ✓, W1-0019 | — | 2026-09-16 01:05 | 4 | — |
+| [ ] | [W1-0010](records/W1-0010.json) | Compute criterion satisfaction and independent acceptance from the recorded evidence | acceptance | planned | W1-0009 ✓, W1-0019 ✓ | — | 2026-09-16 01:05 | 4 | — |
 | [=] | [W1-0011](records/W1-0011.json) | Extract criteria and select minimal criterion-directed work through admitted strategies | planning | planned (blocked) | W1-0002 ✓, W1-0006 ✓, W1-0008 ✓, W1-0010 | — | 2026-09-16 01:05 | 3 | — |
-| [=] | [W1-0012](records/W1-0012.json) | Diagnose stalls and perform bounded recovery without discarding verified work | progress | planned (blocked) | W1-0007 ✓, W1-0019, W1-0010, W1-0011 | — | 2026-09-16 01:05 | 4 | — |
-| [=] | [W1-0013](records/W1-0013.json) | Finalize the integrated result and deliver an evidence-audited report | reporting | planned (blocked) | W1-0006 ✓, W1-0008 ✓, W1-0019, W1-0010, W1-0011, W1-0012 | — | 2026-09-16 01:05 | 4 | — |
+| [=] | [W1-0012](records/W1-0012.json) | Diagnose stalls and perform bounded recovery without discarding verified work | progress | planned (blocked) | W1-0007 ✓, W1-0019 ✓, W1-0010, W1-0011 | — | 2026-09-16 01:05 | 4 | — |
+| [=] | [W1-0013](records/W1-0013.json) | Finalize the integrated result and deliver an evidence-audited report | reporting | planned (blocked) | W1-0006 ✓, W1-0008 ✓, W1-0019 ✓, W1-0010, W1-0011, W1-0012 | — | 2026-09-16 01:05 | 4 | — |
 | [=] | [W1-0014](records/W1-0014.json) | Run and recover the minimal accountable producer-reviewer session | session | planned (blocked) | W1-0007 ✓, W1-0011, W1-0012, W1-0013, W1-0018 | — | 2026-09-16 01:05 | 3 | — |
 | [=] | [W1-0015](records/W1-0015.json) | Expose the accountable session through a simple interactive Ratatui interface | interface | planned (blocked) | W1-0014 | — | 2026-09-16 03:19 | 8 | — |
 | [x] | [W1-0016](records/W1-0016.json) | Persist the new Journal and content-addressed payloads across restart | persistence | done | W1-0001 ✓ | codex | 2026-09-16 04:56 | 9 | commit [`07db5fa`](https://github.com/maggnus/ymp/commit/07db5fa45ad10a94e5560c711b7be0274eb5d1c9) |
 | [x] | [W1-0017](records/W1-0017.json) | Execute admitted assignments through a new host and Scripted backend | execution | done | W1-0006 ✓, W1-0007 ✓, W1-0016 ✓ | codex | 2026-09-28 16:18 | 7 | 8de8e73a; ymp-docs/execution-implementation.md; crates/ymp-storage/tests/execution.rs |
 | [ ] | [W1-0018](records/W1-0018.json) | Build the native Codex backend and discovery for accountable sessions | providers | planned | W1-0003 ✓, W1-0017 ✓ | — | 2026-09-16 03:07 | 4 | — |
-| [~] | [W1-0019](records/W1-0019.json) | Bind attributed evidence and reviews to immutable results | verification | in_progress | W1-0008 ✓, W1-0009 ✓ | codex | 2026-09-28 18:06 | 6 | — |
+| [x] | [W1-0019](records/W1-0019.json) | Bind attributed evidence and reviews to immutable results | verification | done | W1-0008 ✓, W1-0009 ✓ | codex | 2026-09-28 18:13 | 7 | 3689ad59; ymp-docs/evidence-implementation.md; crates/ymp-storage/tests/results.rs |
 
 ## Wave W2
 
@@ -63,9 +55,9 @@ Post-review verification 28/09 18:06 — Full workspace tests exposed an existin
 
 | Status | Task | Title | Area | State | Depends on | Owner | Updated (HKT) | Rev | Evidence |
 | :---: | --- | --- | --- | --- | --- | --- | --- | ---: | --- |
-| [ ] | [W2-0001](records/W2-0001.json) | Design independent hidden checks before production and enforce their visibility | verification | new | W1-0003 ✓, W1-0006 ✓, W1-0019, W1-0013, W1-0014 | — | 2026-09-16 01:05 | 3 | — |
+| [ ] | [W2-0001](records/W2-0001.json) | Design independent hidden checks before production and enforce their visibility | verification | new | W1-0003 ✓, W1-0006 ✓, W1-0019 ✓, W1-0013, W1-0014 | — | 2026-09-16 01:05 | 3 | — |
 | [ ] | [W2-0002](records/W2-0002.json) | Execute property checks in explicit process and container environments | checks | new | W1-0009 ✓, W2-0001 | — | 2026-09-16 00:14 | 2 | — |
-| [ ] | [W2-0003](records/W2-0003.json) | Verify browser behavior and external data with attributable check evidence | checks | new | W1-0019, W1-0013, W2-0001 | — | 2026-09-16 01:05 | 3 | — |
+| [ ] | [W2-0003](records/W2-0003.json) | Verify browser behavior and external data with attributable check evidence | checks | new | W1-0019 ✓, W1-0013, W2-0001 | — | 2026-09-16 01:05 | 3 | — |
 | [ ] | [W2-0004](records/W2-0004.json) | Measure check discrimination with faulty candidates and complete independent verification | verification | new | W1-0010, W1-0012, W1-0014, W2-0001, W2-0002, W2-0003 | — | 2026-09-16 00:14 | 2 | — |
 
 ## Wave W3

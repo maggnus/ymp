@@ -5,7 +5,7 @@
   "title": "Bind attributed evidence and reviews to immutable results",
   "type": "implementation",
   "priority": 109,
-  "status": "in_progress",
+  "status": "done",
   "depends_on": [
     "W1-0008",
     "W1-0009"
@@ -22,14 +22,18 @@
     "Review records persist their producer-independent reviewer and findings; neither a Review nor an adapter-returned verdict can create Trusted independence or accept a result.",
     "The applicability filter is exercised through one shared consumer contract that W1-0010 and W1-0013 reuse; evidence made stale by a new ResultVersion is excluded while remaining inspectable."
   ],
-  "evidence": [],
+  "evidence": [
+    "3689ad59",
+    "ymp-docs/evidence-implementation.md",
+    "crates/ymp-storage/tests/results.rs"
+  ],
   "context": [
     "Authority: ymp-docs/self-organizing-team-domain-model.md, sections 3.6 (Evidence, Review, Discrimination), 4 (AcceptanceAuthority.evidence), A6/A7/A8/A11 and R-4/R-6. Use the approved model with 811a872 semantics and the greenfield baseline in 0c61ff1 and §5.8 for experimental strategy boundaries. Other documents and existing names explain implementation facts only.",
     "Greenfield: create this behavior in the new implementation. Paths below are PROPOSED target modules under the layout owned by W1-0001; only completed prerequisite tasks supply implementation. Prior source, APIs, fixtures and delivery claims are not a baseline.",
     "Created 2026-09-16 by splitting the original W1-0009. Proposed modules: Evidence and Review in crates/ymp-domain/src/verification.rs and the evidence part of crates/ymp-kernel/src/acceptance.rs. W1-0008 supplies immutable ResultVersions; W1-0009 supplies CheckRuns.",
     "Do not compute belief, grades or acceptance here; W1-0010 owns A7/A8 and consumes this task’s applicability contract."
   ],
-  "revision": 6,
+  "revision": 7,
   "history": [
     {
       "revision": 1,
@@ -72,6 +76,13 @@
       "actor": "codex",
       "status": "in_progress",
       "note": "Post-review verification 28/09 18:06 — Full workspace tests exposed an existing unsupported-subject assertion: Produce with ResultVersion must still return subject_unsupported. The narrow Review-only guard now runs before result lookup; the independent reviewer confirmed the correction, and cargo test -p ymp-storage --offline --test arbiter exited 0 (2 tests). Final make verify restarted after formatting; no completion is claimed yet."
+    },
+    {
+      "revision": 7,
+      "at": "2026-09-28T10:13:59.485839Z",
+      "actor": "codex",
+      "status": "done",
+      "note": "Delivered in main at 3689ad59; ancestry verified. Evidence and independent review records retain exact provenance; one consumer-supplied applicability context filters direct and transitive sources without deletion or acceptance authority. Final make verify exited 0, including the expanded real-candidate scenario; task/diff checks and independent R2(9/10) ACCEPT confirmed the result. The transitive environment mutation failed at the specific Review assertion. Native calls, unsupported evidence-source adapters, mutation analysis, belief, grades and acceptance remain outside this task; historical-author downgrade and inconclusive-run branches have code-review coverage only."
     }
   ]
 }
