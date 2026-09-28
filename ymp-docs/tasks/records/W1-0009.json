@@ -5,13 +5,13 @@
   "title": "Run versioned checks against immutable snapshots and record attributable check runs",
   "type": "implementation",
   "priority": 107,
-  "status": "planned",
+  "status": "in_progress",
   "depends_on": [
     "W1-0002",
     "W1-0005",
     "W1-0006"
   ],
-  "owner": null,
+  "owner": "codex",
   "goal": "Give AcceptanceAuthority executable check runs tied to the check version, target snapshot and actual environment, independent of any producer result.",
   "scope": [
     "Implement register_check and run for visible/user checks with CheckAuthor, Independence, needs and version; support Command(program,args,inputs) and ExactBytes(path,digest). Record Baseline/Candidate/Control CheckRun roles, output/environment digests and Pass/Fail/Error(ErrorClass).",
@@ -31,9 +31,11 @@
     "Command is the model’s explicit program/args/inputs contract. Do not substitute an unversioned shell string or a loose invocation-success label. W2 owns independent hidden design, Property/BrowserScenario/ExternalQuery, ContainerRunner and mutation.",
     "Split on 2026-09-16 from the original W1-0009 so that check execution proceeds in parallel with W1-0007 → W1-0017 → W1-0008; the evidence/review half is W1-0019.",
     "Legacy access granted (AGENTS.md rule): legacy-foundation:crates/ymp-runtime/src/check.rs may be opened for sandbox mechanics only: macOS sandbox profile, Linux namespace sequence, process-group cleanup, start marker, verifier digest checks and the timeout rule. Import no types or control flow; ymp-docs/legacy-lessons.md summarizes the mechanics and their limits.",
-    "Legacy access extended (owner decision 2026-09-16, AGENTS.md rule): legacy-attempt-1:ymp-rust/crates/ymp-verifier/src/lib.rs may be opened for negative-control ordering, per-observation isolation roots, oracle integrity checks and the Linux namespace sequence; legacy-attempt-1:ymp-rust/crates/ymp-application/src/answer.rs for the discrimination demonstration. Facts only; ymp-docs/legacy-lessons.md section 11.3."
+    "Legacy access extended (owner decision 2026-09-16, AGENTS.md rule): legacy-attempt-1:ymp-rust/crates/ymp-verifier/src/lib.rs may be opened for negative-control ordering, per-observation isolation roots, oracle integrity checks and the Linux namespace sequence; legacy-attempt-1:ymp-rust/crates/ymp-application/src/answer.rs for the discrimination demonstration. Facts only; ymp-docs/legacy-lessons.md section 11.3.",
+    "Implemented visible Check/CheckRun registration and execution through AcceptanceAuthority, owner/grant authorization, versioned criterion/contract binding and replay validation. ExplicitVisible records already-authored visible proposals with selected policy parameters. ProcessRunner and RetainedBytes share the actual consumer; kernel derives outcomes and retains stdout/stderr/environment content dependencies. See ymp-docs/check-execution.md.",
+    "ProcessRunner Command currently supports macOS with deny-default/no-fork confinement, immutable retained subject and verifier inputs, bounded streams and time, and bounded no-follow/nonblocking launch-marker validation. Other platforms return Error(Environment); Linux execution was not tested. ExactBytes is process-free. No Evidence, Review, ResultVersion, hidden design, discrimination grade or native-agent experiment is claimed."
   ],
-  "revision": 6,
+  "revision": 9,
   "history": [
     {
       "revision": 1,
@@ -76,6 +78,27 @@
       "actor": "manage.py",
       "status": "planned",
       "note": "Owner decision 2026-09-16: bounded legacy access to attempts 1 and 2 for facts only, per the AGENTS.md legacy rule."
+    },
+    {
+      "revision": 7,
+      "at": "2026-09-28T06:02:10.074875Z",
+      "actor": "codex",
+      "status": "in_progress",
+      "note": "Claimed by codex."
+    },
+    {
+      "revision": 8,
+      "at": "2026-09-28T06:37:03.654114Z",
+      "actor": "codex",
+      "status": "in_progress",
+      "note": "R1(5/10) RETURN 28/09 14:31 — Independent review reproduced an unbounded read of a command-controlled launcher marker after FIFO substitution. The existing real-consumer scenario also failed (101) on a symlink being accepted as Pass. Nonblocking, no-follow, fixed-size regular-file validation now passes (0) for FIFO, symlink and oversized markers with retained stdout/stderr; awaiting final review and required checks."
+    },
+    {
+      "revision": 9,
+      "at": "2026-09-28T06:40:59.394387Z",
+      "actor": "codex",
+      "status": "in_progress",
+      "note": "R2(9/10) ACCEPT 28/09 14:39 — Independent review accepted bounded marker validation and the full W1-0009 scope. Real Command/ExactBytes consumers distinguish incorrect/correct snapshots; binding and marker regressions showed genuine failures before restoration. Current reviewed make verify is running. Implementation and completion must be committed to main before done is recorded."
     }
   ]
 }

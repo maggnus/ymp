@@ -31,6 +31,12 @@ pub struct DecisionConsumer<J: Journal> {
 }
 
 impl<J: Journal> DecisionConsumer<J> {
+    pub(crate) fn shared(&self) -> Self {
+        Self {
+            journal: self.journal.clone(),
+            control: self.control.clone(),
+        }
+    }
     pub fn new(journal: Arc<J>) -> Self {
         Self {
             journal,

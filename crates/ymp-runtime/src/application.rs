@@ -31,6 +31,12 @@ pub struct Application<J: Journal> {
     registry: Registry<J>,
 }
 impl<J: Journal> Application<J> {
+    pub fn acceptance<C: ymp_kernel::journal::ContentStore>(
+        &self,
+        content: Arc<C>,
+    ) -> ymp_kernel::acceptance::AcceptanceAuthority<J, C> {
+        self.intake.acceptance(content)
+    }
     pub fn new(journal: Arc<J>) -> Self {
         Self {
             intake: Intake::new(journal.clone()),

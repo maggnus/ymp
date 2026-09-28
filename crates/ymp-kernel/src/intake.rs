@@ -40,6 +40,16 @@ pub struct Intake<J: Journal> {
     decisions: DecisionConsumer<J>,
 }
 impl<J: Journal> Intake<J> {
+    pub fn acceptance<C: crate::journal::ContentStore>(
+        &self,
+        content: Arc<C>,
+    ) -> crate::acceptance::AcceptanceAuthority<J, C> {
+        crate::acceptance::AcceptanceAuthority::new(
+            self.journal.clone(),
+            content,
+            self.decisions.shared(),
+        )
+    }
     pub fn new(journal: Arc<J>) -> Self {
         Self {
             decisions: DecisionConsumer::new(journal.clone()),
@@ -137,7 +147,27 @@ impl<J: Journal> Intake<J> {
             }
         };
         task.constraints = refinement.constraints;
-        let contract = AcceptanceContract::new(&task, &refinement.criteria, vec![])?;
+        let checks = view
+            .contract()
+            .expect("intake contract")
+            .checks
+            .iter()
+            .filter(|id| {
+                view.checks()
+                    .values()
+                    .find(|check| check.id.erased() == **id)
+                    .is_some_and(|check| {
+                        refinement.criteria.iter().any(|criterion| {
+                            criterion.id == check.criterion
+                                && criterion.reference().is_ok_and(|reference| {
+                                    reference.version == check.criterion_version
+                                })
+                        })
+                    })
+            })
+            .cloned()
+            .collect();
+        let contract = AcceptanceContract::new(&task, &refinement.criteria, checks)?;
         let data = CriteriaCommitted {
             task,
             contract,
@@ -215,7 +245,12 @@ pub fn validate_commit(
             "Explicit user intake cannot claim Derived assignment provenance",
         ));
     }
-    if !data.contract.checks.is_empty() {
+    if data
+        .contract
+        .checks
+        .iter()
+        .any(|id| prior_contract.is_none_or(|prior| !prior.checks.contains(id)))
+    {
         return Err(Denial::new(
             "check_ref",
             "Checks must be registered by their owning kernel operation",

@@ -30,6 +30,10 @@ does not start an execution backend.
 The [commitment lifecycle](ymp-docs/commitment-implementation.md) adds bounded
 renewal, expiration, release/reopening and delegation while retaining unresolved
 holds. Actual completion and acceptance facts connect through their owning tasks.
+The [visible check consumer](ymp-docs/check-execution.md) registers versioned
+checks and retains Command/ExactBytes runs against immutable snapshots. Command
+execution currently uses the documented macOS no-fork profile; result acceptance
+and native agent execution remain separate work.
 The remaining modules are placeholders under
 [the proposed layout](ymp-docs/project-worktree.md). The executable still has no
 interactive or task-execution behavior.

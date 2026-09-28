@@ -22,6 +22,22 @@ impl Default for ParameterSchemas {
         Self {
             validators: BTreeMap::from([
                 (
+                    (
+                        "VerificationDesigner".into(),
+                        "ExplicitVisible".into(),
+                        "1".into(),
+                    ),
+                    validate_no_parameters as ParameterValidator,
+                ),
+                (
+                    ("CheckRunner".into(), "RetainedBytes".into(), "1".into()),
+                    validate_no_parameters as ParameterValidator,
+                ),
+                (
+                    ("CheckRunner".into(), "ProcessRunner".into(), "1".into()),
+                    validate_check_limits as ParameterValidator,
+                ),
+                (
                     ("AwardPolicy".into(), "FirstOffer".into(), "2".into()),
                     validate_commitment_terms as ParameterValidator,
                 ),
@@ -60,6 +76,20 @@ impl Default for ParameterSchemas {
             ]),
         }
     }
+}
+fn validate_check_limits(selection: &PolicySelection) -> Result<()> {
+    let limits: ymp_domain::verification::CheckLimits =
+        ymp_domain::journal::decode(&encode(&selection.parameters)?)?;
+    limits.validate()
+}
+fn validate_no_parameters(selection: &PolicySelection) -> Result<()> {
+    if selection.parameters != serde_json::json!({}) {
+        return Err(Denial::new(
+            "policy_parameters",
+            "This implementation has no parameters",
+        ));
+    }
+    Ok(())
 }
 fn validate_commitment_terms(selection: &PolicySelection) -> Result<()> {
     let terms: ymp_domain::coordination::CommitmentTerms =

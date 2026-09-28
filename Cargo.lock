@@ -398,6 +398,7 @@ dependencies = [
 name = "ymp-runtime"
 version = "0.1.0"
 dependencies = [
+ "getrandom",
  "rustix",
  "serde",
  "serde_json",

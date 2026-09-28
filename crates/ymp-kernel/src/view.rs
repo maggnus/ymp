@@ -31,6 +31,9 @@ pub struct SessionView {
     task: Option<Task>,
     contract: Option<AcceptanceContract>,
     criteria: Vec<Criterion>,
+    checks: BTreeMap<Id<ymp_domain::verification::Check>, ymp_domain::verification::Check>,
+    check_runs:
+        BTreeMap<Id<ymp_domain::verification::CheckRun>, ymp_domain::verification::CheckRun>,
     registry: Option<Box<crate::registry::PoolRecorded>>,
     treasury: Option<Box<crate::treasury::TreasuryView>>,
     coordination: crate::arbiter::CoordinationView,
@@ -58,6 +61,8 @@ impl SessionView {
             task: None,
             contract: None,
             criteria: Vec::new(),
+            checks: BTreeMap::new(),
+            check_runs: BTreeMap::new(),
             registry: None,
             treasury: None,
             coordination: crate::arbiter::CoordinationView::default(),
@@ -113,6 +118,16 @@ impl SessionView {
     }
     pub fn criteria(&self) -> &[Criterion] {
         &self.criteria
+    }
+    pub fn checks(
+        &self,
+    ) -> &BTreeMap<Id<ymp_domain::verification::Check>, ymp_domain::verification::Check> {
+        &self.checks
+    }
+    pub fn check_runs(
+        &self,
+    ) -> &BTreeMap<Id<ymp_domain::verification::CheckRun>, ymp_domain::verification::CheckRun> {
+        &self.check_runs
     }
     pub fn status(&self) -> Option<SessionStatus> {
         self.task.as_ref().map(|_| SessionStatus::Intake)
@@ -216,6 +231,24 @@ impl SessionView {
         self.coordination.check_next(&event.payload)?;
         let admission = crate::gatekeeper::apply(self, event)?;
         match &event.payload {
+            Event::CheckRegistered { data, .. } => {
+                self.validate_complete()?;
+                schemas.validate(&data.effective)?;
+                crate::acceptance::validate_registered(self, event, data)?;
+                let check = &data.proposal.value;
+                self.references.insert(check.reference());
+                self.references.insert(data.contract.reference());
+                self.checks.insert(check.id.clone(), check.clone());
+                self.contract = Some(data.contract.clone());
+            }
+            Event::CheckRunRecorded { data, .. } => {
+                self.validate_complete()?;
+                schemas.validate(&data.environment.runner)?;
+                crate::acceptance::validate_run(self, event, data)?;
+                self.references.insert(data.run.reference()?);
+                self.check_runs
+                    .insert(data.run.id.clone(), data.run.clone());
+            }
             Event::AssignmentRevoked { assignment, .. } => {
                 self.validate_base_complete()?;
                 if event.policy.is_some()
@@ -475,6 +508,26 @@ impl SessionView {
                     ));
                 }
                 crate::intake::validate_commit(self.task.as_ref(), self.contract.as_ref(), data)?;
+                for id in &data.contract.checks {
+                    let check = self
+                        .checks
+                        .values()
+                        .find(|check| check.id.erased() == *id)
+                        .ok_or_else(|| {
+                            Denial::new("check_missing", "Contract names an unregistered check")
+                        })?;
+                    if !data.criteria.iter().any(|criterion| {
+                        criterion.id == check.criterion
+                            && criterion
+                                .reference()
+                                .is_ok_and(|reference| reference.version == check.criterion_version)
+                    }) {
+                        return Err(Denial::new(
+                            "check_criterion",
+                            "Refined criteria cannot inherit a check for another criterion version",
+                        ));
+                    }
+                }
                 if event.policy.is_some()
                     || event.input.is_some()
                     || event.refs != data.previous.iter().cloned().collect::<Vec<_>>()

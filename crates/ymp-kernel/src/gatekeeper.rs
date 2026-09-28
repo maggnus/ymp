@@ -1545,53 +1545,13 @@ impl<J: Journal, C: ContentStore> Gatekeeper<J, C> {
             .ok_or_else(|| Denial::new("grant_missing", "No matching recorded grant"))?;
         let assignment = &record.intent.assignment;
         let grant = &record.intent.grant;
-        let commitment_live = view
-            .coordination()
-            .commitments()
-            .get(&assignment.commitment)
-            .is_some_and(|held| {
-                held.state == CommitmentState::Active
-                    && at <= held.lease.expires
-                    && held.debtor == assignment.agent
-                    && held.subject == assignment.contribution
-            });
-        let funded = view
-            .treasury()
-            .and_then(|book| book.accounts.get(&record.reservation))
-            .is_some_and(|account| {
-                account.reservation.state == ReservationState::Held && !account.revoked
-            });
-        let paths = match (
-            &record.intent.access_owner,
-            view.path_locks().get(&assignment.id.erased()),
-        ) {
-            (None, None) => true,
-            (Some(owner), Some(lock)) => {
-                lock.acquired.mediated_owner.as_ref() == Some(owner)
-                    && lock.acquired.profile == assignment.profile
-                    && lock.acquired.workspace == assignment.workspace
-                    && !lock.revoked
-                    && lock.released.is_none()
-            }
-            _ => false,
-        };
-        if grant.token_digest != Digest::of(token.secret)
-            || operation.is_some_and(|operation| !grant.operations.contains(&operation))
-            || at < view.latest_at()
-            || at >= grant.expires
-            || !matches!(
-                assignment.state,
-                AssignmentState::Admitted | AssignmentState::Running
-            )
-            || !funded
-            || !paths
-            || !commitment_live
-        {
+        if grant.token_digest != Digest::of(token.secret) {
             return Err(Denial::new(
                 "grant_denied",
-                "Grant is expired, revoked, unfunded or outside its permitted operation",
+                "Grant secret disagrees with its recorded authority",
             ));
         }
+        validate_active_grant(&view, record, operation, at)?;
         Ok(assignment.clone())
     }
     pub fn revoke(
@@ -1628,4 +1588,62 @@ impl<J: Journal, C: ContentStore> Gatekeeper<J, C> {
             Denial::new("revocation_uncertain", "Cannot establish revocation commit")
         }))
     }
+}
+
+/// Pure grant scope validation shared by execution preflight and event replay.
+pub(crate) fn validate_active_grant(
+    view: &SessionView,
+    record: &AdmissionRecord,
+    operation: Option<TeamOperation>,
+    at: u64,
+) -> Result<()> {
+    let assignment = &record.intent.assignment;
+    let grant = &record.intent.grant;
+    let commitment_live = view
+        .coordination()
+        .commitments()
+        .get(&assignment.commitment)
+        .is_some_and(|held| {
+            held.state == CommitmentState::Active
+                && at <= held.lease.expires
+                && held.debtor == assignment.agent
+                && held.subject == assignment.contribution
+        });
+    let funded = view
+        .treasury()
+        .and_then(|book| book.accounts.get(&record.reservation))
+        .is_some_and(|account| {
+            account.reservation.state == ReservationState::Held && !account.revoked
+        });
+    let paths = match (
+        &record.intent.access_owner,
+        view.path_locks().get(&assignment.id.erased()),
+    ) {
+        (None, None) => true,
+        (Some(owner), Some(lock)) => {
+            lock.acquired.mediated_owner.as_ref() == Some(owner)
+                && lock.acquired.profile == assignment.profile
+                && lock.acquired.workspace == assignment.workspace
+                && !lock.revoked
+                && lock.released.is_none()
+        }
+        _ => false,
+    };
+    if operation.is_some_and(|operation| !grant.operations.contains(&operation))
+        || at < view.latest_at()
+        || at >= grant.expires
+        || !matches!(
+            assignment.state,
+            AssignmentState::Admitted | AssignmentState::Running
+        )
+        || !funded
+        || !paths
+        || !commitment_live
+    {
+        return Err(Denial::new(
+            "grant_denied",
+            "Grant is expired, revoked, unfunded or outside its permitted operation",
+        ));
+    }
+    Ok(())
 }

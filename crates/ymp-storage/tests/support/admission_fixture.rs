@@ -96,6 +96,28 @@ impl<J: Journal> Setup<J> {
         constraints: Option<ymp_domain::task::Constraints>,
         award: FirstOffer,
     ) -> Self {
+        Self::new_with_selections(
+            journal,
+            storage,
+            root,
+            files,
+            name,
+            constraints,
+            award,
+            vec![],
+        )
+    }
+    #[allow(clippy::too_many_arguments)]
+    pub(super) fn new_with_selections(
+        journal: Arc<J>,
+        storage: &SqliteJournal,
+        root: &Directory,
+        files: bool,
+        name: &str,
+        constraints: Option<ymp_domain::task::Constraints>,
+        award: FirstOffer,
+        mut selections: Vec<ymp_domain::journal::PolicySelection>,
+    ) -> Self {
         let provider = Arc::new(Direct::open(&root.0, CaptureLimits::default()).unwrap());
         let cost = PriceWeighted::new(PriceWeightedParameters {
             expected_input: 10,
@@ -118,17 +140,18 @@ impl<J: Journal> Setup<J> {
             BTreeSet::new()
         };
         let constraints = constraints.unwrap_or_else(|| fixture::default_constraints(caps.clone()));
+        selections.extend([
+            cost.selection().clone(),
+            resource.selection().clone(),
+            award.selection().clone(),
+        ]);
         let opening = fixture::open_with_options(
             journal.clone(),
             Arc::new(storage.content_store()),
             &session,
             provider.as_ref(),
             caps,
-            vec![
-                cost.selection().clone(),
-                resource.selection().clone(),
-                award.selection().clone(),
-            ],
+            selections,
             constraints,
         );
         let profile = opening.profile;

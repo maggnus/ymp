@@ -501,6 +501,18 @@ entity Report { id; session; claims: List<Id<Claim>>; unmet: List<Id<Criterion>>
                 assumptions: List<Assumption>; grade: ConfirmationGrade }
 ```
 
+The Rust check-execution mapping retains `CheckEnvironment` as the object behind
+CheckRun.env: runner selection and parameters, platform and observed execution
+identity, and `CheckLimits` for time and retained output. `CheckObservationKind`
+holds the adapter's observed exit, exact-byte digest or execution error; the
+kernel validates these facts and derives the CheckRun outcome. These values make
+the existing check/environment binding reproducible without giving an adapter
+acceptance authority. A check also retains its criterion version and, for Command,
+the verifier snapshot reference, so changed artifacts cannot redefine the check.
+The Rust exit value is optional when no normal process exit exists.
+`VerificationDesigner/ExplicitVisible` records an already-authored visible
+proposal with its effective parameters; it does not implement hidden check design.
+
 ### 3.7. Resources
 
 ```text

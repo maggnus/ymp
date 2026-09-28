@@ -29,6 +29,14 @@ pub struct CriteriaCommitted {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub enum Event {
+    CheckRegistered {
+        version: u32,
+        data: Box<crate::acceptance::CheckRegistered>,
+    },
+    CheckRunRecorded {
+        version: u32,
+        data: Box<crate::acceptance::CheckRunRecorded>,
+    },
     AssignmentRevoked {
         version: u32,
         assignment: ymp_domain::Id<ymp_domain::assignment::Assignment>,
@@ -128,6 +136,8 @@ pub enum Event {
 impl Event {
     pub fn contents(&self) -> Result<EventContent> {
         let selections: Vec<&PolicySelection> = match self {
+            Self::CheckRegistered { data, .. } => vec![&data.effective],
+            Self::CheckRunRecorded { data, .. } => vec![&data.environment.runner],
             Self::AssignmentRevoked { .. }
             | Self::GrantIssued { .. }
             | Self::AssignmentAdmitted { .. }
@@ -154,6 +164,15 @@ impl Event {
             | Self::AssumptionRecorded { .. } => vec![],
         };
         let mut content = EventContent::default();
+        if let Self::CheckRunRecorded { data, .. } = self {
+            let bytes = ymp_domain::journal::encode(&data.environment)?;
+            content.required.extend([
+                data.run.stdout.clone(),
+                data.run.stderr.clone(),
+                data.run.env.clone(),
+            ]);
+            content.attached.insert(data.run.env.clone(), bytes);
+        }
         for selection in selections {
             selection.validate()?;
             let bytes = ymp_domain::journal::encode(&selection.parameters)?;
@@ -175,6 +194,9 @@ impl Event {
     }
     pub fn version(&self) -> u32 {
         match self {
+            Self::CheckRegistered { version, .. } | Self::CheckRunRecorded { version, .. } => {
+                *version
+            }
             Self::AssignmentRevoked { version, .. }
             | Self::GrantIssued { version, .. }
             | Self::AssignmentAdmitted { version, .. }
