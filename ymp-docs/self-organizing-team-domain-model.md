@@ -357,6 +357,26 @@ after the complete packet is confirmed. A journal projection cannot mint another
 secret or capability. Revocation invalidates the grant and retains unresolved resource
 holds; it does not imply that an invocation started or that external effects ended.
 
+`Prompt` is the implementation value for exact invocation context text and its
+committed basis. `InvocationDispatch` binds that context to the admitted Assignment,
+settings, selected backend, receipt, allowance and deadline. `InvocationObserved`
+records the dispatch, its complete Ready marker, attributed backend observations,
+receipts, selected cost proposals and diagnostics. These are implementation facts
+for the existing Invocation/accounting/recovery guarantees, not another authority
+or a second journal. Dispatch and resource authorizations form one atomic packet;
+`InvocationStarted` requires a later backend confirmation. `InvocationRecord` and
+`ExecutionView` are replayable read-only projections of these facts.
+
+`PreparedInvocation` and `LiveInvocation` retain local preparation and execution
+capabilities without making them serializable or reconstructible from replay.
+`ExecutionHandle` is an adapter-local handle distinct from the Invocation and native
+session identities. `BackendEvent` carries an invocation-local sequence and a
+`BackendObservation`; cumulative usage, bounded output and terminal observations
+cannot grant authority. `InvocationFiles` exposes only the existing mediated file
+capability. `ExecutionStatus` reports supervision or unresolved accounting; it does
+not replace the model's Invocation terminal outcome. These values give the existing
+execution port an explicit bounded transport while preserving R-2, R-19 and R-20.
+
 `PathObservation` is the implementation's recorded physical ancestry (`FileIdentity`
 for each existing component) and missing suffix for a WorkspacePath. An
 `ObservedPathLock` pairs this observation with the model's PathLock so names alone

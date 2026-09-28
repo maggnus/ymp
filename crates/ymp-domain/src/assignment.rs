@@ -199,6 +199,28 @@ pub struct Invocation {
     pub receipt: Option<Id<Receipt>>,
     pub terminal: Option<InvocationTerminal>,
 }
+/// Exact context retained before dispatch. Participant text carries no authority.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Prompt {
+    pub text: String,
+    pub basis: Vec<Ref>,
+}
+impl Prompt {
+    pub fn validate(&self) -> Result<()> {
+        require_text(&self.text, 65_536)?;
+        if self.basis.is_empty()
+            || self.basis.len() > 128
+            || self.basis.iter().collect::<BTreeSet<_>>().len() != self.basis.len()
+        {
+            return Err(Denial::new(
+                "prompt_basis",
+                "A bounded, distinct committed prompt basis is required",
+            ));
+        }
+        Ok(())
+    }
+}
 impl Invocation {
     pub fn validate(&self) -> Result<()> {
         self.settings.validate()?;

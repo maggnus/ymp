@@ -483,3 +483,29 @@ pub fn exposure(limit: CostUnits, accounted: CostUnits) -> Result<CostUnits> {
         difference
     })
 }
+
+/// Price the observed counters under the immutable PriceBook rates; coverage is unchanged.
+fn count(value: u64) -> Result<CostUnits> {
+    if value > 1_u64 << 53 {
+        return Err(Denial::new(
+            "usage_overflow",
+            "Usage exceeds exact integer pricing range",
+        ));
+    }
+    CostUnits::new(value as f64)
+}
+pub fn weighted_cost(usage: &Usage, rates: &Rates) -> Result<CostUnits> {
+    usage.validate()?;
+    rates.validate()?;
+    let uncached = usage.input - usage.cache_read - usage.cache_write;
+    let mut total = CostUnits::new(0.0)?;
+    for (tokens, rate) in [
+        (uncached, rates.input),
+        (usage.cache_read, rates.cache_read),
+        (usage.cache_write, rates.cache_write),
+        (usage.output, rates.output),
+    ] {
+        total = add(total, multiply(count(tokens)?, rate)?)?;
+    }
+    Ok(total)
+}

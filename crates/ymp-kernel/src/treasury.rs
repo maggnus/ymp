@@ -494,7 +494,7 @@ fn account<'a>(book: &'a TreasuryView, id: &Id<Reservation>) -> Result<&'a Reser
         .get(id)
         .ok_or_else(|| Denial::new("reservation_missing", "Reservation does not exist"))
 }
-fn validate_demand(view: &SessionView, demand: &ResourceDemand) -> Result<()> {
+pub(crate) fn validate_demand(view: &SessionView, demand: &ResourceDemand) -> Result<()> {
     let record = view
         .registry()
         .ok_or_else(|| Denial::new("registry_missing", "No pool observation is recorded"))?;

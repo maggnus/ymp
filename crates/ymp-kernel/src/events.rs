@@ -29,6 +29,22 @@ pub struct CriteriaCommitted {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub enum Event {
+    InvocationStarted {
+        version: u32,
+        invocation: ymp_domain::assignment::Invocation,
+    },
+    InvocationObserved {
+        version: u32,
+        invocation: ymp_domain::Id<ymp_domain::assignment::Invocation>,
+        observation: Box<crate::execution::InvocationObservation>,
+    },
+    InvocationEnded {
+        version: u32,
+        invocation: ymp_domain::Id<ymp_domain::assignment::Invocation>,
+        terminal: ymp_domain::assignment::InvocationTerminal,
+        confirmed: bool,
+        ended: u64,
+    },
     CheckRegistered {
         version: u32,
         data: Box<crate::acceptance::CheckRegistered>,
@@ -136,6 +152,14 @@ pub enum Event {
 impl Event {
     pub fn contents(&self) -> Result<EventContent> {
         let selections: Vec<&PolicySelection> = match self {
+            Self::InvocationObserved { observation, .. } => match observation.as_ref() {
+                crate::execution::InvocationObservation::Dispatch(data) => vec![&data.backend],
+                crate::execution::InvocationObservation::Cost { decision, .. } => {
+                    vec![&decision.effective]
+                }
+                _ => vec![],
+            },
+            Self::InvocationStarted { .. } | Self::InvocationEnded { .. } => vec![],
             Self::CheckRegistered { data, .. } => vec![&data.effective],
             Self::CheckRunRecorded { data, .. } => vec![&data.environment.runner],
             Self::AssignmentRevoked { .. }
@@ -194,6 +218,9 @@ impl Event {
     }
     pub fn version(&self) -> u32 {
         match self {
+            Self::InvocationStarted { version, .. }
+            | Self::InvocationObserved { version, .. }
+            | Self::InvocationEnded { version, .. } => *version,
             Self::CheckRegistered { version, .. } | Self::CheckRunRecorded { version, .. } => {
                 *version
             }

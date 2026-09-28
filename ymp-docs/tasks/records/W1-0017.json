@@ -5,13 +5,13 @@
   "title": "Execute admitted assignments through a new host and Scripted backend",
   "type": "implementation",
   "priority": 108,
-  "status": "planned",
+  "status": "in_progress",
   "depends_on": [
     "W1-0006",
     "W1-0007",
     "W1-0016"
   ],
-  "owner": null,
+  "owner": "codex",
   "goal": "Run one bounded admitted assignment with attributable output, progress, usage and recovery observations, providing the execution foundation for all strategy roles and native adapters.",
   "scope": [
     "Implement ExecutionBackend start/cancel/events/receipt and a real Scripted implementation, plus a host that passes only committed prompt/settings/grant/workspace/allowance. Keep Assignment, Invocation and native session identity distinct; record requested/sent/reported settings and actual bounded role output.",
@@ -31,7 +31,7 @@
     "Scripted and a materially different backend contract implementation run through the real host; whole-invocation limits and response identity are enforced, unknown metadata/usage remain unknown, and malicious output cannot grant itself authority."
   ],
   "evidence": [],
-  "revision": 3,
+  "revision": 6,
   "history": [
     {
       "revision": 1,
@@ -53,6 +53,27 @@
       "actor": "manage.py",
       "status": "planned",
       "note": "Owner decision 2026-09-16: bounded legacy access to attempts 1 and 2 for facts only, per the AGENTS.md legacy rule."
+    },
+    {
+      "revision": 4,
+      "at": "2026-09-28T06:47:17.551610Z",
+      "actor": "codex",
+      "status": "in_progress",
+      "note": "Claimed by codex."
+    },
+    {
+      "revision": 5,
+      "at": "2026-09-28T08:14:06.465596Z",
+      "actor": "codex",
+      "status": "in_progress",
+      "note": "R1(7/10) RETURN 28/09 15:59 — Independent review found premature successful completion before late usage and unconditional TimedOut for authority/journal errors. The author separated backend termination from bounded completion, retained actual late charges, and classified authority failures without fabricating a timeout."
+    },
+    {
+      "revision": 6,
+      "at": "2026-09-28T08:14:23.363469Z",
+      "actor": "codex",
+      "status": "in_progress",
+      "note": "R2(9/10) ACCEPT recorded 28/09 16:14 — Independent review confirmed both findings closed; seven focused scenarios cover real Scripted/computed execution, late complete and partial usage, lost dispatch acknowledgement, reopened SQLite and cancellation during journal outage. Removing the cost-limit guard produced test exit 101 (Completed instead of Failed(Content)); restored focused checks exited 0. Review also checked the added recovery scenario and implementation notes. Real CheckRun progress through the host, control-reserve exhaustion and native execution remain explicitly untested."
     }
   ]
 }

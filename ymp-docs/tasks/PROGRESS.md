@@ -2,7 +2,7 @@
 
 Generated from the canonical JSON records in [`records/`](records/) by `python3 ymp-docs/tasks/manage.py progress --write`. Task write commands and `make tasks-progress` refresh it; do not edit statuses here.
 
-Tasks: 45 (9 done, 0 in progress, 27 open, 9 paused or blocked, 0 rejected). Times are Hong Kong time (UTC+08:00). Last record change: 2026-09-28 14:47.
+Tasks: 45 (9 done, 1 in progress, 26 open, 9 paused or blocked, 0 rejected). Times are Hong Kong time (UTC+08:00). Last record change: 2026-09-28 16:14.
 
 | Mark | Meaning |
 | :---: | --- |
@@ -16,16 +16,24 @@ Tasks: 45 (9 done, 0 in progress, 27 open, 9 paused or blocked, 0 rejected). Tim
 
 | Wave | Done | In progress | Open | Paused or blocked | Rejected | Total | Done % |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| [W1](#wave-w1) | 9 | 0 | 1 | 9 | 0 | 19 | 47% |
+| [W1](#wave-w1) | 9 | 1 | 0 | 9 | 0 | 19 | 47% |
 | [W2](#wave-w2) | 0 | 0 | 4 | 0 | 0 | 4 | 0% |
 | [W3](#wave-w3) | 0 | 0 | 9 | 0 | 0 | 9 | 0% |
 | [W4](#wave-w4) | 0 | 0 | 3 | 0 | 0 | 3 | 0% |
 | [W5](#wave-w5) | 0 | 0 | 5 | 0 | 0 | 5 | 0% |
 | [W6](#wave-w6) | 0 | 0 | 5 | 0 | 0 | 5 | 0% |
 
+## Current work
+
+### W1-0017 — [~] in_progress
+
+Execute admitted assignments through a new host and Scripted backend. Owner: codex; revision 6; updated 2026-09-28 16:14 by codex.
+
+R2(9/10) ACCEPT recorded 28/09 16:14 — Independent review confirmed both findings closed; seven focused scenarios cover real Scripted/computed execution, late complete and partial usage, lost dispatch acknowledgement, reopened SQLite and cancellation during journal outage. Removing the cost-limit guard produced test exit 101 (Completed instead of Failed(Content)); restored focused checks exited 0. Review also checked the added recovery scenario and implementation notes. Real CheckRun progress through the host, control-reserve exhaustion and native execution remain explicitly untested.
+
 ## Wave W1
 
-9 of 19 done; 0 in progress; 9 paused or blocked.
+9 of 19 done; 1 in progress; 9 paused or blocked.
 
 | Status | Task | Title | Area | State | Depends on | Owner | Updated (HKT) | Rev | Evidence |
 | :---: | --- | --- | --- | --- | --- | --- | --- | ---: | --- |
@@ -45,7 +53,7 @@ Tasks: 45 (9 done, 0 in progress, 27 open, 9 paused or blocked, 0 rejected). Tim
 | [=] | [W1-0014](records/W1-0014.json) | Run and recover the minimal accountable producer-reviewer session | session | planned (blocked) | W1-0007 ✓, W1-0011, W1-0012, W1-0013, W1-0018 | — | 2026-09-16 01:05 | 3 | — |
 | [=] | [W1-0015](records/W1-0015.json) | Expose the accountable session through a simple interactive Ratatui interface | interface | planned (blocked) | W1-0014 | — | 2026-09-16 03:19 | 8 | — |
 | [x] | [W1-0016](records/W1-0016.json) | Persist the new Journal and content-addressed payloads across restart | persistence | done | W1-0001 ✓ | codex | 2026-09-16 04:56 | 9 | commit [`07db5fa`](https://github.com/maggnus/ymp/commit/07db5fa45ad10a94e5560c711b7be0274eb5d1c9) |
-| [ ] | [W1-0017](records/W1-0017.json) | Execute admitted assignments through a new host and Scripted backend | execution | planned | W1-0006 ✓, W1-0007 ✓, W1-0016 ✓ | — | 2026-09-16 03:07 | 3 | — |
+| [~] | [W1-0017](records/W1-0017.json) | Execute admitted assignments through a new host and Scripted backend | execution | in_progress | W1-0006 ✓, W1-0007 ✓, W1-0016 ✓ | codex | 2026-09-28 16:14 | 6 | — |
 | [=] | [W1-0018](records/W1-0018.json) | Build the native Codex backend and discovery for accountable sessions | providers | planned (blocked) | W1-0003 ✓, W1-0017 | — | 2026-09-16 03:07 | 4 | — |
 | [=] | [W1-0019](records/W1-0019.json) | Bind attributed evidence and reviews to immutable results | verification | planned (blocked) | W1-0008, W1-0009 ✓ | — | 2026-09-16 01:05 | 2 | — |
 

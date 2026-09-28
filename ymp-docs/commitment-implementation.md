@@ -75,27 +75,29 @@ leaves the original responsibility and resources intact. Lost acknowledgement or
 post-commit delivery failure is uncertainty about delivery, not admission refusal;
 the caller retains the same plan and uses its Prepared/Committed/Delivered state.
 
-## Future producer boundaries
+## Completion and remaining producer boundaries
 
-Heartbeat renewal has a real authenticated consumer. EvidenceAdded, CheckRun and
-ResultSubmitted use the same typed projection and bounded renewal calculation,
-but their production resolver refuses unsupported references until the owning
-kernel observations exist.
+Heartbeat renewal has a real authenticated consumer. W1-0017 connects CheckRun
+progress to an exact recorded check, responsibility target and workspace.
+EvidenceAdded and ResultSubmitted still refuse unsupported references until their
+owning kernel observations exist.
 
 Public discharge and cancel connect resolution, the shared typed transition
-consumer and terminal packet preparation. Their production resolver currently
-returns commitment_basis_unsupported. The pure consumer validates session,
+consumer and terminal packet preparation. W1-0017 connects confirmed bounded
+non-artifact completion with settled accounting and scoped cessation to discharge.
+Other unsupported completion/cancellation sources return commitment_basis_unsupported.
+The pure consumer validates session,
 assignment, contribution, original contract, exact artifact subject, covered
 targets or the affected contribution of a plan revision. Its synthetic projection
 tests cover Discharged and applicable Cancelled outcomes and reject mismatches.
 They create no InvocationEnded, AcceptanceRecorded, satisfied ledger or plan fact
 in a production journal.
 
-Actual non-artifact completion remains W1-0017; actual artifact acceptance remains
-W1-0010/W1-0014, and plan/criterion producers retain their owning tasks. Successful
-production discharge/cancellation and the three observation-backed renewal
-signals are not claimed as integrated. These are tested P2 consumer contracts,
-not delivered result acceptance or native execution.
+The [execution implementation](execution-implementation.md) describes the actual
+non-artifact consumer. Artifact acceptance remains W1-0010/W1-0014, and
+plan/criterion producers retain their owning tasks. Their production transitions
+are not claimed as integrated. P2 consumer contracts do not establish delivered
+result acceptance or native execution.
 
 ## Verification
 

@@ -134,19 +134,100 @@ fn resolve_progress(
     if let Some(reference) = basis {
         view.resolve(reference)?;
     }
-    if signal != ProgressSignal::Heartbeat || basis.is_some() {
+    let source = assignment(view, &current.id)?;
+    if let Some(reference) = basis {
+        let (invocation, observed) = view
+            .execution()
+            .invocations()
+            .values()
+            .find_map(|invocation| {
+                invocation
+                    .observations
+                    .values()
+                    .find(|(_, at)| at == reference)
+                    .map(|(event, _)| (invocation, event))
+            })
+            .ok_or_else(|| {
+                Denial::new(
+                    "progress_basis_unsupported",
+                    "No matching kernel invocation observation",
+                )
+            })?;
+        if invocation.dispatch.assignment.id != source.intent.assignment.id
+            || invocation.dispatch.assignment.commitment != current.id
+            || invocation.terminal.is_some()
+        {
+            return Err(Denial::new(
+                "progress_basis",
+                "Progress belongs to different or ended responsibility",
+            ));
+        }
+        let crate::ports::execution::BackendObservation::Progress {
+            signal: actual,
+            basis: underlying,
+        } = &observed.observation
+        else {
+            return Err(Denial::new(
+                "progress_basis",
+                "Source is not a progress observation",
+            ));
+        };
+        if *actual != signal {
+            return Err(Denial::new(
+                "progress_basis",
+                "Progress signal differs from its observation",
+            ));
+        }
+        match (signal, underlying) {
+            (ProgressSignal::Heartbeat, None) => {}
+            (ProgressSignal::CheckRun, Some(reference)) => {
+                let run = view
+                    .check_runs()
+                    .values()
+                    .find(|run| run.reference().is_ok_and(|actual| actual == *reference))
+                    .ok_or_else(|| {
+                        Denial::new("progress_basis_unsupported", "No exact recorded check run")
+                    })?;
+                let check = view
+                    .checks()
+                    .get(&run.check)
+                    .ok_or_else(|| Denial::new("progress_basis", "Check run lost its check"))?;
+                let contribution = &view.coordination().contributions[&current.subject].value;
+                if !contribution.targets.contains(&check.criterion)
+                    || run.at < invocation.dispatch.at
+                    || view.snapshots().get(&run.target).is_none_or(|snapshot| {
+                        snapshot.workspace != source.intent.assignment.workspace
+                    })
+                {
+                    return Err(Denial::new(
+                        "progress_basis",
+                        "Check run does not cover this responsibility and workspace",
+                    ));
+                }
+            }
+            _ => {
+                return Err(Denial::new(
+                    "progress_basis_unsupported",
+                    "This signal needs its owning kernel observation",
+                ));
+            }
+        }
+    } else if signal != ProgressSignal::Heartbeat {
         return Err(Denial::new(
             "progress_basis_unsupported",
             "This signal needs its owning kernel observation",
         ));
     }
-    let source = assignment(view, &current.id)?;
     Ok(ProgressProjection {
         session: view.session().clone(),
         assignment: source.intent.assignment.id.clone(),
         contribution: current.subject.clone(),
         signal,
-        source: None,
+        source: if signal == ProgressSignal::Heartbeat {
+            None
+        } else {
+            basis.cloned()
+        },
     })
 }
 fn next_lease(
@@ -439,6 +520,16 @@ pub(super) fn apply(
             basis,
             ..
         } => {
+            if let Some(basis) = basis {
+                let used = book.progress_renewals.entry(id.clone()).or_default();
+                if used.iter().any(|(prior, _)| prior == basis) {
+                    return Err(Denial::new(
+                        "progress_reused",
+                        "One recorded progress observation can renew only once",
+                    ));
+                }
+                used.push((basis.clone(), event.reference()?));
+            }
             if *lease != next_lease(view, current, *signal, event.at, basis.as_ref())? {
                 return Err(Denial::new(
                     "lease_renewal",
@@ -702,6 +793,15 @@ impl<J: Journal> Arbiter<J> {
         let holder = gate.authorize_revision(token, None, at, expected)?;
         let view = self.view(&holder.session)?;
         let current = commitment(&view, &holder.commitment)?;
+        if let Some(basis) = &basis
+            && view
+                .coordination()
+                .progress_renewals
+                .get(&holder.commitment)
+                .is_some_and(|used| used.iter().any(|(prior, _)| prior == basis))
+        {
+            return Ok(view.revision());
+        }
         let lease = next_lease(&view, current, signal, at, basis.as_ref())?;
         self.commit(
             &holder.session,
@@ -931,8 +1031,36 @@ enum CompletionFact {
 }
 fn resolve_completion(view: &SessionView, source: &Ref) -> Result<CompletionProjection> {
     view.resolve(source)?;
-    Err(unsupported_basis(source))
+    let invocation = view
+        .execution()
+        .invocations()
+        .values()
+        .find(|record| record.end.as_ref() == Some(source))
+        .ok_or_else(|| unsupported_basis(source))?;
+    if invocation.terminal != Some(ymp_domain::assignment::InvocationTerminal::Completed)
+        || !invocation.confirmed_terminal
+        || invocation.invocation.is_none()
+        || !crate::execution::closed(view, &invocation.dispatch.assignment.id)
+        || crate::execution::limit_reason(view, invocation, invocation.ended_at.unwrap())?.is_some()
+    {
+        return Err(Denial::new(
+            "commitment_basis",
+            "Invocation lacks bounded confirmed completion and scoped cessation",
+        )
+        .with_ref(source.clone()));
+    }
+    let contribution =
+        &view.coordination().contributions[&invocation.dispatch.assignment.contribution];
+    Ok(CompletionProjection {
+        session: view.session().clone(),
+        assignment: invocation.dispatch.assignment.id.clone(),
+        contribution: contribution.value.id.clone(),
+        contract: contribution.contract.clone(),
+        source: source.clone(),
+        fact: CompletionFact::NonArtifactCompleted,
+    })
 }
+
 fn completion_transition(
     view: &SessionView,
     current: &Commitment,

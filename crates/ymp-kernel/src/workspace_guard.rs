@@ -64,6 +64,63 @@ pub struct WorkspaceGuard<J: Journal, C: ContentStore> {
     captures: Mutex<BTreeMap<(Id, Id<Snapshot>), PendingCapture>>,
 }
 impl<J: Journal, C: ContentStore> WorkspaceGuard<J, C> {
+    pub(crate) fn prepare_invocation_access(
+        &self,
+        access: &MediatedAccess<J>,
+        assignment: &Id,
+        invocation: &Id,
+    ) -> Result<()> {
+        if !Arc::ptr_eq(&access.issuer, &self.issuer) || &access.assignment != assignment {
+            return Err(Denial::new(
+                "invocation_scope",
+                "File capability belongs to another assignment or authority",
+            ));
+        }
+        access.check_open()?;
+        let view = self.view(&access.session)?;
+        let record = view
+            .path_locks()
+            .get(assignment)
+            .ok_or_else(|| Denial::new("locks_missing", "No ownership for this file capability"))?;
+        if record.acquired.mediated_owner.as_ref() != Some(&access.owner)
+            || record.revoked
+            || record.released.is_some()
+            || record.invocation.is_some()
+            || view
+                .path_locks()
+                .values()
+                .any(|lock| lock.invocation.as_ref() == Some(invocation))
+        {
+            return Err(Denial::new(
+                "invocation_scope",
+                "File capability has already been authorized or closed",
+            ));
+        }
+        let paths: Vec<_> = record
+            .acquired
+            .effective
+            .iter()
+            .map(|lock| lock.lock.path.clone())
+            .collect();
+        let observations = access.provider.observe_paths(&paths)?;
+        if observations
+            != record
+                .acquired
+                .effective
+                .iter()
+                .map(|lock| lock.observation.clone())
+                .collect::<Vec<_>>()
+        {
+            return Err(Denial::new(
+                "path_changed",
+                "Physical scope changed before invocation dispatch",
+            ));
+        }
+        access
+            .provider
+            .verify_binding(&access.binding, self.journal.as_ref())?;
+        Ok(())
+    }
     pub fn new(journal: Arc<J>, content: Arc<C>) -> Self {
         Self {
             journal,

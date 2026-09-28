@@ -22,6 +22,10 @@ impl Default for ParameterSchemas {
         Self {
             validators: BTreeMap::from([
                 (
+                    ("ExecutionBackend".into(), "Scripted".into(), "1".into()),
+                    validate_scripted as ParameterValidator,
+                ),
+                (
                     (
                         "VerificationDesigner".into(),
                         "ExplicitVisible".into(),
@@ -76,6 +80,22 @@ impl Default for ParameterSchemas {
             ]),
         }
     }
+}
+fn validate_scripted(selection: &PolicySelection) -> Result<()> {
+    if !selection.parameters.as_object().is_some_and(|value| {
+        value.len() == 1
+            && value
+                .get("steps")
+                .and_then(|steps| steps.as_array())
+                .is_some_and(|steps| !steps.is_empty() && steps.len() <= 4096)
+    }) || encode(&selection.parameters)?.len() > 1_048_576
+    {
+        return Err(Denial::new(
+            "backend_parameters",
+            "Scripted requires a bounded explicit step program",
+        ));
+    }
+    Ok(())
 }
 fn validate_check_limits(selection: &PolicySelection) -> Result<()> {
     let limits: ymp_domain::verification::CheckLimits =
@@ -322,7 +342,11 @@ pub trait ContentStore: Send + Sync {
 pub fn control_reserve(view: &SessionView) -> (usize, usize) {
     let workspace = crate::workspace_locks::control_reserve(view);
     let admission = crate::gatekeeper::control_reserve(view);
-    (workspace.0 + admission.0, workspace.1 + admission.1)
+    let execution = crate::execution::control_reserve(view);
+    (
+        workspace.0 + admission.0 + execution.0,
+        workspace.1 + admission.1 + execution.1,
+    )
 }
 
 pub fn validate_append(

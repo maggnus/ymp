@@ -8,6 +8,82 @@ use ymp_domain::{
     },
 };
 
+/// Files supplied by the host from its existing mediated capability. Implementations
+/// receive no filesystem root, arbitrary process API, or authority to expand scope.
+pub trait InvocationFiles: Send + Sync {
+    fn read(&self, path: &WorkspacePath, limit: usize) -> Result<Vec<u8>>;
+    fn write(&self, path: &WorkspacePath, bytes: &[u8]) -> Result<()>;
+}
+pub struct ExecutionRequest<'a> {
+    pub invocation: ymp_domain::Id<ymp_domain::assignment::Invocation>,
+    pub receipt: ymp_domain::Id<ymp_domain::resources::Receipt>,
+    pub assignment: ymp_domain::assignment::Assignment,
+    pub prompt: ymp_domain::assignment::Prompt,
+    pub settings: ymp_domain::identity::ProfileSettings,
+    pub grant: &'a crate::gatekeeper::GrantToken,
+    pub allowance: ymp_domain::resources::Allowance,
+    pub files: Option<std::sync::Arc<dyn InvocationFiles>>,
+}
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ExecutionHandle {
+    pub invocation: ymp_domain::Id<ymp_domain::assignment::Invocation>,
+    pub handle: ymp_domain::Id,
+}
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct BackendStart {
+    pub handle: ExecutionHandle,
+    pub sent: ymp_domain::identity::ProfileSettings,
+    pub reported: ymp_domain::identity::ProfileSettings,
+    pub native_session: Option<String>,
+}
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct BackendEvent {
+    pub invocation: ymp_domain::Id<ymp_domain::assignment::Invocation>,
+    pub sequence: u64,
+    pub observation: BackendObservation,
+}
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum BackendObservation {
+    Output(String),
+    Progress {
+        signal: ymp_domain::coordination::ProgressSignal,
+        basis: Option<ymp_domain::Ref>,
+    },
+    ToolDenied(ymp_domain::journal::Capability),
+    OperationRequest {
+        operation: ymp_domain::assignment::TeamOperation,
+        args: String,
+        correlation: String,
+    },
+    Usage {
+        usage: ymp_domain::resources::Usage,
+        turns: u32,
+    },
+    Terminal(ymp_domain::assignment::InvocationTerminal),
+}
+/// Calls may be supervised independently by the host. Cancellation requests never
+/// certify cessation. Events use stable invocation-local sequences and cumulative
+/// usage/turn counters; the cursor is observation, not permission to repeat work.
+pub trait ExecutionBackend: Send + Sync {
+    fn selection(&self) -> &PolicySelection;
+    fn start(&self, request: &ExecutionRequest<'_>) -> Result<BackendStart>;
+    fn cancel(&self, handle: &ExecutionHandle) -> Result<()>;
+    fn events(
+        &self,
+        handle: &ExecutionHandle,
+        after: u64,
+        limit: usize,
+    ) -> Result<Vec<BackendEvent>>;
+    fn receipt(&self, handle: &ExecutionHandle) -> Result<ymp_domain::resources::Receipt>;
+    fn reply(&self, _handle: &ExecutionHandle, _correlation: &str, _result: &str) -> Result<()> {
+        Err(ymp_domain::Denial::new(
+            "operation_reply_unsupported",
+            "Backend does not expose an operation reply channel",
+        ))
+    }
+}
+
 /// A short physical-root coordination section for resolving and preparing I/O.
 /// Every mediated operation participates in the same physical-root coordinator,
 /// including across processes. Data I/O runs after this guard drops.

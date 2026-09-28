@@ -34,6 +34,11 @@ The [visible check consumer](ymp-docs/check-execution.md) registers versioned
 checks and retains Command/ExactBytes runs against immutable snapshots. Command
 execution currently uses the documented macOS no-fork profile; result acceptance
 and native agent execution remain separate work.
+The [bounded execution host](ymp-docs/execution-implementation.md) runs admitted
+Scripted assignments, records output and usage, handles cancellation and settles
+receipts. Confirmed non-artifact completion discharges its commitment; artifact
+acceptance and native agent execution remain separate work. Unresolved execution
+stays blocked after restart instead of starting again.
 The remaining modules are placeholders under
 [the proposed layout](ymp-docs/project-worktree.md). The executable still has no
 interactive or task-execution behavior.

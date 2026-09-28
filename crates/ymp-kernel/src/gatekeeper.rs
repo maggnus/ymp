@@ -155,8 +155,10 @@ fn unresolved(view: &SessionView, record: &AdmissionRecord) -> bool {
                 .treasury()
                 .and_then(|book| book.accounts.get(&record.reservation));
             let no_start = account.is_some_and(|account| {
-                account.invocation.is_none()
-                    && account.reservation.state == ReservationState::Released
+                (account.invocation.is_none()
+                    && account.reservation.state == ReservationState::Released)
+                    || (account.reservation.state == ReservationState::Settled
+                        && crate::execution::closed(view, &record.intent.assignment.id))
             });
             let paths_ended = view
                 .path_locks()
@@ -420,6 +422,23 @@ fn matching_lock(intent: &AdmissionIntent, lock: &LockAcquisition) -> Result<()>
 }
 pub(crate) fn apply(view: &SessionView, event: &Envelope<Event>) -> Result<Option<AdmissionView>> {
     view.admission().check_next(&event.payload)?;
+    if let Event::InvocationStarted { invocation, .. } = &event.payload {
+        let mut book = view.admission().clone();
+        let record = book
+            .assignments
+            .get_mut(&invocation.assignment)
+            .ok_or_else(|| {
+                Denial::new(
+                    "assignment_missing",
+                    "Invocation confirmation lacks admission",
+                )
+            })?;
+        if record.intent.assignment.state == AssignmentState::Admitted {
+            record.intent.assignment.state = AssignmentState::Running;
+            record.references.push(event.reference()?);
+        }
+        return Ok(Some(book));
+    }
     if view
         .admission()
         .pending
@@ -934,6 +953,9 @@ impl<J: Journal, C: ContentStore> Gatekeeper<J, C> {
         let mut events = vec![];
         for payload in payloads {
             let (policy, input, refs) = match &payload {
+                Event::InvocationStarted { .. }
+                | Event::InvocationObserved { .. }
+                | Event::InvocationEnded { .. } => crate::execution::attribution(&view, &payload)?,
                 Event::ReservationChanged { .. } => crate::treasury::attribution(&payload)?,
                 Event::LockChanged { change, .. } => (
                     None,
@@ -1536,6 +1558,21 @@ impl<J: Journal, C: ContentStore> Gatekeeper<J, C> {
                 "Grant authority belongs to a different transition boundary",
             ));
         }
+        self.authorize_snapshot(token, operation, at, &view)
+    }
+    pub(crate) fn authorize_snapshot(
+        &self,
+        token: &GrantToken,
+        operation: Option<TeamOperation>,
+        at: u64,
+        view: &SessionView,
+    ) -> Result<Assignment> {
+        if view.session() != &token.session {
+            return Err(Denial::new(
+                "grant_denied",
+                "Grant belongs to another session",
+            ));
+        }
         view.resolve(&token.admission)?;
         let record = view
             .admission()
@@ -1551,7 +1588,7 @@ impl<J: Journal, C: ContentStore> Gatekeeper<J, C> {
                 "Grant secret disagrees with its recorded authority",
             ));
         }
-        validate_active_grant(&view, record, operation, at)?;
+        validate_active_grant(view, record, operation, at)?;
         Ok(assignment.clone())
     }
     pub fn revoke(

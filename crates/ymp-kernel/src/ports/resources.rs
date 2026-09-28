@@ -65,6 +65,19 @@ pub trait CostModel {
     fn selection(&self) -> &PolicySelection;
     fn cost(&self, view: &CostView) -> Result<Proposal<ReceiptPrice>>;
     fn estimate(&self, view: &EstimateView) -> Result<Proposal<CostEstimate>>;
+    /// Price the currently observed usage for a host limit decision. An estimate
+    /// is not a complete bill and cannot settle partial usage under UnknownUsage::Stop.
+    fn observed_cost(&self, view: &CostView) -> Result<Proposal<ReceiptPrice>> {
+        if view.receipt.coverage == Coverage::Complete || view.known_complete_cost.is_some() {
+            return self.cost(view);
+        }
+        Ok(Proposal {
+            value: ReceiptPrice::Unknown,
+            rationale: "No observation-price estimate supplied by this CostModel".into(),
+            basis: vec![],
+            policy: self.selection().policy.clone(),
+        })
+    }
 }
 pub trait ResourcePolicy {
     fn selection(&self) -> &PolicySelection;

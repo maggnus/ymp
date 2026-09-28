@@ -50,30 +50,7 @@ impl PriceWeighted {
 fn amount(value: f64) -> Result<CostUnits> {
     CostUnits::new(value).map_err(|_| Denial::new("cost_overflow", "Cost is not finite"))
 }
-fn count(value: u64) -> Result<CostUnits> {
-    if value > 1_u64 << 53 {
-        return Err(Denial::new(
-            "usage_overflow",
-            "Usage exceeds exact integer pricing range",
-        ));
-    }
-    amount(value as f64)
-}
-pub fn weighted_cost(usage: &Usage, rates: &Rates) -> Result<CostUnits> {
-    usage.validate()?;
-    rates.validate()?;
-    let uncached = usage.input - usage.cache_read - usage.cache_write;
-    let mut total = amount(0.0)?;
-    for (tokens, rate) in [
-        (uncached, rates.input),
-        (usage.cache_read, rates.cache_read),
-        (usage.cache_write, rates.cache_write),
-        (usage.output, rates.output),
-    ] {
-        total = add(total, multiply(count(tokens)?, rate)?)?;
-    }
-    Ok(total)
-}
+pub use ymp_domain::resources::weighted_cost;
 fn proposal<T>(selection: &PolicySelection, value: T, rationale: &str) -> Proposal<T> {
     Proposal {
         value,
@@ -83,6 +60,20 @@ fn proposal<T>(selection: &PolicySelection, value: T, rationale: &str) -> Propos
     }
 }
 impl CostModel for PriceWeighted {
+    fn observed_cost(&self, view: &CostView) -> Result<Proposal<ReceiptPrice>> {
+        if view.receipt.coverage == Coverage::Complete || view.known_complete_cost.is_some() {
+            return self.cost(view);
+        }
+        Ok(proposal(
+            &self.selection,
+            ReceiptPrice::Estimated(weighted_cost(
+                &view.receipt.usage,
+                view.pricebook
+                    .rates(&view.demand.provider, &view.demand.profile.model),
+            )?),
+            "Estimate the price of observed partial counters without claiming a complete bill",
+        ))
+    }
     fn selection(&self) -> &PolicySelection {
         &self.selection
     }

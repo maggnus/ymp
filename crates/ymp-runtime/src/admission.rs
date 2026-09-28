@@ -39,12 +39,14 @@ pub struct AdmissionPolicies<'a> {
 /// Retain this runtime for the lifetime of its prepared attempts and file handles.
 /// Reopening a journal does not reconstruct their local secrets or completion rights.
 pub struct AdmissionRuntime<J: Journal, C: ContentStore> {
-    gatekeeper: Gatekeeper<J, C>,
+    gatekeeper: Arc<Gatekeeper<J, C>>,
+    journal: Arc<J>,
 }
 impl<J: Journal, C: ContentStore> AdmissionRuntime<J, C> {
     pub(crate) fn new(journal: Arc<J>, content: Arc<C>) -> Self {
         Self {
-            gatekeeper: Gatekeeper::new(journal, content),
+            gatekeeper: Arc::new(Gatekeeper::new(journal.clone(), content)),
+            journal,
         }
     }
     pub fn prepare(
@@ -174,5 +176,22 @@ impl<J: Journal, C: ContentStore> AdmissionRuntime<J, C> {
         self.gatekeeper
             .workspace()
             .release(session, revision, at, &evidence)
+    }
+}
+impl<J: Journal + 'static, C: ContentStore + 'static> AdmissionRuntime<J, C> {
+    /// Shares the exact issuer of admitted grants and mediated file handles.
+    pub fn execution(
+        &self,
+        backend: Arc<dyn ymp_kernel::ports::execution::ExecutionBackend>,
+        cost: Arc<dyn CostModel>,
+        clock: Arc<dyn crate::clock::Clock>,
+    ) -> Result<crate::execution_host::ExecutionHost<J, C>> {
+        crate::execution_host::ExecutionHost::new(
+            self.journal.clone(),
+            self.gatekeeper.clone(),
+            backend,
+            cost,
+            clock,
+        )
     }
 }

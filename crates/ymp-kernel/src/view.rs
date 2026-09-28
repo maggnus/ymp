@@ -38,6 +38,7 @@ pub struct SessionView {
     treasury: Option<Box<crate::treasury::TreasuryView>>,
     coordination: crate::arbiter::CoordinationView,
     admission: crate::gatekeeper::AdmissionView,
+    execution: crate::execution::ExecutionView,
     workspaces: BTreeMap<Id<ymp_domain::workspace::Workspace>, ymp_domain::workspace::Workspace>,
     snapshots: BTreeMap<Id<ymp_domain::workspace::Snapshot>, ymp_domain::workspace::Snapshot>,
     path_locks: BTreeMap<Id, crate::workspace_locks::AssignmentLocks>,
@@ -67,6 +68,7 @@ impl SessionView {
             treasury: None,
             coordination: crate::arbiter::CoordinationView::default(),
             admission: crate::gatekeeper::AdmissionView::default(),
+            execution: crate::execution::ExecutionView::default(),
             workspaces: BTreeMap::new(),
             snapshots: BTreeMap::new(),
             path_locks: BTreeMap::new(),
@@ -100,6 +102,9 @@ impl SessionView {
     }
     pub fn admission(&self) -> &crate::gatekeeper::AdmissionView {
         &self.admission
+    }
+    pub fn execution(&self) -> &crate::execution::ExecutionView {
+        &self.execution
     }
     pub fn coordination(&self) -> &crate::arbiter::CoordinationView {
         &self.coordination
@@ -229,8 +234,26 @@ impl SessionView {
             self.resolve(reference)?;
         }
         self.coordination.check_next(&event.payload)?;
+        let execution = crate::execution::apply(self, event)?;
         let admission = crate::gatekeeper::apply(self, event)?;
         match &event.payload {
+            Event::InvocationStarted { .. }
+            | Event::InvocationObserved { .. }
+            | Event::InvocationEnded { .. } => {
+                self.validate_base_complete()?;
+                if crate::execution::attribution(self, &event.payload)?
+                    != (
+                        event.policy.clone(),
+                        event.input.clone(),
+                        event.refs.clone(),
+                    )
+                {
+                    return Err(Denial::new(
+                        "invocation_attribution",
+                        "Invocation observation differs from its recorded basis",
+                    ));
+                }
+            }
             Event::CheckRegistered { data, .. } => {
                 self.validate_complete()?;
                 schemas.validate(&data.effective)?;
@@ -637,6 +660,9 @@ impl SessionView {
         if let Some(admission) = admission {
             self.admission = admission;
         }
+        if let Some(execution) = execution {
+            self.execution = execution;
+        }
         self.references.insert(event.reference()?);
         self.revision = event.seq;
         self.latest_at = self.latest_at.max(event.at);
@@ -661,6 +687,7 @@ impl SessionView {
     }
 
     pub(crate) fn validate_complete(&self) -> Result<()> {
+        self.execution.complete()?;
         self.admission.complete()?;
         crate::gatekeeper::validate_commitments(self)?;
         self.validate_base_complete()

@@ -75,6 +75,7 @@ pub struct CoordinationView {
     pending_award: Option<(Commitment, Ref)>,
     links: BTreeMap<Id<Solicitation>, CommitmentLink>,
     pending_reopen: Option<Id<Solicitation>>,
+    progress_renewals: BTreeMap<Id<Commitment>, Vec<(Ref, Ref)>>,
 }
 impl CoordinationView {
     pub fn contributions(&self) -> &BTreeMap<Id<Contribution>, ContributionRecord> {
