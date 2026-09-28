@@ -11,6 +11,13 @@ Task definitions, dependencies and status live only in
 status. Use the [task workflow](development-tasks.md) to select work; numeric IDs
 identify tasks, while explicit dependencies determine execution order.
 
+The owner's [POC experiment direction](poc-experiments.md) (2026-09-28) prioritizes
+small working increments and necessary checks. Native experiments start directly
+with a homogeneous GPT team, then different GPT models, then different families;
+tasks grow from elementary to simple to medium. Follow the existing detailed task
+plan and priorities; product experiments wait for their required engine and
+session behavior. Early execution observations do not prove useful self-organization.
+
 | Wave | Product outcome | Principal integration tasks |
 | --- | --- | --- |
 | W1 | A new accountable producer/reviewer session: task contract, resource limits, immutable result, evidence, recovery and an audited report through a simple terminal interface. | [Session integration](tasks/records/W1-0014.json), [initial TUI](tasks/records/W1-0015.json). Foundations include [durability](tasks/records/W1-0016.json), [execution and Scripted](tasks/records/W1-0017.json), and [Codex](tasks/records/W1-0018.json). Observable milestones: an admitted Scripted assignment runs and settles ([W1-0017](tasks/records/W1-0017.json)); a candidate is independently accepted ([W1-0019](tasks/records/W1-0019.json), [W1-0010](tasks/records/W1-0010.json)); a complete session delivers an audited report ([W1-0014](tasks/records/W1-0014.json)); the interface completes the user journey ([W1-0015](tasks/records/W1-0015.json)). |

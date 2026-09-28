@@ -49,6 +49,24 @@ Verification should answer the changed behavior's actual questions. There is no
 required test count. Test maintenance is a means to useful evidence, not a product
 objective. Keep unsupported claims and unexecuted checks explicit.
 
+## POC development priority
+
+Owner direction, 2026-09-28: prioritize rapid development of a working proof of
+concept that tests whether the self-organization ideas work. Deliver small usable
+slices; add code tests only for necessary behavioral evidence or a concrete
+regression. Check a risky boundary when it first becomes usable, and avoid repeated
+broad runs without a new change, failure or unresolved concern. The pre-commit
+checks below and independent review of critical boundaries remain required.
+
+Run experiments sequentially, starting directly with a homogeneous GPT team, then
+different GPT models, then different model families. No preliminary single-agent
+experiment is required. Increase task difficulty from elementary to simple to
+medium, changing one experimental dimension at a time. Follow
+`ymp-docs/poc-experiments.md`; preserve the approved architecture, explicit task
+dependencies, kernel authority and honest accounting throughout.
+Follow the existing detailed task plan and its priorities. Product experiments
+begin only after their required engine and session behavior are implemented.
+
 Before committing code, run:
 
 ```sh
