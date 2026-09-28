@@ -15,9 +15,8 @@ Independent review accepted (R1, 9/10). Full `make verify` passed; all nine
 Dispatcher scenarios passed in 140.16s. Log: `/tmp/ymp-pilot-offer-verify.log`.
 Do not repeat those checks solely because the session resumed.
 
-Next: build the actual example binary against the repaired runtime, then perform
-one bounded run in NEW `/tmp/ymp-gpt-elementary-20260929-06`, retaining the same
-model, effort and final run05 limits. Build command:
+The actual example binary has been built against the repaired runtime. Run 06 finished with a blocked result; details below. It ran in NEW `/tmp/ymp-gpt-elementary-20260929-06`, retaining the same
+model, effort and final run05 limits. Build command for later reproduction:
 
 ```sh
 CARGO_PROFILE_DEV_OPT_LEVEL=1 CARGO_PROFILE_DEV_DEBUG_ASSERTIONS=true \
@@ -25,15 +24,34 @@ CARGO_PROFILE_DEV_OVERFLOW_CHECKS=true cargo build -p ymp-storage \
   --example homogeneous_gpt --offline
 ```
 
-Run command (check directory/journal first after any interruption):
+Historical run command (do not repeat this completed run):
 
 ```sh
 target/debug/examples/homogeneous_gpt run /Users/maggnus/.local/bin/codex \
   /tmp/ymp-gpt-elementary-20260929-06 gpt-6-luna low
 ```
 
-No native process is active at this checkpoint. Never infer safe repetition from
-an absent process: inspect the retained invocation and accounting records.
+Run 06 is finished, with no native process active. Intake completed, but the
+second model output was {"error":"code-mode host is disabled"}, refused as decoding
+instead of a plan. Spent18729.4 relative units, held0; two Complete receipts.
+Run06 evidence is saved as run-06.json, including the exact native tool attempt:
+`exec` tried `tools.ymp_read({path:"input.json",limit:1000})`, and received
+`code-mode host is disabled`. Inspection used thread/read without resume, then
+only tool items from that exact thread's own stored path. No new inference.
+Before further inference, investigate native dynamic-tool/code-mode compatibility;
+do not relax the mediated-files boundary. Inspect retained records after a crash.
+
+Read-only agent acceptance_boundary_read is investigating exact upstream 0.156.1
+host/VM boundaries; root owns writes. Source findings so far: model metadata
+tool_mode overrides code_mode=false; CodeModeOnly cannot fall back to Direct.
+The local V8 runtime has no Node/Deno/fs/process/fetch, rejects imports and
+routes only enabled tools through the existing broker. A potential fix enables
+code_mode_host with in-process fallback disabled, keeping environments empty and
+all unrelated tools disabled. Child-process EOF/cleanup and effective native
+configuration still need verification BEFORE editing the adapter or running a
+model. No runtime source has been changed for this investigation. Probe:
+`/tmp/ymp-read-pilot-thread.py`; metadata result:
+`/tmp/ymp-gpt-elementary-20260929-06/native-thread.json`.
 Full journals/logs use `/tmp/ymp-gpt-elementary-20260929-NN[.log]`. Committed
 compact evidence and limitations are in
 [the pilot directory](ymp-docs/experiments/homogeneous-gpt-elementary/README.md).
@@ -47,7 +65,7 @@ Finished runs:
 - 05: both Plan calls completed, cost26509.8, held0; a second late production offer
   exposed the repaired P1 defect. No native producer or independent review yet.
 
-All four actual calls requested/sent `gpt-6-luna / low`; independently reported
+All six actual calls requested/sent `gpt-6-luna / low`; independently reported
 model/effort remained unknown. Codex0.156.1 advertised seven offerings. Current
 forecast: input20000/output1000/p90 factor1.25; unchanged ceiling30000 per call,
 budget250000, verification reserve60000, reporting reserve30000 (relative weighted

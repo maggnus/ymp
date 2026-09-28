@@ -45,6 +45,7 @@ adapter's documented boundary, not independent billing verification.
 | [03](run-03.json) | 1 | Intake returned valid structured output, but actual weighted usage crossed its 12,000-unit allowance. The engine retained the receipt and stopped before production. |
 | [04](run-04.json) | 1 | Intake completed and settled. Capacity one then refused the second distinct Plan stage, which shares its attempt scope under the existing admission rule. |
 | [05](run-05.json) | 2 | Both paid Plan stages completed. Production received one valid offer, but Dispatcher attempted another after the deadline and returned an error. |
+| [06](run-06.json) | 2 | On the repaired runtime, intake completed; native planning returned an error object because its code-mode host was disabled. The kernel refused that output as a plan. |
 
 Preparation corrections supplied a real StaticDependencyProbe observation, pinned
 the roster/model/effort (defaults alone do not restrict the registry), and used a
@@ -80,8 +81,23 @@ consumer and a no-offers case passed together in 0.10 seconds. Empty windows now
 record Blocked(no_offers); a failed narrator solicitation can use the deterministic
 fallback. No window is silently extended and no native call is duplicated.
 Independent review accepted the repair (R1, 9/10). Mandatory combined verification
-passed, including all nine Dispatcher scenarios in 140.16 seconds. A native run
-of the repaired production transition remains the next experiment.
+passed, including all nine Dispatcher scenarios in 140.16 seconds. The repair is
+committed in `714e7046`, with completion recorded in `f4e63d8f`.
+
+Run 06 used that repaired runtime and unchanged run05 parameters. It spent
+18,729.4 units with zero hold. Intake reported input 21,127/cache 9,984/output 75;
+planning reported input 22,232/cache 17,920/output 46; both receipts were Complete
+and reasoning was reported as zero. Planning returned an error object instead
+of PlanDefinition, and the kernel correctly stopped with no producer admission.
+
+Read-only inspection used the known pilot thread ID and
+[`thread/read`](https://learn.chatgpt.com/docs/app-server#read-a-stored-thread-without-resuming),
+which does not resume the thread. Its own persisted tool items show a native
+`exec` call attempting `tools.ymp_read({path:"input.json",limit:1000})`, followed
+by `code-mode host is disabled`. The compact trace is retained in run-06.json;
+no new inference was started during inspection. Native tool-mode compatibility
+must be understood before another run. Enabling arbitrary execution or bypassing
+the InvocationFiles mediator would not be a valid fix.
 
 Full local journals and logs use `/tmp/ymp-gpt-elementary-20260929-NN` and the
 corresponding `.log` file. Compact evidence in this directory preserves the
