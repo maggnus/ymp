@@ -69,6 +69,15 @@ impl<J: Journal, C: ContentStore> AcceptanceAuthority<J, C> {
             owner,
         }
     }
+    pub(crate) fn require_journal(&self, journal: &Arc<J>) -> Result<()> {
+        if !Arc::ptr_eq(&self.journal, journal) {
+            return Err(Denial::new(
+                "journal_authority",
+                "Check authority belongs to another journal",
+            ));
+        }
+        Ok(())
+    }
     pub fn register_check(&self, owner: &SessionControl, request: RegisterCheck) -> Result<Check> {
         let session = self.owner.authorize(owner)?;
         if request.proposal.value.author != CheckAuthor::User {

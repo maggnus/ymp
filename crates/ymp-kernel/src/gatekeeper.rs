@@ -234,6 +234,7 @@ pub(crate) fn validate_intent(
         .with_ref(intent.award.clone()));
     }
     crate::results::validate_admission(view, &contribution.value)?;
+    crate::progress::validate_admission(view, intent)?;
     if matches!(
         assignment.role,
         RoleKind::FinalReviewer | RoleKind::Advocate

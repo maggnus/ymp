@@ -270,10 +270,6 @@ pub fn contribution_input(view: &SessionView) -> Result<ContributionView> {
                 (kind == ContributionKind::Verify).then_some(&result.producer),
             )
         } else {
-            if view.results().plans()[&item.plan].contract != view.contract().unwrap().reference() {
-                input.limitations.push("Production still requires its original plan contract; changing checks before production needs a new supported plan boundary".into());
-                continue;
-            }
             if path_conflict(view, &item.writes) {
                 input.limitations.push(format!(
                     "{} conflicts with unresolved path ownership",

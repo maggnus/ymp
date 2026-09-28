@@ -58,6 +58,11 @@ one-item plan, and selects criterion-directed work through replaceable strategie
 The Scripted integration chooses verification for insufficient evidence and
 diagnosis for contradiction; native planning and the full session loop remain
 separate work.
+The [progress and recovery consumer](ymp-docs/progress-implementation.md) records
+stalls, diagnoses actual failures and applies bounded check repair, reviewed
+replacement, retry, researcher diagnosis and stop actions. It preserves accepted
+results and spent resources and enforces diagnosis before profile growth in
+sessions using progress strategies.
 The remaining modules are placeholders under
 [the proposed layout](ymp-docs/project-worktree.md). The executable still has no
 interactive or task-execution behavior.

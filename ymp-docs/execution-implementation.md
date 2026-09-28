@@ -61,10 +61,13 @@ control reserves include unfinished start, terminal, receipt and price facts.
 
 ## Commitment and result boundaries
 
-Confirmed bounded completion discharges its own non-artifact commitment through
-Arbiter's existing P2 consumer. Produce, Alternative and Integrate remain pending
-result submission and acceptance. An output saying “accepted” changes neither
-authority nor acceptance.
+Confirmed bounded completion discharges connected non-artifact forms through
+Arbiter's P2 consumer: work without a typed subject, including the W1-0012
+Researcher handler, and Review of an exact ResultVersion. Candidate-scoped
+Verify/Diagnose are selectable but still return commitment_basis on discharge;
+W1-0014 owns that completion integration. Produce, Alternative and Integrate
+require result submission and acceptance. An output saying “accepted” changes
+neither authority nor acceptance.
 
 Heartbeat has a real progress consumer. CheckRun progress resolves an exact
 retained run, responsibility target and workspace. EvidenceAdded and

@@ -42,6 +42,7 @@ pub struct SessionView {
     results: crate::results::ResultsView,
     ledger: crate::ledger::LedgerView,
     planning: crate::plans::PlanningState,
+    progress: crate::progress::ProgressState,
     acceptances:
         BTreeMap<Id<ymp_domain::verification::Acceptance>, crate::acceptance::AcceptanceRecorded>,
     evidence: BTreeMap<Id<ymp_domain::verification::Evidence>, crate::acceptance::EvidenceRecorded>,
@@ -79,6 +80,7 @@ impl SessionView {
             results: crate::results::ResultsView::default(),
             ledger: crate::ledger::LedgerView::default(),
             planning: crate::plans::PlanningState::default(),
+            progress: crate::progress::ProgressState::default(),
             acceptances: BTreeMap::new(),
             evidence: BTreeMap::new(),
             reviews: BTreeMap::new(),
@@ -121,6 +123,9 @@ impl SessionView {
     }
     pub fn results(&self) -> &crate::results::ResultsView {
         &self.results
+    }
+    pub fn progress(&self) -> &crate::progress::ProgressState {
+        &self.progress
     }
     pub fn planning(&self) -> &crate::plans::PlanningState {
         &self.planning
@@ -277,6 +282,7 @@ impl SessionView {
         for reference in &event.refs {
             self.resolve(reference)?;
         }
+        self.progress.check_next(&event.payload)?;
         self.coordination.check_next(&event.payload)?;
         if let Event::AcceptanceRecorded { data, .. } = &event.payload {
             self.validate_complete()?;
@@ -289,6 +295,28 @@ impl SessionView {
         let admission = crate::gatekeeper::apply(self, event)?;
         let results = crate::results::apply(self, event)?;
         match &event.payload {
+            Event::ProgressRecorded { data, .. } => {
+                self.validate_complete()?;
+                let state = crate::progress::apply(self, event, data, schemas)?;
+                if let crate::progress::ProgressRecorded::Replacement(proposal) = data.as_ref() {
+                    self.references.insert(proposal.new.reference());
+                }
+                if let crate::progress::ProgressRecorded::Replaced { proposal, approval } =
+                    data.as_ref()
+                {
+                    let (check, contract) = crate::progress::replacement_value(self, proposal)?;
+                    self.references.insert(check.reference());
+                    self.references.insert(contract.reference());
+                    self.references.insert(approval.assignment.clone());
+                    self.checks.insert(check.id.clone(), check);
+                    self.contract = Some(contract);
+                }
+                if let Some(selection) = data.selection() {
+                    self.policies
+                        .insert(selection.policy.port.clone(), selection.clone());
+                }
+                self.progress = state;
+            }
             Event::PlanningRecorded { data, .. } => {
                 self.validate_complete()?;
                 let planning = crate::plans::validate(self, event, data, schemas)?;
@@ -858,6 +886,7 @@ impl SessionView {
         }
         self.references.insert(event.reference()?);
         self.results = results;
+        self.progress = crate::progress::observe(self, event)?;
         self.revision = event.seq;
         self.latest_at = self.latest_at.max(event.at);
         Ok(())
@@ -881,6 +910,7 @@ impl SessionView {
     }
 
     pub(crate) fn validate_complete(&self) -> Result<()> {
+        self.progress.complete()?;
         self.execution.complete()?;
         self.results.complete()?;
         self.admission.complete()?;

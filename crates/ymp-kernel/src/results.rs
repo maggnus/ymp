@@ -118,7 +118,8 @@ pub(crate) fn subject_item<'a>(
         ContributionKind::Produce | ContributionKind::Alternative
     ) || contribution.targets != item.targets
         || contribution.needs != item.needs
-        || view.results().plans[&item.plan].contract != view.contract().unwrap().reference()
+        || (view.results().plans[&item.plan].contract != view.contract().unwrap().reference()
+            && !plan_current(view, &item.plan)?)
     {
         return Err(Denial::new(
             "work_item_subject",
@@ -804,6 +805,20 @@ impl<J: Journal, C: ContentStore> Results<J, C> {
             events,
             data,
         })
+    }
+    pub(crate) fn require_attempt(
+        &self,
+        journal: &Arc<J>,
+        session: &Id,
+        attempt: &PreparedAttempt,
+    ) -> Result<()> {
+        if !Arc::ptr_eq(&self.journal, journal) || attempt.session != *session {
+            return Err(Denial::new(
+                "attempt_owner",
+                "Retry cannot use an attempt from another journal or session",
+            ));
+        }
+        self.own(attempt)
     }
     fn own(&self, attempt: &PreparedAttempt) -> Result<()> {
         if !Arc::ptr_eq(&self.issuer, &attempt.issuer) {

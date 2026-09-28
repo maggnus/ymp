@@ -39,6 +39,10 @@ pub(super) struct Setup<J: Journal> {
     pub(super) profile: ExecutionProfile,
     pub(super) cost: PriceWeighted,
     pub(super) resource: PurposeBounded,
+    #[allow(dead_code)]
+    pub(super) treasury: Treasury<J>,
+    #[allow(dead_code)]
+    pub(super) budget_control: BudgetControl,
     pub(super) award: FirstOffer,
     pub(super) session: Id,
     pub(super) files: bool,
@@ -163,7 +167,8 @@ impl<J: Journal> Setup<J> {
         }
         let view = gate.view(&session).unwrap();
         let at = view.latest_at() + 1;
-        Treasury::new(journal.clone())
+        let treasury = Treasury::new(journal.clone());
+        let budget_control = treasury
             .open(
                 &session,
                 view.revision(),
@@ -190,6 +195,8 @@ impl<J: Journal> Setup<J> {
             profile,
             cost,
             resource,
+            treasury,
+            budget_control,
             award,
             session,
             files,
@@ -265,7 +272,17 @@ impl<J: Journal> Setup<J> {
                 },
             )
             .unwrap();
-        let revision = self.gate.view(&self.session).unwrap().revision();
+        self.award_existing(name, &id(name))
+    }
+    pub(super) fn award_existing(&self, name: &str, contribution: &Id<Contribution>) -> Ref {
+        let arbiter = Arbiter::new(self.journal.clone());
+        let view = self.gate.view(&self.session).unwrap();
+        let at = view.latest_at();
+        let forecast = view.coordination().contributions()[contribution]
+            .value
+            .forecast
+            .clone();
+        let revision = view.revision();
         arbiter
             .open(
                 &self.session,
@@ -273,7 +290,7 @@ impl<J: Journal> Setup<J> {
                 at + 1,
                 Solicitation {
                     id: id(name),
-                    contribution: id(name),
+                    contribution: contribution.clone(),
                     stimulus: n(1.0),
                     deadline: at + 2,
                     eligible: BTreeSet::from([self.profile.agent.clone()]),
@@ -317,7 +334,7 @@ impl<J: Journal> Setup<J> {
                     id: id(name),
                     debtor: self.profile.agent.clone(),
                     creditor: Creditor::Runtime,
-                    subject: id(name),
+                    subject: contribution.clone(),
                     condition: None,
                     lease: Lease {
                         expires: at + 60,

@@ -462,7 +462,7 @@ fn decision<T: Clone + PartialEq + Serialize>(
         selection_change: None,
     })
 }
-fn verify_decision<T: Clone + PartialEq + Serialize>(
+pub(crate) fn verify_decision<T: Clone + PartialEq + Serialize>(
     view: &SessionView,
     port: &str,
     input: &impl Serialize,
@@ -1424,6 +1424,23 @@ impl<J: Journal> Treasury<J> {
                 },
             },
         )
+    }
+    pub(crate) fn require_control(
+        &self,
+        journal: &Arc<J>,
+        control: &BudgetControl,
+        session: &Id,
+    ) -> Result<()> {
+        if !Arc::ptr_eq(&self.journal, journal)
+            || !Arc::ptr_eq(&control.issuer, &self.issuer)
+            || control.session != *session
+        {
+            return Err(Denial::new(
+                "owner_authority",
+                "Reporting control belongs to another journal, session or accounting authority",
+            ));
+        }
+        Ok(())
     }
     pub fn start_reporting(
         &self,

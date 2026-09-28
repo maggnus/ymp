@@ -623,6 +623,36 @@ credit proposal to the acceptance input. The concrete `ConfirmedOnly` and
 their eligibility is separate from an actual Observation. These mappings retain
 the model's existing authority and decision boundaries rather than adding roles.
 
+The Rust A9 mapping uses `ProgressInput`, `DiagnosisInput` and `EscalationInput`
+for the exact recorded inputs of the three ports. `ProgressAssessment` contains
+the ProgressRecord, stall count and decision; `MonitorParameters`,
+`DiagnosisParameters` and `EscalationParameters` retain effective thresholds and
+finite use/cost/time bounds. `AcceptedOnlyProgress` is an experimental monitor
+requiring a new accepted version to reset its stall. `DirectFailuresOnly` is an
+experimental diagnoser recognizing direct environment/check failures while
+leaving inferred diagnoses Unknown. `StopOnUncertainty` is an experimental
+escalation policy that stops outside its direct repair/retry cases. They provide
+materially different controls through the existing ports, not additional roles.
+
+`WorkFact` is a derived, version-bound observation of actual work for repetition
+detection. `VerificationEstimate` retains a CostModel input and Decision for an
+eligible verification demand; it is not calibration. `DiagnosisRecorded` binds
+the diagnosis to the assessed progress boundary and its source context.
+`EscalationPlan` states the proposed step, expected effect, bound, success
+condition and any limitation. `ProgressRecorded` retains these decisions and
+handler outcomes; `ProgressState` projects bounded work observations, history
+and atomic pending work. `Progress` is the owner-authorized implementation
+consumer. Monitor/Diagnosis/Escalation requests carry their exact commit boundary.
+
+`RecoveryWork` binds a new Contribution to the step, profile, cost estimate and
+exact failure context; `RecoveryOutcome` distinguishes actual reruns, created
+work, stopping and explicit unavailability. Work creation is not an Invocation
+completion. `ReplacementProposal` stages the full old/new check relationship,
+candidate, criterion, defect and contract. `ReplacementVerdict` is the precise
+reviewer statement; `ReplacementApproval` binds it to a completed, accounted
+independent Reviewer invocation. These values implement A9's reviewed replacement
+without granting an adapter authority or treating generic approval as check review.
+
 ### 3.7. Resources
 
 ```text

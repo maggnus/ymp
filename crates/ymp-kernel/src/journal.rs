@@ -22,6 +22,50 @@ impl Default for ParameterSchemas {
         Self {
             validators: BTreeMap::from([
                 (
+                    ("ProgressMonitor".into(), "EvidenceDelta".into(), "1".into()),
+                    validate_monitor as ParameterValidator,
+                ),
+                (
+                    (
+                        "ProgressMonitor".into(),
+                        "AcceptedOnlyProgress".into(),
+                        "1".into(),
+                    ),
+                    validate_monitor as ParameterValidator,
+                ),
+                (
+                    (
+                        "FailureDiagnoser".into(),
+                        "RuleBasedDiagnoser".into(),
+                        "1".into(),
+                    ),
+                    validate_diagnoser as ParameterValidator,
+                ),
+                (
+                    (
+                        "FailureDiagnoser".into(),
+                        "DirectFailuresOnly".into(),
+                        "1".into(),
+                    ),
+                    validate_diagnoser as ParameterValidator,
+                ),
+                (
+                    (
+                        "EscalationPolicy".into(),
+                        "DiagnosisFirstLadder".into(),
+                        "1".into(),
+                    ),
+                    validate_escalation as ParameterValidator,
+                ),
+                (
+                    (
+                        "EscalationPolicy".into(),
+                        "StopOnUncertainty".into(),
+                        "1".into(),
+                    ),
+                    validate_escalation as ParameterValidator,
+                ),
+                (
                     ("IntakePolicy".into(), "VoiClarification".into(), "1".into()),
                     validate_intake as ParameterValidator,
                 ),
@@ -556,4 +600,20 @@ fn validate_contribution(selection: &PolicySelection) -> Result<()> {
         ));
     }
     Ok(())
+}
+
+fn validate_monitor(s: &PolicySelection) -> Result<()> {
+    let p: crate::ports::progress::MonitorParameters =
+        ymp_domain::journal::decode(&encode(&s.parameters)?)?;
+    p.validate()
+}
+fn validate_diagnoser(s: &PolicySelection) -> Result<()> {
+    let _: crate::ports::progress::DiagnosisParameters =
+        ymp_domain::journal::decode(&encode(&s.parameters)?)?;
+    Ok(())
+}
+fn validate_escalation(s: &PolicySelection) -> Result<()> {
+    let p: crate::ports::progress::EscalationParameters =
+        ymp_domain::journal::decode(&encode(&s.parameters)?)?;
+    p.validate()
 }

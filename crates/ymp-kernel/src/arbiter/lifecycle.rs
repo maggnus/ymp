@@ -1068,7 +1068,8 @@ fn resolve_completion(view: &SessionView, source: &Ref) -> Result<CompletionProj
             || item.accepted.as_ref() != Some(id)
             || assignment.agent != result.producer
             || assignment.profile != result.profile
-            || contribution.contract != view.results().plans()[&item.plan].contract
+            || (contribution.contract != view.results().plans()[&item.plan].contract
+                && !crate::results::plan_current(view, &item.plan)?)
             || contribution.value.subject.as_ref().map(|s| s.reference())
                 != Some(&item.reference()?)
         {

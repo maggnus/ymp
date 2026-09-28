@@ -31,6 +31,9 @@ pub struct Application<J: Journal> {
     registry: Registry<J>,
 }
 impl<J: Journal> Application<J> {
+    pub fn progress(&self) -> ymp_kernel::progress::Progress<J> {
+        self.intake.progress()
+    }
     pub fn plans(&self) -> ymp_kernel::plans::Plans<J> {
         self.intake.plans()
     }

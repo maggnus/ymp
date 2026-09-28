@@ -83,9 +83,10 @@ yield limitations. A selected Diagnose is not a completed diagnosis.
 Path prefiltering observes this session's holds. Gatekeeper/WorkspaceGuard retain
 the authoritative cross-session physical checks at admission. Selection neither
 reserves money nor promises that a later admission will succeed. The existing
-Treasury funding rules still apply in the eventual admission order. Production
-admission remains tied to its original plan contract; adding checks before a
-candidate exists may require a later planning capability and is reported explicitly.
+Treasury funding rules still apply in the eventual admission order.
+[W1-0012](progress-implementation.md) permits changed checks when the original
+Task and criterion references are unchanged, while retaining the original plan
+and contribution contracts.
 
 ## History and verification
 
@@ -126,7 +127,9 @@ was full. Removing only this repository's regenerable incremental build cache
 restored capacity. An intermediate test rerun was stopped when the final append
 version guard required a code change; the final checks cover that corrected code.
 
-Native models, interactive P6, full board-triggered questions, execution of
-diagnosis/research, decomposition, automatic session scheduling and post-restart
+W1-0012 adds bounded researcher diagnosis through its own recovery consumer.
+Ordinary candidate-scoped Verify/Diagnose execution still needs the W1-0014
+dispatcher integration. Native models, interactive P6, full board-triggered
+questions, decomposition, automatic session scheduling and post-restart
 owner recovery are not delivered by this task. No empirical self-organization
 benefit is inferred from Scripted fixtures.

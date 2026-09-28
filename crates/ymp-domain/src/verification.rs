@@ -544,3 +544,33 @@ impl StrongestSupportParameters {
         Ok(())
     }
 }
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum Diagnosis {
+    Environment,
+    CheckDefect,
+    CapabilityMismatch,
+    ArtifactDefect,
+    CapabilityLimit,
+    Ambiguity,
+    PlanDefect,
+    BudgetExhausted,
+    Unknown,
+}
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ProgressRecord {
+    pub at: u64,
+    pub satisfied: bool,
+    pub looping: bool,
+    pub progress: crate::task::Real,
+    pub diagnosis: Option<Diagnosis>,
+    pub rationale: String,
+}
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ProgressLedger {
+    pub session: Id,
+    pub records: Vec<ProgressRecord>,
+    pub stall_count: u32,
+}

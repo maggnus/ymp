@@ -40,6 +40,9 @@ pub struct Intake<J: Journal> {
     decisions: DecisionConsumer<J>,
 }
 impl<J: Journal> Intake<J> {
+    pub fn progress(&self) -> crate::progress::Progress<J> {
+        crate::progress::Progress::new(self.journal.clone(), self.decisions.shared())
+    }
     pub fn plans(&self) -> crate::plans::Plans<J> {
         crate::plans::Plans::new(self.journal.clone(), self.decisions.shared())
     }

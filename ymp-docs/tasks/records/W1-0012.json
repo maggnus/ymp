@@ -5,14 +5,14 @@
   "title": "Diagnose stalls and perform bounded recovery without discarding verified work",
   "type": "implementation",
   "priority": 112,
-  "status": "planned",
+  "status": "in_progress",
   "depends_on": [
     "W1-0007",
     "W1-0019",
     "W1-0010",
     "W1-0011"
   ],
-  "owner": null,
+  "owner": "codex",
   "goal": "Make failed execution and stalled criterion progress change the next decision for a stated reason rather than repeat the same assignment indefinitely.",
   "scope": [
     "Implement ProgressLedger/ProgressRecord and EvidenceDelta with weighted belief change, repeated (kind,targets,outcome)/rejection detection, epsilon, stall_count and stall_limit. Keep the derived stall decision reproducible from journaled inputs.",
@@ -33,7 +33,7 @@
     "RuleBasedDiagnoser distinguishes check/environment/capability/artifact/plan/interpretation/resource failures. W3-0007 supplies ModelAssistedDiagnoser and the team/plan-dependent action handlers; W4-0003 supplies AlternativeAttempts. Unsupported later actions are explicit limitations, not silently completed steps.",
     "ProgressMonitor/FailureDiagnoser/EscalationPolicy are replaceable algorithms with recoverable inputs and parameters. A handler cannot ignore R-19 holds, revive authority or discard accepted work. Each escalation records purpose, bound and criterion for judging its outcome."
   ],
-  "revision": 4,
+  "revision": 7,
   "history": [
     {
       "revision": 1,
@@ -62,6 +62,27 @@
       "actor": "owner",
       "status": "planned",
       "note": "Start decision 2026-09-16: W1 scheduled; readiness follows dependencies."
+    },
+    {
+      "revision": 5,
+      "at": "2026-09-28T12:03:26.425622Z",
+      "actor": "codex",
+      "status": "in_progress",
+      "note": "Claimed by codex."
+    },
+    {
+      "revision": 6,
+      "at": "2026-09-28T13:21:41.592074Z",
+      "actor": "codex",
+      "status": "in_progress",
+      "note": "Independent acceptance_review returned R1(9/10) ACCEPT for the W1 handler scope. Real SQLite/Scripted recovery scenario passed (586.63s) before final narrow fixes. R14 guard removal caused the expected failure (exit 101, 1.87s); restored actual profile/cross-session control/reporting guards passed (1.26s). Literal A9 ordering and tuple/rejection-window checks passed. Targeted all-targets Clippy, fmt and diff check passed. Final make verify is running on the stable code. PlanDefect without candidate is code-reviewed/compiled only. Ordinary Verify/Diagnose(candidate) completion remains explicitly assigned to W1-0014 context; no native inference claimed."
+    },
+    {
+      "revision": 7,
+      "at": "2026-09-28T13:34:50.303780Z",
+      "actor": "codex",
+      "status": "in_progress",
+      "note": "Final make verify exited 0 on the stable code: legacy scan and all four required offline Cargo checks. Both storage progress scenarios passed (536.77s), as did the existing result/acceptance integration. Independent acceptance_review confirmed R1(9/10) ACCEPT for code and documentation. Register and staged diff checks passed. Ordinary candidate-scoped Verify/Diagnose discharge is explicitly recorded as W1-0014 integration; native repair, calibration/interpretation producers, future growth/replan handlers and lost local capability recovery are not claimed."
     }
   ]
 }

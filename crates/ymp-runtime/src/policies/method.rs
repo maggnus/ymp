@@ -10,6 +10,9 @@ pub struct FixedMethod {
 }
 impl FixedMethod {
     pub fn new(kind: MethodKind) -> Result<Self> {
+        Self::with_ladder(kind, vec![EscalationStep::StopPreserving])
+    }
+    pub fn with_ladder(kind: MethodKind, ladder: Vec<EscalationStep>) -> Result<Self> {
         if !matches!(kind, MethodKind::Solo | MethodKind::SoloWithVerifier) {
             return Err(ymp_domain::Denial::new(
                 "method_unavailable",
@@ -21,7 +24,7 @@ impl FixedMethod {
                 "MethodRouter",
                 "FixedMethod",
                 "1",
-                serde_json::json!({"kind":kind,"ladder":[EscalationStep::StopPreserving]}),
+                serde_json::json!({"kind":kind,"ladder":ladder}),
             )?,
         })
     }

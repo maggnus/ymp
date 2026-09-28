@@ -33,9 +33,10 @@
     "Greenfield: create this behavior in the new implementation. Paths below are PROPOSED target modules under the layout owned by W1-0001; only completed prerequisite tasks supply implementation. Prior source, APIs, fixtures and delivery claims are not a baseline.",
     "Create proposed crates/ymp-runtime/src/{application,dispatcher}.rs as the composition of the new kernel services/strategies. W1-0017 supplies invocation execution and W1-0018 the first native Codex backend. Dispatcher orders calls and handles results; business rules remain in their owning services/policies.",
     "Integrate the W1 fixed-workflow baseline from explicit intake through accountable production/review/report. W3 adds real initiative, voluntary allocation and dynamic coordination; no ready prior executable, parser or session engine is assumed.",
-    "§3.9/R-19/R-20 require scoped cessation/release, independent settlement, no duplicate unresolved start, preserved budgets/history and effective user stop handling. Choose minimal concrete observation/control forms. After stop no new model call runs without applicable continuation authority."
+    "§3.9/R-19/R-20 require scoped cessation/release, independent settlement, no duplicate unresolved start, preserved budgets/history and effective user stop handling. Choose minimal concrete observation/control forms. After stop no new model call runs without applicable continuation authority.",
+    "Integration boundary confirmed by W1-0012 review: ContributionPolicy can select Verify/Diagnose with an exact ResultVersion subject, but P2 projected_completion currently connects typed non-artifact ResultVersion completion only for Review. ExecutionHost completion of ordinary candidate-scoped Verify/Diagnose therefore returns commitment_basis and does not discharge responsibility. W1-0012 AddVerifier uses the supported Research/Researcher subject=None path with exact refs in context. Connect those remaining ordinary forms through their real host/receipt/cessation consumer here; do not fabricate ArtifactAccepted or bypass original contribution scope. See ymp-docs/progress-implementation.md and crates/ymp-kernel/src/arbiter/lifecycle.rs."
   ],
-  "revision": 3,
+  "revision": 4,
   "history": [
     {
       "revision": 1,
@@ -57,6 +58,13 @@
       "actor": "owner",
       "status": "planned",
       "note": "Start decision 2026-09-16: W1 scheduled; readiness follows dependencies."
+    },
+    {
+      "revision": 4,
+      "at": "2026-09-28T13:21:41.527847Z",
+      "actor": "manage.py",
+      "status": "planned",
+      "note": "Record the exact remaining candidate-scoped non-artifact completion seam already owned by the full session integration acceptance; no scope or status change."
     }
   ]
 }

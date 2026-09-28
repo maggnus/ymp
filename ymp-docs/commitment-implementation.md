@@ -101,6 +101,14 @@ committed artifact acceptance to the original producer's commitment. Plan/criter
 producers retain their owning tasks. Their production transitions and native
 execution are not claimed as integrated.
 
+[W1-0012](progress-implementation.md) retries failed artifact work only after
+the previous responsibility actually expires. It preserves the failed candidate
+and costs, uses a new admission, and retains exact original production contracts.
+Changed checks are compatible with the same Task and criterion definitions;
+changing their meaning still invalidates the old work scope. Research(None)
+completion supplies the bounded diagnostic handler. Candidate-scoped
+Verify/Diagnose completion remains a W1-0014 integration boundary.
+
 ## Verification
 
 Final independent review accepted the W1-0007 consumer scope with R1(9/10) on
