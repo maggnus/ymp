@@ -5,7 +5,7 @@
   "title": "Build the native Codex backend and discovery for accountable sessions",
   "type": "implementation",
   "priority": 113,
-  "status": "in_progress",
+  "status": "done",
   "depends_on": [
     "W1-0003",
     "W1-0017"
@@ -30,8 +30,10 @@
     "Unsupported settings, malformed/foreign responses, duplicate/partial/cumulative usage and ambiguous cancellation/reconnect cases are denied or recorded truthfully; none grants authority, duplicates a start or releases unresolved holds.",
     "Codex and Scripted run the shared execution contract through actual consumers. Native-run evidence, if separately authorized and collected, records exact runtime version/settings/observations and is not conflated with fixture behavior."
   ],
-  "evidence": [],
-  "revision": 9,
+  "evidence": [
+    "fc6d7d56"
+  ],
+  "revision": 10,
   "history": [
     {
       "revision": 1,
@@ -95,6 +97,13 @@
       "actor": "codex",
       "status": "in_progress",
       "note": "Ready to integrate: independent stable-source and merged code/documentation review R1(9/10) ACCEPT. Actual Codex protocol fixture exercises Registry/SQLite/Gatekeeper/Host, mediated files, duplicate-call suppression, fresh funded continuation, cumulative usage and uncertain outcomes. Native metadata-only Rust consumer passed with installed 0.156.1 and seven offerings; zero model turns. Removing pre-inference authority checks produced one forbidden turn after stop, then restoration passed. Combined verification exposed a pre-CaptureStarted revision/cessation race; the narrow host retry preserves proof and resolves recorded capture without repeating I/O, separately reviewed R1(9/10) ACCEPT. Final make verify exited 0 on the merged corrected source with test opt-level1, debug assertions and overflow checks enabled: all required commands and all ordinary tests. Final report36.39s, progress67.35s and results31.03s passed. Native inference, native tool behavior and independently verified provider billing remain unverified. Documentation states pinned protocol, accounting assumptions and reattachment limits; task14 context records remaining integration seams."
+    },
+    {
+      "revision": 10,
+      "at": "2026-09-28T16:39:21.940192Z",
+      "actor": "codex",
+      "status": "done",
+      "note": "Implementation fc6d7d56 is reachable from main. CodexAppServer discovery and execution connect real Registry/Gatekeeper/Host consumers with mediated file authority, bounded protocol handling, accounted continuation, native/protocol-fixture provenance and truthful partial/unknown outcomes. Final required make verify passed on the merged source, using test optimization with debug assertions and overflow checks retained; independent code/documentation and capture-race reviews R1(9/10) ACCEPT. Native metadata was exercised separately with zero inference. Complete native team execution remains task14 and product experiments have not begun."
     }
   ]
 }
