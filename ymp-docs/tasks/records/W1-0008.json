@@ -5,7 +5,7 @@
   "title": "Submit immutable result versions bound to attempts and exact workspace snapshots",
   "type": "implementation",
   "priority": 108,
-  "status": "in_progress",
+  "status": "done",
   "depends_on": [
     "W1-0005",
     "W1-0006",
@@ -25,7 +25,11 @@
     "A foreign assignment, changed digest, missing snapshot or unresolved write effect cannot submit a valid candidate. Process completion alone leaves the work unaccepted.",
     "A rejected/abandoned attempt remains inspectable, and revocation does not mutate any stored candidate or accepted WorkItem reference. A retry creates a distinct attempt and result instead of overwriting history."
   ],
-  "evidence": [],
+  "evidence": [
+    "9ef44a81",
+    "ymp-docs/result-implementation.md",
+    "crates/ymp-storage/tests/results.rs"
+  ],
   "context": [
     "Authority: ymp-docs/self-organizing-team-domain-model.md, sections 3.3 (Plan, WorkItem), 3.4 (Attempt, ResultVersion), 4 (WorkspaceGuard), A6/A10/A11 and R-16. Use the approved model with 811a872 semantics and the greenfield baseline in 0c61ff1 and §5.8 for experimental strategy boundaries. Other documents and existing names explain implementation facts only.",
     "Greenfield: create this behavior in the new implementation. Paths below are PROPOSED target modules under the layout owned by W1-0001; only completed prerequisite tasks supply implementation. Prior source, APIs, fixtures and delivery claims are not a baseline.",
@@ -33,7 +37,7 @@
     "Submission validates actual assignment/workspace/producer/profile ownership and records a fresh Attempt/ResultVersion. No submission or process completion is acceptance. W1-0009 checks these candidates, W1-0010 independently accepts/rejects them and discharges artifact commitments.",
     "Retain snapshot bytes and non-selected/rejected/abandoned versions. A retry cannot overwrite results/evidence and unresolved writing cannot yield a stable after snapshot. Use the durable store from W1-0016; no previous-iteration migration is required."
   ],
-  "revision": 5,
+  "revision": 6,
   "history": [
     {
       "revision": 1,
@@ -69,6 +73,13 @@
       "actor": "codex",
       "status": "in_progress",
       "note": "R1(9/10) ACCEPT recorded 28/09 16:56 — Independent review confirmed protected before capture, atomic release-to-after-capture transfer, retained cessation evidence, authoritative candidate metadata and preserved abandoned history without acceptance. A real Planner and two Scripted productions pass the focused scenario; removing baseline ownership validation produced exit 101 by incorrectly admitting a stale snapshot. Native execution, parallel capture and injected publication failures remain untested and explicit in result-implementation.md. Final make verify is running; task is not complete yet."
+    },
+    {
+      "revision": 6,
+      "at": "2026-09-28T09:04:27.642844Z",
+      "actor": "codex",
+      "status": "done",
+      "note": "Delivered in main at 9ef44a81; ancestry verified. Explicit one-item planning, typed production scope, protected before capture, atomic after capture, immutable candidates and retained abandoned retries are implemented. Final make verify exited 0; register/diff/legacy checks passed; independent R1(9/10) ACCEPT. A stale-baseline mutation failed as expected. The first broad run exposed a pre-existing one-second process-startup fixture limit; only the content-discrimination scenario now allows five seconds, with dedicated 50 ms timeout checks retained. Native execution, general graphs, acceptance transitions, parallel capture and injected publication failures remain explicitly outside verified coverage."
     }
   ]
 }
