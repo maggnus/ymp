@@ -164,6 +164,7 @@ impl<J: Journal + 'static, C: ContentStore + 'static> Dispatcher<J, C> {
                 if matches!(
                     e.code.as_str(),
                     "assignment_unavailable"
+                        | "no_offers"
                         | "recovery_unresolved"
                         | "narrator_unavailable"
                         | "narration_funds"

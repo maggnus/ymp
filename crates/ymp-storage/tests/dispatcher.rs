@@ -534,6 +534,75 @@ fn dispatcher_delivers_checked_producer_reviewer_session_on_both_journals() {
     }
 }
 
+fn elapsed_offer_window(receive_offer: bool) {
+    let root = Directory::new();
+    let database = Directory::new();
+    std::fs::write(root.0.join("file"), b"baseline").unwrap();
+    let mut schemas = ParameterSchemas::default();
+    schemas
+        .register("ExecutionBackend", "SessionFixture", "1", |_| Ok(()))
+        .unwrap();
+    let store = SqliteJournal::open(database.database(), schemas.clone()).unwrap();
+    let journal = Arc::new(
+        ymp_runtime::memory_journal::MemoryJournal::with_binding_identity(schemas).unwrap(),
+    );
+    let clock = Arc::new(ManualClock::new(1));
+    let mut session = Dispatcher::start(
+        journal,
+        Arc::new(store.content_store()),
+        request(),
+        policies(),
+        Arc::new(Backend::new()),
+        Arc::new(Direct::open(&root.0, CaptureLimits::default()).unwrap()),
+        Arc::new(RetainedBytes),
+        clock.clone(),
+    )
+    .unwrap();
+    for _ in 0..10 {
+        session.tick().unwrap();
+        let view = session.view().unwrap();
+        if view
+            .coordination()
+            .solicitations()
+            .contains_key(&id("intake"))
+            && view.coordination().offers().len() == usize::from(receive_offer)
+        {
+            let deadline = view.coordination().solicitations()[&id("intake")]
+                .value
+                .deadline;
+            clock.advance_to(deadline + 1).unwrap();
+            session.tick().unwrap();
+            let view = session.view().unwrap();
+            assert_eq!(
+                view.coordination().offers().len(),
+                usize::from(receive_offer)
+            );
+            if receive_offer {
+                assert!(view.coordination().awards().contains_key(&id("intake")));
+            } else {
+                assert!(view.coordination().awards().is_empty());
+                assert_eq!(
+                    view.session_state().phase,
+                    Some(SessionStatus::Blocked("no_offers".into()))
+                );
+            }
+            assert!(view.execution().invocations().is_empty());
+            return;
+        }
+    }
+    panic!("The initial solicitation did not receive its first offer");
+}
+
+#[test]
+fn elapsed_offer_window_uses_the_received_offer_without_a_late_submission() {
+    elapsed_offer_window(true);
+}
+
+#[test]
+fn elapsed_offer_window_without_offers_records_blocked() {
+    elapsed_offer_window(false);
+}
+
 fn stopped<J: Journal + 'static>(journal: Arc<J>, content: Arc<SqliteContent>, root: &Directory) {
     let clock = Arc::new(ManualClock::new(1));
     let mut fixture = Backend::new();

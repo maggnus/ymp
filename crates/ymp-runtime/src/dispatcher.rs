@@ -481,6 +481,7 @@ impl<J: Journal + 'static, C: ContentStore + 'static> Dispatcher<J, C> {
                         | "no_useful_work"
                         | "assignment_unavailable"
                         | "candidate_review_pending"
+                        | "no_offers"
                         | "verification_unavailable"
                         | "candidate_rejected"
                         | "commitment_expired"
@@ -902,7 +903,10 @@ impl<J: Journal + 'static, C: ContentStore + 'static> Dispatcher<J, C> {
             )?;
             return Ok(Tick::Advanced);
         }
-        for (agent, profile) in &profiles {
+        let deadline = view.coordination().solicitations()[&id(name)?]
+            .value
+            .deadline;
+        for (agent, profile) in profiles.iter().filter(|_| at < deadline) {
             let offer_id = id(&format!("offer-{name}-{}", Digest::of(agent.as_str())))?;
             if !view.coordination().offers().contains_key(&offer_id) {
                 let c = &view.coordination().contributions()[&contribution_id].value;
@@ -925,9 +929,6 @@ impl<J: Journal + 'static, C: ContentStore + 'static> Dispatcher<J, C> {
                 return Ok(Tick::Advanced);
             }
         }
-        let deadline = view.coordination().solicitations()[&id(name)?]
-            .value
-            .deadline;
         if at < deadline {
             return Ok(Tick::Waiting { until: deadline });
         }

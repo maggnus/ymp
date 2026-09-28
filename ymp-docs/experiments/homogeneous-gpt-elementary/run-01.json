@@ -1,0 +1,538 @@
+{
+  "summary": {
+    "calls": 0,
+    "elapsed_ms": 596,
+    "failure": null,
+    "input_unchanged": true,
+    "outcome": {
+      "Blocked": "final_acceptance_unavailable"
+    },
+    "revision": 14,
+    "sorted_bytes_match": false,
+    "status": {
+      "Blocked": "final_acceptance_unavailable"
+    }
+  },
+  "experiment": {
+    "cleanup_ms": 30000,
+    "comparative_token_efficiency": "unknown; no comparative usage evidence",
+    "constraints": {
+      "allowed": [
+        "ReadFiles",
+        "WriteFiles"
+      ],
+      "attempt_limit": 1,
+      "budget": 250000.0,
+      "deadline": 1790623348795,
+      "max_members": 2,
+      "parallel_limit": 1,
+      "pins": {
+        "efforts": null,
+        "models": null,
+        "roster": null,
+        "team_size": null
+      },
+      "verification_reserve": 60000.0
+    },
+    "definition": {
+      "checks": [
+        {
+          "criterion": {
+            "id": "sorted-json",
+            "version": "709c5e3beb5a4eaf0a5c657ffd7201698f2d60a0a72318b537490b15d2d8f0e2"
+          },
+          "spec": {
+            "ExactBytes": {
+              "digest": "9378b8dce9e7b6606624d9041ab49cba923e20ee3bffc0438f9e41f942a5c357",
+              "path": "sorted.json"
+            }
+          }
+        },
+        {
+          "criterion": {
+            "id": "input-preserved",
+            "version": "b5dde7d711585aca15a993ee3f370a9952de9b6ef55522ca962d0c180b4d3da1"
+          },
+          "spec": {
+            "ExactBytes": {
+              "digest": "eaa0aaa812d2cd872ecfd41a5c2475e818e38e58a21c96806e7132c6779eb97e",
+              "path": "input.json"
+            }
+          }
+        }
+      ],
+      "offer_window_ms": 10,
+      "rules": {
+        "mutation_threshold": 0.8
+      },
+      "workspace": "pilot-workspace"
+    },
+    "driver_digest": "ff35787915db23f6918e176ae57fe4b9feb821b92cb0e01f52de8dc75af63fe4",
+    "expected": "[1,2,2,3]\n",
+    "goal": "Read input.json and write sorted.json containing the numbers sorted ascending, preserving duplicates. The output must be exactly [1,2,2,3] followed by one newline. Only sorted.json may be changed. The supplied owner criteria are sufficient; do not add criteria. Use one WorkItem. Follow each role's structured response schema without Markdown fences.",
+    "input": "[3,2,1,2]\n",
+    "policies": [
+      {
+        "parameters": {},
+        "policy": {
+          "impl": "StaticDependencyProbe",
+          "params": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+          "port": "ReadinessProbe",
+          "version": "1"
+        }
+      },
+      {
+        "parameters": {
+          "cost_interrupt": 0.0
+        },
+        "policy": {
+          "impl": "NoQuestions",
+          "params": "3169f6f252e7617d28255d59091b9df76e73c9513143fd7b3c3357617910dbdb",
+          "port": "IntakePolicy",
+          "version": "1"
+        }
+      },
+      {
+        "parameters": {
+          "kind": "SoloWithVerifier",
+          "ladder": [
+            "StopPreserving"
+          ]
+        },
+        "policy": {
+          "impl": "FixedMethod",
+          "params": "631c7a19f65d87d61c526535657b24c74a2828889b564f10004535ec34e79c47",
+          "port": "MethodRouter",
+          "version": "1"
+        }
+      },
+      {
+        "parameters": {},
+        "policy": {
+          "impl": "AsNeededDecomposition",
+          "params": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+          "port": "Planner",
+          "version": "1"
+        }
+      },
+      {
+        "parameters": {
+          "delta_belief": 0.1,
+          "expected": 16000.0,
+          "p90": 16000.0,
+          "p_success": 0.5
+        },
+        "policy": {
+          "impl": "FixedWorkflow",
+          "params": "66e54d5245be94ead7c4a3dead4ad79026861949a91df9d9c1f109f6c96fba39",
+          "port": "ContributionPolicy",
+          "version": "1"
+        }
+      },
+      {
+        "parameters": {
+          "external": 30.0,
+          "hidden": 20.0,
+          "independent": 5.0,
+          "inspection": 1.5,
+          "producer": 1.5,
+          "static_read": 1.1,
+          "thresholds": {
+            "behavior": 0.9,
+            "quality": 0.6,
+            "support": 0.6
+          },
+          "trusted": 50.0
+        },
+        "policy": {
+          "impl": "LikelihoodRatioTable",
+          "params": "4e818b38c4422f26cc44fe1e710322f3ac136efa64f01a1407ea46998ce4d0ac",
+          "port": "BeliefModel",
+          "version": "1"
+        }
+      },
+      {
+        "parameters": {},
+        "policy": {
+          "impl": "ConfirmedOnly",
+          "params": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+          "port": "CreditPolicy",
+          "version": "1"
+        }
+      },
+      {
+        "parameters": {
+          "epsilon": 0.001,
+          "stall_limit": 3
+        },
+        "policy": {
+          "impl": "EvidenceDelta",
+          "params": "87bc308e9f6b53456a035c37e3ace95c282b4210cc422ce99c6210a4c0517018",
+          "port": "ProgressMonitor",
+          "version": "1"
+        }
+      },
+      {
+        "parameters": {
+          "mutation_threshold": 0.8,
+          "p_min": 0.1
+        },
+        "policy": {
+          "impl": "RuleBasedDiagnoser",
+          "params": "ced4ffbe4c01e1304265c2cc02af1bedd1d52a25bbc1729a8d6695a8deb92870",
+          "port": "FailureDiagnoser",
+          "version": "1"
+        }
+      },
+      {
+        "parameters": {
+          "max_cost": 16000.0,
+          "max_uses": 1,
+          "timeout_ms": 60000
+        },
+        "policy": {
+          "impl": "DiagnosisFirstLadder",
+          "params": "e272dfa9afe45e340b716ab6e4e0949b5e969c545e22a2e5b2284fc135eea0ad",
+          "port": "EscalationPolicy",
+          "version": "1"
+        }
+      },
+      {
+        "parameters": {
+          "lease_duration": 480000,
+          "release_delta": 1.0,
+          "renew_on": [],
+          "renewal_duration": 480000,
+          "renewals": 0
+        },
+        "policy": {
+          "impl": "FirstOffer",
+          "params": "24f986eb6631c7a44c607d9a62a7ecd4157f08706eca604af81a4e487d761162",
+          "port": "AwardPolicy",
+          "version": "2"
+        }
+      },
+      {
+        "parameters": {
+          "expected_input": 4000,
+          "expected_output": 1000,
+          "p90_factor": 1.5
+        },
+        "policy": {
+          "impl": "PriceWeighted",
+          "params": "88b82a7701a4ff0b4db95bf0a3ac72fb0d2b15dbf5cd622511389383108763d5",
+          "port": "CostModel",
+          "version": "1"
+        }
+      },
+      {
+        "parameters": {
+          "max_cost": 30000.0,
+          "native_turns": 1,
+          "output_chars": 8000,
+          "report_call_cost": 15000.0,
+          "timeout": 60000
+        },
+        "policy": {
+          "impl": "PurposeBounded",
+          "params": "90d03ca59104d785b07ee72f32f91136a3b3e98d067ce73b36c189687e1f1e8b",
+          "port": "ResourcePolicy",
+          "version": "1"
+        }
+      },
+      {
+        "parameters": {
+          "history_limit": 4
+        },
+        "policy": {
+          "impl": "CriteriaProjection",
+          "params": "33b9088be99ba69a0bb047a6c2673ec83160a404026bbdec51c5025c37830358",
+          "port": "ContextComposer",
+          "version": "1"
+        }
+      },
+      {
+        "parameters": {},
+        "policy": {
+          "impl": "AnyNonProducer",
+          "params": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+          "port": "ReviewerPolicy",
+          "version": "1"
+        }
+      },
+      {
+        "parameters": {
+          "max_claims": 128,
+          "max_text": 4096
+        },
+        "policy": {
+          "impl": "DeterministicReport",
+          "params": "ec9434162586830f7e33c3bf2a5df9c0c587bf3043abfb0e3b2e85836ac968a9",
+          "port": "NarrativeComposer",
+          "version": "1"
+        }
+      },
+      {
+        "parameters": {},
+        "policy": {
+          "impl": "EvidenceClassRules",
+          "params": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+          "port": "ClaimAuditor",
+          "version": "1"
+        }
+      }
+    ],
+    "pricebook": {
+      "fallback": {
+        "cache_read": 0.1,
+        "cache_write": 1.25,
+        "input": 1.0,
+        "output": 4.0
+      },
+      "rates": [],
+      "version": "pilot-relative-token-weights-not-currency-v1"
+    },
+    "purpose": "First homogeneous GPT team elementary fixed-workflow pilot",
+    "requested_effort": "low",
+    "requested_model": "gpt-6-luna",
+    "started_at_ms": 1790622868795,
+    "unknown_usage": "Stop",
+    "watchdog_ms": 480000
+  },
+  "discovery": {
+    "provider": {
+      "id": "codex",
+      "kind": "Codex",
+      "version": "0.156.1",
+      "capabilities": [
+        "ReadFiles",
+        "WriteFiles"
+      ]
+    },
+    "offerings": [
+      {
+        "provider": "codex",
+        "model": "gpt-6-astra",
+        "family": null,
+        "efforts": [
+          "high",
+          "low",
+          "max",
+          "medium",
+          "ultra",
+          "xhigh"
+        ],
+        "default_effort": "medium"
+      },
+      {
+        "provider": "codex",
+        "model": "gpt-6-sol",
+        "family": null,
+        "efforts": [
+          "high",
+          "low",
+          "max",
+          "medium",
+          "ultra",
+          "xhigh"
+        ],
+        "default_effort": "medium"
+      },
+      {
+        "provider": "codex",
+        "model": "gpt-6-luna",
+        "family": null,
+        "efforts": [
+          "high",
+          "low",
+          "max",
+          "medium",
+          "xhigh"
+        ],
+        "default_effort": "medium"
+      },
+      {
+        "provider": "codex",
+        "model": "gpt-5.6-sol",
+        "family": null,
+        "efforts": [
+          "high",
+          "low",
+          "max",
+          "medium",
+          "ultra",
+          "xhigh"
+        ],
+        "default_effort": "low"
+      },
+      {
+        "provider": "codex",
+        "model": "gpt-5.6-terra",
+        "family": null,
+        "efforts": [
+          "high",
+          "low",
+          "max",
+          "medium",
+          "ultra",
+          "xhigh"
+        ],
+        "default_effort": "medium"
+      },
+      {
+        "provider": "codex",
+        "model": "gpt-5.6-luna",
+        "family": null,
+        "efforts": [
+          "high",
+          "low",
+          "max",
+          "medium",
+          "xhigh"
+        ],
+        "default_effort": "medium"
+      },
+      {
+        "provider": "codex",
+        "model": "gpt-5.5",
+        "family": null,
+        "efforts": [
+          "high",
+          "low",
+          "medium",
+          "xhigh"
+        ],
+        "default_effort": "medium"
+      }
+    ],
+    "default_model": "gpt-6-astra",
+    "adapter_available": true,
+    "source": "Native",
+    "method": "CodexAppServer/0.156.1/zero-environment/5efad8fe79944682bd9877e8d4cb30c527aab820416811e535293ff52ff75fcb",
+    "observed_at": 1790622866902
+  },
+  "selected_readiness": [
+    {
+      "profile": {
+        "agent": "gpt-a",
+        "provider_version": "0.156.1",
+        "model": "gpt-6-luna",
+        "family": null,
+        "effort": "low"
+      },
+      "input": "ac6b82ab21e9ca0347119c86920d35601d6195592daf7508eec50eb76c38c867",
+      "proposal": {
+        "value": "Ready",
+        "rationale": "Evaluate recorded static dependencies without invoking a model",
+        "basis": [],
+        "policy": {
+          "port": "ReadinessProbe",
+          "impl": "StaticDependencyProbe",
+          "version": "1",
+          "params": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+        }
+      },
+      "outcome": {
+        "NotReady": {
+          "code": "MissingDependency",
+          "message": "No native executable observation was supplied"
+        }
+      }
+    },
+    {
+      "profile": {
+        "agent": "gpt-b",
+        "provider_version": "0.156.1",
+        "model": "gpt-6-luna",
+        "family": null,
+        "effort": "low"
+      },
+      "input": "98475d327a7f25161cb23fff0ad7dee1fa5986bfd1205c304d7ce80c1b4c05f5",
+      "proposal": {
+        "value": "Ready",
+        "rationale": "Evaluate recorded static dependencies without invoking a model",
+        "basis": [],
+        "policy": {
+          "port": "ReadinessProbe",
+          "impl": "StaticDependencyProbe",
+          "version": "1",
+          "params": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+        }
+      },
+      "outcome": {
+        "NotReady": {
+          "code": "MissingDependency",
+          "message": "No native executable observation was supplied"
+        }
+      }
+    }
+  ],
+  "report": {
+    "retained": [],
+    "accepted_sources": [],
+    "criteria": [
+      {
+        "id": "sorted-json",
+        "text": "sorted.json is exactly [1,2,2,3] followed by one newline",
+        "kind": "NewBehavior",
+        "weight": 1.0,
+        "required": true,
+        "origin": "User",
+        "needs_class": []
+      },
+      {
+        "id": "input-preserved",
+        "text": "input.json remains exactly the original input",
+        "kind": "Preserve",
+        "weight": 1.0,
+        "required": true,
+        "origin": "User",
+        "needs_class": []
+      }
+    ],
+    "report": {
+      "id": "report",
+      "session": "homogeneous-gpt-elementary",
+      "claims": [
+        "claim-845e91831319e89c4d656bdb80c278ac09a7230d61e5dfd2e1b1fbb436ac8917-0"
+      ],
+      "unmet": [
+        "sorted-json",
+        "input-preserved"
+      ],
+      "assumptions": [],
+      "grade": "Unconfirmed"
+    },
+    "claims": [
+      {
+        "id": "claim-845e91831319e89c4d656bdb80c278ac09a7230d61e5dfd2e1b1fbb436ac8917-0",
+        "report": "report",
+        "text": "Uncertain: independent final acceptance is unavailable; retained work is not presented as a completed artifact.",
+        "kind": "Status",
+        "evidence": [],
+        "audit": "Valid"
+      }
+    ],
+    "aggregate": null,
+    "acceptance": null,
+    "outcome": {
+      "Blocked": "final_acceptance_unavailable"
+    },
+    "accounting": {
+      "spent": 0.0,
+      "held": 0.0,
+      "unknown": false,
+      "receipts": []
+    },
+    "unresolved": [],
+    "draft": {
+      "id": "event:c69820bbc2434346fb8450f4041701a0a1a6758202867b866023cf790a2c7529",
+      "version": "096e43e97630a36f3d3c75f903b905252955b7503fbbfc7306d72350b0e26a50"
+    },
+    "audit": {
+      "id": "event:de4d7e9f9fda4667740837a017e32ea980c86e9a3d114888fcf759611cd5214c",
+      "version": "da1b0f059a1f7f8fb7fda951a28848d8e2adf2a5dcd0ac28bd0effade02967ef"
+    }
+  },
+  "note": "Preflight blocked before inference: missing executable dependency observation. All native invocation counts are zero. Retained defaults were not strict model/effort pins; the next setup corrects both facts."
+}

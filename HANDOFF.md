@@ -1,10 +1,60 @@
 # Resume handoff
 
-Updated: 2026-09-28 19:04 UTC (2026-09-29 03:04 Asia/Hong_Kong).
+Updated: 2026-09-29, during preparation of the first native pilot.
 
 This is a recovery note, not another task register. Reconcile it with Git and the
 canonical JSON task records before acting. Replace stale details when work moves
 forward; do not accumulate a transcript here.
+
+## Active work after the checkpoint
+
+Root is the only writer on main. W1-0014 was reopened through the task tool
+(planned revision 11, then claimed by codex at revision 12) for a concrete P1
+real-clock regression found during the native pilot. Prior delivery commits and
+evidence remain valid history; the current record now owns repair status.
+
+Uncommitted changes: `crates/ymp-storage/examples/homogeneous_gpt.rs`, compact
+run evidence and README under `ymp-docs/experiments/homogeneous-gpt-elementary/`,
+a narrow Dispatcher deadline fix, one short consumer regression, task records
+and this handoff. Never reapply the old W1-0014 worktree over these changes.
+
+Five sequential runs are finished; no native process is active:
+- 01: zero calls, missing executable dependency observation; fixed in the example.
+- 02: zero calls, 10 ms offer window expired; changed to 1000 ms.
+- 03: one real intake call; correct JSON, but actual cost 12404.4 exceeded the
+  12000 relative-unit allowance. Receipt Complete, held 0; output not consumed.
+- 04: intake completed, cost 12454.4; capacity 1 refused the second distinct Plan
+  stage. Driver now uses capacity 2, with StopPreserving only and no production retry.
+- 05: both Plan calls completed, cost 26509.8, held 0; production solicitation
+  received one valid offer, then a second late submission caused cancellation.
+  No producer artifact or independent review has yet been exercised natively.
+
+All actual calls requested/sent `gpt-6-luna / low`; reported model/effort remain
+unknown. Do not change models or effort to hide integration failures. Current
+forecast: input 20000/output 1000/p90 factor 1.25, within unchanged 30000 per-call
+ceiling and 250000 session budget, 60000 verification reserve, 30000 reporting
+reserve, base timeout60s, overall480s plus30s cleanup. Two identities and profile
+are now strict Pins. Discovery observed Codex0.156.1 and seven offerings.
+
+Immediate next steps:
+1. The focused check passed both received-offer and empty-window cases in 0.10s
+   (`/tmp/ymp-offer-deadline-green.log`); independent review accepted (R1, 9/10).
+   Full `make verify` passed with exit 0: `/tmp/ymp-pilot-offer-verify.log`.
+   All nine Dispatcher scenarios passed together in 140.16s. Ready to commit;
+   do not repeat these checks without a new change or concern. The new
+   short test failed on old code in0.14s (`/tmp/ymp-offer-deadline-red.log`).
+   Fix: stop submitting RuntimeProxy offers at the deadline, then use the existing
+   AwardPolicy on valid received offers. Source writer is root; review is read-only.
+2. Verify the fix, preserve all pilot outcomes, commit the repaired W1-0014 and
+   its canonical completion. No native inference while this boundary is unverified.
+3. A further homogeneous pilot can then test the repaired production transition;
+   use a NEW directory and retain the earlier costs/results. Do not repeat a run
+   because the conversation or its process disappeared.
+
+Current example build log: `/tmp/ymp-pilot-build.log`. Native logs/directories use
+`/tmp/ymp-gpt-elementary-20260929-NN[.log]`; complete SQLite journals and view.json
+remain there. Compact evidence run-01.json through run-05.json is in the repository
+but not committed yet. Normal builds/tests never invoke a native model.
 
 ## Owner direction
 
@@ -43,10 +93,11 @@ stop, retained accounting, recovery, Retry and AddVerifier. Evidence is in
 This is the fixed W1 workflow. Agent initiative and dynamic cooperation remain
 later work. The CLI and TUI are still placeholders. There has been **no native
 GPT-team experiment and no ymp model inference**. Earlier native probes inspected
-metadata only. No pilot runner has been added and no native model selected.
+metadata only. No pilot runner was committed at this checkpoint; preparation is
+described above.
 
-There are no pending product edits, running verification commands or active child
-writers at this checkpoint. The pre-existing untracked `.wrangler/` is unrelated;
+There were no pending product edits or running checks at that checkpoint; current
+work is described above. The pre-existing untracked `.wrangler/` is unrelated;
 do not stage, remove or modify it.
 
 ## Resume actions
@@ -57,14 +108,14 @@ do not stage, remove or modify it.
    git status --short
    git log -5 --oneline
    python3 ymp-docs/tasks/manage.py next
-   python3 ymp-docs/tasks/manage.py show W1-0015
+   python3 ymp-docs/tasks/manage.py show W1-0014
    ```
 
 2. Read [intent.md](intent.md) and the authoritative
    [domain model](ymp-docs/self-organizing-team-domain-model.md) before changing
    behavior. Read implementation notes selectively; do not reload every task.
 
-3. The next announced experiment is the first bounded homogeneous GPT pilot
+3. After the active repair above, continue the bounded homogeneous GPT pilot
    under [poc-experiments.md](ymp-docs/poc-experiments.md), now that W1-0014 exists:
    two distinct agents, the same actually available model and supported low
    reasoning setting, an elementary sorted-JSON task in a disposable workspace.
@@ -76,9 +127,10 @@ do not stage, remove or modify it.
    negative or inconclusive findings; do not automatically increase effort or
    repeat the experiment without a stated reason.
 
-4. The task tool currently selects
+4. Before the deadline repair was reopened, the task tool selected
    [W1-0015](ymp-docs/tasks/records/W1-0015.json), the interactive Ratatui interface:
-   last observed planned, ready, unowned, revision 8. It has **not been claimed**.
+   last observed planned, unowned, revision 8. It has **not been claimed** and
+   now waits for the W1-0014 repair to be completed again.
    Re-read the revision, then claim through `manage.py` before implementation.
    Follow [tui-reference.md](ymp-docs/tui-reference.md) and the task's complete
    terminal journey. The experiment direction does not reorder development tasks

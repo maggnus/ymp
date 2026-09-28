@@ -191,3 +191,21 @@ CARGO_PROFILE_TEST_OVERFLOW_CHECKS=true make verify
 
 Only test compilation is optimized; debug assertions and overflow checks remain
 enabled. No Cargo profile or project dependency was changed for these runs.
+
+## Native-pilot deadline follow-up
+
+The first native pilot exposed a real-clock P1 ordering regression after both
+paid planning stages completed: Dispatcher tried to submit a missing RuntimeProxy
+offer after the deadline despite an already valid received offer. W1-0014 was
+reopened through its task record. The narrow repair stops submission at the
+deadline and invokes the existing AwardPolicy on received offers. A no_offers
+denial follows the existing Blocked/report path; during narration it selects the
+deterministic fallback. It does not extend windows or change admission authority.
+
+The short consumer reproducer failed on old code in 0.14 seconds; the repaired
+received-offer and empty-window cases passed together in 0.10 seconds. Independent
+review accepted the repair (R1, 9/10). The full legacy scan and four required
+Cargo checks passed; all nine Dispatcher scenarios passed together in 140.16
+seconds. Normal verification made no native model calls.
+The pilot's inputs, usage, failures and limitations are retained in
+[its evidence directory](experiments/homogeneous-gpt-elementary/README.md).
