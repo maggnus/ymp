@@ -1,9 +1,12 @@
 //! Persisted contribution, RuntimeProxy offer and award foundations for admission.
+mod lifecycle;
 use crate::{
     events::Event,
     journal::{Journal, ParameterSchemas, validate_append},
     view::SessionView,
 };
+pub use lifecycle::{CommitmentEnd, CommitmentLink, CommitmentLinkKind, Delegation};
+pub(crate) use lifecycle::{initial_lease, validate_delegation};
 use serde::{Deserialize, Serialize};
 use std::{collections::BTreeMap, sync::Arc};
 use ymp_domain::{
@@ -32,9 +35,24 @@ pub struct ContributionRecord {
 pub struct Awarded {
     pub decision: Decision<Award>,
     pub commitment: Commitment,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub terms: Option<Decision<CommitmentTerms>>,
 }
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum CommitmentChange {
+    Renewed {
+        commitment: Id<Commitment>,
+        previous: Ref,
+        signal: ProgressSignal,
+        lease: Lease,
+        basis: Option<Ref>,
+    },
+    Ended {
+        commitment: Id<Commitment>,
+        previous: Ref,
+        outcome: CommitmentEnd,
+        reason: String,
+    },
     Cancelled {
         commitment: Id<Commitment>,
         award: Ref,
@@ -55,6 +73,8 @@ pub struct CoordinationView {
     awards: BTreeMap<Id<Solicitation>, Recorded<Awarded>>,
     commitments: BTreeMap<Id<Commitment>, Commitment>,
     pending_award: Option<(Commitment, Ref)>,
+    links: BTreeMap<Id<Solicitation>, CommitmentLink>,
+    pending_reopen: Option<Id<Solicitation>>,
 }
 impl CoordinationView {
     pub fn contributions(&self) -> &BTreeMap<Id<Contribution>, ContributionRecord> {
@@ -73,6 +93,12 @@ impl CoordinationView {
         &self.commitments
     }
     pub(crate) fn complete(&self) -> Result<()> {
+        if self.pending_reopen.is_some() {
+            return Err(Denial::new(
+                "release_incomplete",
+                "Release and reopened solicitation must commit together",
+            ));
+        }
         if self.pending_award.is_some() {
             return Err(Denial::new(
                 "award_incomplete",
@@ -82,6 +108,17 @@ impl CoordinationView {
         Ok(())
     }
     pub(crate) fn check_next(&self, event: &Event) -> Result<()> {
+        if let Some(expected) = &self.pending_reopen {
+            return if matches!(event, Event::SolicitationOpened { solicitation, .. } if &solicitation.id == expected)
+            {
+                Ok(())
+            } else {
+                Err(Denial::new(
+                    "release_incomplete",
+                    "Only the linked reopening may follow release",
+                ))
+            };
+        }
         if self.pending_award.is_some()
             && !matches!(
                 event,
@@ -191,13 +228,22 @@ pub(crate) fn attribution(
                     .reference(),
             );
         }
-        Event::SolicitationOpened { solicitation, .. } => refs.push(
-            book.contributions
-                .get(&solicitation.contribution)
-                .ok_or_else(|| Denial::new("contribution_missing", "No recorded contribution"))?
-                .reference
-                .clone(),
-        ),
+        Event::SolicitationOpened {
+            solicitation,
+            predecessor,
+            ..
+        } => {
+            if let Some(link) = predecessor {
+                refs.push(link.previous.clone());
+            }
+            refs.push(
+                book.contributions
+                    .get(&solicitation.contribution)
+                    .ok_or_else(|| Denial::new("contribution_missing", "No recorded contribution"))?
+                    .reference
+                    .clone(),
+            );
+        }
         Event::OfferSubmitted { offer, .. } => refs.push(
             book.solicitations
                 .get(&offer.solicitation)
@@ -209,6 +255,9 @@ pub(crate) fn attribution(
             policy = Some(data.decision.effective.policy.clone());
             input = Some(data.decision.input.clone());
             refs.extend(data.decision.proposal.basis.clone());
+            if let Some(terms) = &data.terms {
+                refs.extend(terms.proposal.basis.clone());
+            }
             refs.push(
                 book.solicitations
                     .get(&data.decision.outcome.solicitation)
@@ -223,6 +272,12 @@ pub(crate) fn attribution(
                     .reference
                     .clone(),
             );
+        }
+        Event::CommitmentChanged {
+            change: change @ (CommitmentChange::Renewed { .. } | CommitmentChange::Ended { .. }),
+            ..
+        } => {
+            return lifecycle::attribution(view, change);
         }
         Event::CommitmentChanged {
             change:
@@ -296,6 +351,9 @@ pub(crate) fn apply(
         ));
     }
     let reference = event.reference()?;
+    if lifecycle::apply(view, event, &mut book)? {
+        return Ok(book);
+    }
     match &event.payload {
         Event::ContributionProposed { contribution, .. } => {
             contribution.validate()?;
@@ -330,13 +388,18 @@ pub(crate) fn apply(
                 },
             );
         }
-        Event::SolicitationOpened { solicitation, .. } => {
+        Event::SolicitationOpened {
+            solicitation,
+            predecessor,
+            ..
+        } => {
             solicitation.validate()?;
+            lifecycle::validate_link(view, solicitation, predecessor.as_ref())?;
             let pool = view
                 .registry()
                 .ok_or_else(|| Denial::new("registry_missing", "No Registry observation"))?;
             if solicitation.state != SolicitationState::Open
-                || solicitation.reopened != 0
+                || (predecessor.is_none() && solicitation.reopened != 0)
                 || event.at < book.contributions[&solicitation.contribution].at
                 || solicitation.deadline < event.at
                 || view
@@ -348,6 +411,11 @@ pub(crate) fn apply(
                 || book.solicitations.len() >= 4096
                 || book.solicitations.values().any(|prior| {
                     prior.value.contribution == solicitation.contribution
+                        && !lifecycle::is_delegation_source(
+                            view,
+                            predecessor.as_ref(),
+                            &prior.value.id,
+                        )
                         && matches!(
                             prior.value.state,
                             SolicitationState::Open | SolicitationState::Awarded
@@ -367,6 +435,10 @@ pub(crate) fn apply(
                     at: event.at,
                 },
             );
+            if let Some(link) = predecessor {
+                book.links.insert(solicitation.id.clone(), link.clone());
+            }
+            book.pending_reopen = None;
         }
         Event::OfferSubmitted { offer, .. } => {
             offer.validate()?;
@@ -417,6 +489,7 @@ pub(crate) fn apply(
             data.commitment.validate()?;
             schemas.validate(&data.decision.effective)?;
             let input = award_view(view, &data.decision.outcome.solicitation, event.at)?;
+            lifecycle::validate_terms(view, data, &input)?;
             let offer = book
                 .offers
                 .get(&data.decision.outcome.offer)
@@ -641,6 +714,7 @@ impl<J: Journal> Arbiter<J> {
             vec![Event::SolicitationOpened {
                 version: 1,
                 solicitation: Box::new(solicitation),
+                predecessor: None,
             }],
         )
     }
@@ -664,6 +738,19 @@ impl<J: Journal> Arbiter<J> {
         input: Digest,
         commitment: Commitment,
     ) -> Result<u64> {
+        self.award_with_terms(session, expected, at, proposal, input, commitment, None)
+    }
+    #[allow(clippy::too_many_arguments)]
+    pub fn award_with_terms(
+        &self,
+        session: &Id,
+        expected: u64,
+        at: u64,
+        proposal: Proposal<Award>,
+        input: Digest,
+        commitment: Commitment,
+        terms: Option<Proposal<CommitmentTerms>>,
+    ) -> Result<u64> {
         let view = self.view(session)?;
         let effective = view
             .policies()
@@ -671,6 +758,13 @@ impl<J: Journal> Arbiter<J> {
             .ok_or_else(|| Denial::new("policy_selection", "No AwardPolicy selected"))?
             .clone();
         let data = Awarded {
+            terms: terms.map(|proposal| Decision {
+                outcome: proposal.value.clone(),
+                proposal,
+                effective: effective.clone(),
+                input: input.clone(),
+                selection_change: None,
+            }),
             decision: Decision {
                 outcome: proposal.value.clone(),
                 proposal,

@@ -5,6 +5,19 @@ pub struct FirstOffer {
     selection: PolicySelection,
 }
 impl FirstOffer {
+    pub fn with_commitment_terms(terms: ymp_domain::coordination::CommitmentTerms) -> Result<Self> {
+        terms.validate()?;
+        Ok(Self {
+            selection: PolicySelection::new(
+                "AwardPolicy",
+                "FirstOffer",
+                "2",
+                serde_json::to_value(terms).map_err(|_| {
+                    Denial::new("commitment_terms", "Cannot encode commitment terms")
+                })?,
+            )?,
+        })
+    }
     pub fn new() -> Result<Self> {
         Ok(Self {
             selection: PolicySelection::new(
@@ -17,6 +30,23 @@ impl FirstOffer {
     }
 }
 impl AwardPolicy for FirstOffer {
+    fn commitment_terms(
+        &self,
+        view: &AwardView,
+    ) -> Result<Proposal<ymp_domain::coordination::CommitmentTerms>> {
+        let terms = serde_json::from_value(self.selection.parameters.clone()).map_err(|_| {
+            Denial::new(
+                "commitment_terms",
+                "Select FirstOffer version 2 with explicit commitment terms",
+            )
+        })?;
+        Ok(Proposal {
+            value: terms,
+            rationale: "Use the selected bounded commitment terms".into(),
+            basis: vec![view.solicitation.reference.clone()],
+            policy: self.selection.policy.clone(),
+        })
+    }
     fn selection(&self) -> &PolicySelection {
         &self.selection
     }

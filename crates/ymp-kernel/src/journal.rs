@@ -22,6 +22,10 @@ impl Default for ParameterSchemas {
         Self {
             validators: BTreeMap::from([
                 (
+                    ("AwardPolicy".into(), "FirstOffer".into(), "2".into()),
+                    validate_commitment_terms as ParameterValidator,
+                ),
+                (
                     ("AwardPolicy".into(), "FirstOffer".into(), "1".into()),
                     validate_first_offer as ParameterValidator,
                 ),
@@ -56,6 +60,11 @@ impl Default for ParameterSchemas {
             ]),
         }
     }
+}
+fn validate_commitment_terms(selection: &PolicySelection) -> Result<()> {
+    let terms: ymp_domain::coordination::CommitmentTerms =
+        ymp_domain::journal::decode(&encode(&selection.parameters)?)?;
+    terms.validate()
 }
 fn validate_first_offer(selection: &PolicySelection) -> Result<()> {
     if selection.parameters != serde_json::json!({}) {
@@ -304,6 +313,24 @@ pub fn validate_append(
     }
     let mut view = current.view_with_schemas(session, None, schemas)?;
     for event in events {
+        if let Event::ReservationChanged {
+            change: crate::treasury::ReservationChange::Reserved(data),
+            ..
+        } = &event.payload
+            && let Some(intent) = &data.admission
+            && crate::arbiter::initial_lease(
+                &view,
+                &intent.assignment.commitment,
+                event.at,
+                intent.assignment.allowance.timeout,
+            )?
+            .is_none()
+        {
+            return Err(Denial::new(
+                "commitment_terms",
+                "New admission requires recorded award lifecycle terms",
+            ));
+        }
         if matches!(event.payload, Event::SnapshotTaken { version: 1, .. }) {
             return Err(Denial::new(
                 "snapshot_version",

@@ -247,10 +247,11 @@ impl SessionView {
             | Event::CommitmentChanged { .. } => {
                 if !matches!(
                     event.payload,
-                    Event::CommitmentChanged {
-                        change: crate::arbiter::CommitmentChange::Proposed(_),
-                        ..
-                    }
+                    Event::SolicitationOpened { .. }
+                        | Event::CommitmentChanged {
+                            change: crate::arbiter::CommitmentChange::Proposed(_),
+                            ..
+                        }
                 ) {
                     self.validate_base_complete()?;
                 }
@@ -608,6 +609,7 @@ impl SessionView {
 
     pub(crate) fn validate_complete(&self) -> Result<()> {
         self.admission.complete()?;
+        crate::gatekeeper::validate_commitments(self)?;
         self.validate_base_complete()
     }
     fn validate_base_complete(&self) -> Result<()> {

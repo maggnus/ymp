@@ -439,6 +439,17 @@ entity Handoff { id; from: Id<Agent>; to: Opt<Id<Agent>>; subject: Id<Contributi
 value ContextDigest { decisions: List<Ref>; open_questions: List<Text>; evidence: List<Ref>; summary: Text }
 ```
 
+`CommitmentTerms` is the Rust representation of the recorded inputs supplied by
+the already selected AwardPolicy for P2: T_lease, renewal duration and signals,
+the renewal bound, and Δ_release. It keeps those choices attributable and
+replaceable before Method selection, including bootstrap Plan admissions.
+It introduces no strategy port or authority: Arbiter validates every lifecycle
+transition and Gatekeeper retains admission and revocation authority.
+`CommitmentLink` records the exact predecessor for reopening or delegation;
+`Delegation` binds that predecessor to the successor's atomic admission packet.
+These are implementation provenance for existing P2 transitions, not new domain
+responsibilities.
+
 ### 3.6. Quality assurance
 
 ```text

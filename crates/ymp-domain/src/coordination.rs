@@ -110,6 +110,48 @@ pub struct Lease {
     pub renew_on: BTreeSet<ProgressSignal>,
     pub renewals_left: u32,
 }
+/// Recorded inputs supplied by the selected award strategy for P2, not authority.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CommitmentTerms {
+    pub lease_duration: u64,
+    pub renewal_duration: u64,
+    pub renew_on: BTreeSet<ProgressSignal>,
+    pub renewals: u32,
+    pub release_delta: Real,
+}
+impl CommitmentTerms {
+    pub fn validate(&self) -> Result<()> {
+        if self.lease_duration == 0
+            || self.renewal_duration == 0
+            || self.renewals > 4000
+            || self.release_delta.get() < 0.0
+        {
+            return Err(Denial::new(
+                "commitment_terms",
+                "Lease durations, renewal count or release stimulus are invalid",
+            ));
+        }
+        Ok(())
+    }
+    pub fn initial_lease(&self, at: u64, timeout: u64) -> Result<Lease> {
+        self.validate()?;
+        let expires = at
+            .checked_add(timeout.min(self.lease_duration))
+            .ok_or_else(|| Denial::new("lease_overflow", "Lease expiry overflows"))?;
+        if expires <= at {
+            return Err(Denial::new(
+                "lease_expired",
+                "No lifetime remains for the commitment",
+            ));
+        }
+        Ok(Lease {
+            expires,
+            renew_on: self.renew_on.clone(),
+            renewals_left: self.renewals,
+        })
+    }
+}
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum CommitmentState {
     Proposed,

@@ -51,6 +51,8 @@ pub enum Event {
     SolicitationOpened {
         version: u32,
         solicitation: Box<ymp_domain::coordination::Solicitation>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        predecessor: Option<crate::arbiter::CommitmentLink>,
     },
     OfferSubmitted {
         version: u32,

@@ -5,11 +5,11 @@
   "title": "Complete commitment leases, release and delegation without losing accepted work",
   "type": "implementation",
   "priority": 107,
-  "status": "planned",
+  "status": "in_progress",
   "depends_on": [
     "W1-0006"
   ],
-  "owner": null,
+  "owner": "codex",
   "goal": "Keep responsibility for admitted work explicit across progress, expiration, voluntary release, cancellation and transfer.",
   "scope": [
     "Implement Proposed → Active and every P2 terminal branch: Discharged, Released(reason), Expired, Cancelled(reason), Delegated(agent), plus bounded Active renewal. Preserve debtor, Team/Runtime creditor, subject, condition, lease and history independently of a Plan version.",
@@ -28,9 +28,11 @@
     "Greenfield: create this behavior in the new implementation. Paths below are PROPOSED target modules under the layout owned by W1-0001; only completed prerequisite tasks supply implementation. Prior source, APIs, fixtures and delivery claims are not a baseline.",
     "Create commitment/lease operations in proposed crates/ymp-kernel/src/arbiter.rs and model values in crates/ymp-domain/src/coordination.rs. W1-0006 supplies real active commitments/admission and W1-0001 journal projections; build a deterministic clock seam for transition evidence.",
     "Own the P2 transition consumer, including validation against an attributable kernel acceptance/completion reference or projection. Actual non-artifact invocation completion is connected by W1-0017; real ResultVersion → Acceptance → Discharged is explicitly connected in W1-0010/W1-0014. Do not implement future result/acceptance production or fabricate an accepted artifact just to close this task.",
-    "A selected Method/owning strategy supplies recorded lease/renewal inputs and can change their computation under §5.8; Arbiter retains lifecycle/one-active-commitment authority. Delegation admits the successor first and leaves responsibility intact if admission is refused. R-19 release conditions remain independent."
+    "A selected Method/owning strategy supplies recorded lease/renewal inputs and can change their computation under §5.8; Arbiter retains lifecycle/one-active-commitment authority. Delegation admits the successor first and leaves responsibility intact if admission is refused. R-19 release conditions remain independent.",
+    "P2 consumer implementation: recorded AwardPolicy CommitmentTerms (FirstOffer v2), bounded renewal, expiry, atomic release/reopen and sealed delegation ending in AssignmentAdmitted. New admission requires terms at preparation and append; token commands pin the expected revision. Changing a predecessor withdraws stale linked delegation rounds while preserving an admitted successor. Active commitments retain terminal/reopening capacity after revocation. See ymp-docs/commitment-implementation.md.",
+    "The shared typed progress/completion consumer is wired into commands and replay. Real non-artifact completion, acceptance, plan/criterion facts and EvidenceAdded/CheckRun/ResultSubmitted observations remain with their owning tasks: their production resolver refuses unsupported references. Synthetic kernel projection tests establish those consumer contracts without fabricating journal facts. Historical admission compatibility was inspected in code; no saved pre-change database was reopened. Native execution was not run."
   ],
-  "revision": 3,
+  "revision": 5,
   "history": [
     {
       "revision": 1,
@@ -52,6 +54,20 @@
       "actor": "owner",
       "status": "planned",
       "note": "Start decision 2026-09-16: W1 scheduled; readiness follows dependencies."
+    },
+    {
+      "revision": 4,
+      "at": "2026-09-28T02:13:29.221981Z",
+      "actor": "codex",
+      "status": "in_progress",
+      "note": "Claimed by codex."
+    },
+    {
+      "revision": 5,
+      "at": "2026-09-28T02:50:47.559830Z",
+      "actor": "codex",
+      "status": "in_progress",
+      "note": "R1(9/10) ACCEPT 28/09 10:49 — Independent review accepted the complete W1-0007 consumer scope after closing missing-terms admission, stale authorization and stale delegation rounds. Targeted admission, P2, projection, clock and capacity checks passed; genuine pre-fix failures were observed. Final make verify is running; completion awaits its result and the implementation commit on main."
     }
   ]
 }

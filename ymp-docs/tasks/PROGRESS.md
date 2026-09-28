@@ -2,7 +2,7 @@
 
 Generated from the canonical JSON records in [`records/`](records/) by `python3 ymp-docs/tasks/manage.py progress --write`. Task write commands and `make tasks-progress` refresh it; do not edit statuses here.
 
-Tasks: 45 (7 done, 0 in progress, 28 open, 10 paused or blocked, 0 rejected). Times are Hong Kong time (UTC+08:00). Last record change: 2026-09-28 10:10.
+Tasks: 45 (7 done, 1 in progress, 27 open, 10 paused or blocked, 0 rejected). Times are Hong Kong time (UTC+08:00). Last record change: 2026-09-28 10:50.
 
 | Mark | Meaning |
 | :---: | --- |
@@ -16,16 +16,24 @@ Tasks: 45 (7 done, 0 in progress, 28 open, 10 paused or blocked, 0 rejected). Ti
 
 | Wave | Done | In progress | Open | Paused or blocked | Rejected | Total | Done % |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| [W1](#wave-w1) | 7 | 0 | 2 | 10 | 0 | 19 | 37% |
+| [W1](#wave-w1) | 7 | 1 | 1 | 10 | 0 | 19 | 37% |
 | [W2](#wave-w2) | 0 | 0 | 4 | 0 | 0 | 4 | 0% |
 | [W3](#wave-w3) | 0 | 0 | 9 | 0 | 0 | 9 | 0% |
 | [W4](#wave-w4) | 0 | 0 | 3 | 0 | 0 | 3 | 0% |
 | [W5](#wave-w5) | 0 | 0 | 5 | 0 | 0 | 5 | 0% |
 | [W6](#wave-w6) | 0 | 0 | 5 | 0 | 0 | 5 | 0% |
 
+## Current work
+
+### W1-0007 — [~] in_progress
+
+Complete commitment leases, release and delegation without losing accepted work. Owner: codex; revision 5; updated 2026-09-28 10:50 by codex.
+
+R1(9/10) ACCEPT 28/09 10:49 — Independent review accepted the complete W1-0007 consumer scope after closing missing-terms admission, stale authorization and stale delegation rounds. Targeted admission, P2, projection, clock and capacity checks passed; genuine pre-fix failures were observed. Final make verify is running; completion awaits its result and the implementation commit on main.
+
 ## Wave W1
 
-7 of 19 done; 0 in progress; 10 paused or blocked.
+7 of 19 done; 1 in progress; 10 paused or blocked.
 
 | Status | Task | Title | Area | State | Depends on | Owner | Updated (HKT) | Rev | Evidence |
 | :---: | --- | --- | --- | --- | --- | --- | --- | ---: | --- |
@@ -35,7 +43,7 @@ Tasks: 45 (7 done, 0 in progress, 28 open, 10 paused or blocked, 0 rejected). Ti
 | [x] | [W1-0004](records/W1-0004.json) | Charge invocations while protecting verification and policy-derived reporting capacity | resources | done | W1-0001 ✓, W1-0002 ✓, W1-0003 ✓ | codex | 2026-09-16 06:01 | 7 | commit [`960fc18`](https://github.com/maggnus/ymp/commit/960fc18223a24ebb8d794dcdfa2581ec5cb85282) |
 | [x] | [W1-0005](records/W1-0005.json) | Capture direct workspace snapshots and enforce assignment path ownership | workspace | done | W1-0001 ✓, W1-0003 ✓, W1-0016 ✓ | codex | 2026-09-16 09:14 | 15 | commit [`0cff1e9`](https://github.com/maggnus/ymp/commit/0cff1e979a4585df21d866f09136d3a85761f4b1) |
 | [x] | [W1-0006](records/W1-0006.json) | Admit contributions atomically with grants, reservations and active commitments | execution | done | W1-0002 ✓, W1-0003 ✓, W1-0004 ✓, W1-0005 ✓, W1-0016 ✓ | codex | 2026-09-28 10:10 | 13 | commit [`5ba6dbf`](https://github.com/maggnus/ymp/commit/5ba6dbf1) |
-| [ ] | [W1-0007](records/W1-0007.json) | Complete commitment leases, release and delegation without losing accepted work | coordination | planned | W1-0006 ✓ | — | 2026-09-16 01:05 | 3 | — |
+| [~] | [W1-0007](records/W1-0007.json) | Complete commitment leases, release and delegation without losing accepted work | coordination | in_progress | W1-0006 ✓ | codex | 2026-09-28 10:50 | 5 | — |
 | [=] | [W1-0008](records/W1-0008.json) | Submit immutable result versions bound to attempts and exact workspace snapshots | results | planned (blocked) | W1-0005 ✓, W1-0006 ✓, W1-0007, W1-0017 | — | 2026-09-16 01:05 | 3 | — |
 | [ ] | [W1-0009](records/W1-0009.json) | Run versioned checks against immutable snapshots and record attributable check runs | verification | planned | W1-0002 ✓, W1-0005 ✓, W1-0006 ✓ | — | 2026-09-16 03:07 | 6 | — |
 | [=] | [W1-0010](records/W1-0010.json) | Compute criterion satisfaction and independent acceptance from the recorded evidence | acceptance | planned (blocked) | W1-0009, W1-0019 | — | 2026-09-16 01:05 | 4 | — |

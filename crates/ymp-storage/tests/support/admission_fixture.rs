@@ -69,6 +69,33 @@ impl<J: Journal> Setup<J> {
         name: &str,
         constraints: Option<ymp_domain::task::Constraints>,
     ) -> Self {
+        Self::new_with_award(
+            journal,
+            storage,
+            root,
+            files,
+            name,
+            constraints,
+            FirstOffer::with_commitment_terms(CommitmentTerms {
+                lease_duration: 20,
+                renewal_duration: 20,
+                renew_on: BTreeSet::new(),
+                renewals: 0,
+                release_delta: n(1.0),
+            })
+            .unwrap(),
+        )
+    }
+    #[allow(clippy::too_many_arguments)]
+    pub(super) fn new_with_award(
+        journal: Arc<J>,
+        storage: &SqliteJournal,
+        root: &Directory,
+        files: bool,
+        name: &str,
+        constraints: Option<ymp_domain::task::Constraints>,
+        award: FirstOffer,
+    ) -> Self {
         let provider = Arc::new(Direct::open(&root.0, CaptureLimits::default()).unwrap());
         let cost = PriceWeighted::new(PriceWeightedParameters {
             expected_input: 10,
@@ -84,7 +111,6 @@ impl<J: Journal> Setup<J> {
             report_call_cost: n(10.0),
         })
         .unwrap();
-        let award = FirstOffer::new().unwrap();
         let session = id(name);
         let caps = if files {
             BTreeSet::from([Capability::ReadFiles, Capability::WriteFiles])
@@ -230,7 +256,7 @@ impl<J: Journal> Setup<J> {
         let view = arbiter.view(&self.session).unwrap();
         let input = award_view(&view, &id(name), at + 2).unwrap();
         arbiter
-            .award(
+            .award_with_terms(
                 &self.session,
                 view.revision(),
                 at + 2,
@@ -250,6 +276,7 @@ impl<J: Journal> Setup<J> {
                     state: CommitmentState::Proposed,
                     history: vec![],
                 },
+                self.award.commitment_terms(&input).ok(),
             )
             .unwrap();
         self.gate
@@ -293,6 +320,21 @@ impl<J: Journal> Setup<J> {
             &allowance_view(&view, &demand, estimate.proposal.value.clone(), at).unwrap(),
         )
         .unwrap();
+        let lease = source
+            .value
+            .terms
+            .as_ref()
+            .map(|decision| {
+                decision
+                    .outcome
+                    .initial_lease(at, allowance.proposal.value.timeout)
+                    .unwrap()
+            })
+            .unwrap_or(Lease {
+                expires: at + 20,
+                renew_on: BTreeSet::new(),
+                renewals_left: 0,
+            });
         let access = if self.files {
             BTreeSet::from([Capability::ReadFiles, Capability::WriteFiles])
         } else {
@@ -338,11 +380,7 @@ impl<J: Journal> Setup<J> {
                 reservation: id(name),
                 grant: id(name),
                 operations: BTreeSet::from([TeamOperation::BoardRead]),
-                lease: Lease {
-                    expires: at + 20,
-                    renew_on: BTreeSet::new(),
-                    renewals_left: 0,
-                },
+                lease,
                 estimate,
                 allowance,
                 files,

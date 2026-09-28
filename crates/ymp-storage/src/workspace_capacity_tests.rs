@@ -296,7 +296,7 @@ fn admitted_assignments_retain_capacity_for_cross_service_revocation_and_release
             }
         }
         let view = s.gate.view(&s.session).unwrap();
-        let at = view.latest_at() + 1;
+        let mut at = view.latest_at() + 1;
         s.gate
             .revoke(
                 &s.session,
@@ -314,6 +314,18 @@ fn admitted_assignments_retain_capacity_for_cross_service_revocation_and_release
                     at
                 )
                 .is_err()
+        );
+        let stopped = s.gate.view(&s.session).unwrap();
+        at = at.max(
+            stopped.coordination().commitments()[&id("work")]
+                .lease
+                .expires
+                + 1,
+        );
+        let arbiter = ymp_kernel::arbiter::Arbiter::new(journal.clone());
+        assert_eq!(
+            arbiter.tick(&s.gate, &s.session, at).unwrap(),
+            vec![id("work")]
         );
         if let Some(access) = admitted.files {
             let proof = s.gate.workspace().withdraw_mediated(&access).unwrap();
@@ -367,7 +379,10 @@ fn financial_closure_consumes_its_reserved_slots_at_the_journal_limit() {
         let journal = Arc::new(sqlite);
         let s = admission_fixture::Setup::new(journal.clone(), &journal, &root, false);
         let award = s.award("work");
-        let (expected, at, request) = s.request("assignment", award);
+        let (expected, at, mut request) = s.request("assignment", award);
+        request
+            .operations
+            .insert(ymp_domain::assignment::TeamOperation::CommitmentRelease);
         let mut prepared = s.gate.prepare(&s.session, expected, at, request).unwrap();
         let admitted = s.gate.admit(&mut prepared).unwrap();
         let registry = ymp_kernel::registry::Registry::new(journal.clone());
@@ -418,6 +433,37 @@ fn financial_closure_consumes_its_reserved_slots_at_the_journal_limit() {
                 id("invocation"),
             )
             .unwrap();
+        let view = s.gate.view(&s.session).unwrap();
+        let held = view.treasury().unwrap().budget.held;
+        ymp_kernel::arbiter::Arbiter::new(journal.clone())
+            .release(
+                &s.gate,
+                &admitted.grant,
+                view.revision(),
+                at,
+                "Release at journal capacity".into(),
+                ymp_domain::coordination::Solicitation {
+                    id: id("reopened"),
+                    contribution: id("work"),
+                    stimulus: ymp_domain::task::Real::new(2.0).unwrap(),
+                    deadline: at + 1,
+                    eligible: std::collections::BTreeSet::from([s.profile.agent.clone()]),
+                    visibility: ymp_domain::coordination::SolicitationVisibility::Open,
+                    reopened: 1,
+                    state: ymp_domain::coordination::SolicitationState::Open,
+                },
+            )
+            .unwrap();
+        assert_eq!(
+            s.gate
+                .view(&s.session)
+                .unwrap()
+                .treasury()
+                .unwrap()
+                .budget
+                .held,
+            held
+        );
         if unknown_first {
             treasury
                 .observe(

@@ -27,6 +27,9 @@ persistent path ownership and mediated file access. The
 binds persisted awards to resource reservations, grants and active commitments;
 revocation retains unresolved financial and workspace holds. Admission itself
 does not start an execution backend.
+The [commitment lifecycle](ymp-docs/commitment-implementation.md) adds bounded
+renewal, expiration, release/reopening and delegation while retaining unresolved
+holds. Actual completion and acceptance facts connect through their owning tasks.
 The remaining modules are placeholders under
 [the proposed layout](ymp-docs/project-worktree.md). The executable still has no
 interactive or task-execution behavior.

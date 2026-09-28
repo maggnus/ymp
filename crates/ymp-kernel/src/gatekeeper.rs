@@ -25,6 +25,8 @@ pub struct AdmissionIntent {
     pub grant: Grant,
     pub lease: Lease,
     pub access_owner: Option<Digest>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub delegation: Option<crate::arbiter::Delegation>,
 }
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct AdmissionRecord {
@@ -38,6 +40,7 @@ enum Step {
     Grant,
     Commitment,
     Assignment,
+    Transfer,
 }
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 struct PendingAdmission {
@@ -46,6 +49,7 @@ struct PendingAdmission {
     references: Vec<Ref>,
     step: Step,
     at: u64,
+    transfer: Vec<Event>,
 }
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize)]
 pub struct AdmissionView {
@@ -67,6 +71,16 @@ impl AdmissionView {
     }
     pub(crate) fn check_next(&self, event: &Event) -> Result<()> {
         if let Some(pending) = &self.pending {
+            if pending.step == Step::Transfer {
+                return if pending.transfer.first() == Some(event) {
+                    Ok(())
+                } else {
+                    Err(Denial::new(
+                        "delegation_packet",
+                        "Delegation must commit its exact predecessor transition",
+                    ))
+                };
+            }
             let allowed = matches!(
                 (pending.step, event),
                 (
@@ -160,6 +174,7 @@ pub(crate) fn validate_intent(
 ) -> Result<()> {
     intent.assignment.validate()?;
     let assignment = &intent.assignment;
+    crate::arbiter::validate_delegation(view, intent, at)?;
     let task = view
         .task()
         .ok_or_else(|| Denial::new("task_missing", "No task is open"))?;
@@ -265,6 +280,19 @@ pub(crate) fn validate_intent(
     let end = at
         .checked_add(assignment.allowance.timeout)
         .ok_or_else(|| Denial::new("deadline", "Assignment lifetime overflows"))?;
+    if crate::arbiter::initial_lease(
+        view,
+        &assignment.commitment,
+        at,
+        assignment.allowance.timeout,
+    )?
+    .is_some_and(|lease| lease != intent.lease)
+    {
+        return Err(Denial::new(
+            "admission_lease",
+            "Initial lease differs from the recorded award terms",
+        ));
+    }
     if intent.grant.id != assignment.grant
         || intent.grant.assignment != assignment.id
         || intent.grant.expires != end
@@ -392,6 +420,17 @@ fn matching_lock(intent: &AdmissionIntent, lock: &LockAcquisition) -> Result<()>
 }
 pub(crate) fn apply(view: &SessionView, event: &Envelope<Event>) -> Result<Option<AdmissionView>> {
     view.admission().check_next(&event.payload)?;
+    if view
+        .admission()
+        .pending
+        .as_ref()
+        .is_some_and(|pending| pending.at != event.at)
+    {
+        return Err(Denial::new(
+            "admission_packet",
+            "Admission timestamps differ within one decision",
+        ));
+    }
     if let Event::ReservationChanged {
         change: ReservationChange::Reserved(funding),
         ..
@@ -411,6 +450,7 @@ pub(crate) fn apply(view: &SessionView, event: &Envelope<Event>) -> Result<Optio
                 Step::Grant
             },
             at: event.at,
+            transfer: transfer_payloads(view, intent)?,
         });
         return Ok(Some(book));
     }
@@ -418,7 +458,9 @@ pub(crate) fn apply(view: &SessionView, event: &Envelope<Event>) -> Result<Optio
         assignment, reason, ..
     } = &event.payload
     {
-        view.admission().complete()?;
+        if view.admission().pending.is_none() {
+            view.admission().complete()?;
+        }
         ymp_domain::require_text(reason, 4096)?;
         let source = view
             .admission()
@@ -447,6 +489,13 @@ pub(crate) fn apply(view: &SessionView, event: &Envelope<Event>) -> Result<Optio
         let record = book.assignments.get_mut(assignment).unwrap();
         record.intent.assignment.state = AssignmentState::Revoked;
         record.references.push(event.reference()?);
+        if let Some(pending) = &mut book.pending {
+            pending.transfer.remove(0);
+            pending.references.push(event.reference()?);
+            if pending.transfer.is_empty() {
+                pending.step = Step::Assignment;
+            }
+        }
         return Ok(Some(book));
     }
     if view.admission().pending.is_none() {
@@ -473,6 +522,14 @@ pub(crate) fn apply(view: &SessionView, event: &Envelope<Event>) -> Result<Optio
             "admission_packet",
             "Admission timestamps differ within one decision",
         ));
+    }
+    if pending.step == Step::Transfer {
+        pending.transfer.remove(0);
+        pending.references.push(event.reference()?);
+        if pending.transfer.is_empty() {
+            pending.step = Step::Assignment;
+        }
+        return Ok(Some(book));
     }
     match &event.payload {
         Event::LockChanged {
@@ -509,7 +566,11 @@ pub(crate) fn apply(view: &SessionView, event: &Envelope<Event>) -> Result<Optio
                     "Active commitment differs from its admission attempt",
                 ));
             }
-            pending.step = Step::Assignment;
+            pending.step = if pending.transfer.is_empty() {
+                Step::Assignment
+            } else {
+                Step::Transfer
+            };
         }
         Event::AssignmentAdmitted {
             nonce, assignment, ..
@@ -564,8 +625,12 @@ pub fn control_reserve(view: &SessionView) -> (usize, usize) {
         .coordination()
         .commitments()
         .values()
-        .filter(|value| value.state == CommitmentState::Proposed)
-        .count();
+        .map(|value| match value.state {
+            CommitmentState::Proposed => 1,
+            CommitmentState::Active => 2,
+            _ => 0,
+        })
+        .sum();
     for record in view.admission().assignments().values() {
         if matches!(
             record.intent.assignment.state,
@@ -598,7 +663,14 @@ pub fn control_reserve(view: &SessionView) -> (usize, usize) {
             }
         }
     }
-    (events, events * 64 * 1024)
+    let active = view
+        .coordination()
+        .commitments()
+        .values()
+        .filter(|value| value.state == CommitmentState::Active)
+        .count();
+    // Reopening may name up to 1024 eligible IDs; retain bounded space for that payload.
+    (events, events * 64 * 1024 + active * 128 * 1024)
 }
 pub(crate) fn revocation_refs(view: &SessionView, assignment: &Id<Assignment>) -> Result<Vec<Ref>> {
     let record = view
@@ -619,6 +691,129 @@ pub(crate) fn revocation_refs(view: &SessionView, assignment: &Id<Assignment>) -
     refs.sort();
     refs.dedup();
     Ok(refs)
+}
+pub(crate) fn validate_commitments(view: &SessionView) -> Result<()> {
+    for record in view.admission().assignments().values() {
+        let assignment = &record.intent.assignment;
+        if matches!(
+            assignment.state,
+            AssignmentState::Admitted | AssignmentState::Running
+        ) && view
+            .coordination()
+            .commitments()
+            .get(&assignment.commitment)
+            .is_none_or(|held| {
+                held.state != CommitmentState::Active
+                    || held.debtor != assignment.agent
+                    || held.subject != assignment.contribution
+            })
+        {
+            return Err(Denial::new(
+                "commitment_authority",
+                "Every live assignment must retain its own Active commitment",
+            ));
+        }
+    }
+    Ok(())
+}
+pub(crate) fn revocation_payloads(
+    view: &SessionView,
+    assignment: &Id<Assignment>,
+    reason: String,
+) -> Result<Vec<Event>> {
+    ymp_domain::require_text(&reason, 4096)?;
+    let record = view
+        .admission()
+        .assignments()
+        .get(assignment)
+        .ok_or_else(|| Denial::new("assignment_missing", "No admitted assignment"))?;
+    if record.intent.assignment.state == AssignmentState::Revoked {
+        return Ok(vec![]);
+    }
+    let account = view
+        .treasury()
+        .and_then(|book| book.accounts.get(&record.reservation))
+        .ok_or_else(|| Denial::new("reservation_missing", "Assignment lost its reservation"))?;
+    let mut payloads = vec![];
+    if account.reservation.state == ReservationState::Held && !account.revoked {
+        payloads.push(Event::ReservationChanged {
+            version: 1,
+            change: ReservationChange::Revoked {
+                reservation: record.reservation.clone(),
+                reason: reason.clone(),
+            },
+        });
+    }
+    if view
+        .path_locks()
+        .get(&assignment.erased())
+        .is_some_and(|lock| !lock.revoked && lock.released.is_none())
+    {
+        payloads.push(Event::LockChanged {
+            version: 1,
+            change: LockChange::Revoked {
+                assignment: assignment.erased(),
+                reason: reason.clone(),
+            },
+        });
+    }
+    payloads.push(Event::AssignmentRevoked {
+        version: 1,
+        assignment: assignment.clone(),
+        reason,
+    });
+    Ok(payloads)
+}
+fn transfer_payloads(view: &SessionView, intent: &AdmissionIntent) -> Result<Vec<Event>> {
+    let Some(transfer) = &intent.delegation else {
+        return Ok(vec![]);
+    };
+    let reason = "Responsibility delegated".to_owned();
+    let mut payloads = revocation_payloads(view, &transfer.assignment, reason.clone())?;
+    payloads.push(Event::CommitmentChanged {
+        version: 1,
+        change: CommitmentChange::Ended {
+            commitment: transfer.commitment.clone(),
+            previous: transfer.previous.clone(),
+            reason,
+            outcome: crate::arbiter::CommitmentEnd::Delegated {
+                successor: intent.assignment.commitment.clone(),
+                assignment: intent.assignment.id.clone(),
+                nonce: intent.nonce.clone(),
+            },
+        },
+    });
+    Ok(payloads)
+}
+pub(crate) fn validate_transfer_end(
+    view: &SessionView,
+    previous: &Id<ymp_domain::coordination::Commitment>,
+    successor: &Id<ymp_domain::coordination::Commitment>,
+    assignment: &Id<Assignment>,
+    nonce: &Digest,
+) -> Result<()> {
+    let pending = view.admission().pending.as_ref().ok_or_else(|| {
+        Denial::new(
+            "delegation_packet",
+            "Transfer has no complete successor admission packet",
+        )
+    })?;
+    if pending
+        .intent
+        .delegation
+        .as_ref()
+        .is_none_or(|transfer| &transfer.commitment != previous)
+        || &pending.intent.assignment.id != assignment
+        || &pending.intent.assignment.commitment != successor
+        || &pending.intent.nonce != nonce
+        || pending.step != Step::Transfer
+    {
+        return Err(Denial::new(
+            "delegation_packet",
+            "Transfer differs from the sealed successor admission",
+        ));
+    }
+    Ok(())
 }
 use crate::{
     journal::{AppendResolution, ContentStore, Journal, JournalRead, validate_append},
@@ -728,7 +923,7 @@ impl<J: Journal, C: ContentStore> Gatekeeper<J, C> {
             .read(session)?
             .view_with_schemas(session, None, self.journal.schemas())
     }
-    fn events(
+    pub(crate) fn compose_events(
         &self,
         current: &JournalRead,
         session: &Id,
@@ -745,7 +940,9 @@ impl<J: Journal, C: ContentStore> Gatekeeper<J, C> {
                     None,
                     crate::workspace_locks::attribution(&view, change)?,
                 ),
-                Event::CommitmentChanged { .. } => crate::arbiter::attribution(&view, &payload)?,
+                Event::CommitmentChanged { .. } | Event::SolicitationOpened { .. } => {
+                    crate::arbiter::attribution(&view, &payload)?
+                }
                 Event::GrantIssued { .. } | Event::AssignmentAdmitted { .. } => {
                     (None, None, attribution(&view)?)
                 }
@@ -774,6 +971,16 @@ impl<J: Journal, C: ContentStore> Gatekeeper<J, C> {
             view.apply(&event, self.journal.schemas())?;
             events.push(event);
         }
+        Ok(events)
+    }
+    pub(crate) fn events(
+        &self,
+        current: &JournalRead,
+        session: &Id,
+        at: u64,
+        payloads: Vec<Event>,
+    ) -> Result<Vec<Envelope<Event>>> {
+        let events = self.compose_events(current, session, at, payloads)?;
         validate_append(
             current,
             session,
@@ -855,6 +1062,26 @@ impl<J: Journal, C: ContentStore> Gatekeeper<J, C> {
         at: u64,
         request: AdmissionRequest,
     ) -> Result<PreparedAdmission> {
+        self.prepare_kind(session, expected, at, request, None)
+    }
+    pub(crate) fn prepare_transfer(
+        &self,
+        session: &Id,
+        expected: u64,
+        at: u64,
+        request: AdmissionRequest,
+        delegation: crate::arbiter::Delegation,
+    ) -> Result<PreparedAdmission> {
+        self.prepare_kind(session, expected, at, request, Some(delegation))
+    }
+    fn prepare_kind(
+        &self,
+        session: &Id,
+        expected: u64,
+        at: u64,
+        request: AdmissionRequest,
+        delegation: Option<crate::arbiter::Delegation>,
+    ) -> Result<PreparedAdmission> {
         let current = self.journal.read(session)?;
         if current.revision != expected {
             return Err(Denial::new("stale_revision", "Admission input changed"));
@@ -921,6 +1148,20 @@ impl<J: Journal, C: ContentStore> Gatekeeper<J, C> {
             let expires = at
                 .checked_add(allowance.timeout)
                 .ok_or_else(|| Denial::new("deadline", "Assignment lifetime overflows"))?;
+            let lease =
+                crate::arbiter::initial_lease(&view, &commitment_id, at, allowance.timeout)?
+                    .ok_or_else(|| {
+                        Denial::new(
+                            "commitment_terms",
+                            "New admission requires recorded award lifecycle terms",
+                        )
+                    })?;
+            if request.lease != lease {
+                return Err(Denial::new(
+                    "admission_lease",
+                    "Requested lease differs from the recorded award terms",
+                ));
+            }
             let intent = AdmissionIntent {
                 nonce: Digest::of(nonce),
                 award: request.award.clone(),
@@ -933,7 +1174,7 @@ impl<J: Journal, C: ContentStore> Gatekeeper<J, C> {
                     role: request.role,
                     access: request.access.clone(),
                     workspace: request.workspace.clone(),
-                    allowance,
+                    allowance: allowance.clone(),
                     grant: request.grant.clone(),
                     commitment: commitment_id.clone(),
                     state: AssignmentState::Admitted,
@@ -945,7 +1186,8 @@ impl<J: Journal, C: ContentStore> Gatekeeper<J, C> {
                     expires,
                     token_digest: Digest::of(secret),
                 },
-                lease: request.lease.clone(),
+                lease,
+                delegation,
                 access_owner: request
                     .files
                     .as_ref()
@@ -993,12 +1235,13 @@ impl<J: Journal, C: ContentStore> Gatekeeper<J, C> {
                         lease: intent.lease.clone(),
                     },
                 },
-                Event::AssignmentAdmitted {
-                    version: 1,
-                    nonce: intent.nonce.clone(),
-                    assignment: request.assignment.clone(),
-                },
             ]);
+            payloads.extend(transfer_payloads(&view, &intent)?);
+            payloads.push(Event::AssignmentAdmitted {
+                version: 1,
+                nonce: intent.nonce.clone(),
+                assignment: request.assignment.clone(),
+            });
             let events = self.events(&current, session, at, payloads)?;
             let admission_reference = events.last().expect("complete admission").reference()?;
             Ok((
@@ -1259,7 +1502,40 @@ impl<J: Journal, C: ContentStore> Gatekeeper<J, C> {
         operation: TeamOperation,
         at: u64,
     ) -> Result<Assignment> {
+        self.authorize_inner(token, Some(operation), at, None)
+    }
+    pub(crate) fn require_journal(&self, journal: &Arc<J>) -> Result<()> {
+        if !Arc::ptr_eq(journal, &self.journal) {
+            return Err(Denial::new(
+                "journal_authority",
+                "Services do not share the same journal authority",
+            ));
+        }
+        Ok(())
+    }
+    pub(crate) fn authorize_revision(
+        &self,
+        token: &GrantToken,
+        operation: Option<TeamOperation>,
+        at: u64,
+        expected: u64,
+    ) -> Result<Assignment> {
+        self.authorize_inner(token, operation, at, Some(expected))
+    }
+    fn authorize_inner(
+        &self,
+        token: &GrantToken,
+        operation: Option<TeamOperation>,
+        at: u64,
+        expected: Option<u64>,
+    ) -> Result<Assignment> {
         let view = self.view(&token.session)?;
+        if expected.is_some_and(|expected| expected != view.revision()) {
+            return Err(Denial::new(
+                "stale_revision",
+                "Grant authority belongs to a different transition boundary",
+            ));
+        }
         view.resolve(&token.admission)?;
         let record = view
             .admission()
@@ -1269,6 +1545,16 @@ impl<J: Journal, C: ContentStore> Gatekeeper<J, C> {
             .ok_or_else(|| Denial::new("grant_missing", "No matching recorded grant"))?;
         let assignment = &record.intent.assignment;
         let grant = &record.intent.grant;
+        let commitment_live = view
+            .coordination()
+            .commitments()
+            .get(&assignment.commitment)
+            .is_some_and(|held| {
+                held.state == CommitmentState::Active
+                    && at <= held.lease.expires
+                    && held.debtor == assignment.agent
+                    && held.subject == assignment.contribution
+            });
         let funded = view
             .treasury()
             .and_then(|book| book.accounts.get(&record.reservation))
@@ -1290,7 +1576,7 @@ impl<J: Journal, C: ContentStore> Gatekeeper<J, C> {
             _ => false,
         };
         if grant.token_digest != Digest::of(token.secret)
-            || !grant.operations.contains(&operation)
+            || operation.is_some_and(|operation| !grant.operations.contains(&operation))
             || at < view.latest_at()
             || at >= grant.expires
             || !matches!(
@@ -1299,6 +1585,7 @@ impl<J: Journal, C: ContentStore> Gatekeeper<J, C> {
             )
             || !funded
             || !paths
+            || !commitment_live
         {
             return Err(Denial::new(
                 "grant_denied",
@@ -1329,38 +1616,7 @@ impl<J: Journal, C: ContentStore> Gatekeeper<J, C> {
         if record.intent.assignment.state == AssignmentState::Revoked {
             return Ok(current.revision);
         }
-        let account = &view
-            .treasury()
-            .ok_or_else(|| Denial::new("budget_missing", "No budget"))?
-            .accounts[&record.reservation];
-        let mut payloads = vec![];
-        if account.reservation.state == ReservationState::Held && !account.revoked {
-            payloads.push(Event::ReservationChanged {
-                version: 1,
-                change: ReservationChange::Revoked {
-                    reservation: record.reservation.clone(),
-                    reason: reason.clone(),
-                },
-            });
-        }
-        if view
-            .path_locks()
-            .get(&assignment.erased())
-            .is_some_and(|lock| !lock.revoked && lock.released.is_none())
-        {
-            payloads.push(Event::LockChanged {
-                version: 1,
-                change: LockChange::Revoked {
-                    assignment: assignment.erased(),
-                    reason: reason.clone(),
-                },
-            });
-        }
-        payloads.push(Event::AssignmentRevoked {
-            version: 1,
-            assignment: assignment.clone(),
-            reason,
-        });
+        let payloads = revocation_payloads(&view, assignment, reason)?;
         let events = self.events(&current, session, at, payloads)?;
         let end = expected + events.len() as u64;
         let appended = self.journal.append(session, expected, &events);
