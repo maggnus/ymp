@@ -3,6 +3,11 @@
 The application and executable are named `ymp`. Product documents, code comments,
 examples and user-facing strings are written in English.
 
+On resumption or after context loss, read `HANDOFF.md` and reconcile it with Git
+and the canonical task records before continuing. Keep it current after meaningful
+progress and before ending or handing over a session. It is a recovery note, not
+an alternative task-status database or architectural authority.
+
 Read `intent.md` and `ymp-docs/self-organizing-team-domain-model.md` before changing
 product behavior. The latter is the owner-approved, single authoritative source
 of architecture, domain names and product scope. `ymp-docs/domain.md` and
