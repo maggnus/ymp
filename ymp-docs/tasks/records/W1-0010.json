@@ -5,7 +5,7 @@
   "title": "Compute criterion satisfaction and independent acceptance from the recorded evidence",
   "type": "implementation",
   "priority": 110,
-  "status": "in_progress",
+  "status": "done",
   "depends_on": [
     "W1-0009",
     "W1-0019"
@@ -25,7 +25,12 @@
     "Select different BeliefModel implementations through the real ledger consumer without rewriting it, retaining resolved parameters/input/basis. Experiment-scoped priors cannot bypass applicable contradiction or Supports coverage. CreditPolicy variants give distinct attributable eligibility; changing selection does not rewrite grades or earlier observations.",
     "A real producer result independently Accepted by A7 discharges exactly its artifact commitment; Rejected, forged, stale or another subject’s acceptance leaves that commitment undischargeable. This completes the P2 artifact seam without requiring W1-0007 to produce acceptance."
   ],
-  "evidence": [],
+  "evidence": [
+    "d0b102ef",
+    "ymp-docs/acceptance-implementation.md",
+    "crates/ymp-storage/tests/results.rs",
+    "crates/ymp-runtime/tests/belief.rs"
+  ],
   "context": [
     "Authority: ymp-docs/self-organizing-team-domain-model.md, sections 3.6, 4 (AcceptanceAuthority), 5.2 (BeliefModel), 5.6 (CreditPolicy), A7/A8, R-4/R-6/R-11. Use the approved model with 811a872 semantics and the greenfield baseline in 0c61ff1 and §5.8 for experimental strategy boundaries. Other documents and existing names explain implementation facts only.",
     "Greenfield: create this behavior in the new implementation. Paths below are PROPOSED target modules under the layout owned by W1-0001; only completed prerequisite tasks supply implementation. Prior source, APIs, fixtures and delivery claims are not a baseline.",
@@ -33,7 +38,7 @@
     "Retain BeliefModel, default LikelihoodRatioTable prior=0.5 and subject:Ref. An experimental prior must mean present criterion/result satisfaction, never future assignment success. Filter applicability before polarity, count correlated support once and require nonempty applicable Supports coverage. A7 acceptance, A8 satisfaction and CreditPolicy remain distinct.",
     "Select materially different BeliefModel implementations through the same consumer with recoverable parameters/basis. Implement both CreditPolicy variants as selectable policy values here; W5-0001 consumes them for real observations. W1-0013 handles final aggregates."
   ],
-  "revision": 7,
+  "revision": 8,
   "history": [
     {
       "revision": 1,
@@ -83,6 +88,13 @@
       "actor": "codex",
       "status": "in_progress",
       "note": "Final make verify exited 0: legacy scan and all four required offline Cargo checks. Task-register validation and git diff --check passed. Independent final review confirmed R1(9/10) ACCEPT after documentation and persisted context inspection. Acceptance criteria verified at the actual Scripted/SQLite consumer; native, hidden/mutation, external/consequence and observation coverage remains explicitly unclaimed in acceptance-implementation.md."
+    },
+    {
+      "revision": 8,
+      "at": "2026-09-28T11:13:17.343306Z",
+      "actor": "codex",
+      "status": "done",
+      "note": "Accepted implementation d0b102ef is reachable from main. Delivered A7 acceptance/grades, version-bound A8 ledger with two attributable belief implementations and guarded priors, two credit policies, and exact accepted-result discharge of the original P2 producer. Required checks passed and independent R1(9/10) ACCEPT is retained above. Unsupported sources, native runs and future observations remain explicit."
     }
   ]
 }
