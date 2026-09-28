@@ -5,7 +5,7 @@
   "title": "Complete commitment leases, release and delegation without losing accepted work",
   "type": "implementation",
   "priority": 107,
-  "status": "in_progress",
+  "status": "done",
   "depends_on": [
     "W1-0006"
   ],
@@ -22,7 +22,9 @@
     "At every boundary each live assignment has exactly one active commitment; duplicate self-responsibility and reuse of a revoked grant are denied. Replay yields identical debtor/lease/history and remaining resources.",
     "Expiring/cancelling an assignment cannot delete accepted work, release unresolved conflicting access or erase financial uncertainty. Refused delegation leaves the original responsibility intact and creates no orphan successor reservation. Alternate recorded lease-policy inputs change actual renewal behavior without replacing Arbiter invariants."
   ],
-  "evidence": [],
+  "evidence": [
+    "Commit d7ea328a in main; independent R1(9/10) ACCEPT and verification boundaries in ymp-docs/commitment-implementation.md."
+  ],
   "context": [
     "Authority: ymp-docs/self-organizing-team-domain-model.md, sections 3.5, 4 (Arbiter.commitment/tick, Gatekeeper.revoke), P2, A1, R-2/R-12/R-16 and section 10.1. Use the approved model with 811a872 semantics and the greenfield baseline in 0c61ff1 and §5.8 for experimental strategy boundaries. Other documents and existing names explain implementation facts only.",
     "Greenfield: create this behavior in the new implementation. Paths below are PROPOSED target modules under the layout owned by W1-0001; only completed prerequisite tasks supply implementation. Prior source, APIs, fixtures and delivery claims are not a baseline.",
@@ -32,7 +34,7 @@
     "P2 consumer implementation: recorded AwardPolicy CommitmentTerms (FirstOffer v2), bounded renewal, expiry, atomic release/reopen and sealed delegation ending in AssignmentAdmitted. New admission requires terms at preparation and append; token commands pin the expected revision. Changing a predecessor withdraws stale linked delegation rounds while preserving an admitted successor. Active commitments retain terminal/reopening capacity after revocation. See ymp-docs/commitment-implementation.md.",
     "The shared typed progress/completion consumer is wired into commands and replay. Real non-artifact completion, acceptance, plan/criterion facts and EvidenceAdded/CheckRun/ResultSubmitted observations remain with their owning tasks: their production resolver refuses unsupported references. Synthetic kernel projection tests establish those consumer contracts without fabricating journal facts. Historical admission compatibility was inspected in code; no saved pre-change database was reopened. Native execution was not run."
   ],
-  "revision": 5,
+  "revision": 6,
   "history": [
     {
       "revision": 1,
@@ -68,6 +70,13 @@
       "actor": "codex",
       "status": "in_progress",
       "note": "R1(9/10) ACCEPT 28/09 10:49 — Independent review accepted the complete W1-0007 consumer scope after closing missing-terms admission, stale authorization and stale delegation rounds. Targeted admission, P2, projection, clock and capacity checks passed; genuine pre-fix failures were observed. Final make verify is running; completion awaits its result and the implementation commit on main."
+    },
+    {
+      "revision": 6,
+      "at": "2026-09-28T02:53:10.757944Z",
+      "actor": "codex",
+      "status": "done",
+      "note": "Implementation d7ea328a is committed to main and independently accepted R1(9/10). make verify, targeted consumer/projection/clock/capacity checks, task validation and diff checks exited 0; observed lease, stale-authorization and reopening failures distinguish the fixes. Completion/cancellation and three progress-signal producers remain explicitly with their owning tasks; successful P2 consumer contracts use synthetic kernel projections, not fabricated runtime facts. No native execution or historical saved database was exercised."
     }
   ]
 }
