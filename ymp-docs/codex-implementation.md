@@ -291,4 +291,12 @@ proof that a future spawn succeeds. The actual native metadata consumer passed
 again after this guard in 1.83 seconds, with zero model turns. Independent review
 accepted the final source (R1, 9/10). Full make verify passed, including all nine
 Dispatcher scenarios in 139.51 seconds. Native file-tool execution under version 2
-remains unverified until a separately recorded pilot run.
+was not established by those checks. A later
+[run 07](experiments/homogeneous-gpt-elementary/run-07.json) actually read the
+input through ymp_read under v2. The returned bytes and successful native dynamic
+tool item are retained. It also exposed a coverage limitation: commentary and a
+file callback can belong to one response before its shared token update, whereas
+the current pending_usage guard marks that batch as a gap. The receipt remained
+Partial and its financial hold is preserved. A grouping repair is under
+investigation; native writing and complete producer/reviewer delivery remain
+unverified.

@@ -46,6 +46,7 @@ adapter's documented boundary, not independent billing verification.
 | [04](run-04.json) | 1 | Intake completed and settled. Capacity one then refused the second distinct Plan stage, which shares its attempt scope under the existing admission rule. |
 | [05](run-05.json) | 2 | Both paid Plan stages completed. Production received one valid offer, but Dispatcher attempted another after the deadline and returned an error. |
 | [06](run-06.json) | 2 | On the repaired runtime, intake completed; native planning returned an error object because its code-mode host was disabled. The kernel refused that output as a plan. |
+| [07](run-07.json) | 1 | Version 2 successfully read input.json through the mediator. Commentary and the tool call preceded one usage report; the adapter treated that batch as a gap and retained Partial coverage. |
 
 Preparation corrections supplied a real StaticDependencyProbe observation, pinned
 the roster/model/effort (defaults alone do not restrict the registry), and used a
@@ -98,6 +99,23 @@ by `code-mode host is disabled`. The compact trace is retained in run-06.json;
 no new inference was started during inspection. Native tool-mode compatibility
 must be understood before another run. Enabling arbitrary execution or bypassing
 the InvocationFiles mediator would not be a valid fix.
+
+Version 2 was subsequently delivered in `aad168d6`, with independent review and
+all required checks passing. Run 07 used source checkpoint `ee1cbc0e`. Its known
+native thread records a successful dynamic ymp_read through the local Code Mode
+host and the exact input bytes. The final intake JSON was valid, and the backend
+reported Completed. Actual file reading is now evidenced; production and review
+still have not occurred.
+
+The first response emitted commentary and a tool call before one shared usage
+report (input 10,522, output 63). A later final answer had a second fresh report:
+total input 21,139, cache read 9,984, output 74, reasoning zero. The adapter's
+pending_usage logic marked the two earlier visible items as an accounting gap,
+so its receipt remained Partial. The host cancelled at its 60-second allowance;
+spent is zero and 30,000 units remain held under UnknownUsage::Stop. Those holds
+are not released by process exit or by manually interpreting the output as valid.
+The recorded batching is being examined against the native protocol before more
+inference or any coverage-policy change.
 
 Full local journals and logs use `/tmp/ymp-gpt-elementary-20260929-NN` and the
 corresponding `.log` file. Compact evidence in this directory preserves the

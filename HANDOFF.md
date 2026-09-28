@@ -10,19 +10,31 @@ completion in `9f453715` (done revision14). W1-0014 is reconfirmed done revision
 using the same full combined verification; no session rewrite was needed.
 W1-0015 remains unclaimed revision8 and is the next implementation task.
 
-**No native model run is active at this checkpoint.** Full verification passed
+**Native run07 is finished; no model run is active.** Its actual mediated
+ymp_read succeeded, followed by valid intake JSON and backend Completed. However,
+the adapter marked coverage Partial because commentary plus a file callback
+preceded one shared usage update. The host cancelled at its finite deadline;
+held30000 remains, spent0. Do not relabel or release this retained uncertainty.
+Compact evidence run-07.json is saved but not committed yet. Full v2 verification passed
 (`/tmp/ymp-code-mode-final-verify.log`), nine Dispatcher cases in139.51s;
 independent review accepted the final source (R1,9/10). Do not repeat these checks
 solely because the conversation resumed.
 
 Immediate next actions:
-1. Build the actual homogeneous_gpt example against the committed v2 runtime.
-2. Perform one bounded pilot in NEW `/tmp/ymp-gpt-elementary-20260929-07`, same
-   `gpt-6-luna / low`, task and limits as run06. Record the actual source commit.
-   After interruption inspect its journal/log before doing anything; never blindly
-   repeat an unresolved invocation. Native file-tool behavior under v2 is still
-   unverified and is the purpose of this next run.
-3. Retain its outcome, accounting and limitations; then continue the existing
+1. Investigate actual accounting grouping before more inference. In
+   codex/mod.rs::drive, pending_usage becomes true for every agentMessage and
+   every new file callback; the second visible item before one TokenCount sets
+   accounting_gap. Run07 demonstrates commentary+file read in ONE response,
+   then a fresh report, then final_answer and another fresh report. A read-only
+   review by acceptance_boundary_read is investigating a minimal honest repair;
+   no accounting source change has been made yet. Preserve stale/missing-early
+   and genuinely ambiguous-batch safeguards, not just a successful final answer.
+2. Record and verify any repair through the owning task. Do not repeat run07;
+   retained partial usage/hold is evidence, not permission to reset its budget.
+   Native writing and independent review remain unverified; reading now has
+   actual proof. Known-thread metadata is in run07/native-thread.json and the
+   compact record includes filtered tool/token events without reasoning content.
+3. Retain the outcome, accounting and limitations; then continue the existing
    plan through `manage.py next` and `show` (W1-0015, simple Ratatui interface).
    Do not replace it with unrelated architecture or broader experiments.
 
