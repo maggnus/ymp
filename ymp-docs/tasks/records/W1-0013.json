@@ -5,7 +5,7 @@
   "title": "Finalize the integrated result and deliver an evidence-audited report",
   "type": "implementation",
   "priority": 113,
-  "status": "in_progress",
+  "status": "done",
   "depends_on": [
     "W1-0006",
     "W1-0008",
@@ -27,7 +27,9 @@
     "ClaimAuditor applies the same applicability boundary as A7/A8, rejects stale or mismatched causal support, and retains unmet criteria/assumptions. Unsupported narration receives at most one authorized funded correction; otherwise an audited deterministic report contains uncertainty, not invented acceptance or completed artifacts.",
     "A run selects admitted Narrator or DeterministicReport through the same NarrativeComposer consumer, with recoverable PolicyRef values. User stop launches zero new model calls; failed/unaffordable narration still delivers facts and accounted expenses. ContextComposer/ClaimAuditor/ReviewerPolicy also have materially different real-consumer implementations, and learning cannot delay delivery."
   ],
-  "evidence": [],
+  "evidence": [
+    "d77ba2bc"
+  ],
   "context": [
     "Authority: ymp-docs/self-organizing-team-domain-model.md, sections 3.6, 4 (AcceptanceAuthority.finalize), 5.3 (ReviewerPolicy), 5.7 (ContextComposer, NarrativeComposer, ClaimAuditor), A11 and R-5/R-8/R-15. Use the approved model with 811a872 semantics and the greenfield baseline in 0c61ff1 and §5.8 for experimental strategy boundaries. Other documents and existing names explain implementation facts only.",
     "Greenfield: create this behavior in the new implementation. Paths below are PROPOSED target modules under the layout owned by W1-0001; only completed prerequisite tasks supply implementation. Prior source, APIs, fixtures and delivery claims are not a baseline.",
@@ -35,7 +37,7 @@
     "ResourcePolicy.reporting_reserve from W1-0004 supplies protected Budget capacity without a mandatory Constraints/TUI field. Narrator and one correction are bounded Reporting assignments; DeterministicReport is a selectable alternative and the zero-call fallback after stop or unavailable/unfunded narration. Account narration expenses before ReportDelivered.",
     "A11 blocks only work that can still change the aggregate. Apply the same evidence applicability as A7/A8; final review excludes the aggregate producer union. Fallback explains recorded results, unknowns and unmet criteria and never replaces an unfinished task artifact."
   ],
-  "revision": 7,
+  "revision": 8,
   "history": [
     {
       "revision": 1,
@@ -85,6 +87,13 @@
       "actor": "codex",
       "status": "in_progress",
       "note": "Final make verify exited 0: legacy scan and all four required offline workspace checks passed. Final code evidence: report scenarios 298.60s (including mismatched causal environment), scoped capture/stop report 2.56s, planning 93.56s, progress/recovery 501.63s, result/acceptance 240.62s, restart and remaining workspace tests green. Independent code/documentation review R1(9/10) ACCEPT; doc precision corrections applied; staged diff and task-register checks passed. Ready to commit the implementation; completion will be recorded only after its commit is reachable from main. W1-0018 is independently ready and claimed in its separate owned worktree; no native inference or product experiment has begun."
+    },
+    {
+      "revision": 8,
+      "at": "2026-09-28T15:40:43.946329Z",
+      "actor": "codex",
+      "status": "done",
+      "note": "Implementation d77ba2bc is reachable from main. Delivered stable Direct final capture, fresh conclusive check evidence, independent paid final review and separate final A7/A8, replaceable context/reviewer/narrative/claim-audit consumers, one bounded paid correction and zero-call deterministic reporting with retained outcomes/accounting. Mandatory make verify passed on the final source; independent code and documentation review R1(9/10) ACCEPT. Scripted/protocol evidence only, no native inference or empirical benefit claim. Implementation limits and remaining W1-0014 integration are explicit in ymp-docs/finalization-implementation.md."
     }
   ]
 }
