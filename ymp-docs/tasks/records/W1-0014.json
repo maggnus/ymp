@@ -5,7 +5,7 @@
   "title": "Run and recover the minimal accountable producer-reviewer session",
   "type": "implementation",
   "priority": 114,
-  "status": "in_progress",
+  "status": "done",
   "depends_on": [
     "W1-0007",
     "W1-0011",
@@ -30,7 +30,8 @@
   "evidence": [
     "ymp-docs/session-implementation.md",
     "crates/ymp-storage/tests/dispatcher.rs",
-    "crates/ymp-storage/tests/session.rs"
+    "crates/ymp-storage/tests/session.rs",
+    "git:b566b0d9fce8c3294e7c4db67f260eec19e72f97"
   ],
   "context": [
     "Authority: ymp-docs/self-organizing-team-domain-model.md, section 4 (Dispatcher), A1/A3/A5/A6/A11/A13, P2, build stages 1–5 and intent.md interactive-session outcomes. Use the approved model with 811a872 semantics and the greenfield baseline in 0c61ff1 and §5.8 for experimental strategy boundaries. Other documents and existing names explain implementation facts only.",
@@ -43,7 +44,7 @@
     "Current ContributionPolicy selects Verify/Diagnose/DesignChecks for a retained candidate, not Review. The fixed A1 workflow must explicitly admit independent candidate review and connect Review -> A7 -> producer P2 before final aggregate capture; A8 Satisfied alone is not an accepted source. Keep that required call ordering outside strategy claims and do not accept a normal provider exit as artifact acceptance.",
     "Recovery/control seams confirmed by read-only preparation: new Application/DecisionConsumer and Treasury cannot yet recover original SessionControl/BudgetControl; completed retained production cannot be submitted after losing PreparedAttempt/issuer; Host.recover only observes unresolved work and must not duplicate it. Implement trusted continuation from recorded facts without new grants or budget reset. MemoryJournal currently has no binding_identity/workspace_binding, so its full Direct scenario needs an honest in-memory identity/binding implementation instead of bypassing WorkspaceGuard. Durable owner stop needs atomic current-revision ordering or equivalent evidence of no starvation; repeated optimistic CAS retries alone are insufficient. Preserve Host.cancel immediate local stopped flag and mediated withdrawal even when journal writes fail."
   ],
-  "revision": 9,
+  "revision": 10,
   "history": [
     {
       "revision": 1,
@@ -107,6 +108,13 @@
       "actor": "codex",
       "status": "in_progress",
       "note": "Stable integration accepted by independent R1 review (9/10). Final make verify passed: legacy scan, offline build, fmt, Clippy with denied warnings, workspace and documentation tests. Test optimization level 1 retained debug assertions and overflow checks. Seven Dispatcher scenarios passed together in 165.26 s, covering full Memory/SQLite session and reopening, cancellation, actual check failure despite approval, unavailable final reviewer, real verification-capacity shortage, Retry and AddVerifier. Session controls passed in 0.75 s; final report in 40.44 s; results in 33.13 s. Earlier combined Retry hit only its external 120 s test watchdog; increasing that watchdog to 240 s changed no runtime limit and restored the full run. A7 negative control failed when its guard was removed, then passed after restoration. Timely-completion-after-expiry and final narrow narrator interruption cuts were independently reviewed but not separately reproduced. No native inference. Ready to commit; not done until implementation is reachable from main."
+    },
+    {
+      "revision": 10,
+      "at": "2026-09-28T19:02:42.044457Z",
+      "actor": "codex",
+      "status": "done",
+      "note": "Implemented outcome committed on main in b566b0d9fce8c3294e7c4db67f260eec19e72f97; reachability verified. Full required verification passed and independent R1 accepted (9/10). Complete fixed producer/reviewer session, exact paid acceptance and P2, atomic stop, retained accounting and reopening, bounded Retry/AddVerifier, audited deterministic fallback are delivered. Documentation preserves unexecuted narrow interruption cuts and limitations. Native team experiment and later agent initiative are not claimed by this completion."
     }
   ]
 }
