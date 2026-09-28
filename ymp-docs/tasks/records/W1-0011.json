@@ -5,7 +5,7 @@
   "title": "Extract criteria and select minimal criterion-directed work through admitted strategies",
   "type": "implementation",
   "priority": 111,
-  "status": "in_progress",
+  "status": "done",
   "depends_on": [
     "W1-0002",
     "W1-0006",
@@ -28,7 +28,12 @@
     "An experimental run switches actual Planner/IntakePolicy/ContributionPolicy implementations without editing algorithm or kernel consumer code. Authorized in-session changes occur at a recorded work boundary and preserve earlier decisions; unsupported native settings and kernel invariant bypasses remain denied.",
     "An actual paid Planner invocation creates Derived(Assignment) criteria with its own admitted identity and receipt. Forged, foreign, missing or stale assignment provenance is rejected at this integration consumer; W1-0002 owns only the earlier typed representation/user intake."
   ],
-  "evidence": [],
+  "evidence": [
+    "df97ee3b",
+    "ymp-docs/planning-implementation.md",
+    "crates/ymp-storage/tests/planning.rs",
+    "crates/ymp-kernel/tests/replay.rs"
+  ],
   "context": [
     "Authority: ymp-docs/self-organizing-team-domain-model.md, sections 3.3–3.4, 5.1 (IntakePolicy), 5.2, A1 intake/A3, P6 and build stage 5. Use the approved model with 811a872 semantics and the greenfield baseline in 0c61ff1 and §5.8 for experimental strategy boundaries. Other documents and existing names explain implementation facts only.",
     "Greenfield: create this behavior in the new implementation. Paths below are PROPOSED target modules under the layout owned by W1-0001; only completed prerequisite tasks supply implementation. Prior source, APIs, fixtures and delivery claims are not a baseline.",
@@ -36,7 +41,7 @@
     "Own the real charged Planner → Derived(Assignment) path and provenance rejection. Begin with FixedMethod(SoloWithVerifier), an explicit initial Team and AsNeededDecomposition; UpfrontDecomposition/full revisions arrive in W3-0004 and CascadeRouter/LearnedRouter/VocValue in W6.",
     "Expose run selection of actual strategy implementations/effective parameters through named interfaces, with recorded authorized work-boundary changes and immutable history. This fixed initial workflow is a foundation/control for later agent initiative, not the product’s final organizing logic."
   ],
-  "revision": 7,
+  "revision": 8,
   "history": [
     {
       "revision": 1,
@@ -86,6 +91,13 @@
       "actor": "codex",
       "status": "in_progress",
       "note": "Final make verify on the corrected code exited 0: legacy scan and all four required offline Cargo checks; planning integration passed in 95.19s and the existing result/acceptance scenario also passed. Task register and staged diff checks passed. Independent acceptance_review reaffirmed R1(9/10) ACCEPT for code, documentation and replay-only append guard. All task acceptance outcomes have actual consumer evidence or named existing boundary tests; native inference and later interactive/decomposition handlers remain explicitly unclaimed."
+    },
+    {
+      "revision": 8,
+      "at": "2026-09-28T12:03:21.324769Z",
+      "actor": "codex",
+      "status": "done",
+      "note": "Implementation df97ee3b is reachable from main. Delivered accounted Planner extraction and planning, current initial Team/Method, replaceable criterion-directed contribution selection, and exact historical-source/write-version guards. Independent final R1(9/10) ACCEPT and all required checks passed. Completion does not claim native inference, interactive P6, diagnosed decomposition or complete session scheduling."
     }
   ]
 }
