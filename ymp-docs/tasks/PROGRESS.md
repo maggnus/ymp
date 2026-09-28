@@ -2,7 +2,7 @@
 
 Generated from the canonical JSON records in [`records/`](records/) by `python3 ymp-docs/tasks/manage.py progress --write`. Task write commands and `make tasks-progress` refresh it; do not edit statuses here.
 
-Tasks: 45 (6 done, 1 in progress, 26 open, 12 paused or blocked, 0 rejected). Times are Hong Kong time (UTC+08:00). Last record change: 2026-09-16 20:04.
+Tasks: 45 (6 done, 1 in progress, 26 open, 12 paused or blocked, 0 rejected). Times are Hong Kong time (UTC+08:00). Last record change: 2026-09-28 09:49.
 
 | Mark | Meaning |
 | :---: | --- |
@@ -27,9 +27,9 @@ Tasks: 45 (6 done, 1 in progress, 26 open, 12 paused or blocked, 0 rejected). Ti
 
 ### W1-0006 — [~] in_progress
 
-Admit contributions atomically with grants, reservations and active commitments. Owner: codex; revision 10; updated 2026-09-16 20:04 by codex.
+Admit contributions atomically with grants, reservations and active commitments. Owner: codex; revision 12; updated 2026-09-28 09:49 by codex.
 
-Full Gatekeeper candidate is committed on main as 2af2032. Fifteen admission integration tests pass, including complete intent pinning, no-file actual-capability checks, limits, cross-session conflicts, CAS-safe cancellation, lost acknowledgements, post-commit delivery, revoke and capacity. Full cargo test workspace, build, fmt, Clippy, legacy-scan and task check pass. Independent reviewer accepted all prior checkpoints and then hit provider usage limit before final whole-package review; keep in_progress until that independent review is available.
+R2(9/10) ACCEPT 28/09 09:48 — Independent review accepted the ownership guard and complete W1-0006 scope. One new SQLite regression fails before the guard (101), passes after it, and verifies unchanged old path/Treasury state with no partial admission. All 16 admission checks pass (0). Final required workspace verification is running; task remains in progress until the fix is committed to main.
 
 ## Wave W1
 
@@ -42,7 +42,7 @@ Full Gatekeeper candidate is committed on main as 2af2032. Fifteen admission int
 | [x] | [W1-0003](records/W1-0003.json) | Resolve native agents and execution profiles through a trusted Registry | identity | done | W1-0001 ✓, W1-0002 ✓ | codex | 2026-09-16 04:25 | 7 | commit [`33fe98a`](https://github.com/maggnus/ymp/commit/33fe98acdc0d4b1012132443fa21d58b2fa79fda) |
 | [x] | [W1-0004](records/W1-0004.json) | Charge invocations while protecting verification and policy-derived reporting capacity | resources | done | W1-0001 ✓, W1-0002 ✓, W1-0003 ✓ | codex | 2026-09-16 06:01 | 7 | commit [`960fc18`](https://github.com/maggnus/ymp/commit/960fc18223a24ebb8d794dcdfa2581ec5cb85282) |
 | [x] | [W1-0005](records/W1-0005.json) | Capture direct workspace snapshots and enforce assignment path ownership | workspace | done | W1-0001 ✓, W1-0003 ✓, W1-0016 ✓ | codex | 2026-09-16 09:14 | 15 | commit [`0cff1e9`](https://github.com/maggnus/ymp/commit/0cff1e979a4585df21d866f09136d3a85761f4b1) |
-| [~] | [W1-0006](records/W1-0006.json) | Admit contributions atomically with grants, reservations and active commitments | execution | in_progress | W1-0002 ✓, W1-0003 ✓, W1-0004 ✓, W1-0005 ✓, W1-0016 ✓ | codex | 2026-09-16 20:04 | 10 | — |
+| [~] | [W1-0006](records/W1-0006.json) | Admit contributions atomically with grants, reservations and active commitments | execution | in_progress | W1-0002 ✓, W1-0003 ✓, W1-0004 ✓, W1-0005 ✓, W1-0016 ✓ | codex | 2026-09-28 09:49 | 12 | — |
 | [=] | [W1-0007](records/W1-0007.json) | Complete commitment leases, release and delegation without losing accepted work | coordination | planned (blocked) | W1-0006 | — | 2026-09-16 01:05 | 3 | — |
 | [=] | [W1-0008](records/W1-0008.json) | Submit immutable result versions bound to attempts and exact workspace snapshots | results | planned (blocked) | W1-0005 ✓, W1-0006, W1-0007, W1-0017 | — | 2026-09-16 01:05 | 3 | — |
 | [=] | [W1-0009](records/W1-0009.json) | Run versioned checks against immutable snapshots and record attributable check runs | verification | planned (blocked) | W1-0002 ✓, W1-0005 ✓, W1-0006 | — | 2026-09-16 03:07 | 6 | — |

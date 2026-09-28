@@ -21,8 +21,12 @@ The [Treasury](ymp-docs/resources-implementation.md) records budget reservations
 receipt observations and policy-attributed charges while protecting verification
 and reporting capacity. Native execution and its evidence remain separate work.
 The [Direct workspace capture](ymp-docs/workspace-implementation.md) retains file
-content, ordinary permissions and empty directories in immutable snapshots.
-Assignment path ownership and cessation checks remain under development.
+content, ordinary permissions and empty directories in immutable snapshots, with
+persistent path ownership and mediated file access. The
+[Gatekeeper admission boundary](ymp-docs/admission-implementation.md) atomically
+binds persisted awards to resource reservations, grants and active commitments;
+revocation retains unresolved financial and workspace holds. Admission itself
+does not start an execution backend.
 The remaining modules are placeholders under
 [the proposed layout](ymp-docs/project-worktree.md). The executable still has no
 interactive or task-execution behavior.

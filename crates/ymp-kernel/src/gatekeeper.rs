@@ -289,6 +289,7 @@ pub(crate) fn validate_intent(
     }
     let current = view.admission().assignments();
     if current.contains_key(&assignment.id)
+        || view.path_locks().contains_key(&assignment.id.erased())
         || current.len() >= 4096
         || current.values().any(|record| {
             record.intent.nonce == intent.nonce || record.intent.grant.id == intent.grant.id

@@ -71,7 +71,9 @@ another token or handle, and restart cannot recreate the local secret.
 Admission counts Admitted and Running responsibility toward `parallel_limit`, preserves
 attempt limits across new contribution IDs for the same work, enforces member and pin
 limits, and allows independent producers to share a role when effective paths are
-disjoint. Every denial leaves no partial reservation, path ownership or assignment.
+disjoint. An assignment ID already present in path ownership cannot be reused, even
+when the new admission requests no file access. Every denial leaves no partial
+reservation, path ownership or assignment.
 A denied attempt cancels only its exact current Proposed commitment; a competing CAS
 winner is left untouched. Uncertain cancellation retains the local evidence instead
 of claiming that work was never admitted.
@@ -102,6 +104,18 @@ sealed-intent tampering, lost acknowledgements, post-commit capability delivery,
 revocation and financial/path release. Capacity tests cover revoke and final
 settlement at the journal limit.
 
-The remaining W1-0006 work is final independent review and repository checks before
-recording completion. W1-0007 owns renewal, delegation and the rest of the commitment
-lifecycle; W1-0017 owns actual starts, completion and recovery.
+The final review found that a no-files admission could reuse the assignment ID of
+standalone mediated path ownership. The SQLite regression
+`no_files_admission_cannot_reuse_standalone_path_ownership` failed before the
+uniqueness guard (exit 101) and passed after it. The guard preserves the previous
+ownership and Treasury state, creates no assignment and cancels only the current
+Proposed commitment. Separately, removing the grant operation check in a temporary
+source copy made `memory_admission_commits_one_funded_no_files_assignment` fail on
+an unauthorized `NoticePost`; restoring the guard and rebuilding passed. These
+checks exercise admission authority, not execution or native confinement.
+
+Final independent review accepted this boundary on 2026-09-28 after the ownership
+correction. `make verify` completed with exit 0, covering the legacy scan and the
+required offline build, formatting, Clippy and workspace tests. Task-register
+validation also completed with exit 0. W1-0007 owns renewal, delegation and the rest
+of the commitment lifecycle; W1-0017 owns actual starts, completion and recovery.

@@ -507,6 +507,85 @@ fn declaring_no_file_needs_does_not_prove_absence_of_actual_file_capabilities() 
     );
 }
 #[test]
+fn no_files_admission_cannot_reuse_standalone_path_ownership() {
+    let root = Directory::new();
+    let database = Directory::new();
+    let journal =
+        Arc::new(SqliteJournal::open(database.database(), ParameterSchemas::default()).unwrap());
+    let mut s = Setup::new(journal.clone(), &journal, &root, true);
+    let view = s.gate.view(&s.session).unwrap();
+    let _files = s
+        .gate
+        .workspace()
+        .mediate(
+            &s.session,
+            view.revision(),
+            view.latest_at() + 1,
+            ymp_kernel::workspace_guard::LockRequest {
+                assignment: id("assignment"),
+                workspace: id("workspace"),
+                profile: s.profile.clone(),
+                paths: vec![(
+                    WorkspacePath::new("file").unwrap(),
+                    ymp_domain::workspace::LockMode::Write,
+                )],
+            },
+            s.provider.clone(),
+        )
+        .unwrap();
+    let view = s.gate.view(&s.session).unwrap();
+    let prior = view.registry().unwrap().clone();
+    let mut facts = prior.input.facts;
+    facts.discoveries[0].provider.capabilities = Some(Default::default());
+    let registry = ymp_kernel::registry::Registry::new(journal);
+    let at = view.latest_at() + 1;
+    let input = registry.prepare(&s.session, facts, at).unwrap();
+    let responses = ymp_kernel::registry::readiness_views(&input)
+        .iter()
+        .map(|view| ymp_kernel::registry::ReadinessResponse {
+            profile: view.profile.clone(),
+            input: ymp_domain::Digest::of_value(view).unwrap(),
+            proposal: ymp_domain::Proposal {
+                value: ymp_domain::identity::Readiness::Ready,
+                rationale: "Provider now has no file capabilities".into(),
+                basis: vec![],
+                policy: prior.effective.policy.clone(),
+            },
+        })
+        .collect();
+    registry
+        .record(
+            &s.session,
+            view.revision(),
+            at,
+            input,
+            prior.effective,
+            responses,
+        )
+        .unwrap();
+    s.files = false;
+    let award = s.award("work");
+    let (expected, at, request) = s.request("assignment", award);
+    let before = s.gate.view(&s.session).unwrap();
+    let mut plan = s.gate.prepare(&s.session, expected, at, request).unwrap();
+    let denial = s
+        .gate
+        .admit(&mut plan)
+        .err()
+        .expect("Existing path ownership must deny admission");
+    assert_eq!(denial.code, "admission_duplicate");
+    assert!(!denial.refs.is_empty());
+    let after = s.gate.view(&s.session).unwrap();
+    assert_eq!(after.path_locks(), before.path_locks());
+    assert_eq!(after.treasury(), before.treasury());
+    assert!(after.admission().assignments().is_empty());
+    assert!(matches!(
+        after.coordination().commitments()[&id("work")].state,
+        CommitmentState::Cancelled(_)
+    ));
+}
+
+#[test]
 fn revoke_invalidates_the_grant_without_settling_or_releasing_held_resources() {
     let root = Directory::new();
     let database = Directory::new();
