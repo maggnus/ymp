@@ -5,7 +5,7 @@
   "title": "Execute admitted assignments through a new host and Scripted backend",
   "type": "implementation",
   "priority": 108,
-  "status": "in_progress",
+  "status": "done",
   "depends_on": [
     "W1-0006",
     "W1-0007",
@@ -30,8 +30,12 @@
     "Start ambiguity, stream loss, cancellation, delayed receipts and restart do not duplicate calls, reset budget, revive grants or release unsafe scoped access. Validated cessation/non-execution releases only the corresponding holds, independently of unknown-cost settlement.",
     "Scripted and a materially different backend contract implementation run through the real host; whole-invocation limits and response identity are enforced, unknown metadata/usage remain unknown, and malicious output cannot grant itself authority."
   ],
-  "evidence": [],
-  "revision": 6,
+  "evidence": [
+    "8de8e73a",
+    "ymp-docs/execution-implementation.md",
+    "crates/ymp-storage/tests/execution.rs"
+  ],
+  "revision": 7,
   "history": [
     {
       "revision": 1,
@@ -74,6 +78,13 @@
       "actor": "codex",
       "status": "in_progress",
       "note": "R2(9/10) ACCEPT recorded 28/09 16:14 — Independent review confirmed both findings closed; seven focused scenarios cover real Scripted/computed execution, late complete and partial usage, lost dispatch acknowledgement, reopened SQLite and cancellation during journal outage. Removing the cost-limit guard produced test exit 101 (Completed instead of Failed(Content)); restored focused checks exited 0. Review also checked the added recovery scenario and implementation notes. Real CheckRun progress through the host, control-reserve exhaustion and native execution remain explicitly untested."
+    },
+    {
+      "revision": 7,
+      "at": "2026-09-28T08:18:11.487057Z",
+      "actor": "codex",
+      "status": "done",
+      "note": "Delivered in main at 8de8e73a; ancestry verified. Atomic dispatch, bounded host and real Scripted/computed execution, honest late usage, independent scoped withdrawal, non-artifact discharge and conservative restart are implemented. make verify exited 0; all seven execution scenarios passed in the workspace run, task check and diff check passed; independent R2(9/10) ACCEPT. Native execution, real CheckRun progress through the host and control-reserve exhaustion were not exercised and are documented without implementation claims for native behavior."
     }
   ]
 }
