@@ -5,7 +5,7 @@
   "title": "Admit contributions atomically with grants, reservations and active commitments",
   "type": "implementation",
   "priority": 106,
-  "status": "in_progress",
+  "status": "done",
   "depends_on": [
     "W1-0002",
     "W1-0003",
@@ -25,7 +25,9 @@
     "Stale/mismatched awards, invalid settings/pins, producer independence, missing capabilities, exhausted budget/limits or path conflicts yield attributable denial with no partial grant/reservation/commitment. Independent producers may share RoleKind when other rules permit.",
     "A repeated admission cannot grant duplicate responsibility. Revoke invalidates authority without fabricating cessation or settlement; W1-0017 exercises actual starts/completion/recovery and W1-0010 owns accepted-result review integration."
   ],
-  "evidence": [],
+  "evidence": [
+    "Commit 5ba6dbf1 in main; includes the reviewed 2af20327 admission implementation and final ownership fix. Verification details: ymp-docs/admission-implementation.md."
+  ],
   "context": [
     "Authority: ymp-docs/self-organizing-team-domain-model.md, sections 3.4–3.5, 4 (Gatekeeper, Arbiter), A5, P2 admission, R-2/R-3/R-4/R-5/R-8/R-9/R-12/R-14. Use the approved model with 811a872 semantics and the greenfield baseline in 0c61ff1 and §5.8 for experimental strategy boundaries. Other documents and existing names explain implementation facts only.",
     "Greenfield: create this behavior in the new implementation. Paths below are PROPOSED target modules under the layout owned by W1-0001; only completed prerequisite tasks supply implementation. Prior source, APIs, fixtures and delivery claims are not a baseline.",
@@ -36,7 +38,7 @@
     "Admission design review: prepare a sealed, non-serializable access plan without journalling or live handles; consume it once only after confirmed complete admission. Preserve original resource policy input by starting the attempt-bound packet with ReservationChanged, then optional matching LockChanged, GrantIssued, active CommitmentChanged and final AssignmentAdmitted. Strict order/nonce/assignment checks must prevent reuse of older standalone resources and incomplete/interleaved appends. Prepare the grant secret privately and persist only its digest. Confirmed post-commit capability-delivery failure is not an admission denial; journal data cannot recreate a second live handle/secret. No-files requires enforceable absence of file access, not merely empty declared needs. CAS conflicts cannot cancel another admission; only the exact current Proposed commitment may be cancelled on a confirmed denial. Memory no-files consumer plus explicit synthetic scoped-plan conformance is acceptable; real filesystem admission and cross-session atomicity require SQLite/WorkspaceGuard integration.",
     "Gatekeeper candidate committed on main as 2af2032. The kernel now validates an attempt-bound AdmissionIntent against the exact Award, offer, source acceptance contract, Registry profile, task pins/capabilities, workspace boundary, resource decisions, lease and commitment. It prepares resources from the current view, includes optional PreparedMediation ownership, creates a local secret whose digest is persisted, and commits ReservationChanged + optional LockChanged + GrantIssued + Active CommitmentChanged + AssignmentAdmitted as one packet under a random nonce. The replay projection rejects incomplete/interleaved packets. Final issuance compares the complete stored intent, pinned admission reference and binding before returning the one-time GrantToken/handle; restart cannot recreate local capability. Revocation atomically invalidates financial/path authority and Assignment while retaining unresolved holds and un-settled usage. Capacity reserves cover revoke and later release/settlement; dedicated tests pass at journal limits. AdmissionRuntime connects current CostModel/ResourcePolicy proposals and WorkspaceGuard plans without starting a backend. Fifteen admission integration tests pass, including MemoryJournal/SQLite, real mediated paths, no-file actual-capability boundary, stale pins, cross-session conflict, limits, self-consistent packet tampering, lost acknowledgements, cancellation race, post-commit delivery, revocation and application wiring. Full workspace tests, build, fmt, Clippy, legacy-scan and task check pass. Independent review accepted all prior W1-0006 checkpoints but hit provider usage limit before final review; keep task in progress until final independent review is available. W1-0007 owns later commitment lifecycle; W1-0017 owns actual execution lifecycle."
   ],
-  "revision": 12,
+  "revision": 13,
   "history": [
     {
       "revision": 1,
@@ -121,6 +123,13 @@
       "actor": "codex",
       "status": "in_progress",
       "note": "R2(9/10) ACCEPT 28/09 09:48 — Independent review accepted the ownership guard and complete W1-0006 scope. One new SQLite regression fails before the guard (101), passes after it, and verifies unchanged old path/Treasury state with no partial admission. All 16 admission checks pass (0). Final required workspace verification is running; task remains in progress until the fix is committed to main."
+    },
+    {
+      "revision": 13,
+      "at": "2026-09-28T02:10:17.178662Z",
+      "actor": "codex",
+      "status": "done",
+      "note": "The complete W1-0006 result and final ownership correction are committed to main. Independent R2(9/10) ACCEPT; make verify, task validation, 28 task-tool tests, render and progress all exited 0. One new regression failed before the fix and passes after it. Admission does not start a backend; W1-0007 and W1-0017 retain lifecycle and execution ownership."
     }
   ]
 }
