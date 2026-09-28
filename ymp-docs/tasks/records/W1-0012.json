@@ -5,7 +5,7 @@
   "title": "Diagnose stalls and perform bounded recovery without discarding verified work",
   "type": "implementation",
   "priority": 112,
-  "status": "in_progress",
+  "status": "done",
   "depends_on": [
     "W1-0007",
     "W1-0019",
@@ -25,7 +25,12 @@
     "Broken environment, defective check and incorrect artifact select different actions. Retry receives the failing evidence; ReplaceCheck requires independent review; depleted verification capacity stops and leaves accepted versions and unmet criteria available.",
     "ProgressMonitor, FailureDiagnoser and EscalationPolicy each have two materially different implementations exercised through the consumer. A growth proposal without diagnosis or an exhausted retry limit is denied instead of creating another invocation."
   ],
-  "evidence": [],
+  "evidence": [
+    "ba307435",
+    "ymp-docs/progress-implementation.md",
+    "crates/ymp-storage/tests/progress.rs",
+    "crates/ymp-runtime/tests/progress.rs"
+  ],
   "context": [
     "Authority: ymp-docs/self-organizing-team-domain-model.md, sections 3.6 (ProgressLedger), 5.4, A9, A13 stop rule and R-14/R-16. Use the approved model with 811a872 semantics and the greenfield baseline in 0c61ff1 and §5.8 for experimental strategy boundaries. Other documents and existing names explain implementation facts only.",
     "Greenfield: create this behavior in the new implementation. Paths below are PROPOSED target modules under the layout owned by W1-0001; only completed prerequisite tasks supply implementation. Prior source, APIs, fixtures and delivery claims are not a baseline.",
@@ -33,7 +38,7 @@
     "RuleBasedDiagnoser distinguishes check/environment/capability/artifact/plan/interpretation/resource failures. W3-0007 supplies ModelAssistedDiagnoser and the team/plan-dependent action handlers; W4-0003 supplies AlternativeAttempts. Unsupported later actions are explicit limitations, not silently completed steps.",
     "ProgressMonitor/FailureDiagnoser/EscalationPolicy are replaceable algorithms with recoverable inputs and parameters. A handler cannot ignore R-19 holds, revive authority or discard accepted work. Each escalation records purpose, bound and criterion for judging its outcome."
   ],
-  "revision": 7,
+  "revision": 8,
   "history": [
     {
       "revision": 1,
@@ -83,6 +88,13 @@
       "actor": "codex",
       "status": "in_progress",
       "note": "Final make verify exited 0 on the stable code: legacy scan and all four required offline Cargo checks. Both storage progress scenarios passed (536.77s), as did the existing result/acceptance integration. Independent acceptance_review confirmed R1(9/10) ACCEPT for code and documentation. Register and staged diff checks passed. Ordinary candidate-scoped Verify/Diagnose discharge is explicitly recorded as W1-0014 integration; native repair, calibration/interpretation producers, future growth/replan handlers and lost local capability recovery are not claimed."
+    },
+    {
+      "revision": 8,
+      "at": "2026-09-28T13:35:01.363580Z",
+      "actor": "codex",
+      "status": "done",
+      "note": "Accepted implementation ba307435 is reachable from main. Delivered attributed A9 progress/diagnosis/escalation decisions, five bounded real recovery handlers, preserved result/accounting history, exact replacement approval and R14 admission protection. Independent R1(9/10) ACCEPT and final make verify passed. Explicit remaining integration/coverage is retained in documentation and W1-0014 context."
     }
   ]
 }
