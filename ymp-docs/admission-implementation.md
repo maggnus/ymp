@@ -5,6 +5,11 @@ RuntimeProxy offer, award persistence and the atomic Gatekeeper admission bounda
 implemented. W1-0007 owns later commitment transitions; W1-0017 owns actual starts
 and completion.
 
+The P2 transition consumer, recorded lease inputs and linked atomic delegation are
+described in [commitment implementation](commitment-implementation.md). New
+admissions now require the selected AwardPolicy's recorded commitment terms;
+historical committed admissions remain replayable.
+
 ## Values and provenance
 
 The domain defines Contribution, Forecast, typed ContributionSubject, Assignment,
