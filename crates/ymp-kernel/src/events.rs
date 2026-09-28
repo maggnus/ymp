@@ -29,6 +29,24 @@ pub struct CriteriaCommitted {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub enum Event {
+    PlanCommitted {
+        version: u32,
+        data: Box<crate::results::PlanRecord>,
+    },
+    AttemptStarted {
+        version: u32,
+        data: Box<crate::results::AttemptRecord>,
+    },
+    ResultSubmitted {
+        version: u32,
+        attempt: ymp_domain::Id<ymp_domain::plan::Attempt>,
+        result: Box<ymp_domain::result::ResultVersion>,
+    },
+    AttemptAbandoned {
+        version: u32,
+        attempt: ymp_domain::Id<ymp_domain::plan::Attempt>,
+        reason: String,
+    },
     InvocationStarted {
         version: u32,
         invocation: ymp_domain::assignment::Invocation,
@@ -152,6 +170,10 @@ pub enum Event {
 impl Event {
     pub fn contents(&self) -> Result<EventContent> {
         let selections: Vec<&PolicySelection> = match self {
+            Self::PlanCommitted { .. }
+            | Self::AttemptStarted { .. }
+            | Self::ResultSubmitted { .. }
+            | Self::AttemptAbandoned { .. } => vec![],
             Self::InvocationObserved { observation, .. } => match observation.as_ref() {
                 crate::execution::InvocationObservation::Dispatch(data) => vec![&data.backend],
                 crate::execution::InvocationObservation::Cost { decision, .. } => {
@@ -188,6 +210,11 @@ impl Event {
             | Self::AssumptionRecorded { .. } => vec![],
         };
         let mut content = EventContent::default();
+        if let Self::ResultSubmitted { result, .. } = self {
+            content
+                .required
+                .extend(result.artifacts.iter().map(|a| a.digest.clone()));
+        }
         if let Self::CheckRunRecorded { data, .. } = self {
             let bytes = ymp_domain::journal::encode(&data.environment)?;
             content.required.extend([
@@ -218,6 +245,10 @@ impl Event {
     }
     pub fn version(&self) -> u32 {
         match self {
+            Self::PlanCommitted { version, .. }
+            | Self::AttemptStarted { version, .. }
+            | Self::ResultSubmitted { version, .. }
+            | Self::AttemptAbandoned { version, .. } => *version,
             Self::InvocationStarted { version, .. }
             | Self::InvocationObserved { version, .. }
             | Self::InvocationEnded { version, .. } => *version,

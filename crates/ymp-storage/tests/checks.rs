@@ -216,7 +216,13 @@ fn real_snapshots_discriminate_and_retain_replayable_output_with_two_runners() {
     fs::write(setup.root.0.join("expected"), b"wrong\n").unwrap();
     let after = setup.snapshot("after");
     fs::write(setup.root.0.join("artifact"), b"changed after capture\n").unwrap();
-    let runner = process();
+    // Content discrimination does not depend on sub-second process startup.
+    // The explicit timeout controls below keep their separate 50 ms allowance.
+    let runner = ProcessRunner::new(CheckLimits {
+        timeout_ms: 5000,
+        output_bytes: 4096,
+    })
+    .unwrap();
     #[cfg(target_os = "macos")]
     {
         let red = setup

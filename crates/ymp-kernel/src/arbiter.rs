@@ -358,13 +358,7 @@ pub(crate) fn apply(
     match &event.payload {
         Event::ContributionProposed { contribution, .. } => {
             contribution.validate()?;
-            if let Some(subject) = &contribution.subject {
-                return Err(Denial::new(
-                    "subject_unsupported",
-                    "No supported committed WorkItem, ResultVersion or Objection is available yet",
-                )
-                .with_ref(subject.reference().clone()));
-            }
+            crate::results::subject_item(view, contribution)?;
             if contribution.session != *view.session()
                 || contribution.proposed_by != ContributionAuthor::Runtime
                 || book.contributions.contains_key(&contribution.id)

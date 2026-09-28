@@ -87,6 +87,10 @@ owner is an identity, not a serialized authority token. It binds the local compl
 capability and prevents identical requests from different Guards from sharing one
 hold, including when an adapter resolves an indeterminate append by matching bytes.
 CaptureRead participates in the same aggregate conflict checks as assignment holds.
+The [result consumer](result-implementation.md) adds a protected baseline capture
+under an admitted writer that has no invocation authority, and an atomic transfer
+from ceased Write ownership to the after capture. Other writers retain the same
+aggregate exclusion guarantees; these operations do not add agent file authority.
 
 The WorkspaceProvider capture contract is synchronous: all its I/O must end before
 it returns, including on failure. A local pending completion retains the exact start

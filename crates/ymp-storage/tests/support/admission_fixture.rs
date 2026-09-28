@@ -196,6 +196,9 @@ impl<J: Journal> Setup<J> {
         }
     }
     pub(super) fn award(&self, name: &str) -> Ref {
+        self.award_subject(name, None)
+    }
+    pub(super) fn award_subject(&self, name: &str, subject: Option<ContributionSubject>) -> Ref {
         let arbiter = Arbiter::new(self.journal.clone());
         let view = self.gate.view(&self.session).unwrap();
         let at = view.latest_at() + 1;
@@ -224,7 +227,7 @@ impl<J: Journal> Setup<J> {
                     session: self.session.clone(),
                     kind,
                     targets: BTreeSet::from([id("criterion")]),
-                    subject: None,
+                    subject,
                     needs,
                     forecast: forecast.clone(),
                     cost: CostEstimate {
@@ -319,7 +322,16 @@ impl<J: Journal> Setup<J> {
         award: Ref,
         path: &str,
     ) -> (u64, u64, AdmissionRequest) {
-        let view = self.gate.view(&self.session).unwrap();
+        self.request_with_gate(&self.gate, name, award, path)
+    }
+    pub(super) fn request_with_gate(
+        &self,
+        gate: &Gatekeeper<J, SqliteContent>,
+        name: &str,
+        award: Ref,
+        path: &str,
+    ) -> (u64, u64, AdmissionRequest) {
+        let view = gate.view(&self.session).unwrap();
         let at = view.latest_at() + 1;
         let source = view
             .coordination()
@@ -365,8 +377,7 @@ impl<J: Journal> Setup<J> {
         };
         let files = if self.files {
             Some(
-                self.gate
-                    .workspace()
+                gate.workspace()
                     .prepare_mediation(
                         &self.session,
                         view.revision(),

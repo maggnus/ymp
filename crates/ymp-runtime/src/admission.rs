@@ -43,6 +43,9 @@ pub struct AdmissionRuntime<J: Journal, C: ContentStore> {
     journal: Arc<J>,
 }
 impl<J: Journal, C: ContentStore> AdmissionRuntime<J, C> {
+    pub fn results(&self) -> Result<ymp_kernel::results::Results<J, C>> {
+        ymp_kernel::results::Results::new(self.journal.clone(), self.gatekeeper.clone())
+    }
     pub(crate) fn new(journal: Arc<J>, content: Arc<C>) -> Self {
         Self {
             gatekeeper: Arc::new(Gatekeeper::new(journal.clone(), content)),

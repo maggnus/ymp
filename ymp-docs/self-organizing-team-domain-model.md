@@ -292,6 +292,22 @@ entity WorkItem {                       -- subtask aimed at criteria
 enum  WorkState = Open | Committed | Running | InReview | Accepted | Failed | Blocked | Superseded
 ```
 
+The Rust `WorkItem.reference` identifies its immutable definition, excluding
+state, attempt history and the accepted reference. `PlanRecord` retains the exact
+Plan definition and original acceptance contract; `AttemptRecord` binds an Attempt
+to its protected baseline, planned after snapshot and local owner nonce. These
+implementation records preserve production provenance without treating submission
+as acceptance. The initial explicit consumer supports one item with empty
+dependencies. Domain Accepted/Rejected values alone do not implement transitions.
+`ResultsView` is the read-only Journal projection of these definitions, attempts,
+retained candidates and snapshot-transfer links.
+`Results` is the implementation consumer connecting this work definition to the
+existing admission, Attempt and ResultSubmitted guarantees; it cannot accept a
+candidate. Its `PreparedAttempt` retains the local owner capability and exact
+begin packet without recreating an execution grant. AttemptStarted and
+AttemptAbandoned are implementation journal facts for the model's Pending and
+Abandoned outcomes, preserving prior candidates and independent P2 obligations.
+
 ### 3.4. Authority and execution
 
 ```text
@@ -386,6 +402,13 @@ LockChanged records acquisition, authorization, revocation and separately justif
 release. `CaptureRead` is an implementation value for the kernel's own temporary
 root Read hold while it creates a Snapshot; it does not invent an agent Assignment.
 A per-attempt owner identity distinguishes concurrent identical capture requests.
+For a production baseline, `CaptureRead.protected_by` identifies an existing
+admitted, unstarted mediated writer. The root Read is part of that writer's held
+ownership while invocation authorization is forbidden until capture ends; the
+original Write hold stays in place afterwards. This records the exact baseline
+without granting the agent another capability. After validated withdrawal,
+Released and the result's CaptureStarted transfer ownership in one atomic packet,
+so no conflicting writer can enter before the after snapshot.
 SnapshotTaken atomically publishes a completed capture and ends that hold; aborted
 or unresolved capture I/O cannot be presented as a completed snapshot. Cross-session checks use active ownership derived from each session's Journal;
 control space for release is protected while those holds remain active.

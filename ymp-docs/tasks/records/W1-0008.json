@@ -5,14 +5,14 @@
   "title": "Submit immutable result versions bound to attempts and exact workspace snapshots",
   "type": "implementation",
   "priority": 108,
-  "status": "planned",
+  "status": "in_progress",
   "depends_on": [
     "W1-0005",
     "W1-0006",
     "W1-0007",
     "W1-0017"
   ],
-  "owner": null,
+  "owner": "codex",
   "goal": "Turn a producer’s completed work into a durable candidate whose authorship, before/after state and artifacts remain available for independent verification and later recovery.",
   "scope": [
     "Implement the Plan/WorkItem storage and validated one-item graph needed to attach actual production to criterion targets, dependencies, write paths and attempts. A fixed explicit initial graph is sufficient here; model-generated planning/revision is W1-0011.",
@@ -33,7 +33,7 @@
     "Submission validates actual assignment/workspace/producer/profile ownership and records a fresh Attempt/ResultVersion. No submission or process completion is acceptance. W1-0009 checks these candidates, W1-0010 independently accepts/rejects them and discharges artifact commitments.",
     "Retain snapshot bytes and non-selected/rejected/abandoned versions. A retry cannot overwrite results/evidence and unresolved writing cannot yield a stable after snapshot. Use the durable store from W1-0016; no previous-iteration migration is required."
   ],
-  "revision": 3,
+  "revision": 5,
   "history": [
     {
       "revision": 1,
@@ -55,6 +55,20 @@
       "actor": "owner",
       "status": "planned",
       "note": "Start decision 2026-09-16: W1 scheduled; readiness follows dependencies."
+    },
+    {
+      "revision": 4,
+      "at": "2026-09-28T08:18:36.218235Z",
+      "actor": "codex",
+      "status": "in_progress",
+      "note": "Claimed by codex."
+    },
+    {
+      "revision": 5,
+      "at": "2026-09-28T08:57:06.742626Z",
+      "actor": "codex",
+      "status": "in_progress",
+      "note": "R1(9/10) ACCEPT recorded 28/09 16:56 — Independent review confirmed protected before capture, atomic release-to-after-capture transfer, retained cessation evidence, authoritative candidate metadata and preserved abandoned history without acceptance. A real Planner and two Scripted productions pass the focused scenario; removing baseline ownership validation produced exit 101 by incorrectly admitting a stale snapshot. Native execution, parallel capture and injected publication failures remain untested and explicit in result-implementation.md. Final make verify is running; task is not complete yet."
     }
   ]
 }

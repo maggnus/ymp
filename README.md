@@ -39,6 +39,10 @@ Scripted assignments, records output and usage, handles cancellation and settles
 receipts. Confirmed non-artifact completion discharges its commitment; artifact
 acceptance and native agent execution remain separate work. Unresolved execution
 stays blocked after restart instead of starting again.
+The [result consumer](ymp-docs/result-implementation.md) records an explicit
+one-item plan and immutable production candidates with continuously protected
+before/after snapshots. Abandoned attempts and candidate bytes remain available
+after restart; submission does not establish acceptance.
 The remaining modules are placeholders under
 [the proposed layout](ymp-docs/project-worktree.md). The executable still has no
 interactive or task-execution behavior.

@@ -56,6 +56,16 @@ pub struct AdmissionView {
     assignments: BTreeMap<Id<Assignment>, AdmissionRecord>,
     pending: Option<PendingAdmission>,
 }
+pub(crate) fn pending_assignment<'a>(
+    view: &'a SessionView,
+    id: &Id<Assignment>,
+) -> Option<&'a Assignment> {
+    view.admission()
+        .pending
+        .as_ref()
+        .map(|pending| &pending.intent.assignment)
+        .filter(|a| &a.id == id)
+}
 impl AdmissionView {
     pub fn assignments(&self) -> &BTreeMap<Id<Assignment>, AdmissionRecord> {
         &self.assignments
@@ -223,12 +233,11 @@ pub(crate) fn validate_intent(
         )
         .with_ref(intent.award.clone()));
     }
-    if contribution.value.subject.is_some()
-        || matches!(
-            assignment.role,
-            RoleKind::Reviewer | RoleKind::FinalReviewer | RoleKind::Advocate
-        )
-    {
+    crate::results::validate_admission(view, &contribution.value)?;
+    if matches!(
+        assignment.role,
+        RoleKind::Reviewer | RoleKind::FinalReviewer | RoleKind::Advocate
+    ) {
         return Err(Denial::new(
             "subject_unavailable",
             "Typed result/work-item provenance is required before admitting this subject or review",
@@ -556,6 +565,7 @@ pub(crate) fn apply(view: &SessionView, event: &Envelope<Event>) -> Result<Optio
             ..
         } => {
             matching_lock(&pending.intent, lock)?;
+            crate::results::validate_paths(view, &pending.intent.assignment, lock)?;
             pending.step = Step::Grant;
         }
         Event::GrantIssued { nonce, grant, .. } => {
@@ -953,6 +963,9 @@ impl<J: Journal, C: ContentStore> Gatekeeper<J, C> {
         let mut events = vec![];
         for payload in payloads {
             let (policy, input, refs) = match &payload {
+                Event::AttemptAbandoned { .. } => {
+                    (None, None, crate::results::attribution(&view, &payload)?)
+                }
                 Event::InvocationStarted { .. }
                 | Event::InvocationObserved { .. }
                 | Event::InvocationEnded { .. } => crate::execution::attribution(&view, &payload)?,

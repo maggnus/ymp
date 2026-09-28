@@ -306,6 +306,88 @@ impl<J: Journal, C: ContentStore> WorkspaceGuard<J, C> {
         id: Id<Snapshot>,
         provider: &dyn WorkspaceProvider,
     ) -> Result<u64> {
+        self.capture(session, expected, at, workspace, id, provider, None, None)
+    }
+    /// Observe the exact baseline while this admitted writer still has no
+    /// invocation authority; its held write scope remains protected afterwards.
+    pub fn snapshot_unstarted(
+        &self,
+        access: &MediatedAccess<J>,
+        id: Id<Snapshot>,
+        at: u64,
+    ) -> Result<u64> {
+        if !Arc::ptr_eq(&access.issuer, &self.issuer) {
+            return Err(Denial::new(
+                "capture_protection",
+                "Foreign mediated capability",
+            ));
+        }
+        access.check_open()?;
+        let view = self.view(&access.session)?;
+        let lock = view
+            .path_locks()
+            .get(&access.assignment)
+            .ok_or_else(|| Denial::new("locks_missing", "No baseline protection"))?;
+        if lock.acquired.mediated_owner.as_ref() != Some(&access.owner) {
+            return Err(Denial::new(
+                "capture_protection",
+                "Different mediated owner",
+            ));
+        }
+        self.capture(
+            &access.session,
+            view.revision(),
+            at,
+            &lock.acquired.workspace,
+            id,
+            access.provider.as_ref(),
+            None,
+            Some(&access.assignment),
+        )
+    }
+    /// Transfer proved production cessation directly into the result's read hold.
+    /// No competing writer can enter between release and capture admission.
+    pub fn snapshot_withdrawn(
+        &self,
+        access: &MediatedAccess<J>,
+        evidence: &CessationEvidence,
+        id: Id<Snapshot>,
+        at: u64,
+    ) -> Result<u64> {
+        if !Arc::ptr_eq(&access.issuer, &self.issuer)
+            || !Arc::ptr_eq(&evidence.issuer, &self.issuer)
+            || evidence.session != access.session
+            || evidence.record.assignment != access.assignment
+        {
+            return Err(Denial::new(
+                "cessation_evidence",
+                "Result capture requires this guard's exact ceased capability",
+            ));
+        }
+        let view = self.view(&access.session)?;
+        self.capture(
+            &access.session,
+            view.revision(),
+            at,
+            &evidence.record.workspace,
+            id,
+            access.provider.as_ref(),
+            Some(evidence),
+            None,
+        )
+    }
+    #[allow(clippy::too_many_arguments)]
+    fn capture(
+        &self,
+        session: &Id,
+        expected: u64,
+        at: u64,
+        workspace: &Id<Workspace>,
+        id: Id<Snapshot>,
+        provider: &dyn WorkspaceProvider,
+        release: Option<&CessationEvidence>,
+        protected_by: Option<&Id>,
+    ) -> Result<u64> {
         let view = self.view(session)?;
         if view.revision() != expected {
             return Err(Denial::new(
@@ -343,6 +425,7 @@ impl<J: Journal, C: ContentStore> WorkspaceGuard<J, C> {
         })?;
         let owner = Digest::of(random);
         let change = crate::workspace_locks::LockChange::CaptureStarted {
+            protected_by: protected_by.cloned(),
             owner: owner.clone(),
             snapshot: id.clone(),
             workspace: workspace.clone(),
@@ -352,8 +435,26 @@ impl<J: Journal, C: ContentStore> WorkspaceGuard<J, C> {
             version: 1,
             change: change.clone(),
         };
-        let started = Envelope {
-            seq: expected
+        let mut events = Vec::new();
+        let mut capture_view = view.clone();
+        if let Some(evidence) = release {
+            let change = crate::workspace_locks::LockChange::Released(evidence.record.clone());
+            let event = Envelope {
+                seq: expected + 1,
+                session: session.clone(),
+                at,
+                actor: Actor::Runtime,
+                policy: None,
+                input: None,
+                refs: crate::workspace_locks::attribution(&capture_view, &change)?,
+                payload: Event::LockChanged { version: 1, change },
+            };
+            capture_view.apply(&event, self.journal.schemas())?;
+            events.push(event);
+        }
+        let capture_event = Envelope {
+            seq: capture_view
+                .revision()
                 .checked_add(1)
                 .ok_or_else(|| Denial::new("revision_overflow", "Journal sequence exhausted"))?,
             session: session.clone(),
@@ -361,10 +462,11 @@ impl<J: Journal, C: ContentStore> WorkspaceGuard<J, C> {
             actor: Actor::Runtime,
             policy: None,
             input: None,
-            refs: crate::workspace_locks::attribution(&view, &change)?,
+            refs: crate::workspace_locks::attribution(&capture_view, &change)?,
             payload: payload.clone(),
-        }
-        .reference()?;
+        };
+        let started = capture_event.reference()?;
+        events.push(capture_event);
         let key = (session.clone(), id.clone());
         {
             let mut pending = self.captures.lock().map_err(|_| {
@@ -388,7 +490,20 @@ impl<J: Journal, C: ContentStore> WorkspaceGuard<J, C> {
                 },
             );
         }
-        if let Err(error) = self.commit(session, expected, at, payload) {
+        let committed = self
+            .journal
+            .append(session, expected, &events)
+            .and_then(|actual| {
+                if actual == expected + events.len() as u64 {
+                    Ok(actual)
+                } else {
+                    Err(Denial::new(
+                        "journal_append",
+                        "Capture packet returned an unexpected revision",
+                    ))
+                }
+            });
+        if let Err(error) = committed {
             // Our random attempt owner distinguishes this unstarted attempt from
             // another Guard's otherwise identical request. Only a matching owner
             // and start reference can authorize its abort after acknowledgement loss.

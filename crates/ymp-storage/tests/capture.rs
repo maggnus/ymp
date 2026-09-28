@@ -217,6 +217,7 @@ impl Journal for CompletionFault {
                 .find(|c| c.ended.is_none())
                 .unwrap();
             let change = LockChange::CaptureStarted {
+                protected_by: None,
                 owner: ymp_domain::Digest::of(b"a different synthetic capture owner"),
                 snapshot: id("concurrent-read"),
                 workspace: source.workspace.clone(),

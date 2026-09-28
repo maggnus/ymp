@@ -120,7 +120,7 @@ pub struct PathLock {
     pub mode: LockMode,
     pub holder: Id,
 }
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Artifact {
     pub path: WorkspacePath,

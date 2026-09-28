@@ -68,6 +68,7 @@ enum Reply {
     },
     Events(Result<Vec<BackendEvent>>),
 }
+type WithdrawalReply = (CessationEvidence, Option<Denial>);
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ExecutionStatus {
     Prepared,
@@ -95,7 +96,7 @@ pub struct LiveInvocation<J: Journal> {
     events: VecDeque<BackendEvent>,
     cancel: Option<Receiver<Result<()>>>,
     cancel_sent: bool,
-    withdrawal: Option<Receiver<Result<CessationEvidence>>>,
+    withdrawal: Option<Receiver<Result<WithdrawalReply>>>,
     withdrawal_proof: Option<CessationEvidence>,
     withdrawal_started: bool,
     files_closed: bool,
@@ -375,8 +376,29 @@ impl<J: Journal + 'static, C: ContentStore + 'static> ExecutionHost<J, C> {
                 live.withdrawal_started = true;
                 let files = files.clone();
                 let execution = self.execution.clone();
+                let session = live.session().clone();
+                let assignment = live.credentials.assignment.id.clone();
+                let clock = self.clock.clone();
                 live.withdrawal = Some(call(move || {
-                    protected(|| execution.gatekeeper().workspace().withdraw_mediated(&files))
+                    protected(|| {
+                        let guard = execution.gatekeeper().workspace();
+                        let proof = guard.withdraw_mediated(&files)?;
+                        let error = execution
+                            .view(&session)
+                            .and_then(|view| {
+                                if let Some(attempt) = view.results().pending_for(&assignment) {
+                                    guard.snapshot_withdrawn(
+                                        &files,
+                                        &proof,
+                                        attempt.after.clone(),
+                                        clock.now()?,
+                                    )?;
+                                }
+                                Ok(())
+                            })
+                            .err();
+                        Ok((proof, error))
+                    })
                 })?);
             }
         } else {
@@ -704,13 +726,21 @@ impl<J: Journal + 'static, C: ContentStore + 'static> ExecutionHost<J, C> {
         }
         if let Some(receiver) = &live.withdrawal {
             match receiver.try_recv() {
-                Ok(Ok(proof)) => {
+                Ok(Ok((proof, capture_error))) => {
                     live.withdrawal = None;
                     live.withdrawal_proof = Some(proof);
+                    if capture_error.is_some() {
+                        live.pending_diagnostic = Some((ErrorClass::Environment, "result_capture_unavailable".into(),
+                            "Result capture must be resolved or the attempt abandoned; cessation evidence is retained".into()));
+                    }
                 }
                 Ok(Err(error)) => {
                     live.withdrawal = None;
-                    live.blocked = Some(error.code);
+                    if matches!(error.code.as_str(), "stale_revision" | "cessation_evidence") {
+                        live.withdrawal_started = false;
+                    } else {
+                        live.blocked = Some(error.code);
+                    }
                 }
                 Err(TryRecvError::Empty) => {}
                 Err(TryRecvError::Disconnected) => {
@@ -721,6 +751,30 @@ impl<J: Journal + 'static, C: ContentStore + 'static> ExecutionHost<J, C> {
         }
         if let Some(proof) = &live.withdrawal_proof {
             let view = self.execution.view(live.session())?;
+            if let Some(attempt) = view.results().pending_for(&live.credentials.assignment.id)
+                && !view.snapshots().contains_key(&attempt.after)
+            {
+                if view
+                    .capture_reads()
+                    .get(&attempt.after)
+                    .is_some_and(|capture| capture.ended.is_none())
+                {
+                    self.execution.gatekeeper().workspace().resolve_capture(
+                        live.session(),
+                        view.revision(),
+                        self.clock.now()?,
+                        &attempt.after,
+                    )?;
+                    return Ok(());
+                }
+                if view.path_locks()[&live.credentials.assignment.id.erased()]
+                    .released
+                    .is_none()
+                {
+                    live.blocked = Some("result_capture_unavailable".into());
+                    return Ok(());
+                }
+            }
             if view.path_locks()[&live.credentials.assignment.id.erased()]
                 .released
                 .is_none()

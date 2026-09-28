@@ -39,6 +39,7 @@ pub struct SessionView {
     coordination: crate::arbiter::CoordinationView,
     admission: crate::gatekeeper::AdmissionView,
     execution: crate::execution::ExecutionView,
+    results: crate::results::ResultsView,
     workspaces: BTreeMap<Id<ymp_domain::workspace::Workspace>, ymp_domain::workspace::Workspace>,
     snapshots: BTreeMap<Id<ymp_domain::workspace::Snapshot>, ymp_domain::workspace::Snapshot>,
     path_locks: BTreeMap<Id, crate::workspace_locks::AssignmentLocks>,
@@ -69,6 +70,7 @@ impl SessionView {
             coordination: crate::arbiter::CoordinationView::default(),
             admission: crate::gatekeeper::AdmissionView::default(),
             execution: crate::execution::ExecutionView::default(),
+            results: crate::results::ResultsView::default(),
             workspaces: BTreeMap::new(),
             snapshots: BTreeMap::new(),
             path_locks: BTreeMap::new(),
@@ -105,6 +107,9 @@ impl SessionView {
     }
     pub fn execution(&self) -> &crate::execution::ExecutionView {
         &self.execution
+    }
+    pub fn results(&self) -> &crate::results::ResultsView {
+        &self.results
     }
     pub fn coordination(&self) -> &crate::arbiter::CoordinationView {
         &self.coordination
@@ -236,7 +241,33 @@ impl SessionView {
         self.coordination.check_next(&event.payload)?;
         let execution = crate::execution::apply(self, event)?;
         let admission = crate::gatekeeper::apply(self, event)?;
+        let results = crate::results::apply(self, event)?;
         match &event.payload {
+            Event::PlanCommitted { .. }
+            | Event::AttemptStarted { .. }
+            | Event::ResultSubmitted { .. }
+            | Event::AttemptAbandoned { .. } => {
+                self.validate_base_complete()?;
+                if event.policy.is_some()
+                    || event.input.is_some()
+                    || event.refs != crate::results::attribution(self, &event.payload)?
+                {
+                    return Err(Denial::new(
+                        "result_attribution",
+                        "Result event differs from its authoritative basis",
+                    ));
+                }
+                match &event.payload {
+                    Event::PlanCommitted { data, .. } => {
+                        self.references.insert(data.plan.reference()?);
+                        self.references.insert(data.item.reference()?);
+                    }
+                    Event::ResultSubmitted { result, .. } => {
+                        self.references.insert(result.reference()?);
+                    }
+                    _ => {}
+                }
+            }
             Event::InvocationStarted { .. }
             | Event::InvocationObserved { .. }
             | Event::InvocationEnded { .. } => {
@@ -664,6 +695,7 @@ impl SessionView {
             self.execution = execution;
         }
         self.references.insert(event.reference()?);
+        self.results = results;
         self.revision = event.seq;
         self.latest_at = self.latest_at.max(event.at);
         Ok(())
@@ -688,6 +720,7 @@ impl SessionView {
 
     pub(crate) fn validate_complete(&self) -> Result<()> {
         self.execution.complete()?;
+        self.results.complete()?;
         self.admission.complete()?;
         crate::gatekeeper::validate_commitments(self)?;
         self.validate_base_complete()

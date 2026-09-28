@@ -161,6 +161,7 @@ fn dispatch_tail(data: &InvocationDispatch) -> Vec<Event> {
     events
 }
 fn validate_dispatch(view: &SessionView, data: &InvocationDispatch, at: u64) -> Result<()> {
+    crate::results::validate_dispatch(view, &data.assignment)?;
     data.prompt.validate()?;
     data.settings.validate()?;
     data.allowance.validate()?;

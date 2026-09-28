@@ -343,9 +343,10 @@ pub fn control_reserve(view: &SessionView) -> (usize, usize) {
     let workspace = crate::workspace_locks::control_reserve(view);
     let admission = crate::gatekeeper::control_reserve(view);
     let execution = crate::execution::control_reserve(view);
+    let results = view.results().control_reserve();
     (
-        workspace.0 + admission.0 + execution.0,
-        workspace.1 + admission.1 + execution.1,
+        workspace.0 + admission.0 + execution.0 + results,
+        workspace.1 + admission.1 + execution.1 + results * 65_536,
     )
 }
 

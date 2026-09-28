@@ -41,6 +41,8 @@ pub struct CessationRecord {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CaptureRead {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub protected_by: Option<Id>,
     pub snapshot: Id<Snapshot>,
     pub workspace: Id<Workspace>,
     pub observation: PathObservation,
@@ -72,6 +74,8 @@ pub enum LockChange {
         owner: Digest,
     },
     CaptureStarted {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        protected_by: Option<Id>,
         owner: Digest,
         snapshot: Id<Snapshot>,
         workspace: Id<Workspace>,
@@ -280,6 +284,14 @@ pub fn apply(
             assignment,
             invocation,
         } => {
+            if view.capture_reads().values().any(|capture| {
+                capture.protected_by.as_ref() == Some(assignment) && capture.ended.is_none()
+            }) {
+                return Err(Denial::new(
+                    "capture_active",
+                    "Production cannot start while its protected baseline capture is active",
+                ));
+            }
             if locks
                 .values()
                 .any(|lock| lock.invocation.as_ref() == Some(invocation))
@@ -515,29 +527,31 @@ impl WorkspaceOwnership {
                         .iter()
                         .cloned()
                         .chain(l.file_holds.values().cloned())
-                        .collect(),
+                        .collect::<Vec<_>>(),
                 )
             })
             .collect();
-        locks.extend(
-            view.capture_reads()
-                .values()
-                .filter(|c| c.ended.is_none())
-                .map(|capture| {
-                    (
-                        capture.snapshot.erased(),
-                        capture.started.clone(),
-                        vec![ObservedPathLock {
-                            lock: PathLock {
-                                path: WorkspacePath::root(),
-                                mode: LockMode::Read,
-                                holder: capture.snapshot.erased(),
-                            },
-                            observation: capture.observation.clone(),
-                        }],
-                    )
-                }),
-        );
+        for capture in view.capture_reads().values().filter(|c| c.ended.is_none()) {
+            let holder = capture
+                .protected_by
+                .clone()
+                .unwrap_or_else(|| capture.snapshot.erased());
+            let path = ObservedPathLock {
+                lock: PathLock {
+                    path: WorkspacePath::root(),
+                    mode: LockMode::Read,
+                    holder: holder.clone(),
+                },
+                observation: capture.observation.clone(),
+            };
+            if capture.protected_by.is_some()
+                && let Some((_, _, paths)) = locks.iter_mut().find(|(id, _, _)| id == &holder)
+            {
+                paths.push(path);
+            } else {
+                locks.push((holder, capture.started.clone(), vec![path]));
+            }
+        }
         Self {
             session: view.session().clone(),
             pending: view
@@ -710,12 +724,28 @@ pub fn control_reserve(view: &SessionView) -> (usize, usize) {
 }
 pub fn attribution(view: &SessionView, change: &LockChange) -> Result<Vec<Ref>> {
     let mut refs = match change {
-        LockChange::CaptureStarted { workspace, .. } => vec![
-            view.workspaces()
-                .get(workspace)
-                .ok_or_else(|| Denial::new("workspace_missing", "Workspace is not open"))?
-                .reference()?,
-        ],
+        LockChange::CaptureStarted {
+            workspace,
+            protected_by,
+            ..
+        } => {
+            let mut refs = vec![
+                view.workspaces()
+                    .get(workspace)
+                    .ok_or_else(|| Denial::new("workspace_missing", "Workspace is not open"))?
+                    .reference()?,
+            ];
+            if let Some(assignment) = protected_by {
+                refs.push(
+                    view.path_locks()
+                        .get(assignment)
+                        .ok_or_else(|| Denial::new("locks_missing", "No baseline protection"))?
+                        .last
+                        .clone(),
+                );
+            }
+            refs
+        }
         LockChange::CaptureAborted { started, .. } => vec![started.clone()],
 
         LockChange::Acquired(acquisition) => {
@@ -767,6 +797,7 @@ pub fn apply_capture(
 ) -> Result<CaptureRead> {
     match change {
         LockChange::CaptureStarted {
+            protected_by,
             owner,
             snapshot,
             workspace,
@@ -777,6 +808,28 @@ pub fn apply_capture(
                 .get(workspace)
                 .ok_or_else(|| Denial::new("workspace_missing", "Workspace is not open"))?;
             observation.validate(&recorded.location)?;
+            if let Some(assignment) = protected_by {
+                let lock = view
+                    .path_locks()
+                    .get(assignment)
+                    .ok_or_else(|| Denial::new("locks_missing", "No baseline protection"))?;
+                if lock.acquired.workspace != *workspace
+                    || lock.acquired.mediated_owner.is_none()
+                    || lock.invocation.is_some()
+                    || lock.revoked
+                    || lock.released.is_some()
+                    || !lock
+                        .acquired
+                        .requested
+                        .iter()
+                        .any(|p| p.mode == LockMode::Write)
+                {
+                    return Err(Denial::new(
+                        "capture_protection",
+                        "Baseline capture requires an unstarted mediated writer in this workspace",
+                    ));
+                }
+            }
             if observation.path != WorkspacePath::root()
                 || view.capture_reads().contains_key(snapshot)
                 || view.snapshots().contains_key(snapshot)
@@ -787,6 +840,7 @@ pub fn apply_capture(
                 ));
             }
             Ok(CaptureRead {
+                protected_by: protected_by.clone(),
                 snapshot: snapshot.clone(),
                 workspace: workspace.clone(),
                 observation: observation.clone(),
