@@ -1,60 +1,64 @@
 # Resume handoff
 
-Updated: 2026-09-29, during preparation of the first native pilot.
+Updated: 2026-09-29, after the native-pilot P1 deadline repair.
 
 This is a recovery note, not another task register. Reconcile it with Git and the
 canonical JSON task records before acting. Replace stale details when work moves
 forward; do not accumulate a transcript here.
 
-## Active work after the checkpoint
+## Current continuation point
 
-Root is the only writer on main. W1-0014 was reopened through the task tool
-(planned revision 11, then claimed by codex at revision 12) for a concrete P1
-real-clock regression found during the native pilot. Prior delivery commits and
-evidence remain valid history; the current record now owns repair status.
+The P1 deadline repair is committed on main in `714e7046`, with the bounded
+native example and evidence from runs 01-05. W1-0014 is again recorded complete
+at revision 14; its completion record is being committed with this handoff.
+Independent review accepted (R1, 9/10). Full `make verify` passed; all nine
+Dispatcher scenarios passed in 140.16s. Log: `/tmp/ymp-pilot-offer-verify.log`.
+Do not repeat those checks solely because the session resumed.
 
-Uncommitted changes: `crates/ymp-storage/examples/homogeneous_gpt.rs`, compact
-run evidence and README under `ymp-docs/experiments/homogeneous-gpt-elementary/`,
-a narrow Dispatcher deadline fix, one short consumer regression, task records
-and this handoff. Never reapply the old W1-0014 worktree over these changes.
+Next: build the actual example binary against the repaired runtime, then perform
+one bounded run in NEW `/tmp/ymp-gpt-elementary-20260929-06`, retaining the same
+model, effort and final run05 limits. Build command:
 
-Five sequential runs are finished; no native process is active:
-- 01: zero calls, missing executable dependency observation; fixed in the example.
-- 02: zero calls, 10 ms offer window expired; changed to 1000 ms.
-- 03: one real intake call; correct JSON, but actual cost 12404.4 exceeded the
-  12000 relative-unit allowance. Receipt Complete, held 0; output not consumed.
-- 04: intake completed, cost 12454.4; capacity 1 refused the second distinct Plan
-  stage. Driver now uses capacity 2, with StopPreserving only and no production retry.
-- 05: both Plan calls completed, cost 26509.8, held 0; production solicitation
-  received one valid offer, then a second late submission caused cancellation.
-  No producer artifact or independent review has yet been exercised natively.
+```sh
+CARGO_PROFILE_DEV_OPT_LEVEL=1 CARGO_PROFILE_DEV_DEBUG_ASSERTIONS=true \
+CARGO_PROFILE_DEV_OVERFLOW_CHECKS=true cargo build -p ymp-storage \
+  --example homogeneous_gpt --offline
+```
 
-All actual calls requested/sent `gpt-6-luna / low`; reported model/effort remain
-unknown. Do not change models or effort to hide integration failures. Current
-forecast: input 20000/output 1000/p90 factor 1.25, within unchanged 30000 per-call
-ceiling and 250000 session budget, 60000 verification reserve, 30000 reporting
-reserve, base timeout60s, overall480s plus30s cleanup. Two identities and profile
-are now strict Pins. Discovery observed Codex0.156.1 and seven offerings.
+Run command (check directory/journal first after any interruption):
 
-Immediate next steps:
-1. The focused check passed both received-offer and empty-window cases in 0.10s
-   (`/tmp/ymp-offer-deadline-green.log`); independent review accepted (R1, 9/10).
-   Full `make verify` passed with exit 0: `/tmp/ymp-pilot-offer-verify.log`.
-   All nine Dispatcher scenarios passed together in 140.16s. Ready to commit;
-   do not repeat these checks without a new change or concern. The new
-   short test failed on old code in0.14s (`/tmp/ymp-offer-deadline-red.log`).
-   Fix: stop submitting RuntimeProxy offers at the deadline, then use the existing
-   AwardPolicy on valid received offers. Source writer is root; review is read-only.
-2. Verify the fix, preserve all pilot outcomes, commit the repaired W1-0014 and
-   its canonical completion. No native inference while this boundary is unverified.
-3. A further homogeneous pilot can then test the repaired production transition;
-   use a NEW directory and retain the earlier costs/results. Do not repeat a run
-   because the conversation or its process disappeared.
+```sh
+target/debug/examples/homogeneous_gpt run /Users/maggnus/.local/bin/codex \
+  /tmp/ymp-gpt-elementary-20260929-06 gpt-6-luna low
+```
 
-Current example build log: `/tmp/ymp-pilot-build.log`. Native logs/directories use
-`/tmp/ymp-gpt-elementary-20260929-NN[.log]`; complete SQLite journals and view.json
-remain there. Compact evidence run-01.json through run-05.json is in the repository
-but not committed yet. Normal builds/tests never invoke a native model.
+No native process is active at this checkpoint. Never infer safe repetition from
+an absent process: inspect the retained invocation and accounting records.
+Full journals/logs use `/tmp/ymp-gpt-elementary-20260929-NN[.log]`. Committed
+compact evidence and limitations are in
+[the pilot directory](ymp-docs/experiments/homogeneous-gpt-elementary/README.md).
+
+Finished runs:
+- 01: zero calls, missing executable observation; example corrected.
+- 02: zero calls, 10ms offer window expired; corrected to1000ms.
+- 03: one native intake call; valid JSON but cost12404.4 exceeded allowance12000.
+- 04: intake completed, cost12454.4; attempt capacity1 refused the second Plan
+  stage. Example now permits2; its StopPreserving-only ladder selects no retry.
+- 05: both Plan calls completed, cost26509.8, held0; a second late production offer
+  exposed the repaired P1 defect. No native producer or independent review yet.
+
+All four actual calls requested/sent `gpt-6-luna / low`; independently reported
+model/effort remained unknown. Codex0.156.1 advertised seven offerings. Current
+forecast: input20000/output1000/p90 factor1.25; unchanged ceiling30000 per call,
+budget250000, verification reserve60000, reporting reserve30000 (relative weighted
+token units, not currency). Two pinned identities, one concurrent invocation,
+attempt capacity2 for two Plan stages, base timeout60s, overall480s+30s cleanup.
+Comparison of token efficiency and useful self-organization remains unproved.
+
+W1-0015 remains unclaimed (last observed revision8). After the bounded pilot,
+continue the existing task plan through `manage.py next` then `show`; do not
+silently replace the TUI task with extra architecture or broader experiments.
+Root owns main; no child writer is active.
 
 ## Owner direction
 
@@ -108,14 +112,14 @@ do not stage, remove or modify it.
    git status --short
    git log -5 --oneline
    python3 ymp-docs/tasks/manage.py next
-   python3 ymp-docs/tasks/manage.py show W1-0014
+   python3 ymp-docs/tasks/manage.py show W1-0015
    ```
 
 2. Read [intent.md](intent.md) and the authoritative
    [domain model](ymp-docs/self-organizing-team-domain-model.md) before changing
    behavior. Read implementation notes selectively; do not reload every task.
 
-3. After the active repair above, continue the bounded homogeneous GPT pilot
+3. From the current continuation point above, continue the bounded homogeneous GPT pilot
    under [poc-experiments.md](ymp-docs/poc-experiments.md), now that W1-0014 exists:
    two distinct agents, the same actually available model and supported low
    reasoning setting, an elementary sorted-JSON task in a disposable workspace.
@@ -130,7 +134,7 @@ do not stage, remove or modify it.
 4. Before the deadline repair was reopened, the task tool selected
    [W1-0015](ymp-docs/tasks/records/W1-0015.json), the interactive Ratatui interface:
    last observed planned, unowned, revision 8. It has **not been claimed** and
-   now waits for the W1-0014 repair to be completed again.
+   is ready again after the W1-0014 repair.
    Re-read the revision, then claim through `manage.py` before implementation.
    Follow [tui-reference.md](ymp-docs/tui-reference.md) and the task's complete
    terminal journey. The experiment direction does not reorder development tasks

@@ -5,7 +5,7 @@
   "title": "Run and recover the minimal accountable producer-reviewer session",
   "type": "implementation",
   "priority": 114,
-  "status": "in_progress",
+  "status": "done",
   "depends_on": [
     "W1-0007",
     "W1-0011",
@@ -32,7 +32,8 @@
     "crates/ymp-storage/tests/dispatcher.rs",
     "crates/ymp-storage/tests/session.rs",
     "git:b566b0d9fce8c3294e7c4db67f260eec19e72f97",
-    "ymp-docs/experiments/homogeneous-gpt-elementary/README.md"
+    "ymp-docs/experiments/homogeneous-gpt-elementary/README.md",
+    "git:714e7046"
   ],
   "context": [
     "Authority: ymp-docs/self-organizing-team-domain-model.md, section 4 (Dispatcher), A1/A3/A5/A6/A11/A13, P2, build stages 1–5 and intent.md interactive-session outcomes. Use the approved model with 811a872 semantics and the greenfield baseline in 0c61ff1 and §5.8 for experimental strategy boundaries. Other documents and existing names explain implementation facts only.",
@@ -45,7 +46,7 @@
     "Current ContributionPolicy selects Verify/Diagnose/DesignChecks for a retained candidate, not Review. The fixed A1 workflow must explicitly admit independent candidate review and connect Review -> A7 -> producer P2 before final aggregate capture; A8 Satisfied alone is not an accepted source. Keep that required call ordering outside strategy claims and do not accept a normal provider exit as artifact acceptance.",
     "Recovery/control seams confirmed by read-only preparation: new Application/DecisionConsumer and Treasury cannot yet recover original SessionControl/BudgetControl; completed retained production cannot be submitted after losing PreparedAttempt/issuer; Host.recover only observes unresolved work and must not duplicate it. Implement trusted continuation from recorded facts without new grants or budget reset. MemoryJournal currently has no binding_identity/workspace_binding, so its full Direct scenario needs an honest in-memory identity/binding implementation instead of bypassing WorkspaceGuard. Durable owner stop needs atomic current-revision ordering or equivalent evidence of no starvation; repeated optimistic CAS retries alone are insufficient. Preserve Host.cancel immediate local stopped flag and mediated withdrawal even when journal writes fail."
   ],
-  "revision": 13,
+  "revision": 14,
   "history": [
     {
       "revision": 1,
@@ -137,6 +138,13 @@
       "actor": "codex",
       "status": "in_progress",
       "note": "P1 deadline repair accepted by independent R1 (9/10). Old source failed the short late-offer reproducer in 0.14 s; fixed received-offer and empty-window cases passed in 0.10 s. Full make verify passed with test optimization level 1, assertions and overflow checks retained; all nine Dispatcher scenarios passed in 140.16 s. Both regular work and narration route no_offers to existing blocked/deterministic reporting. First native pilot evidence and a bounded example are retained: four actual planning calls across runs03-05, no native production or independent review yet; model/effort requested and sent gpt-6-luna/low, reported settings unknown. No runtime model settings, authority, budget or retry rules weakened. Ready to commit repair; completion follows verified main reachability."
+    },
+    {
+      "revision": 14,
+      "at": "2026-09-28T19:37:45.386514Z",
+      "actor": "codex",
+      "status": "done",
+      "note": "P1 real-clock deadline repair and bounded native example/evidence committed on main in 714e7046; reachability verified. Independent R1 accepted and complete required verification passed. No late RuntimeProxy offers, valid received offers remain awardable, and no_offers follows blocked/deterministic reporting. The native pilot has not yet reached production or independent review; its next run tests this repaired transition with unchanged profile and resource settings."
     }
   ]
 }
