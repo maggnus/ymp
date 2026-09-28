@@ -230,6 +230,13 @@ concrete NativeDiscovery/ExecutionBackend implementation for the documented loca
 protocol. These are adapter/provenance mappings, not additional provider kinds or
 capabilities.
 
+CodexAppServer policy version 2 records the local native Code Mode host as a
+distinct execution implementation while retaining empty environments and the
+same InvocationFiles authority. Its discovery identifier differs from version 1;
+the earlier schema and discovery bytes remain readable for historical replay.
+The provider's computation host is an implementation detail, not a new task
+capability or a route around mediated file access.
+
 ### 3.2. Task definition
 
 ```text

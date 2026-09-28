@@ -607,7 +607,7 @@ pub fn mediated_backend(
     } else if discovery.provider.kind == ymp_domain::identity::ProviderKind::Codex {
         selection.is_some_and(|selection| {
             selection.policy.implementation == "CodexAppServer"
-                && selection.policy.version == "1"
+                && matches!(selection.policy.version.as_str(), "1" | "2")
                 && discovery.provider.version.as_deref() == Some("0.156.1")
                 && discovery.method == crate::ports::execution::codex_discovery_method(selection)
                 && serde_json::from_value::<crate::ports::execution::CodexParameters>(

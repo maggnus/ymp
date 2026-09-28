@@ -16,7 +16,6 @@ use ymp_domain::{Denial, Result};
 pub const VERSION: &str = "0.156.1";
 pub const DISABLED: &[&str] = &[
     "shell_tool",
-    "code_mode_host",
     "code_mode",
     "apps",
     "plugins",
@@ -45,6 +44,70 @@ pub(crate) fn denied(code: &str) -> Denial {
         code,
         "Codex protocol boundary was not established; no credentials or native payload are included",
     )
+}
+
+/// Resolve the pinned release's packaged helper before admitting native work.
+/// Ambiguous legacy resource layouts are unavailable rather than inferred from
+/// ambient CODEX_HOME/package-manager settings.
+pub(crate) fn code_mode_host(executable: &Path) -> Result<PathBuf> {
+    use std::os::unix::fs::PermissionsExt;
+    let executable = executable
+        .canonicalize()
+        .map_err(|_| denied("codex_installation"))?;
+    let parent = executable
+        .parent()
+        .ok_or_else(|| denied("codex_installation"))?;
+    let bin = match parent.file_name().and_then(|s| s.to_str()) {
+        Some("bin") => Some(parent.to_path_buf()),
+        Some("codex-resources") => parent.parent().map(|p| p.join("bin")),
+        Some("MacOS")
+            if parent
+                .parent()
+                .is_some_and(|p| p.ends_with("CodexCLI.app/Contents")) =>
+        {
+            parent
+                .parent()
+                .and_then(Path::parent)
+                .and_then(Path::parent)
+                .map(|p| p.join("bin"))
+        }
+        _ => None,
+    }
+    .filter(|bin| {
+        bin.is_dir()
+            && bin
+                .parent()
+                .is_some_and(|p| p.join("codex-package.json").is_file())
+    });
+    let fallback = parent.join("codex-code-mode-host");
+    let helper = if let Some(bin) = bin {
+        let bundled = bin
+            .parent()
+            .unwrap()
+            .join("codex-resources/codex-code-mode-host");
+        if bundled.is_file() {
+            bundled
+        } else if bin.join("codex-code-mode-host").is_file() {
+            bin.join("codex-code-mode-host")
+        } else {
+            fallback
+        }
+    } else {
+        if parent
+            .join("codex-resources/codex-code-mode-host")
+            .is_file()
+        {
+            return Err(denied("codex_installation_layout"));
+        }
+        fallback
+    };
+    let metadata = helper
+        .metadata()
+        .map_err(|_| denied("codex_code_mode_host_unavailable"))?;
+    if !metadata.is_file() || metadata.permissions().mode() & 0o111 == 0 {
+        return Err(denied("codex_code_mode_host_unavailable"));
+    }
+    Ok(helper)
 }
 struct Startup {
     child: Option<Child>,
@@ -147,6 +210,8 @@ impl Transport {
             command.args(["-c", &format!("features.{feature}=false")]);
         }
         for value in [
+            "features.code_mode_host.enabled=true",
+            "features.code_mode_host.disable_in_process_fallback=true",
             "features.skip_host_skill_discovery=true",
             "notify=[]",
             "web_search=\"disabled\"",
@@ -394,6 +459,9 @@ pub(crate) fn verify(config: &Value, features: &Value, requirements: &Value) -> 
     }
     if features.get("nextCursor").is_some_and(|c| !c.is_null())
         || DISABLED.iter().any(|name| actual.get(name) != Some(&false))
+        || actual.get("code_mode_host") != Some(&true)
+        || config["features"]["code_mode_host"]["enabled"] != true
+        || config["features"]["code_mode_host"]["disable_in_process_fallback"] != true
         || actual.get("skip_host_skill_discovery") != Some(&true)
     {
         return Err(denied("codex_external_surfaces"));
@@ -479,4 +547,44 @@ pub(crate) fn verify_current(transport: &mut Transport, deadline: Instant) -> Re
     let requirements = transport.request("configRequirements/read", json!({}), deadline)?;
     verify(&config["config"], &flags, &requirements)?;
     Ok(config["config"].clone())
+}
+
+#[test]
+fn packaged_host_prefers_resources_and_never_falls_back_from_a_denied_file() {
+    use std::os::unix::fs::PermissionsExt;
+    let mut nonce = [0; 16];
+    getrandom::fill(&mut nonce).unwrap();
+    let root =
+        std::env::temp_dir().join(format!("ymp-host-layout-{}", ymp_domain::Digest::of(nonce)));
+    std::fs::create_dir(&root).unwrap();
+    std::fs::create_dir(root.join("bin")).unwrap();
+    std::fs::create_dir(root.join("codex-resources")).unwrap();
+    std::fs::write(root.join("codex-package.json"), b"{}").unwrap();
+    let executable = root.join("bin/codex");
+    let sibling = root.join("bin/codex-code-mode-host");
+    let bundled = root.join("codex-resources/codex-code-mode-host");
+    for path in [&executable, &sibling, &bundled] {
+        std::fs::write(path, b"not executed by this metadata test").unwrap();
+        std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o755)).unwrap();
+    }
+    assert_eq!(
+        code_mode_host(&executable).unwrap(),
+        bundled.canonicalize().unwrap()
+    );
+    std::fs::set_permissions(&bundled, std::fs::Permissions::from_mode(0o644)).unwrap();
+    assert_eq!(
+        code_mode_host(&executable).unwrap_err().code,
+        "codex_code_mode_host_unavailable"
+    );
+    std::fs::remove_file(&bundled).unwrap();
+    assert_eq!(
+        code_mode_host(&executable).unwrap(),
+        sibling.canonicalize().unwrap()
+    );
+    std::fs::remove_file(&sibling).unwrap();
+    assert_eq!(
+        code_mode_host(&executable).unwrap_err().code,
+        "codex_code_mode_host_unavailable"
+    );
+    std::fs::remove_dir_all(root).unwrap();
 }

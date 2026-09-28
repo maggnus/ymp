@@ -20,6 +20,10 @@ flags={}
 for arg in sys.argv:
     if arg.startswith('features.') and '=' in arg:
         key,value=arg.split('=',1);flags[key[9:]]=value=='true'
+host={'enabled':flags.pop('code_mode_host.enabled',False),'disable_in_process_fallback':flags.pop('code_mode_host.disable_in_process_fallback',False)}
+flags['code_mode_host']=host['enabled']
+if mode()=='host-disabled':host['enabled']=False;flags['code_mode_host']=False
+if mode()=='host-fallback':host['disable_in_process_fallback']=False
 thread='native-fixture-thread';turn=0;cwd=os.getcwd();total=0;phase=0
 
 def usage(n):return {'inputTokens':n*5,'cachedInputTokens':n*2,'cacheWriteInputTokens':n,'outputTokens':n,'reasoningOutputTokens':n,'totalTokens':n*6}
@@ -49,7 +53,7 @@ for line in sys.stdin:
             path.with_suffix('.setup').write_text('waiting')
             while not path.with_suffix('.release').exists():time.sleep(.002)
         enabled='mcp_servers.ambient.enabled=false' not in sys.argv
-        reply(i,{'config':{'mcp_servers':{'ambient':{'enabled':enabled}},'notify':[],'web_search':'disabled','approval_policy':'never'}})
+        reply(i,{'config':{'mcp_servers':{'ambient':{'enabled':enabled}},'notify':[],'web_search':'disabled','approval_policy':'never','features':{'code_mode_host':host}}})
     elif method=='experimentalFeature/list':
         rows=[{'name':k,'enabled':v,'defaultEnabled':True,'stage':'stable'} for k,v in flags.items()]
         if mode()=='bad-guard':rows.append({'name':'hooks','enabled':True})

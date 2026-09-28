@@ -206,8 +206,15 @@ impl CodexParameters {
     }
 }
 pub fn codex_discovery_method(selection: &PolicySelection) -> String {
-    format!(
-        "CodexAppServer/0.156.1/zero-environment/{}",
-        selection.policy.params
-    )
+    if selection.policy.version == "1" {
+        format!(
+            "CodexAppServer/0.156.1/zero-environment/{}",
+            selection.policy.params
+        )
+    } else {
+        format!(
+            "CodexAppServer/v{}/0.156.1/zero-environment-code-mode-host/{}",
+            selection.policy.version, selection.policy.params
+        )
+    }
 }

@@ -56,7 +56,7 @@ impl CodexAppServer {
             selection: PolicySelection::new(
                 "ExecutionBackend",
                 "CodexAppServer",
-                "1",
+                "2",
                 serde_json::to_value(&parameters).map_err(|_| denied("codex_parameters"))?,
             )?,
             parameters,
@@ -160,6 +160,9 @@ fn catalog(
 impl NativeDiscovery for CodexAppServer {
     fn discover(&self) -> Result<Discovery> {
         self.version()?;
+        if self.parameters.source == DiscoverySource::Native {
+            protocol::code_mode_host(&self.parameters.executable)?;
+        }
         let (mut transport, _) = protocol::guarded(
             &self.parameters.executable,
             self.parameters.frame_bytes,
@@ -200,6 +203,9 @@ impl ExecutionBackend for CodexAppServer {
     }
     fn start(&self, request: &ExecutionRequest<'_>) -> Result<BackendStart> {
         let invocation_deadline = Instant::now() + Duration::from_millis(request.allowance.timeout);
+        if self.parameters.source == DiscoverySource::Native {
+            protocol::code_mode_host(&self.parameters.executable)?;
+        }
         {
             let mut started = self.started.lock().map_err(|_| denied("codex_state"))?;
             if started.len() >= 64 {

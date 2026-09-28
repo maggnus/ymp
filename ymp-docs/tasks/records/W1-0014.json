@@ -5,7 +5,7 @@
   "title": "Run and recover the minimal accountable producer-reviewer session",
   "type": "implementation",
   "priority": 114,
-  "status": "done",
+  "status": "planned",
   "depends_on": [
     "W1-0007",
     "W1-0011",
@@ -46,7 +46,7 @@
     "Current ContributionPolicy selects Verify/Diagnose/DesignChecks for a retained candidate, not Review. The fixed A1 workflow must explicitly admit independent candidate review and connect Review -> A7 -> producer P2 before final aggregate capture; A8 Satisfied alone is not an accepted source. Keep that required call ordering outside strategy claims and do not accept a normal provider exit as artifact acceptance.",
     "Recovery/control seams confirmed by read-only preparation: new Application/DecisionConsumer and Treasury cannot yet recover original SessionControl/BudgetControl; completed retained production cannot be submitted after losing PreparedAttempt/issuer; Host.recover only observes unresolved work and must not duplicate it. Implement trusted continuation from recorded facts without new grants or budget reset. MemoryJournal currently has no binding_identity/workspace_binding, so its full Direct scenario needs an honest in-memory identity/binding implementation instead of bypassing WorkspaceGuard. Durable owner stop needs atomic current-revision ordering or equivalent evidence of no starvation; repeated optimistic CAS retries alone are insufficient. Preserve Host.cancel immediate local stopped flag and mediated withdrawal even when journal writes fail."
   ],
-  "revision": 14,
+  "revision": 15,
   "history": [
     {
       "revision": 1,
@@ -145,6 +145,13 @@
       "actor": "codex",
       "status": "done",
       "note": "P1 real-clock deadline repair and bounded native example/evidence committed on main in 714e7046; reachability verified. Independent R1 accepted and complete required verification passed. No late RuntimeProxy offers, valid received offers remain awardable, and no_offers follows blocked/deterministic reporting. The native pilot has not yet reached production or independent review; its next run tests this repaired transition with unchanged profile and resource settings."
+    },
+    {
+      "revision": 15,
+      "at": "2026-09-28T19:50:55.218116Z",
+      "actor": "codex",
+      "status": "planned",
+      "note": "Await the required native-adapter compatibility repair exposed by pilot run06. The committed P1 fix and session verification remain valid; no session rewrite is planned. W1-0018 must version and verify its local Code Mode host boundary before the session integration can be reconfirmed with that backend."
     }
   ]
 }

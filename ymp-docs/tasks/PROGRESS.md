@@ -2,7 +2,7 @@
 
 Generated from the canonical JSON records in [`records/`](records/) by `python3 ymp-docs/tasks/manage.py progress --write`. Task write commands and `make tasks-progress` refresh it; do not edit statuses here.
 
-Tasks: 45 (18 done, 0 in progress, 27 open, 0 paused or blocked, 0 rejected). Times are Hong Kong time (UTC+08:00). Last record change: 2026-09-29 03:37.
+Tasks: 45 (16 done, 1 in progress, 26 open, 2 paused or blocked, 0 rejected). Times are Hong Kong time (UTC+08:00). Last record change: 2026-09-29 04:11.
 
 | Mark | Meaning |
 | :---: | --- |
@@ -16,16 +16,24 @@ Tasks: 45 (18 done, 0 in progress, 27 open, 0 paused or blocked, 0 rejected). Ti
 
 | Wave | Done | In progress | Open | Paused or blocked | Rejected | Total | Done % |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| [W1](#wave-w1) | 18 | 0 | 1 | 0 | 0 | 19 | 95% |
+| [W1](#wave-w1) | 16 | 1 | 0 | 2 | 0 | 19 | 84% |
 | [W2](#wave-w2) | 0 | 0 | 4 | 0 | 0 | 4 | 0% |
 | [W3](#wave-w3) | 0 | 0 | 9 | 0 | 0 | 9 | 0% |
 | [W4](#wave-w4) | 0 | 0 | 3 | 0 | 0 | 3 | 0% |
 | [W5](#wave-w5) | 0 | 0 | 5 | 0 | 0 | 5 | 0% |
 | [W6](#wave-w6) | 0 | 0 | 5 | 0 | 0 | 5 | 0% |
 
+## Current work
+
+### W1-0018 — [~] in_progress
+
+Build the native Codex backend and discovery for accountable sessions. Owner: codex; revision 13; updated 2026-09-29 04:11 by codex.
+
+CodexAppServer v2 repair accepted by independent R1 (9/10). Required effective local Code Mode host and disabled in-process fallback preserve empty environments and mediated InvocationFiles; v1 schema/method bytes stay readable and cannot satisfy v2 attribution. Native discovery/start checks the helper chosen by supported0.156.1 packaging, refuses a denied preferred file and ambiguous legacy resource layout. Focused protocol consumer3 passed6.25s, helper layout regression passed, actual metadata-only consumer passed1.83s with seven offerings and zero turns. Full make verify passed with optimization1/assertions/overflow enabled; all nine Dispatcher scenarios passed139.51s. No new native inference was run during the repair; v2 native file-tool execution remains for the next bounded pilot. Ready to commit before canonical completion.
+
 ## Wave W1
 
-18 of 19 done; 0 in progress; 0 paused or blocked.
+16 of 19 done; 1 in progress; 2 paused or blocked.
 
 | Status | Task | Title | Area | State | Depends on | Owner | Updated (HKT) | Rev | Evidence |
 | :---: | --- | --- | --- | --- | --- | --- | --- | ---: | --- |
@@ -42,11 +50,11 @@ Tasks: 45 (18 done, 0 in progress, 27 open, 0 paused or blocked, 0 rejected). Ti
 | [x] | [W1-0011](records/W1-0011.json) | Extract criteria and select minimal criterion-directed work through admitted strategies | planning | done | W1-0002 ✓, W1-0006 ✓, W1-0008 ✓, W1-0010 ✓ | codex | 2026-09-28 20:03 | 8 | df97ee3b; ymp-docs/planning-implementation.md; crates/ymp-storage/tests/planning.rs; crates/ymp-kernel/tests/replay.rs |
 | [x] | [W1-0012](records/W1-0012.json) | Diagnose stalls and perform bounded recovery without discarding verified work | progress | done | W1-0007 ✓, W1-0019 ✓, W1-0010 ✓, W1-0011 ✓ | codex | 2026-09-28 21:35 | 8 | ba307435; ymp-docs/progress-implementation.md; crates/ymp-storage/tests/progress.rs; crates/ymp-runtime/tests/progress.rs |
 | [x] | [W1-0013](records/W1-0013.json) | Finalize the integrated result and deliver an evidence-audited report | reporting | done | W1-0006 ✓, W1-0008 ✓, W1-0019 ✓, W1-0010 ✓, W1-0011 ✓, W1-0012 ✓ | codex | 2026-09-28 23:40 | 8 | d77ba2bc |
-| [x] | [W1-0014](records/W1-0014.json) | Run and recover the minimal accountable producer-reviewer session | session | done | W1-0007 ✓, W1-0011 ✓, W1-0012 ✓, W1-0013 ✓, W1-0018 ✓ | codex | 2026-09-29 03:37 | 14 | ymp-docs/session-implementation.md; crates/ymp-storage/tests/dispatcher.rs; crates/ymp-storage/tests/session.rs; commit [`b566b0d`](https://github.com/maggnus/ymp/commit/b566b0d9fce8c3294e7c4db67f260eec19e72f97); ymp-docs/experiments/homogeneous-gpt-elementary/README.md; git:714e7046 |
-| [ ] | [W1-0015](records/W1-0015.json) | Expose the accountable session through a simple interactive Ratatui interface | interface | planned | W1-0014 ✓ | — | 2026-09-16 03:19 | 8 | — |
+| [=] | [W1-0014](records/W1-0014.json) | Run and recover the minimal accountable producer-reviewer session | session | planned (blocked) | W1-0007 ✓, W1-0011 ✓, W1-0012 ✓, W1-0013 ✓, W1-0018 | codex | 2026-09-29 03:50 | 15 | ymp-docs/session-implementation.md; crates/ymp-storage/tests/dispatcher.rs; crates/ymp-storage/tests/session.rs; commit [`b566b0d`](https://github.com/maggnus/ymp/commit/b566b0d9fce8c3294e7c4db67f260eec19e72f97); ymp-docs/experiments/homogeneous-gpt-elementary/README.md; git:714e7046 |
+| [=] | [W1-0015](records/W1-0015.json) | Expose the accountable session through a simple interactive Ratatui interface | interface | planned (blocked) | W1-0014 | — | 2026-09-16 03:19 | 8 | — |
 | [x] | [W1-0016](records/W1-0016.json) | Persist the new Journal and content-addressed payloads across restart | persistence | done | W1-0001 ✓ | codex | 2026-09-16 04:56 | 9 | commit [`07db5fa`](https://github.com/maggnus/ymp/commit/07db5fa45ad10a94e5560c711b7be0274eb5d1c9) |
 | [x] | [W1-0017](records/W1-0017.json) | Execute admitted assignments through a new host and Scripted backend | execution | done | W1-0006 ✓, W1-0007 ✓, W1-0016 ✓ | codex | 2026-09-28 16:18 | 7 | 8de8e73a; ymp-docs/execution-implementation.md; crates/ymp-storage/tests/execution.rs |
-| [x] | [W1-0018](records/W1-0018.json) | Build the native Codex backend and discovery for accountable sessions | providers | done | W1-0003 ✓, W1-0017 ✓ | codex | 2026-09-29 00:39 | 10 | fc6d7d56 |
+| [~] | [W1-0018](records/W1-0018.json) | Build the native Codex backend and discovery for accountable sessions | providers | in_progress | W1-0003 ✓, W1-0017 ✓ | codex | 2026-09-29 04:11 | 13 | fc6d7d56; ymp-docs/codex-implementation.md |
 | [x] | [W1-0019](records/W1-0019.json) | Bind attributed evidence and reviews to immutable results | verification | done | W1-0008 ✓, W1-0009 ✓ | codex | 2026-09-28 18:13 | 7 | 3689ad59; ymp-docs/evidence-implementation.md; crates/ymp-storage/tests/results.rs |
 
 ## Wave W2
@@ -55,10 +63,10 @@ Tasks: 45 (18 done, 0 in progress, 27 open, 0 paused or blocked, 0 rejected). Ti
 
 | Status | Task | Title | Area | State | Depends on | Owner | Updated (HKT) | Rev | Evidence |
 | :---: | --- | --- | --- | --- | --- | --- | --- | ---: | --- |
-| [ ] | [W2-0001](records/W2-0001.json) | Design independent hidden checks before production and enforce their visibility | verification | new | W1-0003 ✓, W1-0006 ✓, W1-0019 ✓, W1-0013 ✓, W1-0014 ✓ | — | 2026-09-16 01:05 | 3 | — |
+| [ ] | [W2-0001](records/W2-0001.json) | Design independent hidden checks before production and enforce their visibility | verification | new | W1-0003 ✓, W1-0006 ✓, W1-0019 ✓, W1-0013 ✓, W1-0014 | — | 2026-09-16 01:05 | 3 | — |
 | [ ] | [W2-0002](records/W2-0002.json) | Execute property checks in explicit process and container environments | checks | new | W1-0009 ✓, W2-0001 | — | 2026-09-16 00:14 | 2 | — |
 | [ ] | [W2-0003](records/W2-0003.json) | Verify browser behavior and external data with attributable check evidence | checks | new | W1-0019 ✓, W1-0013 ✓, W2-0001 | — | 2026-09-16 01:05 | 3 | — |
-| [ ] | [W2-0004](records/W2-0004.json) | Measure check discrimination with faulty candidates and complete independent verification | verification | new | W1-0010 ✓, W1-0012 ✓, W1-0014 ✓, W2-0001, W2-0002, W2-0003 | — | 2026-09-16 00:14 | 2 | — |
+| [ ] | [W2-0004](records/W2-0004.json) | Measure check discrimination with faulty candidates and complete independent verification | verification | new | W1-0010 ✓, W1-0012 ✓, W1-0014, W2-0001, W2-0002, W2-0003 | — | 2026-09-16 00:14 | 2 | — |
 
 ## Wave W3
 
@@ -66,15 +74,15 @@ Tasks: 45 (18 done, 0 in progress, 27 open, 0 paused or blocked, 0 rejected). Ti
 
 | Status | Task | Title | Area | State | Depends on | Owner | Updated (HKT) | Rev | Evidence |
 | :---: | --- | --- | --- | --- | --- | --- | --- | ---: | --- |
-| [ ] | [W3-0001](records/W3-0001.json) | Let agents use grant-scoped team operations and addressed board projections | communication | new | W1-0006 ✓, W1-0007 ✓, W1-0014 ✓, W2-0001 | — | 2026-09-16 01:05 | 3 | — |
+| [ ] | [W3-0001](records/W3-0001.json) | Let agents use grant-scoped team operations and addressed board projections | communication | new | W1-0006 ✓, W1-0007 ✓, W1-0014, W2-0001 | — | 2026-09-16 01:05 | 3 | — |
 | [ ] | [W3-0002](records/W3-0002.json) | Choose team members, profiles and reviewers from explicit demand and independence | team | new | W1-0003 ✓, W1-0006 ✓, W1-0012 ✓, W1-0013 ✓, W3-0001 | — | 2026-09-16 00:14 | 2 | — |
 | [ ] | [W3-0003](records/W3-0003.json) | Award contributions through voluntary offers, deadlines and bounded reopening | allocation | new | W1-0004 ✓, W1-0011 ✓, W3-0001, W3-0002 | — | 2026-09-16 00:14 | 2 | — |
 | [ ] | [W3-0004](records/W3-0004.json) | Respond to goal-status notices and clarification by revising accountable work | planning | new | W1-0011 ✓, W1-0012 ✓, W1-0015, W3-0001, W3-0003 | — | 2026-09-16 00:14 | 2 | — |
 | [ ] | [W3-0005](records/W3-0005.json) | Transfer bounded decision and evidence context across commitment changes | context | new | W1-0007 ✓, W1-0013 ✓, W3-0001, W3-0003, W3-0004 | — | 2026-09-16 00:14 | 2 | — |
 | [ ] | [W3-0006](records/W3-0006.json) | Resolve objections with counterexamples, evidence requests and bounded debate | disputes | new | W1-0010 ✓, W1-0012 ✓, W2-0004, W3-0001, W3-0002, W3-0003 | — | 2026-09-16 00:14 | 2 | — |
 | [ ] | [W3-0007](records/W3-0007.json) | Execute diagnosis-driven reassignment, decomposition and profile escalation | recovery | new | W1-0012 ✓, W3-0002, W3-0003, W3-0004, W3-0005, W3-0006 | — | 2026-09-16 00:14 | 2 | — |
-| [ ] | [W3-0008](records/W3-0008.json) | Dispatch independent contributions concurrently and react to coordination events | session | new | W1-0014 ✓, W3-0003, W3-0004, W3-0005, W3-0006, W3-0007, W3-0009 | — | 2026-09-16 01:05 | 3 | — |
-| [ ] | [W3-0009](records/W3-0009.json) | Compare fixed and self-organizing policy sets on matched sessions | evaluation | new | W1-0011 ✓, W1-0014 ✓ | — | 2026-09-16 01:05 | 1 | — |
+| [ ] | [W3-0008](records/W3-0008.json) | Dispatch independent contributions concurrently and react to coordination events | session | new | W1-0014, W3-0003, W3-0004, W3-0005, W3-0006, W3-0007, W3-0009 | — | 2026-09-16 01:05 | 3 | — |
+| [ ] | [W3-0009](records/W3-0009.json) | Compare fixed and self-organizing policy sets on matched sessions | evaluation | new | W1-0011 ✓, W1-0014 | — | 2026-09-16 01:05 | 1 | — |
 
 ## Wave W4
 
@@ -96,7 +104,7 @@ Tasks: 45 (18 done, 0 in progress, 27 open, 0 paused or blocked, 0 rejected). Ti
 | [ ] | [W5-0002](records/W5-0002.json) | Compare success and cost forecasts with attributable outcomes | calibration | new | W1-0004 ✓, W3-0003, W5-0001 | — | 2026-09-16 00:14 | 1 | — |
 | [ ] | [W5-0003](records/W5-0003.json) | Curate scoped knowledge after delivery with independent review and provenance | knowledge | new | W1-0013 ✓, W3-0001, W3-0003, W5-0001 | — | 2026-09-16 00:14 | 1 | — |
 | [ ] | [W5-0004](records/W5-0004.json) | Test knowledge with controlled retrieval and record exact context inclusion | learning | new | W3-0005, W5-0002, W5-0003 | — | 2026-09-16 00:14 | 1 | — |
-| [ ] | [W5-0005](records/W5-0005.json) | Regrade accepted results from later signals and correct dependent experience | consequences | new | W1-0014 ✓, W3-0008, W5-0001, W5-0003, W5-0004 | — | 2026-09-16 00:14 | 1 | — |
+| [ ] | [W5-0005](records/W5-0005.json) | Regrade accepted results from later signals and correct dependent experience | consequences | new | W1-0014, W3-0008, W5-0001, W5-0003, W5-0004 | — | 2026-09-16 00:14 | 1 | — |
 
 ## Wave W6
 

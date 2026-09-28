@@ -219,5 +219,76 @@ scenarios passed in that run (36.39 seconds). Task-register and diff checks pass
 The combined runs use `CARGO_PROFILE_TEST_OPT_LEVEL=1`, with debug assertions and
 overflow checks explicitly enabled. `make verify` still runs every required
 command and every ordinary workspace test; this changes compilation optimization,
-not the test set. Native inference, native final role output, native complete
-usage and product experiments remain unverified by this task's evidence.
+not the test set. That original delivery did not establish native inference,
+native final role output, native complete usage or a product experiment.
+
+## Policy version 2: native Code Mode compatibility
+
+The [first native pilot](experiments/homogeneous-gpt-elementary/README.md) later
+exposed a compatibility failure in version 1. Its known thread's stored tool
+items show an `exec` call attempting `tools.ymp_read`, followed by
+`code-mode host is disabled`. The native process completed, but the kernel refused
+the resulting error object as a plan. No file-tool result was fabricated.
+
+In the pinned release, model metadata tool_mode takes precedence over
+features.code_mode. CodeModeOnly cannot fall back to direct tools when the host
+is unavailable. Therefore code_mode=false alone does not establish a direct-tool
+mode. See the exact [mode selection](https://github.com/openai/codex/blob/rust-v0.156.1/codex-rs/core/src/tools/mod.rs#L72)
+and [disabled-host provider](https://github.com/openai/codex/blob/rust-v0.156.1/codex-rs/code-mode/src/remote_session.rs#L87).
+
+The version 2 implementation requires:
+
+```toml
+features.code_mode_host = { enabled = true, disable_in_process_fallback = true }
+features.code_mode = false
+```
+
+It verifies both effective configuration values and the enabled feature flag.
+The selection version and discovery identifier change together; a v1 discovery
+does not satisfy v2 mediation checks. The v1 parameter schema and exact method
+string remain supported for historical projection. Existing thread/turn identity,
+duplicate-call, pre-inference stop and InvocationFiles checks remain unchanged.
+Native continuation still requires an exact backend selection match; a v1 call
+is not silently continued under the v2 policy.
+
+This enables the native computation bridge. The pinned implementation creates a
+[plain V8 context](https://github.com/openai/codex/blob/rust-v0.156.1/codex-rs/code-mode-runtime/src/runtime/mod.rs#L181)
+with [explicit globals](https://github.com/openai/codex/blob/rust-v0.156.1/codex-rs/code-mode-runtime/src/runtime/globals.rs#L15).
+It does not install Node, Deno, filesystem, process or fetch APIs, and
+[rejects module imports](https://github.com/openai/codex/blob/rust-v0.156.1/codex-rs/code-mode-runtime/src/runtime/module_loader.rs#L225).
+Tools route through the native broker to the existing item/tool/call boundary.
+The adapter still admits only ymp_read/ymp_write callbacks through the original
+file mediator. Empty environments, shell denial, disabled external services and
+network=false are retained. Native pure clock/plan helpers may exist; ALL_TOOLS
+is not claimed to contain exactly two entries.
+
+The host uses its own process group. Upstream disconnect handling cancels active
+cells, shuts sessions down with bounded waits and terminates V8 execution. This
+source-level cleanup does not prove financial cessation or relax scoped file
+withdrawal. A cell can outlive a turn, so stale callbacks must continue to fail
+the exact invocation/turn and file-authority checks.
+
+A zero-inference probe of installed 0.156.1 confirmed the required host table,
+other effective guards, zero environments/roots/instruction sources and
+networkAccess=false. The bundled codex-code-mode-host is a regular executable
+beside the canonical standalone codex binary (mode 0755), with the package
+manifest present and no preferred codex-resources helper. This is static
+availability evidence, not proof of native tool execution. The actual Rust
+metadata-only consumer passed in 2.17 seconds with seven offerings and zero
+model turns. Three protocol-consumer scenarios passed in 6.76 seconds, including
+refusal of an effectively disabled host and an enabled in-process fallback.
+The final three protocol cases, including v1/v2 attribution, passed in 6.25
+seconds. A focused filesystem check verifies resource-before-bin selection,
+refusal of a non-executable preferred helper and missing-helper refusal.
+
+Native discovery and start now check the helper actually selected by the pinned
+installation layout. Recognized package bin, resources and CodexCLI.app layouts
+follow the native precedence. Ambiguous non-package legacy resource layouts are
+explicitly unavailable, rather than guessed from ambient CODEX_HOME or package
+manager settings. ProtocolFixture remains distinct and does not claim an
+installed helper. File presence and execute bits are static prerequisites, not
+proof that a future spawn succeeds. The actual native metadata consumer passed
+again after this guard in 1.83 seconds, with zero model turns. Independent review
+accepted the final source (R1, 9/10). Full make verify passed, including all nine
+Dispatcher scenarios in 139.51 seconds. Native file-tool execution under version 2
+remains unverified until a separately recorded pilot run.

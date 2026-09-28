@@ -111,6 +111,20 @@ fn native_fixture() -> NativeFixture {
     );
     let discovery = backend.discover().unwrap();
     assert_eq!(discovery.source, DiscoverySource::ProtocolFixture);
+    assert_eq!(backend.selection().policy.version, "2");
+    let mut legacy = backend.selection().clone();
+    legacy.policy.version = "1".into();
+    ParameterSchemas::default().validate(&legacy).unwrap();
+    let mut historical = discovery.clone();
+    historical.method = codex_discovery_method(&legacy);
+    assert!(ymp_kernel::registry::mediated_backend(
+        &historical,
+        Some(&legacy)
+    ));
+    assert!(!ymp_kernel::registry::mediated_backend(
+        &historical,
+        Some(backend.selection())
+    ));
     assert_eq!(
         discovery.offerings[0].efforts,
         Some(BTreeSet::from(["low".into()]))
@@ -483,6 +497,13 @@ fn malformed_discovery_and_usage_are_not_capability_or_accounting_evidence() {
     )
     .unwrap();
     assert_eq!(backend.discover().unwrap_err().code, "codex_features");
+    for mode in ["host-disabled", "host-fallback"] {
+        std::fs::write(executable.with_extension("mode"), mode).unwrap();
+        assert_eq!(
+            backend.discover().unwrap_err().code,
+            "codex_external_surfaces"
+        );
+    }
     std::fs::write(executable.with_extension("mode"), "orphan-version").unwrap();
     let started = Instant::now();
     assert_eq!(backend.discover().unwrap_err().code, "codex_timeout");

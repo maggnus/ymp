@@ -186,6 +186,14 @@ impl Default for ParameterSchemas {
                     validate_codex as ParameterValidator,
                 ),
                 (
+                    (
+                        "ExecutionBackend".into(),
+                        "CodexAppServer".into(),
+                        "2".into(),
+                    ),
+                    validate_codex as ParameterValidator,
+                ),
+                (
                     ("ExecutionBackend".into(), "Scripted".into(), "1".into()),
                     validate_scripted as ParameterValidator,
                 ),

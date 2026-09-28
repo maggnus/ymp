@@ -5,7 +5,7 @@
   "title": "Build the native Codex backend and discovery for accountable sessions",
   "type": "implementation",
   "priority": 113,
-  "status": "done",
+  "status": "in_progress",
   "depends_on": [
     "W1-0003",
     "W1-0017"
@@ -31,9 +31,10 @@
     "Codex and Scripted run the shared execution contract through actual consumers. Native-run evidence, if separately authorized and collected, records exact runtime version/settings/observations and is not conflated with fixture behavior."
   ],
   "evidence": [
-    "fc6d7d56"
+    "fc6d7d56",
+    "ymp-docs/codex-implementation.md"
   ],
-  "revision": 10,
+  "revision": 13,
   "history": [
     {
       "revision": 1,
@@ -104,6 +105,27 @@
       "actor": "codex",
       "status": "done",
       "note": "Implementation fc6d7d56 is reachable from main. CodexAppServer discovery and execution connect real Registry/Gatekeeper/Host consumers with mediated file authority, bounded protocol handling, accounted continuation, native/protocol-fixture provenance and truthful partial/unknown outcomes. Final required make verify passed on the merged source, using test optimization with debug assertions and overflow checks retained; independent code/documentation and capture-race reviews R1(9/10) ACCEPT. Native metadata was exercised separately with zero inference. Complete native team execution remains task14 and product experiments have not begun."
+    },
+    {
+      "revision": 11,
+      "at": "2026-09-28T19:51:03.153599Z",
+      "actor": "codex",
+      "status": "planned",
+      "note": "Native pilot run06 proved that the discovered gpt-6-luna profile invokes ymp_read through CodeModeOnly exec, which the v1 adapter disables. Exact upstream0.156.1 source and a zero-inference metadata probe establish a supported local V8 host with no environment, fs/process/network APIs or imports, routed through the existing DynamicToolHandler/InvocationFiles. Implement a versioned adapter policy with effective host enabled and in-process fallback disabled; preserve all other guards, exact callbacks, accounting and cessation rules. Prior fixture/delivery evidence stays retained. Native inference remains withheld until the repaired boundary is reviewed."
+    },
+    {
+      "revision": 12,
+      "at": "2026-09-28T19:51:10.440776Z",
+      "actor": "codex",
+      "status": "in_progress",
+      "note": "Claimed by codex."
+    },
+    {
+      "revision": 13,
+      "at": "2026-09-28T20:11:28.730640Z",
+      "actor": "codex",
+      "status": "in_progress",
+      "note": "CodexAppServer v2 repair accepted by independent R1 (9/10). Required effective local Code Mode host and disabled in-process fallback preserve empty environments and mediated InvocationFiles; v1 schema/method bytes stay readable and cannot satisfy v2 attribution. Native discovery/start checks the helper chosen by supported0.156.1 packaging, refuses a denied preferred file and ambiguous legacy resource layout. Focused protocol consumer3 passed6.25s, helper layout regression passed, actual metadata-only consumer passed1.83s with seven offerings and zero turns. Full make verify passed with optimization1/assertions/overflow enabled; all nine Dispatcher scenarios passed139.51s. No new native inference was run during the repair; v2 native file-tool execution remains for the next bounded pilot. Ready to commit before canonical completion."
     }
   ]
 }
