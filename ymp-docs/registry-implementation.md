@@ -18,11 +18,13 @@ scale. `InvocationSettings` contains independent requested, sent and reported
 values: constructing a request leaves sent/reported unknown, and setting sent
 values does not fill reported fields. W1-0017 adds their real invocation lifecycle.
 
-Discovery records preserve their method, time and Native/ScriptedFixture source.
-Source and provider kind must agree in both directions: Scripted cannot claim a
-native observation, and a native provider cannot claim fixture readiness. The
-NativeDiscovery trait is a metadata-only adapter contract. Concrete Codex
-transport/discovery belongs to W1-0018; Claude and Glm have their own later tasks.
+Discovery records preserve their method, time and source. Native and
+ScriptedFixture remain distinct: Scripted cannot claim a native observation.
+W1-0018 adds ProtocolFixture for synthetic wire responses exercising a concrete
+native adapter; it does not claim native model readiness or inference. The
+NativeDiscovery trait is a metadata-only adapter contract. The concrete
+[Codex transport/discovery](codex-implementation.md) records the exact adapter
+selection and source; Claude and Glm have their own later tasks.
 A represented provider kind does not establish an available executor.
 
 ## Static observations and replaceable policy

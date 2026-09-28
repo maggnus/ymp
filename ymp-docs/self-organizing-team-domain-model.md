@@ -219,6 +219,17 @@ value Pool {
   excluded: Map<Id<Agent>, Text> }      -- exclusion reason, for example an unready adapter
 ```
 
+The Rust discovery mapping distinguishes `DiscoverySource::Native`, the existing
+`ScriptedFixture`, and `ProtocolFixture`. The latter identifies synthetic wire
+responses from an external fixture process exercising a concrete native adapter;
+it is not evidence of native model inference. This distinction preserves provider
+identity while preventing protocol conformance tests from claiming native results.
+`CodexParameters` binds the selected Codex adapter to its explicit executable,
+observation source and finite connection/frame limits. `CodexAppServer` is the
+concrete NativeDiscovery/ExecutionBackend implementation for the documented local
+protocol. These are adapter/provenance mappings, not additional provider kinds or
+capabilities.
+
 ### 3.2. Task definition
 
 ```text
@@ -421,6 +432,17 @@ cannot grant authority. `InvocationFiles` exposes only the existing mediated fil
 capability. `ExecutionStatus` reports supervision or unresolved accounting; it does
 not replace the model's Invocation terminal outcome. These values give the existing
 execution port an explicit bounded transport while preserving R-2, R-19 and R-20.
+
+`InvocationControl` is the original host's opaque callback for rechecking the live
+stop flag, grant, exact invocation and clock before a deferred native inference
+step. The callback validates existing authority; a backend cannot grant itself
+permission by returning a verdict. `InvocationContinuation` records the previous
+Invocation and its exact completion reference. It connects one newly admitted,
+funded Invocation to previously confirmed Completed work with closed file access
+and complete accounted usage in the same session/profile/backend. The reference
+is single-use. It is not authority to reattach to an uncertain ongoing call,
+revive an old grant or repeat a start. An absent continuation preserves earlier
+serialized dispatch bytes and references.
 
 `PathObservation` is the implementation's recorded physical ancestry (`FileIdentity`
 for each existing component) and missing suffix for a WorkspacePath. An

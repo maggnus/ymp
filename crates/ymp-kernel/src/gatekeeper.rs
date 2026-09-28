@@ -12,7 +12,7 @@ use ymp_domain::{
     Denial, Digest, Id, Ref, Result,
     assignment::*,
     coordination::{CommitmentState, Lease, SolicitationState},
-    identity::{DiscoverySource, ProviderKind, Readiness},
+    identity::{ProviderKind, Readiness},
     journal::{Capability, Envelope},
     resources::{Reservation, ReservationState},
 };
@@ -324,6 +324,8 @@ pub(crate) fn validate_intent(
             "Actual execution capabilities are unknown",
         )
     })?;
+    let supported_backend =
+        crate::registry::mediated_backend(discovery, view.policies().get("ExecutionBackend"));
     if pool.input.constraints != task.constraints
         || !pool.decisions.iter().any(|decision| {
             decision.profile == assignment.profile && decision.outcome == Readiness::Ready
@@ -331,13 +333,13 @@ pub(crate) fn validate_intent(
         || !contribution.value.needs.is_subset(&assignment.access)
         || !assignment.access.is_subset(capabilities)
         || !assignment.access.is_subset(&task.constraints.allowed)
-        || discovery.provider.kind != ProviderKind::Scripted
-        || discovery.source != DiscoverySource::ScriptedFixture
+        || !supported_backend
         || capabilities
             .iter()
             .any(|cap| !matches!(cap, Capability::ReadFiles | Capability::WriteFiles))
         || (intent.access_owner.is_none()
-            && (!capabilities.is_empty() || !assignment.access.is_empty()))
+            && (!assignment.access.is_empty()
+                || (discovery.provider.kind == ProviderKind::Scripted && !capabilities.is_empty())))
         || (intent.access_owner.is_some() && assignment.access.is_empty())
     {
         return Err(Denial::new(

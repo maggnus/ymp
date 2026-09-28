@@ -3,6 +3,8 @@
 Canonical status remains in `tasks/records/W1-0017.json`. The runtime now executes
 admitted assignments through `AdmissionRuntime.execution`, which shares the
 original Gatekeeper issuer. The executable does not yet expose this workflow.
+The [Codex adapter](codex-implementation.md) extends this same consumer in W1-0018;
+its process-fixture and native metadata evidence is recorded separately.
 
 ## Dispatch and authority
 
@@ -27,6 +29,14 @@ OperationRequest arguments cannot choose another actor. The bounded reply channe
 currently returns the owning authority's Denial or an explicit
 `operation_transport_unavailable`; W3-0001 owns team-operation transport.
 
+W1-0018 adds the original host's InvocationControl callback before deferred native
+inference, including the live stop flag and current grant/clock checks. It also
+adds explicit InvocationContinuation with a previous completion reference. Fresh
+admission and funding are still required; old dispatch serialization omits this
+field when absent. A completed prior call can be continued once under the same
+session/profile/backend only when its accounting and scoped closure are known.
+This does not make unresolved execution reattachable after losing local handles.
+
 ## Supervision and resource accounting
 
 Backend calls run in separate local workers. Polling does not wait for a blocked
@@ -35,6 +45,15 @@ arbitrary in-process backend code. Cancellation requests and stream loss do not
 establish cessation. The host closes new mediated access immediately and releases
 path holds only after the mediator drains admitted I/O and the kernel validates
 the matching proof. Unknown financial usage can retain its hold independently.
+
+W1-0018 integration exposed a race between revocation and the producer's after
+snapshot. A transient revision/proof conflict before CaptureStarted previously
+left the host blocked permanently. The host now retains both the cessation proof
+and retry classification across journal-read failures. It obtains a fresh proof
+only when no capture or snapshot exists and the writer hold is still retained;
+the existing resolver clears any local unstarted preparation. Recorded captures
+use resolve_capture, so completed I/O is not repeated. Aborted captures and
+non-transient capture failures are not automatically retried.
 
 Time, native turns, output and observed cost belong to the whole Invocation.
 Events have stable invocation-local sequence numbers and cumulative usage.

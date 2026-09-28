@@ -1,7 +1,7 @@
 //! Criterion-directed candidate generation and admission prefilters.
 use super::*;
 use ymp_domain::{
-    identity::{DiscoverySource, ProviderKind, Readiness},
+    identity::Readiness,
     journal::Capability,
     resources::{CostEstimate, Difficulty},
     verification::LedgerStatus,
@@ -57,8 +57,7 @@ fn available(
                 .discoveries
                 .iter()
                 .find(|p| p.provider.id == agent.provider)?;
-            (provider.provider.kind == ProviderKind::Scripted
-                && provider.source == DiscoverySource::ScriptedFixture
+            (crate::registry::mediated_backend(provider, view.policies().get("ExecutionBackend"))
                 && provider
                     .provider
                     .capabilities

@@ -31,7 +31,7 @@
     "Codex and Scripted run the shared execution contract through actual consumers. Native-run evidence, if separately authorized and collected, records exact runtime version/settings/observations and is not conflated with fixture behavior."
   ],
   "evidence": [],
-  "revision": 7,
+  "revision": 9,
   "history": [
     {
       "revision": 1,
@@ -81,6 +81,20 @@
       "actor": "codex",
       "status": "in_progress",
       "note": "Claimed by codex."
+    },
+    {
+      "revision": 8,
+      "at": "2026-09-28T15:44:29.578660Z",
+      "actor": "codex",
+      "status": "in_progress",
+      "note": "Implementation is isolated on branch codex/w1-0018 while main contains completed W1-0013. Selected installed codex-cli 0.156.1 App Server experimental stdio schema; no legacy-tag source consulted. Bounded native metadata/configuration probe used existing authentication without turn/start or model inference: mcp_servers={} retained an enabled inherited server; per-name disable overrides and effective checks reduced enabled MCP count to zero. An ephemeral technical thread acknowledged environments=[], readOnly/networkAccess=false, zero runtime roots and zero instruction sources. One authorized thread/shellCommand true returned an acknowledgement and is explicitly not evidence of model-tool exclusion. unified_exec remained effectively enabled and is not claimed disabled. Current implementation compiles; protocol fixtures, independent final review and mandatory combined-workspace verification remain pending. Root owns documentation/records and integration; source writer owns only the isolated worktree."
+    },
+    {
+      "revision": 9,
+      "at": "2026-09-28T16:39:00.204806Z",
+      "actor": "codex",
+      "status": "in_progress",
+      "note": "Ready to integrate: independent stable-source and merged code/documentation review R1(9/10) ACCEPT. Actual Codex protocol fixture exercises Registry/SQLite/Gatekeeper/Host, mediated files, duplicate-call suppression, fresh funded continuation, cumulative usage and uncertain outcomes. Native metadata-only Rust consumer passed with installed 0.156.1 and seven offerings; zero model turns. Removing pre-inference authority checks produced one forbidden turn after stop, then restoration passed. Combined verification exposed a pre-CaptureStarted revision/cessation race; the narrow host retry preserves proof and resolves recorded capture without repeating I/O, separately reviewed R1(9/10) ACCEPT. Final make verify exited 0 on the merged corrected source with test opt-level1, debug assertions and overflow checks enabled: all required commands and all ordinary tests. Final report36.39s, progress67.35s and results31.03s passed. Native inference, native tool behavior and independently verified provider billing remain unverified. Documentation states pinned protocol, accounting assumptions and reattachment limits; task14 context records remaining integration seams."
     }
   ]
 }

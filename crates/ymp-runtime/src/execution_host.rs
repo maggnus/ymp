@@ -61,6 +61,25 @@ impl<J: Journal, C: ContentStore> InvocationFiles for Files<J, C> {
             .write(path, bytes, at)
     }
 }
+struct Control<J: Journal, C: ContentStore> {
+    execution: Arc<Execution<J, C>>,
+    credentials: Arc<Credentials<J>>,
+    invocation: Id<Invocation>,
+    clock: Arc<dyn Clock>,
+    stopped: Arc<AtomicBool>,
+}
+impl<J: Journal, C: ContentStore> InvocationControl for Control<J, C> {
+    fn before_inference(&self) -> Result<()> {
+        if self.stopped.load(Ordering::SeqCst) {
+            return Err(Denial::new(
+                "invocation_stopped",
+                "Host stopped before native inference",
+            ));
+        }
+        self.execution
+            .allowed(&self.credentials.grant, &self.invocation, self.clock.now()?)
+    }
+}
 enum Reply {
     Started {
         called_at: u64,
@@ -86,6 +105,7 @@ pub struct LiveInvocation<J: Journal> {
     id: Id<Invocation>,
     receipt: Id<Receipt>,
     prompt: Prompt,
+    previous: Option<InvocationContinuation>,
     preparation: Option<PreparedInvocation>,
     dispatch: Option<InvocationDispatch>,
     attempted: bool,
@@ -99,6 +119,7 @@ pub struct LiveInvocation<J: Journal> {
     withdrawal: Option<Receiver<Result<WithdrawalReply>>>,
     withdrawal_proof: Option<CessationEvidence>,
     withdrawal_started: bool,
+    capture_retry: bool,
     files_closed: bool,
     receipt_call: Option<Receiver<Result<Receipt>>>,
     pending_receipt: Option<Receipt>,
@@ -194,6 +215,7 @@ impl<J: Journal + 'static, C: ContentStore + 'static> ExecutionHost<J, C> {
             id,
             receipt,
             prompt,
+            previous: None,
             preparation: None,
             dispatch: None,
             attempted: false,
@@ -207,6 +229,7 @@ impl<J: Journal + 'static, C: ContentStore + 'static> ExecutionHost<J, C> {
             withdrawal: None,
             withdrawal_proof: None,
             withdrawal_started: false,
+            capture_retry: false,
             files_closed: false,
             receipt_call: None,
             pending_receipt: None,
@@ -217,6 +240,19 @@ impl<J: Journal + 'static, C: ContentStore + 'static> ExecutionHost<J, C> {
             replies: VecDeque::new(),
             reply_call: None,
         })
+    }
+    /// Continue a completed native thread through a fresh admitted invocation.
+    pub fn attach_continuing(
+        &self,
+        admitted: AdmittedAssignment<J>,
+        id: Id<Invocation>,
+        receipt: Id<Receipt>,
+        prompt: Prompt,
+        previous: InvocationContinuation,
+    ) -> Result<LiveInvocation<J>> {
+        let mut live = self.attach(admitted, id, receipt, prompt)?;
+        live.previous = Some(previous);
+        Ok(live)
     }
     fn own(&self, live: &LiveInvocation<J>) -> Result<()> {
         if !Arc::ptr_eq(&self.issuer, &live.issuer) {
@@ -246,7 +282,7 @@ impl<J: Journal + 'static, C: ContentStore + 'static> ExecutionHost<J, C> {
             ));
         }
         if live.preparation.is_none() {
-            live.preparation = Some(self.execution.prepare(
+            live.preparation = Some(self.execution.prepare_continuing(
                 &live.credentials.grant,
                 live.id.clone(),
                 live.receipt.clone(),
@@ -254,6 +290,7 @@ impl<J: Journal + 'static, C: ContentStore + 'static> ExecutionHost<J, C> {
                 self.backend.selection().clone(),
                 live.credentials.files.as_deref(),
                 self.clock.now()?,
+                live.previous.clone(),
             )?);
         }
         let dispatch = self
@@ -276,6 +313,13 @@ impl<J: Journal + 'static, C: ContentStore + 'static> ExecutionHost<J, C> {
                 clock: self.clock.clone(),
             }) as Arc<dyn InvocationFiles>
         });
+        let control = Arc::new(Control {
+            execution: self.execution.clone(),
+            credentials: live.credentials.clone(),
+            invocation: live.id.clone(),
+            clock: self.clock.clone(),
+            stopped: live.stopped.clone(),
+        });
         live.call = Some(call(move || {
             let observed_time = clock.now();
             let called_at = observed_time.as_ref().copied().unwrap_or(0);
@@ -289,6 +333,8 @@ impl<J: Journal + 'static, C: ContentStore + 'static> ExecutionHost<J, C> {
                 }
                 execution.allowed(&credentials.grant, &dispatch.invocation, called_at)?;
                 backend.start(&ExecutionRequest {
+                    control,
+                    previous: dispatch.previous,
                     invocation: dispatch.invocation,
                     receipt: dispatch.receipt,
                     assignment: dispatch.assignment,
@@ -728,8 +774,11 @@ impl<J: Journal + 'static, C: ContentStore + 'static> ExecutionHost<J, C> {
             match receiver.try_recv() {
                 Ok(Ok((proof, capture_error))) => {
                     live.withdrawal = None;
+                    live.capture_retry = capture_error.as_ref().is_some_and(|error| {
+                        matches!(error.code.as_str(), "stale_revision" | "cessation_evidence")
+                    });
                     live.withdrawal_proof = Some(proof);
-                    if capture_error.is_some() {
+                    if capture_error.is_some() && !live.capture_retry {
                         live.pending_diagnostic = Some((ErrorClass::Environment, "result_capture_unavailable".into(),
                             "Result capture must be resolved or the attempt abandoned; cessation evidence is retained".into()));
                     }
@@ -771,6 +820,30 @@ impl<J: Journal + 'static, C: ContentStore + 'static> ExecutionHost<J, C> {
                     .released
                     .is_none()
                 {
+                    if live.capture_retry && !view.capture_reads().contains_key(&attempt.after) {
+                        // Resolve a retained unstarted preparation before retrying.
+                        // Any recorded capture takes the resolution path above;
+                        // a completed or aborted capture never repeats its I/O.
+                        match self.execution.gatekeeper().workspace().resolve_capture(
+                            live.session(),
+                            view.revision(),
+                            self.clock.now()?,
+                            &attempt.after,
+                        ) {
+                            Err(error)
+                                if matches!(
+                                    error.code.as_str(),
+                                    "capture_missing" | "capture_evidence"
+                                ) => {}
+                            other => {
+                                other?;
+                            }
+                        }
+                        live.withdrawal_proof = None;
+                        live.withdrawal_started = false;
+                        live.capture_retry = false;
+                        return Ok(());
+                    }
                     live.blocked = Some("result_capture_unavailable".into());
                     return Ok(());
                 }

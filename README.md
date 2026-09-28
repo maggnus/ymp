@@ -19,7 +19,7 @@ The [SQLite journal and content store](ymp-docs/storage-implementation.md) retai
 those events and immutable bytes across restart, with explicit commit resolution.
 The [Treasury](ymp-docs/resources-implementation.md) records budget reservations,
 receipt observations and policy-attributed charges while protecting verification
-and reporting capacity. Native execution and its evidence remain separate work.
+and reporting capacity. Native adapter evidence is described separately below.
 The [Direct workspace capture](ymp-docs/workspace-implementation.md) retains file
 content, ordinary permissions and empty directories in immutable snapshots, with
 persistent path ownership and mediated file access. The
@@ -32,14 +32,17 @@ renewal, expiration, release/reopening and delegation while retaining unresolved
 holds. Execution and acceptance consumers connect actual completion facts below.
 The [visible check consumer](ymp-docs/check-execution.md) registers versioned
 checks and retains Command/ExactBytes runs against immutable snapshots. Command
-execution currently uses the documented macOS no-fork profile; native agent
-execution remains separate work.
+execution currently uses the documented macOS no-fork profile.
 The [bounded execution host](ymp-docs/execution-implementation.md) runs admitted
 Scripted assignments, records output and usage, handles cancellation and settles
 receipts. Confirmed non-artifact completion discharges its commitment; artifact
-completion uses the acceptance consumer below. Native agent execution remains
-separate work. Unresolved execution stays blocked after restart instead of
-starting again.
+completion uses the acceptance consumer below. Unresolved execution stays blocked
+after restart instead of starting again.
+The [Codex adapter](ymp-docs/codex-implementation.md) discovers installed native
+offerings and connects the App Server protocol to that same host and mediated file
+access. Process fixtures exercise accounted output, continuation and ambiguous
+failures; an installed-runtime metadata check runs without inference. Native
+model outcomes remain separate evidence.
 The [result consumer](ymp-docs/result-implementation.md) records an explicit
 one-item plan and immutable production candidates with continuously protected
 before/after snapshots. Abandoned attempts and candidate bytes remain available
@@ -56,8 +59,8 @@ The [planning consumer](ymp-docs/planning-implementation.md) consumes accounted
 Planner output, preserves user criteria, records an initial eligible team and
 one-item plan, and selects criterion-directed work through replaceable strategies.
 The Scripted integration chooses verification for insufficient evidence and
-diagnosis for contradiction; native planning and the full session loop remain
-separate work.
+diagnosis for contradiction; native planning outcomes remain unverified and the
+full session loop remains separate work.
 The [progress and recovery consumer](ymp-docs/progress-implementation.md) records
 stalls, diagnoses actual failures and applies bounded check repair, reviewed
 replacement, retry, researcher diagnosis and stop actions. It preserves accepted
@@ -68,8 +71,8 @@ captures a protected Direct target, reruns checks and records an independent pai
 final review. It audits bounded narration, permits one accounted correction and
 delivers facts without a model call after stop or narration failure. Reports retain
 unmet criteria, assumptions, expenses and uncertainty. These consumers are exercised
-with Scripted execution; native integration and the full session loop remain
-separate work.
+with Scripted execution; native final-review outcomes remain unverified and the
+full session loop remains separate work.
 The remaining modules are placeholders under
 [the proposed layout](ymp-docs/project-worktree.md). The executable still has no
 interactive or task-execution behavior.

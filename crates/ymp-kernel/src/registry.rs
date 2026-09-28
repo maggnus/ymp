@@ -128,11 +128,13 @@ fn exclusion(view: &ReadinessView) -> Option<Exclusion> {
             "Backend capability enforcement is unknown",
         ));
     }
-    if view.discovery.source == DiscoverySource::Native
-        && !view
-            .dependencies
-            .iter()
-            .any(|d| d.kind == DependencyKind::Executable)
+    if matches!(
+        view.discovery.source,
+        DiscoverySource::Native | DiscoverySource::ProtocolFixture
+    ) && !view
+        .dependencies
+        .iter()
+        .any(|d| d.kind == DependencyKind::Executable)
     {
         return Some(Exclusion::new(
             ExclusionCode::MissingDependency,
@@ -591,5 +593,31 @@ impl<J: Journal> Registry<J> {
             .filter(|c| record.input.constraints.allowed.contains(c))
             .cloned()
             .collect())
+    }
+}
+
+/// Recognized files-only execution boundaries; this does not issue file authority.
+pub fn mediated_backend(
+    discovery: &ymp_domain::identity::Discovery,
+    selection: Option<&PolicySelection>,
+) -> bool {
+    if discovery.provider.kind == ymp_domain::identity::ProviderKind::Scripted {
+        discovery.source == DiscoverySource::ScriptedFixture
+            && selection.is_none_or(|p| p.policy.implementation != "CodexAppServer")
+    } else if discovery.provider.kind == ymp_domain::identity::ProviderKind::Codex {
+        selection.is_some_and(|selection| {
+            selection.policy.implementation == "CodexAppServer"
+                && selection.policy.version == "1"
+                && discovery.provider.version.as_deref() == Some("0.156.1")
+                && discovery.method == crate::ports::execution::codex_discovery_method(selection)
+                && serde_json::from_value::<crate::ports::execution::CodexParameters>(
+                    selection.parameters.clone(),
+                )
+                .is_ok_and(|parameters| {
+                    parameters.source == discovery.source && parameters.validate().is_ok()
+                })
+        })
+    } else {
+        false
     }
 }

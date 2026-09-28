@@ -1051,7 +1051,7 @@ impl FileAccess {
     }
 }
 /// Files-only capability. The host exposes these methods, never the provider,
-/// root descriptor or an arbitrary process API, to the Scripted participant.
+/// root descriptor or an arbitrary process API, to the files-only participant.
 enum CreationOutcome {
     NotAttempted,
     Uncertain,
@@ -1457,7 +1457,7 @@ impl PreparedMediation {
     }
 }
 impl<J: Journal, C: ContentStore> WorkspaceGuard<J, C> {
-    /// Creates path ownership for files-only Scripted mediation. Admission,
+    /// Creates path ownership for a recognized files-only execution boundary. Admission,
     /// invocation funding and execution lifecycle remain separate kernel work.
     pub fn mediate(
         &self,
@@ -1525,12 +1525,8 @@ impl<J: Journal, C: ContentStore> WorkspaceGuard<J, C> {
             .iter()
             .find(|d| d.provider.id == agent.provider)
             .ok_or_else(|| Denial::new("provider_missing", "No recorded provider"))?;
-        use ymp_domain::{
-            identity::{DiscoverySource, ProviderKind},
-            journal::Capability,
-        };
-        if discovery.provider.kind != ProviderKind::Scripted
-            || discovery.source != DiscoverySource::ScriptedFixture
+        use ymp_domain::journal::Capability;
+        if !crate::registry::mediated_backend(discovery, view.policies().get("ExecutionBackend"))
             || discovery.provider.capabilities.as_ref().is_none_or(|caps| {
                 caps.iter()
                     .any(|c| !matches!(c, Capability::ReadFiles | Capability::WriteFiles))
@@ -1538,7 +1534,7 @@ impl<J: Journal, C: ContentStore> WorkspaceGuard<J, C> {
         {
             return Err(Denial::new(
                 "mediation_boundary",
-                "Files-only mediation cannot certify native or process-capable execution",
+                "Files-only mediation requires a recognized execution boundary without unmanaged process access",
             ));
         }
         let modes = provider.file_modes();

@@ -11,7 +11,7 @@ ymp-kernel = { path = "../ymp-kernel" }
 serde_json.workspace = true
 serde.workspace = true
 getrandom.workspace = true
-rustix = { version = "1.1.4", features = ["fs"] }
+rustix = { version = "1.1.4", features = ["fs", "process"] }
 
 [lints]
 workspace = true

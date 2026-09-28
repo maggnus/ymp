@@ -5,11 +5,7 @@ pub(super) fn verification_inputs(
     view: &SessionView,
     context: Option<&ApplicabilityContext>,
 ) -> Result<Vec<EstimateView>> {
-    use ymp_domain::{
-        identity::{DiscoverySource, ProviderKind},
-        journal::Capability,
-        task::EvidenceClass,
-    };
+    use ymp_domain::{journal::Capability, task::EvidenceClass};
     let task = view
         .task()
         .ok_or_else(|| Denial::new("task_missing", "Progress requires a task"))?;
@@ -73,9 +69,10 @@ pub(super) fn verification_inputs(
                 .iter()
                 .find(|p| p.provider.id == agent.provider)
                 .unwrap();
-            if discovery.provider.kind != ProviderKind::Scripted
-                || discovery.source != DiscoverySource::ScriptedFixture
-                || !needs.is_subset(&task.constraints.allowed)
+            if !crate::registry::mediated_backend(
+                discovery,
+                view.policies().get("ExecutionBackend"),
+            ) || !needs.is_subset(&task.constraints.allowed)
                 || discovery.provider.capabilities.as_ref().is_none_or(|c| {
                     !needs.is_subset(c)
                         || c.iter().any(|cap| {

@@ -22,6 +22,8 @@ pub const MAX_INVOCATION_EVENTS: usize = 4096;
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct InvocationDispatch {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub previous: Option<crate::ports::execution::InvocationContinuation>,
     pub invocation: Id<Invocation>,
     pub assignment: Assignment,
     pub provider: Id<Provider>,
@@ -164,6 +166,47 @@ fn validate_dispatch(view: &SessionView, data: &InvocationDispatch, at: u64) -> 
     crate::progress::validate_dispatch(view, data)?;
     crate::finalization::validate_dispatch(view, data)?;
     crate::results::validate_dispatch(view, &data.assignment)?;
+    if let Some(previous) = &data.previous {
+        let prior = view
+            .execution()
+            .invocations()
+            .get(&previous.invocation)
+            .ok_or_else(|| {
+                Denial::new(
+                    "continuation_missing",
+                    "Continuation must name a retained completed invocation",
+                )
+            })?;
+        if prior.end.as_ref() != Some(&previous.completion)
+            || prior.terminal != Some(InvocationTerminal::Completed)
+            || !prior.confirmed_terminal
+            || !closed(view, &prior.dispatch.assignment.id)
+            || prior.dispatch.assignment.session != data.assignment.session
+            || prior.dispatch.assignment.profile != data.assignment.profile
+            || prior.dispatch.backend != data.backend
+            || prior.dispatch.provider != data.provider
+            || prior.dispatch.assignment.id == data.assignment.id
+            || prior
+                .invocation
+                .as_ref()
+                .and_then(|i| i.native_session.as_ref())
+                .is_none()
+            || prior
+                .receipt
+                .as_ref()
+                .is_none_or(|r| r.coverage != ymp_domain::resources::Coverage::Complete)
+            || view
+                .execution()
+                .invocations()
+                .values()
+                .any(|i| i.dispatch.previous.as_ref() == Some(previous))
+        {
+            return Err(Denial::new(
+                "continuation_scope",
+                "Continue completed paid work once through fresh authority and the same profile/backend",
+            ));
+        }
+    }
     data.prompt.validate()?;
     data.settings.validate()?;
     data.allowance.validate()?;
@@ -275,6 +318,9 @@ pub(crate) fn attribution(
             };
             let mut refs = data.prompt.basis.clone();
             refs.push(data.admission.clone());
+            if let Some(previous) = &data.previous {
+                refs.push(previous.completion.clone());
+            }
             refs
         }
         Event::InvocationObserved { observation, .. }
@@ -785,6 +831,20 @@ impl<J: Journal, C: ContentStore> Execution<J, C> {
         files: Option<&MediatedAccess<J>>,
         at: u64,
     ) -> Result<PreparedInvocation> {
+        self.prepare_continuing(token, id, receipt, prompt, backend, files, at, None)
+    }
+    #[allow(clippy::too_many_arguments)]
+    pub fn prepare_continuing(
+        &self,
+        token: &GrantToken,
+        id: Id<Invocation>,
+        receipt: Id<Receipt>,
+        prompt: Prompt,
+        backend: PolicySelection,
+        files: Option<&MediatedAccess<J>>,
+        at: u64,
+        previous: Option<crate::ports::execution::InvocationContinuation>,
+    ) -> Result<PreparedInvocation> {
         let current = self.journal.read(token.session())?;
         let view = current.view_with_schemas(token.session(), None, self.journal.schemas())?;
         let assignment = self
@@ -812,6 +872,7 @@ impl<J: Journal, C: ContentStore> Execution<J, C> {
             .provider
             .clone();
         let dispatch = InvocationDispatch {
+            previous,
             invocation: id.clone(),
             settings: settings(&assignment),
             assignment,

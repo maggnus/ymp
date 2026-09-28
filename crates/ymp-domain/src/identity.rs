@@ -106,6 +106,8 @@ impl ExecutionProfile {
 pub enum DiscoverySource {
     Native,
     ScriptedFixture,
+    /// Synthetic native-protocol process; never evidence of a real model invocation.
+    ProtocolFixture,
 }
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]

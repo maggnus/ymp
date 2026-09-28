@@ -111,6 +111,13 @@ impl ExecutionBackend for Scripted {
         &self.selection
     }
     fn start(&self, request: &ExecutionRequest<'_>) -> Result<BackendStart> {
+        if request.previous.is_some() {
+            return Err(Denial::new(
+                "continuation_unsupported",
+                "Scripted does not resume native sessions",
+            ));
+        }
+        request.control.before_inference()?;
         request.prompt.validate()?;
         request.allowance.validate()?;
         if request.grant.grant() != &request.assignment.grant

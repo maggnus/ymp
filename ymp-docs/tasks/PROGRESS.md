@@ -2,7 +2,7 @@
 
 Generated from the canonical JSON records in [`records/`](records/) by `python3 ymp-docs/tasks/manage.py progress --write`. Task write commands and `make tasks-progress` refresh it; do not edit statuses here.
 
-Tasks: 45 (16 done, 1 in progress, 26 open, 2 paused or blocked, 0 rejected). Times are Hong Kong time (UTC+08:00). Last record change: 2026-09-28 23:40.
+Tasks: 45 (16 done, 1 in progress, 26 open, 2 paused or blocked, 0 rejected). Times are Hong Kong time (UTC+08:00). Last record change: 2026-09-29 00:39.
 
 | Mark | Meaning |
 | :---: | --- |
@@ -27,9 +27,9 @@ Tasks: 45 (16 done, 1 in progress, 26 open, 2 paused or blocked, 0 rejected). Ti
 
 ### W1-0018 — [~] in_progress
 
-Build the native Codex backend and discovery for accountable sessions. Owner: codex; revision 7; updated 2026-09-28 23:28 by codex.
+Build the native Codex backend and discovery for accountable sessions. Owner: codex; revision 9; updated 2026-09-29 00:39 by codex.
 
-Claimed by codex.
+Ready to integrate: independent stable-source and merged code/documentation review R1(9/10) ACCEPT. Actual Codex protocol fixture exercises Registry/SQLite/Gatekeeper/Host, mediated files, duplicate-call suppression, fresh funded continuation, cumulative usage and uncertain outcomes. Native metadata-only Rust consumer passed with installed 0.156.1 and seven offerings; zero model turns. Removing pre-inference authority checks produced one forbidden turn after stop, then restoration passed. Combined verification exposed a pre-CaptureStarted revision/cessation race; the narrow host retry preserves proof and resolves recorded capture without repeating I/O, separately reviewed R1(9/10) ACCEPT. Final make verify exited 0 on the merged corrected source with test opt-level1, debug assertions and overflow checks enabled: all required commands and all ordinary tests. Final report36.39s, progress67.35s and results31.03s passed. Native inference, native tool behavior and independently verified pr… [truncated; 1170 characters]
 
 ## Wave W1
 
@@ -50,11 +50,11 @@ Claimed by codex.
 | [x] | [W1-0011](records/W1-0011.json) | Extract criteria and select minimal criterion-directed work through admitted strategies | planning | done | W1-0002 ✓, W1-0006 ✓, W1-0008 ✓, W1-0010 ✓ | codex | 2026-09-28 20:03 | 8 | df97ee3b; ymp-docs/planning-implementation.md; crates/ymp-storage/tests/planning.rs; crates/ymp-kernel/tests/replay.rs |
 | [x] | [W1-0012](records/W1-0012.json) | Diagnose stalls and perform bounded recovery without discarding verified work | progress | done | W1-0007 ✓, W1-0019 ✓, W1-0010 ✓, W1-0011 ✓ | codex | 2026-09-28 21:35 | 8 | ba307435; ymp-docs/progress-implementation.md; crates/ymp-storage/tests/progress.rs; crates/ymp-runtime/tests/progress.rs |
 | [x] | [W1-0013](records/W1-0013.json) | Finalize the integrated result and deliver an evidence-audited report | reporting | done | W1-0006 ✓, W1-0008 ✓, W1-0019 ✓, W1-0010 ✓, W1-0011 ✓, W1-0012 ✓ | codex | 2026-09-28 23:40 | 8 | d77ba2bc |
-| [=] | [W1-0014](records/W1-0014.json) | Run and recover the minimal accountable producer-reviewer session | session | planned (blocked) | W1-0007 ✓, W1-0011 ✓, W1-0012 ✓, W1-0013 ✓, W1-0018 | — | 2026-09-28 21:21 | 4 | — |
+| [=] | [W1-0014](records/W1-0014.json) | Run and recover the minimal accountable producer-reviewer session | session | planned (blocked) | W1-0007 ✓, W1-0011 ✓, W1-0012 ✓, W1-0013 ✓, W1-0018 | — | 2026-09-28 23:55 | 5 | — |
 | [=] | [W1-0015](records/W1-0015.json) | Expose the accountable session through a simple interactive Ratatui interface | interface | planned (blocked) | W1-0014 | — | 2026-09-16 03:19 | 8 | — |
 | [x] | [W1-0016](records/W1-0016.json) | Persist the new Journal and content-addressed payloads across restart | persistence | done | W1-0001 ✓ | codex | 2026-09-16 04:56 | 9 | commit [`07db5fa`](https://github.com/maggnus/ymp/commit/07db5fa45ad10a94e5560c711b7be0274eb5d1c9) |
 | [x] | [W1-0017](records/W1-0017.json) | Execute admitted assignments through a new host and Scripted backend | execution | done | W1-0006 ✓, W1-0007 ✓, W1-0016 ✓ | codex | 2026-09-28 16:18 | 7 | 8de8e73a; ymp-docs/execution-implementation.md; crates/ymp-storage/tests/execution.rs |
-| [~] | [W1-0018](records/W1-0018.json) | Build the native Codex backend and discovery for accountable sessions | providers | in_progress | W1-0003 ✓, W1-0017 ✓ | codex | 2026-09-28 23:28 | 7 | — |
+| [~] | [W1-0018](records/W1-0018.json) | Build the native Codex backend and discovery for accountable sessions | providers | in_progress | W1-0003 ✓, W1-0017 ✓ | codex | 2026-09-29 00:39 | 9 | — |
 | [x] | [W1-0019](records/W1-0019.json) | Bind attributed evidence and reviews to immutable results | verification | done | W1-0008 ✓, W1-0009 ✓ | codex | 2026-09-28 18:13 | 7 | 3689ad59; ymp-docs/evidence-implementation.md; crates/ymp-storage/tests/results.rs |
 
 ## Wave W2

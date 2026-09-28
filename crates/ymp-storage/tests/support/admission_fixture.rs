@@ -129,14 +129,22 @@ impl<J: Journal> Setup<J> {
             p90_factor: n(1.0),
         })
         .unwrap();
-        let resource = PurposeBounded::new(PurposeBoundedParameters {
-            max_cost: n(100.0),
-            timeout: 100,
-            native_turns: 2,
-            output_chars: 1000,
-            report_call_cost: n(10.0),
-        })
-        .unwrap();
+        let configured_resource = selections
+            .iter()
+            .position(|s| s.policy.port == "ResourcePolicy")
+            .map(|index| selections.remove(index));
+        let resource = if let Some(selection) = configured_resource {
+            PurposeBounded::new(serde_json::from_value(selection.parameters).unwrap()).unwrap()
+        } else {
+            PurposeBounded::new(PurposeBoundedParameters {
+                max_cost: n(100.0),
+                timeout: 100,
+                native_turns: 2,
+                output_chars: 1000,
+                report_call_cost: n(10.0),
+            })
+            .unwrap()
+        };
         let session = id(name);
         let caps = if files {
             BTreeSet::from([Capability::ReadFiles, Capability::WriteFiles])

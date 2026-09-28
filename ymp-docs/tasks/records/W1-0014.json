@@ -34,9 +34,12 @@
     "Create proposed crates/ymp-runtime/src/{application,dispatcher}.rs as the composition of the new kernel services/strategies. W1-0017 supplies invocation execution and W1-0018 the first native Codex backend. Dispatcher orders calls and handles results; business rules remain in their owning services/policies.",
     "Integrate the W1 fixed-workflow baseline from explicit intake through accountable production/review/report. W3 adds real initiative, voluntary allocation and dynamic coordination; no ready prior executable, parser or session engine is assumed.",
     "§3.9/R-19/R-20 require scoped cessation/release, independent settlement, no duplicate unresolved start, preserved budgets/history and effective user stop handling. Choose minimal concrete observation/control forms. After stop no new model call runs without applicable continuation authority.",
-    "Integration boundary confirmed by W1-0012 review: ContributionPolicy can select Verify/Diagnose with an exact ResultVersion subject, but P2 projected_completion currently connects typed non-artifact ResultVersion completion only for Review. ExecutionHost completion of ordinary candidate-scoped Verify/Diagnose therefore returns commitment_basis and does not discharge responsibility. W1-0012 AddVerifier uses the supported Research/Researcher subject=None path with exact refs in context. Connect those remaining ordinary forms through their real host/receipt/cessation consumer here; do not fabricate ArtifactAccepted or bypass original contribution scope. See ymp-docs/progress-implementation.md and crates/ymp-kernel/src/arbiter/lifecycle.rs."
+    "Integration boundary confirmed by W1-0012 review: ContributionPolicy can select Verify/Diagnose with an exact ResultVersion subject, but P2 projected_completion currently connects typed non-artifact ResultVersion completion only for Review. ExecutionHost completion of ordinary candidate-scoped Verify/Diagnose therefore returns commitment_basis and does not discharge responsibility. W1-0012 AddVerifier uses the supported Research/Researcher subject=None path with exact refs in context. Connect those remaining ordinary forms through their real host/receipt/cessation consumer here; do not fabricate ArtifactAccepted or bypass original contribution scope. See ymp-docs/progress-implementation.md and crates/ymp-kernel/src/arbiter/lifecycle.rs.",
+    "W1-0013 completion and pre-integration read identified the ordinary candidate-review seam: AcceptanceAuthority.review currently consumes an active GrantToken. Host completion revokes that grant, so a completed paid Reviewer cannot use that API afterwards. Add a narrow consumer of its exact retained Completed/settled/closed output, original Assignment, ResultVersion and criteria; preserve historical ReviewRecorded shapes/references and never revive a grant. The W1-0013 candidate fixture records its active-grant review before executing that reviewer; its separately paid FinalReview consumer does not fill this ordinary-review seam.",
+    "Current ContributionPolicy selects Verify/Diagnose/DesignChecks for a retained candidate, not Review. The fixed A1 workflow must explicitly admit independent candidate review and connect Review -> A7 -> producer P2 before final aggregate capture; A8 Satisfied alone is not an accepted source. Keep that required call ordering outside strategy claims and do not accept a normal provider exit as artifact acceptance.",
+    "Recovery/control seams confirmed by read-only preparation: new Application/DecisionConsumer and Treasury cannot yet recover original SessionControl/BudgetControl; completed retained production cannot be submitted after losing PreparedAttempt/issuer; Host.recover only observes unresolved work and must not duplicate it. Implement trusted continuation from recorded facts without new grants or budget reset. MemoryJournal currently has no binding_identity/workspace_binding, so its full Direct scenario needs an honest in-memory identity/binding implementation instead of bypassing WorkspaceGuard. Durable owner stop needs atomic current-revision ordering or equivalent evidence of no starvation; repeated optimistic CAS retries alone are insufficient. Preserve Host.cancel immediate local stopped flag and mediated withdrawal even when journal writes fail."
   ],
-  "revision": 4,
+  "revision": 5,
   "history": [
     {
       "revision": 1,
@@ -65,6 +68,13 @@
       "actor": "manage.py",
       "status": "planned",
       "note": "Record the exact remaining candidate-scoped non-artifact completion seam already owned by the full session integration acceptance; no scope or status change."
+    },
+    {
+      "revision": 5,
+      "at": "2026-09-28T15:55:53.217326Z",
+      "actor": "manage.py",
+      "status": "planned",
+      "note": "Record concrete integration and recovery seams found by read-only preparation after W1-0013, without starting W1-0014 or changing its dependencies, architecture or acceptance criteria."
     }
   ]
 }

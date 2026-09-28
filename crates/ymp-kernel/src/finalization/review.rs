@@ -84,7 +84,7 @@ use crate::{
 };
 use ymp_domain::{
     assignment::{ContributionKind, InvocationTerminal, RoleKind},
-    identity::{DiscoverySource, ProviderKind, Readiness},
+    identity::Readiness,
     journal::{Capability, Decision},
     resources::ReservationState,
     verification::*,
@@ -164,8 +164,7 @@ pub(crate) fn reviewer_input(view: &SessionView) -> Result<ReviewerInput> {
             .iter()
             .find(|d| d.provider.id == agent.provider)
             .unwrap();
-        if discovery.provider.kind != ProviderKind::Scripted
-            || discovery.source != DiscoverySource::ScriptedFixture
+        if !crate::registry::mediated_backend(discovery, view.policies().get("ExecutionBackend"))
             || discovery.provider.capabilities.as_ref().is_none_or(|caps| {
                 !caps.contains(&Capability::ReadFiles)
                     || caps

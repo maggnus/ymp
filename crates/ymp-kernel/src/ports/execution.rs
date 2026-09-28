@@ -14,7 +14,19 @@ pub trait InvocationFiles: Send + Sync {
     fn read(&self, path: &WorkspacePath, limit: usize) -> Result<Vec<u8>>;
     fn write(&self, path: &WorkspacePath, bytes: &[u8]) -> Result<()>;
 }
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct InvocationContinuation {
+    pub invocation: ymp_domain::Id<ymp_domain::assignment::Invocation>,
+    pub completion: ymp_domain::Ref,
+}
+/// Recheck live host authority immediately before beginning model inference.
+pub trait InvocationControl: Send + Sync {
+    fn before_inference(&self) -> Result<()>;
+}
 pub struct ExecutionRequest<'a> {
+    pub control: std::sync::Arc<dyn InvocationControl>,
+    pub previous: Option<InvocationContinuation>,
     pub invocation: ymp_domain::Id<ymp_domain::assignment::Invocation>,
     pub receipt: ymp_domain::Id<ymp_domain::resources::Receipt>,
     pub assignment: ymp_domain::assignment::Assignment,
@@ -162,4 +174,40 @@ pub trait WorkspaceProvider: Send + Sync {
         journal: &Result<ymp_domain::workspace::JournalIdentity>,
         store: &dyn ContentStore,
     ) -> Result<SnapshotTree>;
+}
+
+/// Concrete Codex App Server protocol selection; native authentication remains native.
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CodexParameters {
+    pub executable: std::path::PathBuf,
+    pub source: ymp_domain::identity::DiscoverySource,
+    pub connect_timeout_ms: u64,
+    pub frame_bytes: usize,
+}
+impl CodexParameters {
+    pub fn validate(&self) -> Result<()> {
+        if !self.executable.is_absolute()
+            || self.connect_timeout_ms == 0
+            || self.connect_timeout_ms > 30_000
+            || !(1024..=1_048_576).contains(&self.frame_bytes)
+            || !matches!(
+                self.source,
+                ymp_domain::identity::DiscoverySource::Native
+                    | ymp_domain::identity::DiscoverySource::ProtocolFixture
+            )
+        {
+            return Err(ymp_domain::Denial::new(
+                "codex_parameters",
+                "Codex needs an explicit executable, source and finite protocol bounds",
+            ));
+        }
+        Ok(())
+    }
+}
+pub fn codex_discovery_method(selection: &PolicySelection) -> String {
+    format!(
+        "CodexAppServer/0.156.1/zero-environment/{}",
+        selection.policy.params
+    )
 }

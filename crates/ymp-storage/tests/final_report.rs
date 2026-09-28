@@ -226,8 +226,16 @@ fn execute(
         .unwrap();
     host.start(&mut live).unwrap();
     let limit = std::time::Instant::now() + std::time::Duration::from_secs(90);
-    while host.poll(&mut live).unwrap() != ExecutionStatus::Finished {
-        assert!(std::time::Instant::now() < limit);
+    loop {
+        let status = host.poll(&mut live).unwrap();
+        if status == ExecutionStatus::Finished {
+            break;
+        }
+        assert!(
+            std::time::Instant::now() < limit,
+            "{name}: {status:?}; {:?}",
+            host.snapshot(&live).unwrap().diagnostics
+        );
         std::thread::sleep(std::time::Duration::from_millis(1));
     }
 }
