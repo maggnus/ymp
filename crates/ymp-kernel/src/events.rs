@@ -29,6 +29,10 @@ pub struct CriteriaCommitted {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub enum Event {
+    PlanningRecorded {
+        version: u32,
+        data: Box<crate::plans::PlanningRecorded>,
+    },
     LedgerUpdated {
         version: u32,
         data: Box<crate::ledger::LedgerRecorded>,
@@ -186,6 +190,7 @@ pub enum Event {
 impl Event {
     pub fn contents(&self) -> Result<EventContent> {
         let selections: Vec<&PolicySelection> = match self {
+            Self::PlanningRecorded { data, .. } => data.selection().into_iter().collect(),
             Self::LedgerUpdated { data, .. } => {
                 data.decisions.values().map(|d| &d.effective).collect()
             }
@@ -271,9 +276,9 @@ impl Event {
     }
     pub fn version(&self) -> u32 {
         match self {
-            Self::LedgerUpdated { version, .. } | Self::AcceptanceRecorded { version, .. } => {
-                *version
-            }
+            Self::PlanningRecorded { version, .. }
+            | Self::LedgerUpdated { version, .. }
+            | Self::AcceptanceRecorded { version, .. } => *version,
             Self::EvidenceRecorded { version, .. } | Self::ReviewRecorded { version, .. } => {
                 *version
             }

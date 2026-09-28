@@ -5,14 +5,14 @@
   "title": "Extract criteria and select minimal criterion-directed work through admitted strategies",
   "type": "implementation",
   "priority": 111,
-  "status": "planned",
+  "status": "in_progress",
   "depends_on": [
     "W1-0002",
     "W1-0006",
     "W1-0008",
     "W1-0010"
   ],
-  "owner": null,
+  "owner": "codex",
   "goal": "Create a one-item SoloWithVerifier plan and choose useful next contributions from unmet criteria while charging all model-assisted intake and planning.",
   "scope": [
     "Implement CriteriaExtraction through an admitted Planner, preserving user criteria and Derived(Assignment) origins. Support explicit user answers and recorded assumptions for intake; expose VoiClarification question proposals with inputs to P6. W3-0004 completes interactive ask/resume and work-boundary clarification.",
@@ -36,7 +36,7 @@
     "Own the real charged Planner → Derived(Assignment) path and provenance rejection. Begin with FixedMethod(SoloWithVerifier), an explicit initial Team and AsNeededDecomposition; UpfrontDecomposition/full revisions arrive in W3-0004 and CascadeRouter/LearnedRouter/VocValue in W6.",
     "Expose run selection of actual strategy implementations/effective parameters through named interfaces, with recorded authorized work-boundary changes and immutable history. This fixed initial workflow is a foundation/control for later agent initiative, not the product’s final organizing logic."
   ],
-  "revision": 3,
+  "revision": 7,
   "history": [
     {
       "revision": 1,
@@ -58,6 +58,34 @@
       "actor": "owner",
       "status": "planned",
       "note": "Start decision 2026-09-16: W1 scheduled; readiness follows dependencies."
+    },
+    {
+      "revision": 4,
+      "at": "2026-09-28T11:13:37.318701Z",
+      "actor": "codex",
+      "status": "in_progress",
+      "note": "Claimed by codex."
+    },
+    {
+      "revision": 5,
+      "at": "2026-09-28T11:48:56.633071Z",
+      "actor": "codex",
+      "status": "in_progress",
+      "note": "R1(9/10) ACCEPT from independent acceptance_review for final code and documentation. Paid Planner source mutation failed as expected (exit 101, 5.68s); restored real two-session planning/production/evidence/selection scenario passed (98.84s). Targeted Clippy, 13 existing foundation/intake checks and 6 replay checks passed. First make verify passed legacy scan/build/fmt/clippy but stopped in two pre-existing SQLite corruption tests with DiskFull. Removed only this repository target/debug/incremental cache (4.6GiB); available space rose to 4.8GiB. Repeating required workspace tests on unchanged code; no native inference."
+    },
+    {
+      "revision": 6,
+      "at": "2026-09-28T11:53:40.019587Z",
+      "actor": "codex",
+      "status": "in_progress",
+      "note": "Final review of the raw Journal append boundary found that new v1 PlanCommitted/MethodChosen packets could bypass v2 checks. Both are now replay-only in validate_append; historical replay remains unchanged. Frozen v1 decision regression failed before the guard (exit 101) and passed after it; all 6 replay and 13 affected foundation/intake tests passed. Three constructed new method events now use v2 to preserve their original failure properties. The earlier workspace rerun was intentionally stopped (exit 143) before this code change. Final make verify is running on the corrected code."
+    },
+    {
+      "revision": 7,
+      "at": "2026-09-28T12:02:53.156551Z",
+      "actor": "codex",
+      "status": "in_progress",
+      "note": "Final make verify on the corrected code exited 0: legacy scan and all four required offline Cargo checks; planning integration passed in 95.19s and the existing result/acceptance scenario also passed. Task register and staged diff checks passed. Independent acceptance_review reaffirmed R1(9/10) ACCEPT for code, documentation and replay-only append guard. All task acceptance outcomes have actual consumer evidence or named existing boundary tests; native inference and later interactive/decomposition handlers remain explicitly unclaimed."
     }
   ]
 }

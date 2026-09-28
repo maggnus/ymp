@@ -379,7 +379,7 @@ fn a_method_cannot_be_inserted_between_an_intake_note_and_its_contract() {
         input: Some(input_digest.clone()),
         refs: vec![],
         payload: Event::MethodChosen {
-            version: 1,
+            version: 2,
             decision: Box::new(Decision {
                 proposal: proposed,
                 effective,

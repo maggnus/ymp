@@ -156,7 +156,7 @@ fn same_work(left: &Contribution, right: &Contribution) -> bool {
         _ => false,
     }
 }
-fn unresolved(view: &SessionView, record: &AdmissionRecord) -> bool {
+pub(crate) fn unresolved(view: &SessionView, record: &AdmissionRecord) -> bool {
     match record.intent.assignment.state {
         AssignmentState::Finished => false,
         AssignmentState::Admitted | AssignmentState::Running => true,
@@ -244,7 +244,14 @@ pub(crate) fn validate_intent(
         )
         .with_ref(contribution.reference.clone()));
     }
-    if assignment.role == RoleKind::Reviewer {
+    if assignment.role == RoleKind::Reviewer
+        || (assignment.role == RoleKind::Verifier
+            && (view.planning().team.is_some()
+                || matches!(
+                    contribution.value.subject,
+                    Some(ContributionSubject::ResultVersion(_))
+                )))
+    {
         let result =
             crate::results::review_subject(view, &contribution.value)?.ok_or_else(|| {
                 Denial::new(
@@ -283,6 +290,17 @@ pub(crate) fn validate_intent(
                 }
             }
         }
+    }
+    if view.planning().team.as_ref().is_some_and(|team| {
+        !team
+            .members
+            .iter()
+            .any(|member| member.agent == assignment.agent && member.left.is_none())
+    }) {
+        return Err(Denial::new(
+            "team_membership",
+            "Assignment agent is outside the recorded team",
+        ));
     }
     let pool = view
         .registry()

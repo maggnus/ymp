@@ -19,8 +19,10 @@ adds explicit immutable-content requirements and read-only append resolution.
   effective policy parameters and the `Method` value used by the first consumer.
   `Capability`, `MethodKind` and `EscalationStep` are representations needed by
   that value; their execution belongs to later owning tasks.
-- `ymp-kernel/src/events.rs` defines the typed `SessionOpened` and `MethodChosen`
-  families, currently at payload version 1. Unknown families or versions fail.
+- `ymp-kernel/src/events.rs` defines typed event families. SessionOpened remains
+  version 1; new MethodChosen, PlanCommitted and SnapshotTaken records use version
+  2 while their historical version-1 records remain readable. Unknown families or
+  versions fail.
 - `ymp-kernel/src/journal.rs` defines the adapter contract, parameter-schema
   bindings and complete-batch validation. `view.rs` defines pure replay.
 - `ymp-kernel/src/decision.rs` opens a session journal and commits a proposed
@@ -53,10 +55,11 @@ requested change is represented as an applied method.
 `SessionControl` is an in-process capability issued by the opening consumer and
 bound to that consumer and session. A changed selection requires this capability
 as a separate argument, the exact previous revision and a real method decision in
-the same atomic append. A proposal cannot carry owner authority. Every boundary
-currently has no executing work because no execution event is supported yet.
-W1-0014 must connect safe boundaries and recovered user authority to the real
-session lifecycle before allowing changes during execution.
+the same atomic append. A proposal cannot carry owner authority. W1-0011's new
+MethodChosen v2 calls require a boundary without unresolved execution or resource
+ownership and validate known FixedMethod output against its parameters. Historical
+v1 events retain their original replay rules. W1-0014 still owns the full session
+lifecycle and recovered user authority.
 
 `Decision` and `SelectionChange` are serialized containers for the attribution
 and boundary facts required by sections 0, 5.8 and 9, not additional services.

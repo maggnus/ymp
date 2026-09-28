@@ -22,6 +22,38 @@ impl Default for ParameterSchemas {
         Self {
             validators: BTreeMap::from([
                 (
+                    ("IntakePolicy".into(), "VoiClarification".into(), "1".into()),
+                    validate_intake as ParameterValidator,
+                ),
+                (
+                    ("IntakePolicy".into(), "NoQuestions".into(), "1".into()),
+                    validate_intake as ParameterValidator,
+                ),
+                (
+                    ("Planner".into(), "AsNeededDecomposition".into(), "1".into()),
+                    validate_no_parameters as ParameterValidator,
+                ),
+                (
+                    ("Planner".into(), "ExplicitPlan".into(), "1".into()),
+                    validate_explicit_plan as ParameterValidator,
+                ),
+                (
+                    (
+                        "ContributionPolicy".into(),
+                        "OrdinalValue".into(),
+                        "1".into(),
+                    ),
+                    validate_contribution as ParameterValidator,
+                ),
+                (
+                    (
+                        "ContributionPolicy".into(),
+                        "FixedWorkflow".into(),
+                        "1".into(),
+                    ),
+                    validate_contribution as ParameterValidator,
+                ),
+                (
                     (
                         "BeliefModel".into(),
                         "LikelihoodRatioTable".into(),
@@ -426,6 +458,15 @@ pub fn validate_append(
                 "Version 1 snapshots are replay-only; new captures require a read hold",
             ));
         }
+        if matches!(
+            event.payload,
+            Event::PlanCommitted { version: 1, .. } | Event::MethodChosen { version: 1, .. }
+        ) {
+            return Err(Denial::new(
+                "planning_version",
+                "Version 1 plan and method decisions are replay-only; new decisions require version 2",
+            ));
+        }
 
         view.apply(event, schemas)?;
     }
@@ -467,6 +508,52 @@ pub fn validate_workspace_append(
         crate::workspace_locks::validate_ownership(
             inventory.other.iter().chain(std::iter::once(&owner)),
         )?;
+    }
+    Ok(())
+}
+
+fn validate_intake(selection: &PolicySelection) -> Result<()> {
+    let p: crate::ports::planning::IntakeParameters =
+        ymp_domain::journal::decode(&encode(&selection.parameters)?)?;
+    if p.cost_interrupt.get() < 0.0 {
+        return Err(Denial::new(
+            "intake_parameters",
+            "Interruption cost must be nonnegative",
+        ));
+    }
+    Ok(())
+}
+fn validate_explicit_plan(selection: &PolicySelection) -> Result<()> {
+    if selection
+        .parameters
+        .as_object()
+        .is_none_or(|m| m.len() != 1)
+    {
+        return Err(Denial::new(
+            "planner_parameters",
+            "ExplicitPlan requires one definition",
+        ));
+    }
+    let d: crate::ports::planning::PlanDefinition =
+        ymp_domain::journal::decode(&encode(&selection.parameters["definition"])?)?;
+    d.plan.validate()?;
+    for item in d.items {
+        item.validate()?;
+    }
+    Ok(())
+}
+fn validate_contribution(selection: &PolicySelection) -> Result<()> {
+    let p: crate::ports::planning::ContributionParameters =
+        ymp_domain::journal::decode(&encode(&selection.parameters)?)?;
+    if p.expected.get() <= 0.0
+        || p.p90 < p.expected
+        || p.delta_belief.get() < 0.0
+        || p.delta_belief.get() > 1.0
+    {
+        return Err(Denial::new(
+            "contribution_parameters",
+            "Expected and p90 cost and benefit must be bounded",
+        ));
     }
     Ok(())
 }

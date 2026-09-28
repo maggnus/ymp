@@ -2,7 +2,7 @@
 
 Generated from the canonical JSON records in [`records/`](records/) by `python3 ymp-docs/tasks/manage.py progress --write`. Task write commands and `make tasks-progress` refresh it; do not edit statuses here.
 
-Tasks: 45 (13 done, 0 in progress, 28 open, 4 paused or blocked, 0 rejected). Times are Hong Kong time (UTC+08:00). Last record change: 2026-09-28 19:13.
+Tasks: 45 (13 done, 1 in progress, 27 open, 4 paused or blocked, 0 rejected). Times are Hong Kong time (UTC+08:00). Last record change: 2026-09-28 20:02.
 
 | Mark | Meaning |
 | :---: | --- |
@@ -16,16 +16,24 @@ Tasks: 45 (13 done, 0 in progress, 28 open, 4 paused or blocked, 0 rejected). Ti
 
 | Wave | Done | In progress | Open | Paused or blocked | Rejected | Total | Done % |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| [W1](#wave-w1) | 13 | 0 | 2 | 4 | 0 | 19 | 68% |
+| [W1](#wave-w1) | 13 | 1 | 1 | 4 | 0 | 19 | 68% |
 | [W2](#wave-w2) | 0 | 0 | 4 | 0 | 0 | 4 | 0% |
 | [W3](#wave-w3) | 0 | 0 | 9 | 0 | 0 | 9 | 0% |
 | [W4](#wave-w4) | 0 | 0 | 3 | 0 | 0 | 3 | 0% |
 | [W5](#wave-w5) | 0 | 0 | 5 | 0 | 0 | 5 | 0% |
 | [W6](#wave-w6) | 0 | 0 | 5 | 0 | 0 | 5 | 0% |
 
+## Current work
+
+### W1-0011 — [~] in_progress
+
+Extract criteria and select minimal criterion-directed work through admitted strategies. Owner: codex; revision 7; updated 2026-09-28 20:02 by codex.
+
+Final make verify on the corrected code exited 0: legacy scan and all four required offline Cargo checks; planning integration passed in 95.19s and the existing result/acceptance scenario also passed. Task register and staged diff checks passed. Independent acceptance_review reaffirmed R1(9/10) ACCEPT for code, documentation and replay-only append guard. All task acceptance outcomes have actual consumer evidence or named existing boundary tests; native inference and later interactive/decomposition handlers remain explicitly unclaimed.
+
 ## Wave W1
 
-13 of 19 done; 0 in progress; 4 paused or blocked.
+13 of 19 done; 1 in progress; 4 paused or blocked.
 
 | Status | Task | Title | Area | State | Depends on | Owner | Updated (HKT) | Rev | Evidence |
 | :---: | --- | --- | --- | --- | --- | --- | --- | ---: | --- |
@@ -39,14 +47,14 @@ Tasks: 45 (13 done, 0 in progress, 28 open, 4 paused or blocked, 0 rejected). Ti
 | [x] | [W1-0008](records/W1-0008.json) | Submit immutable result versions bound to attempts and exact workspace snapshots | results | done | W1-0005 ✓, W1-0006 ✓, W1-0007 ✓, W1-0017 ✓ | codex | 2026-09-28 17:04 | 6 | 9ef44a81; ymp-docs/result-implementation.md; crates/ymp-storage/tests/results.rs |
 | [x] | [W1-0009](records/W1-0009.json) | Run versioned checks against immutable snapshots and record attributable check runs | verification | done | W1-0002 ✓, W1-0005 ✓, W1-0006 ✓ | codex | 2026-09-28 14:47 | 10 | commit [`ede5495`](https://github.com/maggnus/ymp/commit/ede54952) |
 | [x] | [W1-0010](records/W1-0010.json) | Compute criterion satisfaction and independent acceptance from the recorded evidence | acceptance | done | W1-0009 ✓, W1-0019 ✓ | codex | 2026-09-28 19:13 | 8 | d0b102ef; ymp-docs/acceptance-implementation.md; crates/ymp-storage/tests/results.rs; crates/ymp-runtime/tests/belief.rs |
-| [ ] | [W1-0011](records/W1-0011.json) | Extract criteria and select minimal criterion-directed work through admitted strategies | planning | planned | W1-0002 ✓, W1-0006 ✓, W1-0008 ✓, W1-0010 ✓ | — | 2026-09-16 01:05 | 3 | — |
+| [~] | [W1-0011](records/W1-0011.json) | Extract criteria and select minimal criterion-directed work through admitted strategies | planning | in_progress | W1-0002 ✓, W1-0006 ✓, W1-0008 ✓, W1-0010 ✓ | codex | 2026-09-28 20:02 | 7 | — |
 | [=] | [W1-0012](records/W1-0012.json) | Diagnose stalls and perform bounded recovery without discarding verified work | progress | planned (blocked) | W1-0007 ✓, W1-0019 ✓, W1-0010 ✓, W1-0011 | — | 2026-09-16 01:05 | 4 | — |
 | [=] | [W1-0013](records/W1-0013.json) | Finalize the integrated result and deliver an evidence-audited report | reporting | planned (blocked) | W1-0006 ✓, W1-0008 ✓, W1-0019 ✓, W1-0010 ✓, W1-0011, W1-0012 | — | 2026-09-16 01:05 | 4 | — |
 | [=] | [W1-0014](records/W1-0014.json) | Run and recover the minimal accountable producer-reviewer session | session | planned (blocked) | W1-0007 ✓, W1-0011, W1-0012, W1-0013, W1-0018 | — | 2026-09-16 01:05 | 3 | — |
 | [=] | [W1-0015](records/W1-0015.json) | Expose the accountable session through a simple interactive Ratatui interface | interface | planned (blocked) | W1-0014 | — | 2026-09-16 03:19 | 8 | — |
 | [x] | [W1-0016](records/W1-0016.json) | Persist the new Journal and content-addressed payloads across restart | persistence | done | W1-0001 ✓ | codex | 2026-09-16 04:56 | 9 | commit [`07db5fa`](https://github.com/maggnus/ymp/commit/07db5fa45ad10a94e5560c711b7be0274eb5d1c9) |
 | [x] | [W1-0017](records/W1-0017.json) | Execute admitted assignments through a new host and Scripted backend | execution | done | W1-0006 ✓, W1-0007 ✓, W1-0016 ✓ | codex | 2026-09-28 16:18 | 7 | 8de8e73a; ymp-docs/execution-implementation.md; crates/ymp-storage/tests/execution.rs |
-| [ ] | [W1-0018](records/W1-0018.json) | Build the native Codex backend and discovery for accountable sessions | providers | planned | W1-0003 ✓, W1-0017 ✓ | — | 2026-09-16 03:07 | 4 | — |
+| [ ] | [W1-0018](records/W1-0018.json) | Build the native Codex backend and discovery for accountable sessions | providers | planned | W1-0003 ✓, W1-0017 ✓ | codex | 2026-09-28 19:13 | 6 | — |
 | [x] | [W1-0019](records/W1-0019.json) | Bind attributed evidence and reviews to immutable results | verification | done | W1-0008 ✓, W1-0009 ✓ | codex | 2026-09-28 18:13 | 7 | 3689ad59; ymp-docs/evidence-implementation.md; crates/ymp-storage/tests/results.rs |
 
 ## Wave W2

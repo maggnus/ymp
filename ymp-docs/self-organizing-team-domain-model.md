@@ -308,6 +308,35 @@ begin packet without recreating an execution grant. AttemptStarted and
 AttemptAbandoned are implementation journal facts for the model's Pending and
 Abandoned outcomes, preserving prior candidates and independent P2 obligations.
 
+The Rust `Plans` consumer accepts completed, accounted Planner output through
+owner SessionControl without restoring execution authority. `PlanningPrompt`
+retains the actual contract, goal, criteria, method and effective policy supplied
+to the invocation; `PaidPlanningView` binds this input and output to the original
+Assignment, admission, completion and settled receipt. `PaidDecision` records the
+existing Decision together with that source; `PaidRequest` supplies the current
+commit boundary. These values distinguish paid result consumption from an active
+agent operation and retain the basis for Derived criteria.
+
+`IntakeOutput` contains extracted criteria and `Question` proposals with probability
+of misinterpretation, rework cost, proposed assumption and rationale.
+`QuestionDecision` records Ask or Assume, and `IntakeOutcome` retains criteria and
+those decisions. `IntakeParameters` makes interruption cost explicit. These are
+the implementation inputs and results of P6, not an additional clarification
+authority. `PlanDefinition` carries the Plan and proposed WorkItems together for
+coverage and dependency validation. `ExplicitPlan` is an experimental Planner
+control using a predeclared definition instead of selecting the paid output's
+scope; its calls remain accounted. AsNeededDecomposition initially commits one
+item; diagnosed splitting and general revision remain later capabilities.
+
+`PlanningRecorded` retains selected-policy changes, paid intake/plan decisions,
+initial Team and contribution selection. `PlanningState` projects that history,
+membership and consumed invocation identities. `ContributionCandidate` binds a
+proposed contribution to eligible participants and its criterion priority;
+`ContributionView` records those candidates, current funding/slots and limitations.
+`ContributionParameters` retains uncalibrated cost, success and criterion-benefit
+estimates. These mappings implement the existing replaceable ports and kernel
+filters without creating another scheduler or source of execution authority.
+
 ### 3.4. Authority and execution
 
 ```text

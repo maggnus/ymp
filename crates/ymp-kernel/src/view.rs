@@ -41,6 +41,7 @@ pub struct SessionView {
     execution: crate::execution::ExecutionView,
     results: crate::results::ResultsView,
     ledger: crate::ledger::LedgerView,
+    planning: crate::plans::PlanningState,
     acceptances:
         BTreeMap<Id<ymp_domain::verification::Acceptance>, crate::acceptance::AcceptanceRecorded>,
     evidence: BTreeMap<Id<ymp_domain::verification::Evidence>, crate::acceptance::EvidenceRecorded>,
@@ -77,6 +78,7 @@ impl SessionView {
             execution: crate::execution::ExecutionView::default(),
             results: crate::results::ResultsView::default(),
             ledger: crate::ledger::LedgerView::default(),
+            planning: crate::plans::PlanningState::default(),
             acceptances: BTreeMap::new(),
             evidence: BTreeMap::new(),
             reviews: BTreeMap::new(),
@@ -119,6 +121,9 @@ impl SessionView {
     }
     pub fn results(&self) -> &crate::results::ResultsView {
         &self.results
+    }
+    pub fn planning(&self) -> &crate::plans::PlanningState {
+        &self.planning
     }
     pub fn ledger_state(&self) -> &crate::ledger::LedgerView {
         &self.ledger
@@ -239,7 +244,12 @@ impl SessionView {
         schemas: &ParameterSchemas,
     ) -> Result<()> {
         if event.payload.version() != 1
-            && !matches!(event.payload, Event::SnapshotTaken { version: 2, .. })
+            && !matches!(
+                event.payload,
+                Event::SnapshotTaken { version: 2, .. }
+                    | Event::PlanCommitted { version: 2, .. }
+                    | Event::MethodChosen { version: 2, .. }
+            )
         {
             return Err(Denial::new(
                 "event_version",
@@ -272,10 +282,63 @@ impl SessionView {
             self.validate_complete()?;
             crate::acceptance::validate_acceptance(self, event, data, schemas)?;
         }
+        if let Event::PlanningRecorded { data, .. } = &event.payload {
+            crate::plans::validate(self, event, data, schemas)?;
+        }
         let execution = crate::execution::apply(self, event)?;
         let admission = crate::gatekeeper::apply(self, event)?;
         let results = crate::results::apply(self, event)?;
         match &event.payload {
+            Event::PlanningRecorded { data, .. } => {
+                self.validate_complete()?;
+                let planning = crate::plans::validate(self, event, data, schemas)?;
+                match data.as_ref() {
+                    crate::plans::PlanningRecorded::Intake(data) => {
+                        self.references.insert(data.source.assignment.clone());
+                        self.criteria = data.decision.outcome.criteria.clone();
+                        for question in &data.decision.outcome.questions {
+                            if let crate::ports::planning::QuestionDecision::Assume(q) = question {
+                                self.task.as_mut().unwrap().goal.assumptions.push(
+                                    ymp_domain::task::Assumption {
+                                        text: q.assumption.clone(),
+                                        criterion: None,
+                                        reason: q.reason.clone(),
+                                    },
+                                );
+                            }
+                        }
+                        let contract = AcceptanceContract::new(
+                            self.task.as_ref().unwrap(),
+                            &self.criteria,
+                            self.contract.as_ref().unwrap().checks.clone(),
+                        )?;
+                        for criterion in &self.criteria {
+                            self.references.insert(criterion.reference()?);
+                        }
+                        self.references.insert(contract.reference());
+                        self.contract = Some(contract);
+                        let task = self.task.as_ref().unwrap();
+                        self.references.insert(Ref {
+                            id: task.id.erased(),
+                            version: Digest::of_value(task)?,
+                        });
+                    }
+                    crate::plans::PlanningRecorded::Plan(data) => {
+                        self.references.insert(data.source.assignment.clone());
+                        self.references
+                            .insert(data.decision.outcome.plan.reference()?);
+                        for item in &data.decision.outcome.items {
+                            self.references.insert(item.reference()?);
+                        }
+                    }
+                    _ => {}
+                }
+                if let Some(selection) = data.selection() {
+                    self.policies
+                        .insert(selection.policy.port.clone(), selection.clone());
+                }
+                self.planning = planning;
+            }
             Event::LedgerUpdated { data, .. } => {
                 self.validate_complete()?;
                 self.ledger = crate::ledger::apply(self, event, data, schemas)?;
@@ -622,7 +685,12 @@ impl SessionView {
                         "Open a session journal before committing intake",
                     ));
                 }
-                crate::intake::validate_commit(self.task.as_ref(), self.contract.as_ref(), data)?;
+                crate::intake::validate_commit(
+                    self.task.as_ref(),
+                    self.contract.as_ref(),
+                    &self.criteria,
+                    data,
+                )?;
                 for id in &data.contract.checks {
                     let check = self
                         .checks
@@ -684,7 +752,24 @@ impl SessionView {
                     .assumptions
                     .push(assumption.clone());
             }
-            Event::MethodChosen { decision, .. } => {
+            Event::MethodChosen { decision, version } => {
+                if *version == 2 {
+                    crate::plans::work_boundary(self)?;
+                }
+                if *version == 2
+                    && matches!(
+                        decision.outcome.kind,
+                        ymp_domain::journal::MethodKind::SoloWithVerifier
+                    )
+                    && self.planning.team.as_ref().is_some_and(|team| {
+                        team.members.iter().filter(|m| m.left.is_none()).count() < 2
+                    })
+                {
+                    return Err(Denial::new(
+                        "team_method",
+                        "SoloWithVerifier requires two recorded members; team revision is unavailable",
+                    ));
+                }
                 self.validate_complete()?;
                 if decision.effective.policy.port != "MethodRouter" {
                     return Err(Denial::new(
@@ -701,6 +786,22 @@ impl SessionView {
                 decision.proposal.validate()?;
                 decision.proposal.value.validate()?;
                 schemas.validate(&decision.effective)?;
+                if *version == 2
+                    && decision.effective.policy.implementation == "FixedMethod"
+                    && decision.effective.policy.version == "1"
+                {
+                    let parameters =
+                        ymp_domain::journal::MethodParameters::from_selection(&decision.effective)?;
+                    if decision.outcome.kind != parameters.kind
+                        || decision.outcome.ladder != parameters.ladder
+                        || !decision.outcome.params.is_empty()
+                    {
+                        return Err(Denial::new(
+                            "method_parameters",
+                            "FixedMethod outcome differs from the effective parameters",
+                        ));
+                    }
+                }
                 let current = self.policies.get("MethodRouter").ok_or_else(|| {
                     Denial::new("policy_selection", "No MethodRouter is selected")
                 })?;

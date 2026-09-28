@@ -218,6 +218,22 @@ impl<J: Journal> Setup<J> {
         needs: BTreeSet<Capability>,
         subject: Option<ContributionSubject>,
     ) -> Ref {
+        self.award_targets(
+            name,
+            kind,
+            needs,
+            subject,
+            BTreeSet::from([id("criterion")]),
+        )
+    }
+    pub(super) fn award_targets(
+        &self,
+        name: &str,
+        kind: ContributionKind,
+        needs: BTreeSet<Capability>,
+        subject: Option<ContributionSubject>,
+        targets: BTreeSet<Id<ymp_domain::task::Criterion>>,
+    ) -> Ref {
         let arbiter = Arbiter::new(self.journal.clone());
         let view = self.gate.view(&self.session).unwrap();
         let at = view.latest_at() + 1;
@@ -235,7 +251,7 @@ impl<J: Journal> Setup<J> {
                     id: id(name),
                     session: self.session.clone(),
                     kind,
-                    targets: BTreeSet::from([id("criterion")]),
+                    targets,
                     subject,
                     needs,
                     forecast: forecast.clone(),

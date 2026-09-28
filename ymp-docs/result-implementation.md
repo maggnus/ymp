@@ -2,8 +2,9 @@
 
 Canonical status remains in `tasks/records/W1-0008.json`. This slice connects an
 explicit one-item Plan to actual production, retained snapshots and ResultVersion
-submission. Model-generated planning remains separate work; independent acceptance
-is connected by [W1-0010](acceptance-implementation.md).
+submission. [W1-0011](planning-implementation.md) connects accounted Planner output
+and criterion-directed selection; independent acceptance is connected by
+[W1-0010](acceptance-implementation.md).
 
 ## Plan and production scope
 
@@ -11,7 +12,10 @@ is connected by [W1-0010](acceptance-implementation.md).
 It records a fixed initial Plan from a real admitted Planner's live grant,
 deriving author and session from that assignment. The graph contains one WorkItem
 with current criterion targets, required capabilities and nonempty write paths;
-dependencies and parent are empty. General planning/revision remain W1-0011/W3-0004.
+dependencies and parent are empty. W1-0011 adds paid initial planning and a shared
+definition validator; general graph revision remains W3-0004. New explicit calls
+emit PlanCommitted v2 with full criterion coverage; historical v1 replay retains
+its original checks.
 
 A WorkItem reference hashes its definition, excluding state, attempts and accepted
 reference. Its Contribution therefore stays valid as the work changes state.

@@ -49,10 +49,11 @@ decision cannot be inserted into the incomplete intermediate state.
 
 ## Scope and authority
 
-User intake can create only User-origin criteria. Derived provenance is represented
-by an exact assignment Ref and can round-trip without losing its version, but
-only the admitted Planner integration in W1-0011 may validate and commit it.
-No assignment or Planner authority is fabricated here. Check registration and
+User intake can create only User-origin criteria and preserve unchanged existing
+Derived values during refinement. The [W1-0011 planning consumer](planning-implementation.md)
+validates and commits new Derived criteria from accounted Planner output, using
+the exact original Assignment reference. No assignment or Planner authority is
+fabricated by user intake. Check registration and
 validation against executable checks belong to W1-0009.
 
 All SessionStatus alternatives are represented. This implementation only exposes

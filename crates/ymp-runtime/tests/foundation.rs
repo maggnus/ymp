@@ -318,7 +318,7 @@ fn raw_adapter_batches_are_atomic_and_replay_rechecks_decision_metadata() {
         input: Some(view.digest().unwrap()),
         refs: vec![],
         payload: Event::MethodChosen {
-            version: 1,
+            version: 2,
             decision: Box::new(Decision {
                 outcome: proposed.value.clone(),
                 proposal: proposed,
@@ -429,7 +429,7 @@ fn a_registered_schema_for_another_port_cannot_choose_a_method() {
         input: Some(view.digest().unwrap()),
         refs: vec![],
         payload: Event::MethodChosen {
-            version: 1,
+            version: 2,
             decision: Box::new(Decision {
                 outcome: proposed.value.clone(),
                 proposal: proposed,

@@ -40,6 +40,9 @@ pub struct Intake<J: Journal> {
     decisions: DecisionConsumer<J>,
 }
 impl<J: Journal> Intake<J> {
+    pub fn plans(&self) -> crate::plans::Plans<J> {
+        crate::plans::Plans::new(self.journal.clone(), self.decisions.shared())
+    }
     pub fn acceptance<C: crate::journal::ContentStore>(
         &self,
         content: Arc<C>,
@@ -72,7 +75,7 @@ impl<J: Journal> Intake<J> {
             previous: None,
             reason: "Explicit user task".into(),
         };
-        validate_commit(None, None, &data)?;
+        validate_commit(None, None, &[], &data)?;
         let events = [
             Envelope {
                 seq: 1,
@@ -231,6 +234,7 @@ impl<J: Journal> Intake<J> {
 pub fn validate_commit(
     prior_task: Option<&Task>,
     prior_contract: Option<&AcceptanceContract>,
+    prior_criteria: &[Criterion],
     data: &CriteriaCommitted,
 ) -> Result<()> {
     data.contract.validate(&data.task, &data.criteria)?;
@@ -238,7 +242,7 @@ pub fn validate_commit(
     if data
         .criteria
         .iter()
-        .any(|c| !matches!(c.origin, CriterionOrigin::User))
+        .any(|c| !matches!(c.origin, CriterionOrigin::User) && !prior_criteria.contains(c))
     {
         return Err(Denial::new(
             "criterion_origin",

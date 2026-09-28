@@ -137,6 +137,12 @@ pub struct Assignment {
     pub state: AssignmentState,
 }
 impl Assignment {
+    pub fn reference(&self) -> Result<Ref> {
+        Ok(Ref {
+            id: self.id.erased(),
+            version: Digest::of_value(self)?,
+        })
+    }
     pub fn validate(&self) -> Result<()> {
         self.profile.validate()?;
         self.allowance.validate()?;

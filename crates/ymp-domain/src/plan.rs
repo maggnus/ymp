@@ -139,3 +139,20 @@ impl Attempt {
         Ok(())
     }
 }
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Membership {
+    pub agent: Id<crate::identity::Agent>,
+    pub joined: u64,
+    pub left: Option<u64>,
+    pub reason: String,
+}
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Team {
+    pub id: Id<Team>,
+    pub session: Id,
+    pub members: Vec<Membership>,
+    pub revision: u64,
+}

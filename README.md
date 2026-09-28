@@ -52,6 +52,12 @@ The [assessment and acceptance consumer](ymp-docs/acceptance-implementation.md)
 records replaceable belief calculations separately from independent acceptance
 and confirmation grades. Accepted candidates discharge exactly their producer's
 artifact commitment; rejected candidates and earlier assessments remain retained.
+The [planning consumer](ymp-docs/planning-implementation.md) consumes accounted
+Planner output, preserves user criteria, records an initial eligible team and
+one-item plan, and selects criterion-directed work through replaceable strategies.
+The Scripted integration chooses verification for insufficient evidence and
+diagnosis for contradiction; native planning and the full session loop remain
+separate work.
 The remaining modules are placeholders under
 [the proposed layout](ymp-docs/project-worktree.md). The executable still has no
 interactive or task-execution behavior.

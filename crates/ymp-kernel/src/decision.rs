@@ -160,7 +160,7 @@ impl<J: Journal> DecisionConsumer<J> {
             input: Some(request.input.clone()),
             refs: request.proposal.basis.clone(),
             payload: Event::MethodChosen {
-                version: 1,
+                version: 2,
                 decision: Box::new(Decision {
                     outcome: request.proposal.value.clone(),
                     proposal: request.proposal,

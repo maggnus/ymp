@@ -38,6 +38,7 @@ pub struct AttemptRecord {
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize)]
 pub struct ResultsView {
     plans: BTreeMap<Id<Plan>, PlanRecord>,
+    scopes: BTreeMap<Id<Plan>, (ymp_domain::task::Task, BTreeSet<Ref>)>,
     items: BTreeMap<Id<WorkItem>, WorkItem>,
     attempts: BTreeMap<Id<Attempt>, AttemptRecord>,
     results: BTreeMap<Id<ResultVersion>, ResultVersion>,
@@ -133,10 +134,16 @@ pub(crate) fn review_subject<'a>(
     let Some(ContributionSubject::ResultVersion(reference)) = &contribution.subject else {
         return Ok(None);
     };
-    if contribution.kind != ContributionKind::Review {
+    if !matches!(
+        contribution.kind,
+        ContributionKind::Review
+            | ContributionKind::Verify
+            | ContributionKind::Diagnose
+            | ContributionKind::DesignChecks
+    ) {
         return Err(Denial::new(
             "subject_unsupported",
-            "Only Review supports a ResultVersion subject here",
+            "This contribution cannot target a retained result",
         )
         .with_ref(reference.clone()));
     }
@@ -288,6 +295,7 @@ pub(crate) fn attribution(view: &SessionView, event: &Event) -> Result<Vec<Ref>>
 fn validate_plan(view: &SessionView, data: &PlanRecord, at: u64) -> Result<()> {
     data.plan.validate()?;
     data.item.validate()?;
+
     let assignment = view
         .admission()
         .assignments()
@@ -497,6 +505,31 @@ pub(crate) fn apply(view: &SessionView, event: &Envelope<Event>) -> Result<Resul
         return Ok(next);
     }
     match &event.payload {
+        Event::PlanningRecorded { data, .. } => {
+            if let crate::plans::PlanningRecorded::Plan(data) = data.as_ref() {
+                let plan = &data.decision.outcome.plan;
+                let item = &data.decision.outcome.items[0];
+                next.scopes.insert(
+                    plan.id.clone(),
+                    (
+                        view.task().unwrap().clone(),
+                        view.criteria()
+                            .iter()
+                            .map(|c| c.reference())
+                            .collect::<Result<_>>()?,
+                    ),
+                );
+                next.plans.insert(
+                    plan.id.clone(),
+                    PlanRecord {
+                        plan: plan.clone(),
+                        item: item.clone(),
+                        contract: view.contract().unwrap().reference(),
+                    },
+                );
+                next.items.insert(item.id.clone(), item.clone());
+            }
+        }
         Event::AcceptanceRecorded { data, .. } => {
             // SessionView validates A7 and exact attempt provenance before this projection.
             let record = next
@@ -519,8 +552,28 @@ pub(crate) fn apply(view: &SessionView, event: &Envelope<Event>) -> Result<Resul
                 }
             }
         }
-        Event::PlanCommitted { data, .. } => {
+        Event::PlanCommitted { data, version } => {
             validate_plan(view, data, event.at)?;
+            if *version == 2 {
+                crate::plans::validate_definition(
+                    view,
+                    &crate::ports::planning::PlanDefinition {
+                        plan: data.plan.clone(),
+                        items: vec![data.item.clone()],
+                    },
+                    &data.plan.author,
+                )?;
+            }
+            next.scopes.insert(
+                data.plan.id.clone(),
+                (
+                    view.task().unwrap().clone(),
+                    view.criteria()
+                        .iter()
+                        .map(|c| c.reference())
+                        .collect::<Result<_>>()?,
+                ),
+            );
             next.plans.insert(data.plan.id.clone(), (**data).clone());
             next.items.insert(data.item.id.clone(), data.item.clone());
         }
@@ -690,7 +743,7 @@ impl<J: Journal, C: ContentStore> Results<J, C> {
             expected,
             at,
             Event::PlanCommitted {
-                version: 1,
+                version: 2,
                 data: Box::new(data),
             },
         )?;
@@ -886,4 +939,17 @@ impl<J: Journal, C: ContentStore> Results<J, C> {
             .workspace()
             .read_artifact(session, &result.after, path)
     }
+}
+
+pub(crate) fn plan_current(view: &SessionView, plan: &Id<Plan>) -> Result<bool> {
+    let Some((task, criteria)) = view.results().scopes.get(plan) else {
+        return Ok(false);
+    };
+    Ok(view.task() == Some(task)
+        && *criteria
+            == view
+                .criteria()
+                .iter()
+                .map(|c| c.reference())
+                .collect::<Result<BTreeSet<_>>>()?)
 }

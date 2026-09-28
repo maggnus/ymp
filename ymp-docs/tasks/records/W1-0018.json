@@ -10,7 +10,7 @@
     "W1-0003",
     "W1-0017"
   ],
-  "owner": null,
+  "owner": "codex",
   "goal": "Deliver the first complete native ExecutionBackend by implementing Codex execution, discovery and accountable observations in the new product.",
   "scope": [
     "Implement Codex native readiness/discovery and ExecutionBackend against a supported local protocol selected and documented in this task. Preserve native authentication/agent identity, provider version, per-model efforts and requested/sent/reported settings; no previous Codex adapter is credited.",
@@ -31,7 +31,7 @@
     "Codex and Scripted run the shared execution contract through actual consumers. Native-run evidence, if separately authorized and collected, records exact runtime version/settings/observations and is not conflated with fixture behavior."
   ],
   "evidence": [],
-  "revision": 4,
+  "revision": 6,
   "history": [
     {
       "revision": 1,
@@ -60,6 +60,20 @@
       "actor": "manage.py",
       "status": "planned",
       "note": "Owner decision 2026-09-16: bounded legacy access to attempts 1 and 2 for facts only, per the AGENTS.md legacy rule."
+    },
+    {
+      "revision": 5,
+      "at": "2026-09-28T11:13:17.561341Z",
+      "actor": "codex",
+      "status": "in_progress",
+      "note": "Claimed by codex."
+    },
+    {
+      "revision": 6,
+      "at": "2026-09-28T11:13:25.278693Z",
+      "actor": "codex",
+      "status": "planned",
+      "note": "No implementation started. Completing W1-0010 unlocked higher-priority W1-0011; return this task to the planned queue to preserve the authoritative next order. Only read-only protocol documentation and installed CLI version/help were inspected."
     }
   ]
 }

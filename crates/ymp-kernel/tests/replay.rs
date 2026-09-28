@@ -185,4 +185,20 @@ fn version_one_decision_bytes_keep_their_original_input_digest() {
         "399b82940360c243edc81c1d7971143e6fda9704e4b9e5562099db9cf8c8f08b"
     );
     assert_eq!(view.method().unwrap().id.as_str(), "method-v1");
+    let prefix = JournalRead {
+        revision: 1,
+        events: events[..1].to_vec(),
+    };
+    assert_eq!(
+        checked_append(
+            &prefix,
+            view.session(),
+            1,
+            &events[1..],
+            &ParameterSchemas::default(),
+        )
+        .unwrap_err()
+        .code,
+        "planning_version"
+    );
 }
