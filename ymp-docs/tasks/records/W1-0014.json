@@ -5,7 +5,7 @@
   "title": "Run and recover the minimal accountable producer-reviewer session",
   "type": "implementation",
   "priority": 114,
-  "status": "planned",
+  "status": "done",
   "depends_on": [
     "W1-0007",
     "W1-0011",
@@ -33,7 +33,8 @@
     "crates/ymp-storage/tests/session.rs",
     "git:b566b0d9fce8c3294e7c4db67f260eec19e72f97",
     "ymp-docs/experiments/homogeneous-gpt-elementary/README.md",
-    "git:714e7046"
+    "git:714e7046",
+    "git:aad168d6"
   ],
   "context": [
     "Authority: ymp-docs/self-organizing-team-domain-model.md, section 4 (Dispatcher), A1/A3/A5/A6/A11/A13, P2, build stages 1–5 and intent.md interactive-session outcomes. Use the approved model with 811a872 semantics and the greenfield baseline in 0c61ff1 and §5.8 for experimental strategy boundaries. Other documents and existing names explain implementation facts only.",
@@ -46,7 +47,7 @@
     "Current ContributionPolicy selects Verify/Diagnose/DesignChecks for a retained candidate, not Review. The fixed A1 workflow must explicitly admit independent candidate review and connect Review -> A7 -> producer P2 before final aggregate capture; A8 Satisfied alone is not an accepted source. Keep that required call ordering outside strategy claims and do not accept a normal provider exit as artifact acceptance.",
     "Recovery/control seams confirmed by read-only preparation: new Application/DecisionConsumer and Treasury cannot yet recover original SessionControl/BudgetControl; completed retained production cannot be submitted after losing PreparedAttempt/issuer; Host.recover only observes unresolved work and must not duplicate it. Implement trusted continuation from recorded facts without new grants or budget reset. MemoryJournal currently has no binding_identity/workspace_binding, so its full Direct scenario needs an honest in-memory identity/binding implementation instead of bypassing WorkspaceGuard. Durable owner stop needs atomic current-revision ordering or equivalent evidence of no starvation; repeated optimistic CAS retries alone are insufficient. Preserve Host.cancel immediate local stopped flag and mediated withdrawal even when journal writes fail."
   ],
-  "revision": 15,
+  "revision": 17,
   "history": [
     {
       "revision": 1,
@@ -152,6 +153,20 @@
       "actor": "codex",
       "status": "planned",
       "note": "Await the required native-adapter compatibility repair exposed by pilot run06. The committed P1 fix and session verification remain valid; no session rewrite is planned. W1-0018 must version and verify its local Code Mode host boundary before the session integration can be reconfirmed with that backend."
+    },
+    {
+      "revision": 16,
+      "at": "2026-09-28T20:12:02.684563Z",
+      "actor": "codex",
+      "status": "in_progress",
+      "note": "Claimed by codex."
+    },
+    {
+      "revision": 17,
+      "at": "2026-09-28T20:12:37.890163Z",
+      "actor": "codex",
+      "status": "done",
+      "note": "Reconfirmed after W1-0018 v2 repair and its completion record were committed on main (aad168d6,9f453715). The complete required combined run passed all nine Dispatcher cases in139.51s; prior session/P1 code and acceptance evidence remain unchanged and retained. No session rewrite or repeated broad run was needed. Native v2 producer/reviewer behavior remains the next explicitly bounded pilot, not implied by Scripted verification."
     }
   ]
 }

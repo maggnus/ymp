@@ -1,47 +1,40 @@
 # Resume handoff
 
-Updated: 2026-09-29 04:05 Asia/Hong_Kong. Reconcile this note with Git and task
+Updated: 2026-09-29 04:12 Asia/Hong_Kong. Reconcile this note with Git and task
 JSON records before acting; it is not another task register.
 
 ## Immediate continuation
 
-Root owns all current writes on `main`. Active task: W1-0018, in_progress,
-owner codex, revision 12. W1-0014 is planned, revision 15, waiting for its native
-adapter prerequisite to be repaired. W1-0015 is unclaimed, revision 8.
+Root owns main. CodexAppServer v2 is committed in `aad168d6`, with W1-0018
+completion in `9f453715` (done revision14). W1-0014 is reconfirmed done revision17
+using the same full combined verification; no session rewrite was needed.
+W1-0015 remains unclaimed revision8 and is the next implementation task.
 
-**No native model run is active.** A candidate CodexAppServer v2 fix is uncommitted.
-The full mandatory check passed with exit 0:
-`/tmp/ymp-code-mode-final-verify.log` (exec session 6753 in the current conversation).
-All nine Dispatcher scenarios passed in 139.51s. Independent read-only review by
-acceptance_boundary_read accepted the final helper-readiness addition (R1, 9/10).
-Ready to commit; do not repeat checks without a new change or concern.
+**No native model run is active at this checkpoint.** Full verification passed
+(`/tmp/ymp-code-mode-final-verify.log`), nine Dispatcher cases in139.51s;
+independent review accepted the final source (R1,9/10). Do not repeat these checks
+solely because the conversation resumed.
 
-Next actions:
-
-1. Inspect `git status`, the verification log and the final review. Fix only actual
-   findings; do not repeat completed broad checks without a reason.
-2. Record final evidence in W1-0018 with expected revision 12, commit its code,
-   verify main reachability, then record and commit completion. Do not mark it
-   done just because the review accepted it.
-3. Reclaim W1-0014 using its latest revision and reconfirm session integration
-   against the repaired adapter. Its P1 code repair is already committed; do not
-   rewrite the session. Then close its canonical record with actual evidence.
-4. Build the actual homogeneous_gpt example binary against the new runtime before
-   any further pilot. Use a NEW directory (next is run07), with the same selected
-   model/effort and finite limits. Never restart an old native invocation merely
-   because its process or this conversation disappeared.
-5. Continue the existing task plan with `manage.py next` then `show`; W1-0015 is
-   the simple Ratatui interface. Do not replace it with unrelated architecture.
+Immediate next actions:
+1. Build the actual homogeneous_gpt example against the committed v2 runtime.
+2. Perform one bounded pilot in NEW `/tmp/ymp-gpt-elementary-20260929-07`, same
+   `gpt-6-luna / low`, task and limits as run06. Record the actual source commit.
+   After interruption inspect its journal/log before doing anything; never blindly
+   repeat an unresolved invocation. Native file-tool behavior under v2 is still
+   unverified and is the purpose of this next run.
+3. Retain its outcome, accounting and limitations; then continue the existing
+   plan through `manage.py next` and `show` (W1-0015, simple Ratatui interface).
+   Do not replace it with unrelated architecture or broader experiments.
 
 ```sh
 git status --short
 git log -5 --oneline
 python3 ymp-docs/tasks/manage.py next
-python3 ymp-docs/tasks/manage.py show W1-0018
+python3 ymp-docs/tasks/manage.py show W1-0015
 python3 ymp-docs/tasks/manage.py check
 ```
 
-## Current uncommitted repair
+## Delivered native compatibility repair
 
 Native pilot run06 showed a real `exec` call trying
 `tools.ymp_read({path:"input.json",limit:1000})`; the native response was
@@ -100,7 +93,7 @@ been observed; that is the next pilot's evidence, not a completed claim.
 - Native effective-config probe confirmed required host flags, zero environments,
   roots/instruction sources and network=false: `/tmp/ymp-code-mode-metadata.log`.
 - Static helper observation: `/tmp/ymp-code-mode-host-availability.json`.
-- Final full verification/review are pending as described above. Temporary logs
+- Final full verification/review passed as described above. Temporary logs
   may disappear; committed notes preserve completed conclusions.
 
 Required verification command (all required Cargo commands still run):
