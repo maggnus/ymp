@@ -2,7 +2,7 @@
 
 Generated from the canonical JSON records in [`records/`](records/) by `python3 ymp-docs/tasks/manage.py progress --write`. Task write commands and `make tasks-progress` refresh it; do not edit statuses here.
 
-Tasks: 45 (17 done, 0 in progress, 27 open, 1 paused or blocked, 0 rejected). Times are Hong Kong time (UTC+08:00). Last record change: 2026-09-29 00:39.
+Tasks: 45 (17 done, 1 in progress, 26 open, 1 paused or blocked, 0 rejected). Times are Hong Kong time (UTC+08:00). Last record change: 2026-09-29 00:39.
 
 | Mark | Meaning |
 | :---: | --- |
@@ -16,16 +16,24 @@ Tasks: 45 (17 done, 0 in progress, 27 open, 1 paused or blocked, 0 rejected). Ti
 
 | Wave | Done | In progress | Open | Paused or blocked | Rejected | Total | Done % |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| [W1](#wave-w1) | 17 | 0 | 1 | 1 | 0 | 19 | 89% |
+| [W1](#wave-w1) | 17 | 1 | 0 | 1 | 0 | 19 | 89% |
 | [W2](#wave-w2) | 0 | 0 | 4 | 0 | 0 | 4 | 0% |
 | [W3](#wave-w3) | 0 | 0 | 9 | 0 | 0 | 9 | 0% |
 | [W4](#wave-w4) | 0 | 0 | 3 | 0 | 0 | 3 | 0% |
 | [W5](#wave-w5) | 0 | 0 | 5 | 0 | 0 | 5 | 0% |
 | [W6](#wave-w6) | 0 | 0 | 5 | 0 | 0 | 5 | 0% |
 
+## Current work
+
+### W1-0014 — [~] in_progress
+
+Run and recover the minimal accountable producer-reviewer session. Owner: codex; revision 6; updated 2026-09-29 00:39 by codex.
+
+Claimed by codex.
+
 ## Wave W1
 
-17 of 19 done; 0 in progress; 1 paused or blocked.
+17 of 19 done; 1 in progress; 1 paused or blocked.
 
 | Status | Task | Title | Area | State | Depends on | Owner | Updated (HKT) | Rev | Evidence |
 | :---: | --- | --- | --- | --- | --- | --- | --- | ---: | --- |
@@ -42,7 +50,7 @@ Tasks: 45 (17 done, 0 in progress, 27 open, 1 paused or blocked, 0 rejected). Ti
 | [x] | [W1-0011](records/W1-0011.json) | Extract criteria and select minimal criterion-directed work through admitted strategies | planning | done | W1-0002 ✓, W1-0006 ✓, W1-0008 ✓, W1-0010 ✓ | codex | 2026-09-28 20:03 | 8 | df97ee3b; ymp-docs/planning-implementation.md; crates/ymp-storage/tests/planning.rs; crates/ymp-kernel/tests/replay.rs |
 | [x] | [W1-0012](records/W1-0012.json) | Diagnose stalls and perform bounded recovery without discarding verified work | progress | done | W1-0007 ✓, W1-0019 ✓, W1-0010 ✓, W1-0011 ✓ | codex | 2026-09-28 21:35 | 8 | ba307435; ymp-docs/progress-implementation.md; crates/ymp-storage/tests/progress.rs; crates/ymp-runtime/tests/progress.rs |
 | [x] | [W1-0013](records/W1-0013.json) | Finalize the integrated result and deliver an evidence-audited report | reporting | done | W1-0006 ✓, W1-0008 ✓, W1-0019 ✓, W1-0010 ✓, W1-0011 ✓, W1-0012 ✓ | codex | 2026-09-28 23:40 | 8 | d77ba2bc |
-| [ ] | [W1-0014](records/W1-0014.json) | Run and recover the minimal accountable producer-reviewer session | session | planned | W1-0007 ✓, W1-0011 ✓, W1-0012 ✓, W1-0013 ✓, W1-0018 ✓ | — | 2026-09-28 23:55 | 5 | — |
+| [~] | [W1-0014](records/W1-0014.json) | Run and recover the minimal accountable producer-reviewer session | session | in_progress | W1-0007 ✓, W1-0011 ✓, W1-0012 ✓, W1-0013 ✓, W1-0018 ✓ | codex | 2026-09-29 00:39 | 6 | — |
 | [=] | [W1-0015](records/W1-0015.json) | Expose the accountable session through a simple interactive Ratatui interface | interface | planned (blocked) | W1-0014 | — | 2026-09-16 03:19 | 8 | — |
 | [x] | [W1-0016](records/W1-0016.json) | Persist the new Journal and content-addressed payloads across restart | persistence | done | W1-0001 ✓ | codex | 2026-09-16 04:56 | 9 | commit [`07db5fa`](https://github.com/maggnus/ymp/commit/07db5fa45ad10a94e5560c711b7be0274eb5d1c9) |
 | [x] | [W1-0017](records/W1-0017.json) | Execute admitted assignments through a new host and Scripted backend | execution | done | W1-0006 ✓, W1-0007 ✓, W1-0016 ✓ | codex | 2026-09-28 16:18 | 7 | 8de8e73a; ymp-docs/execution-implementation.md; crates/ymp-storage/tests/execution.rs |

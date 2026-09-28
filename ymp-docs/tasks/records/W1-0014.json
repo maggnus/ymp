@@ -5,7 +5,7 @@
   "title": "Run and recover the minimal accountable producer-reviewer session",
   "type": "implementation",
   "priority": 114,
-  "status": "planned",
+  "status": "in_progress",
   "depends_on": [
     "W1-0007",
     "W1-0011",
@@ -13,7 +13,7 @@
     "W1-0013",
     "W1-0018"
   ],
-  "owner": null,
+  "owner": "codex",
   "goal": "Connect the W1 services into an accountable initial session and experimental fixed-workflow baseline, preserving the authority and recovery needed for later genuine agent initiative.",
   "scope": [
     "Implement Dispatcher.run call ordering: readiness/budget, admitted intake, fixed visible checks, method/plan, ledger/progress, candidate admission, invocation completion, result submission, verification/review, finalization and delivery. Business rules remain in the owning services and strategies.",
@@ -39,7 +39,7 @@
     "Current ContributionPolicy selects Verify/Diagnose/DesignChecks for a retained candidate, not Review. The fixed A1 workflow must explicitly admit independent candidate review and connect Review -> A7 -> producer P2 before final aggregate capture; A8 Satisfied alone is not an accepted source. Keep that required call ordering outside strategy claims and do not accept a normal provider exit as artifact acceptance.",
     "Recovery/control seams confirmed by read-only preparation: new Application/DecisionConsumer and Treasury cannot yet recover original SessionControl/BudgetControl; completed retained production cannot be submitted after losing PreparedAttempt/issuer; Host.recover only observes unresolved work and must not duplicate it. Implement trusted continuation from recorded facts without new grants or budget reset. MemoryJournal currently has no binding_identity/workspace_binding, so its full Direct scenario needs an honest in-memory identity/binding implementation instead of bypassing WorkspaceGuard. Durable owner stop needs atomic current-revision ordering or equivalent evidence of no starvation; repeated optimistic CAS retries alone are insufficient. Preserve Host.cancel immediate local stopped flag and mediated withdrawal even when journal writes fail."
   ],
-  "revision": 5,
+  "revision": 6,
   "history": [
     {
       "revision": 1,
@@ -75,6 +75,13 @@
       "actor": "manage.py",
       "status": "planned",
       "note": "Record concrete integration and recovery seams found by read-only preparation after W1-0013, without starting W1-0014 or changing its dependencies, architecture or acceptance criteria."
+    },
+    {
+      "revision": 6,
+      "at": "2026-09-28T16:39:52.518508Z",
+      "actor": "codex",
+      "status": "in_progress",
+      "note": "Claimed by codex."
     }
   ]
 }
