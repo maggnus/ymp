@@ -5,7 +5,7 @@
   "title": "Run versioned checks against immutable snapshots and record attributable check runs",
   "type": "implementation",
   "priority": 107,
-  "status": "in_progress",
+  "status": "done",
   "depends_on": [
     "W1-0002",
     "W1-0005",
@@ -23,7 +23,9 @@
     "Changing the live workspace after a snapshot cannot change the checked snapshot; a CheckRun cannot be recorded against an unknown check version, snapshot or environment.",
     "ProcessRunner and a materially different CheckRunner implementation are exercised through the same consumer; an adapter-returned outcome cannot register Trusted independence or mark a run as passing without kernel validation."
   ],
-  "evidence": [],
+  "evidence": [
+    "Commit ede54952 in main; independent R2(9/10) ACCEPT and executed evidence/limits in ymp-docs/check-execution.md."
+  ],
   "context": [
     "Authority: ymp-docs/self-organizing-team-domain-model.md, sections 3.2 (Check), 3.6 (CheckRun, Evidence, Review), 4 (AcceptanceAuthority), 5.1 (CheckRunner), A6/A7/A11. Use the approved model with 811a872 semantics and the greenfield baseline in 0c61ff1 and §5.8 for experimental strategy boundaries. Other documents and existing names explain implementation facts only.",
     "Greenfield: create this behavior in the new implementation. Paths below are PROPOSED target modules under the layout owned by W1-0001; only completed prerequisite tasks supply implementation. Prior source, APIs, fixtures and delivery claims are not a baseline.",
@@ -35,7 +37,7 @@
     "Implemented visible Check/CheckRun registration and execution through AcceptanceAuthority, owner/grant authorization, versioned criterion/contract binding and replay validation. ExplicitVisible records already-authored visible proposals with selected policy parameters. ProcessRunner and RetainedBytes share the actual consumer; kernel derives outcomes and retains stdout/stderr/environment content dependencies. See ymp-docs/check-execution.md.",
     "ProcessRunner Command currently supports macOS with deny-default/no-fork confinement, immutable retained subject and verifier inputs, bounded streams and time, and bounded no-follow/nonblocking launch-marker validation. Other platforms return Error(Environment); Linux execution was not tested. ExactBytes is process-free. No Evidence, Review, ResultVersion, hidden design, discrimination grade or native-agent experiment is claimed."
   ],
-  "revision": 9,
+  "revision": 10,
   "history": [
     {
       "revision": 1,
@@ -99,6 +101,13 @@
       "actor": "codex",
       "status": "in_progress",
       "note": "R2(9/10) ACCEPT 28/09 14:39 — Independent review accepted bounded marker validation and the full W1-0009 scope. Real Command/ExactBytes consumers distinguish incorrect/correct snapshots; binding and marker regressions showed genuine failures before restoration. Current reviewed make verify is running. Implementation and completion must be committed to main before done is recorded."
+    },
+    {
+      "revision": 10,
+      "at": "2026-09-28T06:47:16.888897Z",
+      "actor": "codex",
+      "status": "done",
+      "note": "Implementation ede54952 is committed to main. Independent R2(9/10) ACCEPT; reviewed make verify and task validation exited 0. Real Command and two ExactBytes runners execute retained snapshots; wrong/correct artifacts, forged bindings and changed launcher metadata distinguish failures with saved output. macOS no-fork Command only; Linux Command is explicitly unavailable. No Evidence/Review, result acceptance or native-agent experiment is claimed."
     }
   ]
 }
