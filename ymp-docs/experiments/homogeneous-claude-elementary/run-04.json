@@ -1,0 +1,798 @@
+{
+  "summary": {
+    "calls": 1,
+    "elapsed_ms": 24446,
+    "failure": null,
+    "input_unchanged": true,
+    "outcome": {
+      "Blocked": "final_acceptance_unavailable"
+    },
+    "revision": 59,
+    "sorted_bytes_match": false,
+    "status": {
+      "Blocked": "final_acceptance_unavailable"
+    }
+  },
+  "experiment": {
+    "cleanup_ms": 30000,
+    "comparative_token_efficiency": "unknown; no comparative usage evidence",
+    "constraints": {
+      "allowed": [
+        "ReadFiles",
+        "WriteFiles"
+      ],
+      "attempt_limit": 2,
+      "budget": 250000.0,
+      "deadline": 1790667025722,
+      "max_members": 2,
+      "parallel_limit": 1,
+      "pins": {
+        "efforts": null,
+        "models": [
+          "claude-haiku-4-5-20251001"
+        ],
+        "roster": [
+          "claude-a",
+          "claude-b"
+        ],
+        "team_size": 2
+      },
+      "verification_reserve": 60000.0
+    },
+    "definition": {
+      "checks": [
+        {
+          "criterion": {
+            "id": "sorted-json",
+            "version": "709c5e3beb5a4eaf0a5c657ffd7201698f2d60a0a72318b537490b15d2d8f0e2"
+          },
+          "spec": {
+            "ExactBytes": {
+              "digest": "9378b8dce9e7b6606624d9041ab49cba923e20ee3bffc0438f9e41f942a5c357",
+              "path": "sorted.json"
+            }
+          }
+        },
+        {
+          "criterion": {
+            "id": "input-preserved",
+            "version": "b5dde7d711585aca15a993ee3f370a9952de9b6ef55522ca962d0c180b4d3da1"
+          },
+          "spec": {
+            "ExactBytes": {
+              "digest": "eaa0aaa812d2cd872ecfd41a5c2475e818e38e58a21c96806e7132c6779eb97e",
+              "path": "input.json"
+            }
+          }
+        }
+      ],
+      "offer_window_ms": 5000,
+      "rules": {
+        "mutation_threshold": 0.8
+      },
+      "workspace": "pilot-workspace"
+    },
+    "driver_digest": "2becdbb346ac9a58cfb3201fc67912fb144e6fa8028d443ddd870d1db1a2e58c",
+    "expected": "[1,2,2,3]\n",
+    "goal": "Read input.json and write sorted.json containing the numbers sorted ascending, preserving duplicates. The output must be exactly [1,2,2,3] followed by one newline. Only sorted.json may be changed. The supplied owner criteria are sufficient; do not add criteria. Use one WorkItem. Follow each role's structured response schema without Markdown fences.",
+    "input": "[3,2,1,2]\n",
+    "policies": [
+      {
+        "parameters": {},
+        "policy": {
+          "impl": "StaticDependencyProbe",
+          "params": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+          "port": "ReadinessProbe",
+          "version": "1"
+        }
+      },
+      {
+        "parameters": {
+          "cost_interrupt": 0.0
+        },
+        "policy": {
+          "impl": "NoQuestions",
+          "params": "3169f6f252e7617d28255d59091b9df76e73c9513143fd7b3c3357617910dbdb",
+          "port": "IntakePolicy",
+          "version": "1"
+        }
+      },
+      {
+        "parameters": {
+          "kind": "SoloWithVerifier",
+          "ladder": [
+            "StopPreserving"
+          ]
+        },
+        "policy": {
+          "impl": "FixedMethod",
+          "params": "631c7a19f65d87d61c526535657b24c74a2828889b564f10004535ec34e79c47",
+          "port": "MethodRouter",
+          "version": "1"
+        }
+      },
+      {
+        "parameters": {},
+        "policy": {
+          "impl": "AsNeededDecomposition",
+          "params": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+          "port": "Planner",
+          "version": "1"
+        }
+      },
+      {
+        "parameters": {
+          "delta_belief": 0.1,
+          "expected": 16000.0,
+          "p90": 16000.0,
+          "p_success": 0.5
+        },
+        "policy": {
+          "impl": "FixedWorkflow",
+          "params": "66e54d5245be94ead7c4a3dead4ad79026861949a91df9d9c1f109f6c96fba39",
+          "port": "ContributionPolicy",
+          "version": "1"
+        }
+      },
+      {
+        "parameters": {
+          "external": 30.0,
+          "hidden": 20.0,
+          "independent": 5.0,
+          "inspection": 1.5,
+          "producer": 1.5,
+          "static_read": 1.1,
+          "thresholds": {
+            "behavior": 0.9,
+            "quality": 0.6,
+            "support": 0.6
+          },
+          "trusted": 50.0
+        },
+        "policy": {
+          "impl": "LikelihoodRatioTable",
+          "params": "4e818b38c4422f26cc44fe1e710322f3ac136efa64f01a1407ea46998ce4d0ac",
+          "port": "BeliefModel",
+          "version": "1"
+        }
+      },
+      {
+        "parameters": {},
+        "policy": {
+          "impl": "ConfirmedOnly",
+          "params": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+          "port": "CreditPolicy",
+          "version": "1"
+        }
+      },
+      {
+        "parameters": {
+          "epsilon": 0.001,
+          "stall_limit": 3
+        },
+        "policy": {
+          "impl": "EvidenceDelta",
+          "params": "87bc308e9f6b53456a035c37e3ace95c282b4210cc422ce99c6210a4c0517018",
+          "port": "ProgressMonitor",
+          "version": "1"
+        }
+      },
+      {
+        "parameters": {
+          "mutation_threshold": 0.8,
+          "p_min": 0.1
+        },
+        "policy": {
+          "impl": "RuleBasedDiagnoser",
+          "params": "ced4ffbe4c01e1304265c2cc02af1bedd1d52a25bbc1729a8d6695a8deb92870",
+          "port": "FailureDiagnoser",
+          "version": "1"
+        }
+      },
+      {
+        "parameters": {
+          "max_cost": 16000.0,
+          "max_uses": 1,
+          "timeout_ms": 60000
+        },
+        "policy": {
+          "impl": "DiagnosisFirstLadder",
+          "params": "e272dfa9afe45e340b716ab6e4e0949b5e969c545e22a2e5b2284fc135eea0ad",
+          "port": "EscalationPolicy",
+          "version": "1"
+        }
+      },
+      {
+        "parameters": {
+          "lease_duration": 480000,
+          "release_delta": 1.0,
+          "renew_on": [],
+          "renewal_duration": 480000,
+          "renewals": 0
+        },
+        "policy": {
+          "impl": "FirstOffer",
+          "params": "24f986eb6631c7a44c607d9a62a7ecd4157f08706eca604af81a4e487d761162",
+          "port": "AwardPolicy",
+          "version": "2"
+        }
+      },
+      {
+        "parameters": {
+          "expected_input": 10000,
+          "expected_output": 1000,
+          "p90_factor": 2.0
+        },
+        "policy": {
+          "impl": "PriceWeighted",
+          "params": "3ca35bfdf1ef644d03384f5ea59f5e0ed4dbef20d9586808021d6b4de586f2d1",
+          "port": "CostModel",
+          "version": "1"
+        }
+      },
+      {
+        "parameters": {
+          "max_cost": 30000.0,
+          "native_turns": 1,
+          "output_chars": 8000,
+          "report_call_cost": 15000.0,
+          "timeout": 60000
+        },
+        "policy": {
+          "impl": "PurposeBounded",
+          "params": "90d03ca59104d785b07ee72f32f91136a3b3e98d067ce73b36c189687e1f1e8b",
+          "port": "ResourcePolicy",
+          "version": "1"
+        }
+      },
+      {
+        "parameters": {
+          "history_limit": 4
+        },
+        "policy": {
+          "impl": "CriteriaProjection",
+          "params": "33b9088be99ba69a0bb047a6c2673ec83160a404026bbdec51c5025c37830358",
+          "port": "ContextComposer",
+          "version": "1"
+        }
+      },
+      {
+        "parameters": {},
+        "policy": {
+          "impl": "AnyNonProducer",
+          "params": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+          "port": "ReviewerPolicy",
+          "version": "1"
+        }
+      },
+      {
+        "parameters": {
+          "max_claims": 128,
+          "max_text": 4096
+        },
+        "policy": {
+          "impl": "DeterministicReport",
+          "params": "ec9434162586830f7e33c3bf2a5df9c0c587bf3043abfb0e3b2e85836ac968a9",
+          "port": "NarrativeComposer",
+          "version": "1"
+        }
+      },
+      {
+        "parameters": {},
+        "policy": {
+          "impl": "EvidenceClassRules",
+          "params": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+          "port": "ClaimAuditor",
+          "version": "1"
+        }
+      }
+    ],
+    "pricebook": {
+      "fallback": {
+        "cache_read": 0.1,
+        "cache_write": 1.25,
+        "input": 1.0,
+        "output": 4.0
+      },
+      "rates": [],
+      "version": "pilot-relative-token-weights-not-currency-v1"
+    },
+    "purpose": "Homogeneous light Anthropic team elementary fixed-workflow pilot",
+    "requested_effort": null,
+    "requested_model": "claude-haiku-4-5-20251001",
+    "started_at_ms": 1790666545722,
+    "unknown_usage": "Stop",
+    "watchdog_ms": 480000
+  },
+  "discovery": {
+    "provider": {
+      "id": "claude",
+      "kind": "Claude",
+      "version": "2.1.284",
+      "capabilities": [
+        "ReadFiles",
+        "WriteFiles"
+      ]
+    },
+    "offerings": [
+      {
+        "provider": "claude",
+        "model": "claude-fable-5",
+        "family": null,
+        "efforts": [
+          "high",
+          "low",
+          "max",
+          "medium",
+          "xhigh"
+        ],
+        "default_effort": null
+      },
+      {
+        "provider": "claude",
+        "model": "claude-fable-5-1",
+        "family": null,
+        "efforts": [
+          "high",
+          "low",
+          "max",
+          "medium",
+          "xhigh"
+        ],
+        "default_effort": null
+      },
+      {
+        "provider": "claude",
+        "model": "claude-haiku-4-5-20251001",
+        "family": null,
+        "efforts": [],
+        "default_effort": null
+      },
+      {
+        "provider": "claude",
+        "model": "claude-opus-4-6",
+        "family": null,
+        "efforts": [
+          "high",
+          "low",
+          "max",
+          "medium"
+        ],
+        "default_effort": null
+      },
+      {
+        "provider": "claude",
+        "model": "claude-opus-4-7",
+        "family": null,
+        "efforts": [
+          "high",
+          "low",
+          "max",
+          "medium",
+          "xhigh"
+        ],
+        "default_effort": null
+      },
+      {
+        "provider": "claude",
+        "model": "claude-opus-4-8",
+        "family": null,
+        "efforts": [
+          "high",
+          "low",
+          "max",
+          "medium",
+          "xhigh"
+        ],
+        "default_effort": null
+      },
+      {
+        "provider": "claude",
+        "model": "claude-opus-5",
+        "family": null,
+        "efforts": [
+          "high",
+          "low",
+          "max",
+          "medium",
+          "xhigh"
+        ],
+        "default_effort": null
+      },
+      {
+        "provider": "claude",
+        "model": "claude-opus-5-5",
+        "family": null,
+        "efforts": [
+          "high",
+          "low",
+          "max",
+          "medium",
+          "xhigh"
+        ],
+        "default_effort": null
+      },
+      {
+        "provider": "claude",
+        "model": "claude-sonnet-4-6",
+        "family": null,
+        "efforts": [
+          "high",
+          "low",
+          "max",
+          "medium"
+        ],
+        "default_effort": null
+      },
+      {
+        "provider": "claude",
+        "model": "claude-sonnet-5",
+        "family": null,
+        "efforts": [
+          "high",
+          "low",
+          "max",
+          "medium",
+          "xhigh"
+        ],
+        "default_effort": null
+      },
+      {
+        "provider": "claude",
+        "model": "claude-sonnet-5-5",
+        "family": null,
+        "efforts": [
+          "high",
+          "low",
+          "max",
+          "medium",
+          "xhigh"
+        ],
+        "default_effort": null
+      }
+    ],
+    "default_model": "claude-opus-5-5",
+    "adapter_available": true,
+    "source": "Native",
+    "method": "ClaudeStreamJson/v1/2.1.284/mediated-files/976f746a161ae44cd01e90aa3f57463b05b93d753977758b5323392555d15642",
+    "observed_at": 1790666542860
+  },
+  "runtime_source_commit": "197aaa7bd8d1b8d85c996adec3bd29f1cefd0b0b",
+  "runtime_source_note": "Commit plus the uncommitted W1-0020 working tree. The working-tree state and build profile of each run are not recorded in run files.",
+  "session_phase": {
+    "Blocked": "decoding"
+  },
+  "invocations": {
+    "call-intake": {
+      "dispatch": {
+        "invocation": "call-intake",
+        "assignment": {
+          "id": "intake",
+          "session": "homogeneous-claude-elementary",
+          "agent": "claude-a",
+          "profile": {
+            "agent": "claude-a",
+            "provider_version": "2.1.284",
+            "model": "claude-haiku-4-5-20251001",
+            "family": null,
+            "effort": null
+          },
+          "contribution": "intake",
+          "role": "Planner",
+          "access": [
+            "ReadFiles"
+          ],
+          "workspace": "pilot-workspace",
+          "allowance": {
+            "cost": 28000.0,
+            "timeout": 60000,
+            "native_turns": 1,
+            "output_chars": 8000
+          },
+          "state": "Admitted"
+        },
+        "kind": "Plan",
+        "port": "IntakePolicy",
+        "response_contract": "Return only IntakeOutput JSON: criteria [{id,text,kind NewBehavior/Regression/Constraint,weight,required,needs_class [],origin User}], questions [{question,p_misinterpretation,rework_cost,assumption,reason}]. Derive only atomic missing requirements; kernel replaces origin with the actual paid assignment. Preserve existing user criteria by not repeating them. Return criteria:[] when supplied criteria are complete. Visible checks bind only their exact recorded criterion versions; additional requirements without supplied checks need owner clarification.",
+        "provider": "claude",
+        "settings": {
+          "model": "claude-haiku-4-5-20251001",
+          "effort": null
+        },
+        "allowance": {
+          "cost": 28000.0,
+          "timeout": 59554,
+          "native_turns": 1,
+          "output_chars": 8000
+        },
+        "backend": {
+          "policy": {
+            "port": "ExecutionBackend",
+            "impl": "ClaudeStreamJson",
+            "version": "1",
+            "params": "976f746a161ae44cd01e90aa3f57463b05b93d753977758b5323392555d15642"
+          },
+          "parameters": {
+            "connect_timeout_ms": 30000,
+            "executable": "[redacted local path]",
+            "frame_bytes": 1048576,
+            "round_trips": 8,
+            "source": "Native"
+          }
+        },
+        "at": 1790666552112,
+        "deadline": 1790666611666
+      },
+      "invocation": {
+        "id": "call-intake",
+        "assignment": "intake",
+        "provider": "claude",
+        "settings": {
+          "requested": {
+            "model": "claude-haiku-4-5-20251001",
+            "effort": null
+          },
+          "sent": {
+            "model": "claude-haiku-4-5-20251001",
+            "effort": null
+          },
+          "reported": {
+            "model": "claude-haiku-4-5-20251001",
+            "effort": null
+          }
+        },
+        "native_session": "0a1a9e0a-0563-4322-8b9c-977a4a99384c",
+        "started": 1790666552291,
+        "ended": 1790666567721,
+        "receipt": "receipt-intake",
+        "terminal": "Completed"
+      },
+      "output": "```json\n{\"criteria\":[],\"questions\":[]}\n```",
+      "usage": {
+        "input": 4928,
+        "cache_read": 0,
+        "cache_write": 0,
+        "output": 943,
+        "reasoning": 816
+      },
+      "turns": 1,
+      "receipt": {
+        "id": "receipt-intake",
+        "invocation": "call-intake",
+        "usage": {
+          "input": 4928,
+          "cache_read": 0,
+          "cache_write": 0,
+          "output": 943,
+          "reasoning": 816
+        },
+        "coverage": "Complete",
+        "cost": null
+      },
+      "cost": {
+        "outcome": {
+          "Known": 8700.0
+        },
+        "policy": {
+          "port": "CostModel",
+          "impl": "PriceWeighted",
+          "version": "1",
+          "params": "3ca35bfdf1ef644d03384f5ea59f5e0ed4dbef20d9586808021d6b4de586f2d1"
+        },
+        "parameters": {
+          "expected_input": 10000,
+          "expected_output": 1000,
+          "p90_factor": 2.0
+        }
+      },
+      "terminal": "Completed",
+      "confirmed_terminal": true,
+      "backend_terminal": "Completed",
+      "ended_at": 1790666567721,
+      "diagnostics": [
+        [
+          "Content",
+          "lease_renewal",
+          "Recorded progress did not renew the commitment"
+        ]
+      ],
+      "derived": {
+        "duration_ms": 15430
+      }
+    }
+  },
+  "budget": {
+    "id": "budget",
+    "session": "homogeneous-claude-elementary",
+    "limit": 250000.0,
+    "verification_reserve": 60000.0,
+    "reporting_reserve": 30000.0,
+    "spent": 8700.0,
+    "held": 0.0,
+    "unknown_usage": "Stop"
+  },
+  "totals": {
+    "Production": {
+      "spent": 0.0,
+      "held": 0.0
+    },
+    "Verification": {
+      "spent": 0.0,
+      "held": 0.0
+    },
+    "Coordination": {
+      "spent": 8700.0,
+      "held": 0.0
+    },
+    "Reporting": {
+      "spent": 0.0,
+      "held": 0.0
+    }
+  },
+  "unbounded": false,
+  "unsettled_usage": false,
+  "reporting_mode": "Deterministic",
+  "accounts": {
+    "intake": {
+      "reservation": {
+        "id": "intake",
+        "budget": "budget",
+        "assignment": "intake",
+        "amount": 28000.0,
+        "purpose": "Coordination",
+        "state": "Settled"
+      },
+      "demand": {
+        "contribution": "intake",
+        "kind": "Plan",
+        "difficulty": "Simple",
+        "provider": "claude"
+      },
+      "allowance": {
+        "cost": 28000.0,
+        "timeout": 60000,
+        "native_turns": 1,
+        "output_chars": 8000
+      },
+      "invocation": "call-intake",
+      "receipt": {
+        "id": "receipt-intake",
+        "invocation": "call-intake",
+        "usage": {
+          "input": 4928,
+          "cache_read": 0,
+          "cache_write": 0,
+          "output": 943,
+          "reasoning": 816
+        },
+        "coverage": "Complete",
+        "cost": null
+      },
+      "complete_cost": null,
+      "observed_cost_floor": 0.0,
+      "upper_bound": null,
+      "revoked": true,
+      "settlement": {
+        "reservation": "intake",
+        "outcome": {
+          "Known": 8700.0
+        }
+      }
+    }
+  },
+  "report": {
+    "retained": [],
+    "accepted_sources": [],
+    "report": {
+      "id": "report",
+      "session": "homogeneous-claude-elementary",
+      "claims": [
+        "claim-845e91831319e89c4d656bdb80c278ac09a7230d61e5dfd2e1b1fbb436ac8917-0"
+      ],
+      "unmet": [
+        "sorted-json",
+        "input-preserved"
+      ],
+      "assumptions": [],
+      "grade": "Unconfirmed"
+    },
+    "claims": [
+      {
+        "id": "claim-845e91831319e89c4d656bdb80c278ac09a7230d61e5dfd2e1b1fbb436ac8917-0",
+        "report": "report",
+        "text": "Uncertain: independent final acceptance is unavailable; retained work is not presented as a completed artifact.",
+        "kind": "Status",
+        "evidence": [],
+        "audit": "Valid"
+      }
+    ],
+    "aggregate": null,
+    "acceptance": null,
+    "outcome": {
+      "Blocked": "final_acceptance_unavailable"
+    },
+    "accounting": {
+      "spent": 8700.0,
+      "held": 0.0,
+      "unknown": false,
+      "receipts": 1
+    },
+    "unresolved": 0
+  },
+  "coordination": {
+    "solicitations": {
+      "intake": {
+        "contribution": "intake",
+        "eligible": [
+          "claude-a",
+          "claude-b"
+        ],
+        "opened_at": 1790666546372,
+        "deadline": 1790666551372,
+        "final_state": "Withdrawn",
+        "offers": [
+          {
+            "agent": "claude-a",
+            "at": 1790666546554
+          },
+          {
+            "agent": "claude-b",
+            "at": 1790666546725
+          }
+        ],
+        "derived": {
+          "window_ms": 5000,
+          "offer_delay_ms": [
+            182,
+            353
+          ]
+        }
+      }
+    },
+    "awards": [
+      "intake"
+    ],
+    "commitments": [
+      "intake"
+    ]
+  },
+  "workspace": {
+    "files": {
+      "input.json": {
+        "text": "[3,2,1,2]\n",
+        "derived": {
+          "bytes": 10,
+          "sha256": "eaa0aaa812d2cd872ecfd41a5c2475e818e38e58a21c96806e7132c6779eb97e"
+        }
+      },
+      "sorted.json": {
+        "text": "[]\n",
+        "derived": {
+          "bytes": 3,
+          "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+        }
+      }
+    },
+    "input_unchanged": true,
+    "sorted_bytes_match": false,
+    "results": {},
+    "check_runs": {},
+    "evidence": {},
+    "acceptances": 0,
+    "reviews": 0
+  },
+  "journal": {
+    "path": "/tmp/ymp-claude-pilot/run04/journal.sqlite",
+    "store_identity": "fc4af1ba5c7cf8c9574b1abec7590650a2d17d2e54583235cb849f33c621f1ec",
+    "session": "homogeneous-claude-elementary",
+    "last_seq": 59,
+    "chain": "2cdb607bd84f1e8297b997b69694b9117d57cbb5c22d564d8db5a2c6f23b93b9",
+    "view_revision": 59
+  },
+  "log": {
+    "path": "/tmp/ymp-claude-pilot/run04.log",
+    "shell_wall_time": "28.297"
+  },
+  "evidence_class": "Native",
+  "note": "One native call. offer_window_ms raised to 5000; all other recorded parameters equal run03. Intake Completed with a Complete receipt, but its output was the expected JSON wrapped in one Markdown code fence. The session phase became Blocked(decoding) and no further work was admitted."
+}

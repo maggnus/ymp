@@ -189,10 +189,13 @@ pub(crate) fn input(
             aggregate_current(view, aggregate)?;
             snapshots.push(aggregate.snapshot.clone());
             basis.push(aggregate.reference()?);
+            let mut supplied = Vec::new();
             for e in crate::acceptance::applicable_evidence(view, &super::context(aggregate)?)? {
-                evidence.push(e.reference()?);
+                let reference = e.reference()?;
+                supplied.push(reference.id.clone());
+                evidence.push(reference);
             }
-            serde_json::json!({"operation":"final_review","aggregate":aggregate,"runs":view.check_runs().values().filter(|r|r.target.erased()==aggregate.snapshot.id&&r.target_version==aggregate.snapshot.version).collect::<Vec<_>>(),"response":"FinalVerdict: id, aggregate Ref, verdict Approve/Reject/NeedsEvidence, basis Evidence IDs, rationale"})
+            serde_json::json!({"operation":"final_review","subject":aggregate.reference()?,"evidence":supplied,"aggregate":aggregate,"runs":view.check_runs().values().filter(|r|r.target.erased()==aggregate.snapshot.id&&r.target_version==aggregate.snapshot.version).collect::<Vec<_>>(),"response":"Return only FinalVerdict JSON: {id:new review id,aggregate:{id,version} copied from subject,verdict:\"Approve\" or \"Reject\" or \"NeedsEvidence\",basis:[ids copied exactly from evidence],rationale:text}."})
         }
         RoleKind::Narrator if view.policies().contains_key("NarrativeComposer") => {
             super::narration::purpose(view, a)?

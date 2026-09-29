@@ -1,0 +1,3138 @@
+{
+  "summary": {
+    "calls": 6,
+    "elapsed_ms": 253456,
+    "failure": null,
+    "input_unchanged": true,
+    "outcome": {
+      "Blocked": "final_acceptance_unavailable"
+    },
+    "revision": 319,
+    "sorted_bytes_match": true,
+    "status": {
+      "Blocked": "final_acceptance_unavailable"
+    }
+  },
+  "experiment": {
+    "cleanup_ms": 30000,
+    "comparative_token_efficiency": "unknown; no comparative usage evidence",
+    "constraints": {
+      "allowed": [
+        "ReadFiles",
+        "WriteFiles"
+      ],
+      "attempt_limit": 2,
+      "budget": 250000.0,
+      "deadline": 1790670612491,
+      "max_members": 2,
+      "parallel_limit": 1,
+      "pins": {
+        "efforts": null,
+        "models": [
+          "claude-haiku-4-5-20251001"
+        ],
+        "roster": [
+          "claude-a",
+          "claude-b"
+        ],
+        "team_size": 2
+      },
+      "verification_reserve": 60000.0
+    },
+    "definition": {
+      "checks": [
+        {
+          "criterion": {
+            "id": "sorted-json",
+            "version": "709c5e3beb5a4eaf0a5c657ffd7201698f2d60a0a72318b537490b15d2d8f0e2"
+          },
+          "spec": {
+            "ExactBytes": {
+              "digest": "9378b8dce9e7b6606624d9041ab49cba923e20ee3bffc0438f9e41f942a5c357",
+              "path": "sorted.json"
+            }
+          }
+        },
+        {
+          "criterion": {
+            "id": "input-preserved",
+            "version": "b5dde7d711585aca15a993ee3f370a9952de9b6ef55522ca962d0c180b4d3da1"
+          },
+          "spec": {
+            "ExactBytes": {
+              "digest": "eaa0aaa812d2cd872ecfd41a5c2475e818e38e58a21c96806e7132c6779eb97e",
+              "path": "input.json"
+            }
+          }
+        }
+      ],
+      "offer_window_ms": 5000,
+      "rules": {
+        "mutation_threshold": 0.8
+      },
+      "workspace": "pilot-workspace"
+    },
+    "driver_digest": "7648e234221c18a8353c0840a3c7cc7a5b85ae9feb31e283b8e253978be17687",
+    "expected": "[1,2,2,3]\n",
+    "goal": "Read input.json and write sorted.json containing the numbers sorted ascending, preserving duplicates. The output must be exactly [1,2,2,3] followed by one newline. Only sorted.json may be changed. The supplied owner criteria are sufficient; do not add criteria. Use one WorkItem. Follow each role's structured response schema without Markdown fences.",
+    "input": "[3,2,1,2]\n",
+    "policies": [
+      {
+        "parameters": {},
+        "policy": {
+          "impl": "StaticDependencyProbe",
+          "params": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+          "port": "ReadinessProbe",
+          "version": "1"
+        }
+      },
+      {
+        "parameters": {
+          "cost_interrupt": 0.0
+        },
+        "policy": {
+          "impl": "NoQuestions",
+          "params": "3169f6f252e7617d28255d59091b9df76e73c9513143fd7b3c3357617910dbdb",
+          "port": "IntakePolicy",
+          "version": "1"
+        }
+      },
+      {
+        "parameters": {
+          "kind": "SoloWithVerifier",
+          "ladder": [
+            "StopPreserving"
+          ]
+        },
+        "policy": {
+          "impl": "FixedMethod",
+          "params": "631c7a19f65d87d61c526535657b24c74a2828889b564f10004535ec34e79c47",
+          "port": "MethodRouter",
+          "version": "1"
+        }
+      },
+      {
+        "parameters": {},
+        "policy": {
+          "impl": "AsNeededDecomposition",
+          "params": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+          "port": "Planner",
+          "version": "1"
+        }
+      },
+      {
+        "parameters": {
+          "delta_belief": 0.1,
+          "expected": 16000.0,
+          "p90": 16000.0,
+          "p_success": 0.5
+        },
+        "policy": {
+          "impl": "FixedWorkflow",
+          "params": "66e54d5245be94ead7c4a3dead4ad79026861949a91df9d9c1f109f6c96fba39",
+          "port": "ContributionPolicy",
+          "version": "1"
+        }
+      },
+      {
+        "parameters": {
+          "external": 30.0,
+          "hidden": 20.0,
+          "independent": 5.0,
+          "inspection": 1.5,
+          "producer": 1.5,
+          "static_read": 1.1,
+          "thresholds": {
+            "behavior": 0.9,
+            "quality": 0.6,
+            "support": 0.6
+          },
+          "trusted": 50.0
+        },
+        "policy": {
+          "impl": "LikelihoodRatioTable",
+          "params": "4e818b38c4422f26cc44fe1e710322f3ac136efa64f01a1407ea46998ce4d0ac",
+          "port": "BeliefModel",
+          "version": "1"
+        }
+      },
+      {
+        "parameters": {},
+        "policy": {
+          "impl": "ConfirmedOnly",
+          "params": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+          "port": "CreditPolicy",
+          "version": "1"
+        }
+      },
+      {
+        "parameters": {
+          "epsilon": 0.001,
+          "stall_limit": 3
+        },
+        "policy": {
+          "impl": "EvidenceDelta",
+          "params": "87bc308e9f6b53456a035c37e3ace95c282b4210cc422ce99c6210a4c0517018",
+          "port": "ProgressMonitor",
+          "version": "1"
+        }
+      },
+      {
+        "parameters": {
+          "mutation_threshold": 0.8,
+          "p_min": 0.1
+        },
+        "policy": {
+          "impl": "RuleBasedDiagnoser",
+          "params": "ced4ffbe4c01e1304265c2cc02af1bedd1d52a25bbc1729a8d6695a8deb92870",
+          "port": "FailureDiagnoser",
+          "version": "1"
+        }
+      },
+      {
+        "parameters": {
+          "max_cost": 16000.0,
+          "max_uses": 1,
+          "timeout_ms": 60000
+        },
+        "policy": {
+          "impl": "DiagnosisFirstLadder",
+          "params": "e272dfa9afe45e340b716ab6e4e0949b5e969c545e22a2e5b2284fc135eea0ad",
+          "port": "EscalationPolicy",
+          "version": "1"
+        }
+      },
+      {
+        "parameters": {
+          "lease_duration": 480000,
+          "release_delta": 1.0,
+          "renew_on": [],
+          "renewal_duration": 480000,
+          "renewals": 0
+        },
+        "policy": {
+          "impl": "FirstOffer",
+          "params": "24f986eb6631c7a44c607d9a62a7ecd4157f08706eca604af81a4e487d761162",
+          "port": "AwardPolicy",
+          "version": "2"
+        }
+      },
+      {
+        "parameters": {
+          "expected_input": 10000,
+          "expected_output": 1000,
+          "p90_factor": 2.0
+        },
+        "policy": {
+          "impl": "PriceWeighted",
+          "params": "3ca35bfdf1ef644d03384f5ea59f5e0ed4dbef20d9586808021d6b4de586f2d1",
+          "port": "CostModel",
+          "version": "1"
+        }
+      },
+      {
+        "parameters": {
+          "max_cost": 30000.0,
+          "native_turns": 1,
+          "output_chars": 8000,
+          "report_call_cost": 15000.0,
+          "timeout": 240000
+        },
+        "policy": {
+          "impl": "PurposeBounded",
+          "params": "b0d423e718ed1cd7f6ab890bd24b30705fe9a4392e524f2d96df255701a5acab",
+          "port": "ResourcePolicy",
+          "version": "1"
+        }
+      },
+      {
+        "parameters": {
+          "history_limit": 4
+        },
+        "policy": {
+          "impl": "CriteriaProjection",
+          "params": "33b9088be99ba69a0bb047a6c2673ec83160a404026bbdec51c5025c37830358",
+          "port": "ContextComposer",
+          "version": "1"
+        }
+      },
+      {
+        "parameters": {},
+        "policy": {
+          "impl": "AnyNonProducer",
+          "params": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+          "port": "ReviewerPolicy",
+          "version": "1"
+        }
+      },
+      {
+        "parameters": {
+          "max_claims": 128,
+          "max_text": 4096
+        },
+        "policy": {
+          "impl": "DeterministicReport",
+          "params": "ec9434162586830f7e33c3bf2a5df9c0c587bf3043abfb0e3b2e85836ac968a9",
+          "port": "NarrativeComposer",
+          "version": "1"
+        }
+      },
+      {
+        "parameters": {},
+        "policy": {
+          "impl": "EvidenceClassRules",
+          "params": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+          "port": "ClaimAuditor",
+          "version": "1"
+        }
+      }
+    ],
+    "pricebook": {
+      "fallback": {
+        "cache_read": 0.1,
+        "cache_write": 1.25,
+        "input": 1.0,
+        "output": 4.0
+      },
+      "rates": [],
+      "version": "pilot-relative-token-weights-not-currency-v1"
+    },
+    "purpose": "Homogeneous light Anthropic team elementary fixed-workflow pilot",
+    "requested_effort": null,
+    "requested_model": "claude-haiku-4-5-20251001",
+    "started_at_ms": 1790670132491,
+    "unknown_usage": "Stop",
+    "watchdog_ms": 480000
+  },
+  "discovery": {
+    "provider": {
+      "id": "claude",
+      "kind": "Claude",
+      "version": "2.1.284",
+      "capabilities": [
+        "ReadFiles",
+        "WriteFiles"
+      ]
+    },
+    "offerings": [
+      {
+        "provider": "claude",
+        "model": "claude-fable-5",
+        "family": null,
+        "efforts": [
+          "high",
+          "low",
+          "max",
+          "medium",
+          "xhigh"
+        ],
+        "default_effort": null
+      },
+      {
+        "provider": "claude",
+        "model": "claude-fable-5-1",
+        "family": null,
+        "efforts": [
+          "high",
+          "low",
+          "max",
+          "medium",
+          "xhigh"
+        ],
+        "default_effort": null
+      },
+      {
+        "provider": "claude",
+        "model": "claude-haiku-4-5-20251001",
+        "family": null,
+        "efforts": [],
+        "default_effort": null
+      },
+      {
+        "provider": "claude",
+        "model": "claude-opus-4-6",
+        "family": null,
+        "efforts": [
+          "high",
+          "low",
+          "max",
+          "medium"
+        ],
+        "default_effort": null
+      },
+      {
+        "provider": "claude",
+        "model": "claude-opus-4-7",
+        "family": null,
+        "efforts": [
+          "high",
+          "low",
+          "max",
+          "medium",
+          "xhigh"
+        ],
+        "default_effort": null
+      },
+      {
+        "provider": "claude",
+        "model": "claude-opus-4-8",
+        "family": null,
+        "efforts": [
+          "high",
+          "low",
+          "max",
+          "medium",
+          "xhigh"
+        ],
+        "default_effort": null
+      },
+      {
+        "provider": "claude",
+        "model": "claude-opus-5",
+        "family": null,
+        "efforts": [
+          "high",
+          "low",
+          "max",
+          "medium",
+          "xhigh"
+        ],
+        "default_effort": null
+      },
+      {
+        "provider": "claude",
+        "model": "claude-opus-5-5",
+        "family": null,
+        "efforts": [
+          "high",
+          "low",
+          "max",
+          "medium",
+          "xhigh"
+        ],
+        "default_effort": null
+      },
+      {
+        "provider": "claude",
+        "model": "claude-sonnet-4-6",
+        "family": null,
+        "efforts": [
+          "high",
+          "low",
+          "max",
+          "medium"
+        ],
+        "default_effort": null
+      },
+      {
+        "provider": "claude",
+        "model": "claude-sonnet-5",
+        "family": null,
+        "efforts": [
+          "high",
+          "low",
+          "max",
+          "medium",
+          "xhigh"
+        ],
+        "default_effort": null
+      },
+      {
+        "provider": "claude",
+        "model": "claude-sonnet-5-5",
+        "family": null,
+        "efforts": [
+          "high",
+          "low",
+          "max",
+          "medium",
+          "xhigh"
+        ],
+        "default_effort": null
+      }
+    ],
+    "default_model": "claude-opus-5-5",
+    "adapter_available": true,
+    "source": "Native",
+    "method": "ClaudeStreamJson/v1/2.1.284/mediated-files/976f746a161ae44cd01e90aa3f57463b05b93d753977758b5323392555d15642",
+    "observed_at": 1790670130598
+  },
+  "runtime_source_commit": "197aaa7bd8d1b8d85c996adec3bd29f1cefd0b0b",
+  "runtime_source_note": "Commit plus the uncommitted W1-0020 working tree. The working-tree state and build profile of each run are not recorded in run files.",
+  "session_phase": {
+    "Blocked": "decoding"
+  },
+  "invocations": {
+    "call-intake": {
+      "dispatch": {
+        "invocation": "call-intake",
+        "assignment": {
+          "id": "intake",
+          "session": "homogeneous-claude-elementary",
+          "agent": "claude-a",
+          "profile": {
+            "agent": "claude-a",
+            "provider_version": "2.1.284",
+            "model": "claude-haiku-4-5-20251001",
+            "family": null,
+            "effort": null
+          },
+          "contribution": "intake",
+          "role": "Planner",
+          "access": [
+            "ReadFiles"
+          ],
+          "workspace": "pilot-workspace",
+          "allowance": {
+            "cost": 28000.0,
+            "timeout": 240000,
+            "native_turns": 1,
+            "output_chars": 8000
+          },
+          "state": "Admitted"
+        },
+        "kind": "Plan",
+        "port": "IntakePolicy",
+        "response_contract": "Return only IntakeOutput JSON: criteria [{id,text,kind NewBehavior/Regression/Constraint,weight,required,needs_class [],origin User}], questions [{question,p_misinterpretation,rework_cost,assumption,reason}]. Derive only atomic missing requirements; kernel replaces origin with the actual paid assignment. Preserve existing user criteria by not repeating them. Return criteria:[] when supplied criteria are complete. Visible checks bind only their exact recorded criterion versions; additional requirements without supplied checks need owner clarification.",
+        "provider": "claude",
+        "settings": {
+          "model": "claude-haiku-4-5-20251001",
+          "effort": null
+        },
+        "allowance": {
+          "cost": 28000.0,
+          "timeout": 239541,
+          "native_turns": 1,
+          "output_chars": 8000
+        },
+        "backend": {
+          "policy": {
+            "port": "ExecutionBackend",
+            "impl": "ClaudeStreamJson",
+            "version": "1",
+            "params": "976f746a161ae44cd01e90aa3f57463b05b93d753977758b5323392555d15642"
+          },
+          "parameters": {
+            "connect_timeout_ms": 30000,
+            "executable": "[redacted local path]",
+            "frame_bytes": 1048576,
+            "round_trips": 8,
+            "source": "Native"
+          }
+        },
+        "at": 1790670139469,
+        "deadline": 1790670379010
+      },
+      "invocation": {
+        "id": "call-intake",
+        "assignment": "intake",
+        "provider": "claude",
+        "settings": {
+          "requested": {
+            "model": "claude-haiku-4-5-20251001",
+            "effort": null
+          },
+          "sent": {
+            "model": "claude-haiku-4-5-20251001",
+            "effort": null
+          },
+          "reported": {
+            "model": "claude-haiku-4-5-20251001",
+            "effort": null
+          }
+        },
+        "native_session": "fcee3b74-b9aa-4086-b10a-c58560e2dafa",
+        "started": 1790670139659,
+        "ended": 1790670151555,
+        "receipt": "receipt-intake",
+        "terminal": "Completed"
+      },
+      "output": "{\"criteria\":[],\"questions\":[]}",
+      "usage": {
+        "input": 4988,
+        "cache_read": 0,
+        "cache_write": 0,
+        "output": 676,
+        "reasoning": 581
+      },
+      "turns": 1,
+      "receipt": {
+        "id": "receipt-intake",
+        "invocation": "call-intake",
+        "usage": {
+          "input": 4988,
+          "cache_read": 0,
+          "cache_write": 0,
+          "output": 676,
+          "reasoning": 581
+        },
+        "coverage": "Complete",
+        "cost": null
+      },
+      "cost": {
+        "outcome": {
+          "Known": 7692.0
+        },
+        "policy": {
+          "port": "CostModel",
+          "impl": "PriceWeighted",
+          "version": "1",
+          "params": "3ca35bfdf1ef644d03384f5ea59f5e0ed4dbef20d9586808021d6b4de586f2d1"
+        },
+        "parameters": {
+          "expected_input": 10000,
+          "expected_output": 1000,
+          "p90_factor": 2.0
+        }
+      },
+      "terminal": "Completed",
+      "confirmed_terminal": true,
+      "backend_terminal": "Completed",
+      "ended_at": 1790670151555,
+      "diagnostics": [
+        [
+          "Content",
+          "lease_renewal",
+          "Recorded progress did not renew the commitment"
+        ]
+      ],
+      "derived": {
+        "duration_ms": 11896
+      }
+    },
+    "call-plan": {
+      "dispatch": {
+        "invocation": "call-plan",
+        "assignment": {
+          "id": "plan",
+          "session": "homogeneous-claude-elementary",
+          "agent": "claude-a",
+          "profile": {
+            "agent": "claude-a",
+            "provider_version": "2.1.284",
+            "model": "claude-haiku-4-5-20251001",
+            "family": null,
+            "effort": null
+          },
+          "contribution": "plan",
+          "role": "Planner",
+          "access": [
+            "ReadFiles"
+          ],
+          "workspace": "pilot-workspace",
+          "allowance": {
+            "cost": 15384.0,
+            "timeout": 240000,
+            "native_turns": 1,
+            "output_chars": 8000
+          },
+          "state": "Admitted"
+        },
+        "kind": "Plan",
+        "port": "Planner",
+        "response_contract": "Return only PlanDefinition JSON: plan {id,session,version:1,items:[item_id],rationale,author:assignment}, items [{id,plan:plan_id,title,targets:[all criterion IDs],deps:[],needs:[ReadFiles,WriteFiles],writes:[explicit relative file paths],state:Open,attempts:[],accepted:null,parent:null}]. Propose exactly one work item and cover every current criterion.",
+        "provider": "claude",
+        "settings": {
+          "model": "claude-haiku-4-5-20251001",
+          "effort": null
+        },
+        "allowance": {
+          "cost": 15384.0,
+          "timeout": 239220,
+          "native_turns": 1,
+          "output_chars": 8000
+        },
+        "backend": {
+          "policy": {
+            "port": "ExecutionBackend",
+            "impl": "ClaudeStreamJson",
+            "version": "1",
+            "params": "976f746a161ae44cd01e90aa3f57463b05b93d753977758b5323392555d15642"
+          },
+          "parameters": {
+            "connect_timeout_ms": 30000,
+            "executable": "[redacted local path]",
+            "frame_bytes": 1048576,
+            "round_trips": 8,
+            "source": "Native"
+          }
+        },
+        "at": 1790670161781,
+        "deadline": 1790670401001
+      },
+      "invocation": {
+        "id": "call-plan",
+        "assignment": "plan",
+        "provider": "claude",
+        "settings": {
+          "requested": {
+            "model": "claude-haiku-4-5-20251001",
+            "effort": null
+          },
+          "sent": {
+            "model": "claude-haiku-4-5-20251001",
+            "effort": null
+          },
+          "reported": {
+            "model": "claude-haiku-4-5-20251001",
+            "effort": null
+          }
+        },
+        "native_session": "c84a8857-4460-43f0-b5a8-6ba8de2146e4",
+        "started": 1790670162099,
+        "ended": 1790670176501,
+        "receipt": "receipt-plan",
+        "terminal": "Completed"
+      },
+      "output": "{\"plan\":{\"id\":\"sort-numbers\",\"session\":\"homogeneous-claude-elementary\",\"version\":1,\"items\":[\"sort-task\"],\"rationale\":\"Sort the numbers from input.json in ascending order while preserving duplicates and write to sorted.json. input.json contains [3,2,1,2] which when sorted ascending yields [1,2,2,3].\",\"author\":\"assignment\"},\"items\":[{\"id\":\"sort-task\",\"plan\":\"sort-numbers\",\"title\":\"Sort numbers in input.json to sorted.json\",\"targets\":[\"sorted-json\",\"input-preserved\"],\"deps\":[],\"needs\":[\"ReadFiles\",\"WriteFiles\"],\"writes\":[\"sorted.json\"],\"state\":\"Open\",\"attempts\":[],\"accepted\":null,\"parent\":null}]}",
+      "usage": {
+        "input": 6307,
+        "cache_read": 0,
+        "cache_write": 0,
+        "output": 956,
+        "reasoning": 700
+      },
+      "turns": 1,
+      "receipt": {
+        "id": "receipt-plan",
+        "invocation": "call-plan",
+        "usage": {
+          "input": 6307,
+          "cache_read": 0,
+          "cache_write": 0,
+          "output": 956,
+          "reasoning": 700
+        },
+        "coverage": "Complete",
+        "cost": null
+      },
+      "cost": {
+        "outcome": {
+          "Known": 10131.0
+        },
+        "policy": {
+          "port": "CostModel",
+          "impl": "PriceWeighted",
+          "version": "1",
+          "params": "3ca35bfdf1ef644d03384f5ea59f5e0ed4dbef20d9586808021d6b4de586f2d1"
+        },
+        "parameters": {
+          "expected_input": 10000,
+          "expected_output": 1000,
+          "p90_factor": 2.0
+        }
+      },
+      "terminal": "Completed",
+      "confirmed_terminal": true,
+      "backend_terminal": "Completed",
+      "ended_at": 1790670176501,
+      "diagnostics": [
+        [
+          "Content",
+          "lease_renewal",
+          "Recorded progress did not renew the commitment"
+        ]
+      ],
+      "derived": {
+        "duration_ms": 14402
+      }
+    },
+    "call-next-108-0": {
+      "dispatch": {
+        "invocation": "call-next-108-0",
+        "assignment": {
+          "id": "next-108-0",
+          "session": "homogeneous-claude-elementary",
+          "agent": "claude-a",
+          "profile": {
+            "agent": "claude-a",
+            "provider_version": "2.1.284",
+            "model": "claude-haiku-4-5-20251001",
+            "family": null,
+            "effort": null
+          },
+          "contribution": "next-108-0",
+          "role": "Producer",
+          "access": [
+            "ReadFiles",
+            "WriteFiles"
+          ],
+          "workspace": "pilot-workspace",
+          "allowance": {
+            "cost": 28000.0,
+            "timeout": 240000,
+            "native_turns": 1,
+            "output_chars": 8000
+          },
+          "state": "Admitted"
+        },
+        "kind": "Produce",
+        "port": null,
+        "response_contract": "Perform only the authorized file work through mediated tools. Return a concise factual summary; completion does not establish acceptance.",
+        "provider": "claude",
+        "settings": {
+          "model": "claude-haiku-4-5-20251001",
+          "effort": null
+        },
+        "allowance": {
+          "cost": 28000.0,
+          "timeout": 237754,
+          "native_turns": 1,
+          "output_chars": 8000
+        },
+        "backend": {
+          "policy": {
+            "port": "ExecutionBackend",
+            "impl": "ClaudeStreamJson",
+            "version": "1",
+            "params": "976f746a161ae44cd01e90aa3f57463b05b93d753977758b5323392555d15642"
+          },
+          "parameters": {
+            "connect_timeout_ms": 30000,
+            "executable": "[redacted local path]",
+            "frame_bytes": 1048576,
+            "round_trips": 8,
+            "source": "Native"
+          }
+        },
+        "at": 1790670189875,
+        "deadline": 1790670427629
+      },
+      "invocation": {
+        "id": "call-next-108-0",
+        "assignment": "next-108-0",
+        "provider": "claude",
+        "settings": {
+          "requested": {
+            "model": "claude-haiku-4-5-20251001",
+            "effort": null
+          },
+          "sent": {
+            "model": "claude-haiku-4-5-20251001",
+            "effort": null
+          },
+          "reported": {
+            "model": "claude-haiku-4-5-20251001",
+            "effort": null
+          }
+        },
+        "native_session": "1ea978e9-9c74-44ee-9397-1bfe95958dce",
+        "started": 1790670190376,
+        "ended": 1790670208090,
+        "receipt": "receipt-next-108-0",
+        "terminal": "Completed"
+      },
+      "output": "Sorted numbers from input.json [3,2,1,2] in ascending order to sorted.json [1,2,2,3] with one trailing newline. Input file remains unchanged.",
+      "usage": {
+        "input": 9673,
+        "cache_read": 0,
+        "cache_write": 0,
+        "output": 697,
+        "reasoning": 480
+      },
+      "turns": 1,
+      "receipt": {
+        "id": "receipt-next-108-0",
+        "invocation": "call-next-108-0",
+        "usage": {
+          "input": 9673,
+          "cache_read": 0,
+          "cache_write": 0,
+          "output": 697,
+          "reasoning": 480
+        },
+        "coverage": "Complete",
+        "cost": null
+      },
+      "cost": {
+        "outcome": {
+          "Known": 12461.0
+        },
+        "policy": {
+          "port": "CostModel",
+          "impl": "PriceWeighted",
+          "version": "1",
+          "params": "3ca35bfdf1ef644d03384f5ea59f5e0ed4dbef20d9586808021d6b4de586f2d1"
+        },
+        "parameters": {
+          "expected_input": 10000,
+          "expected_output": 1000,
+          "p90_factor": 2.0
+        }
+      },
+      "terminal": "Completed",
+      "confirmed_terminal": true,
+      "backend_terminal": "Completed",
+      "ended_at": 1790670208090,
+      "diagnostics": [
+        [
+          "Content",
+          "lease_renewal",
+          "Recorded progress did not renew the commitment"
+        ]
+      ],
+      "derived": {
+        "duration_ms": 17714
+      }
+    },
+    "call-next-164-0": {
+      "dispatch": {
+        "invocation": "call-next-164-0",
+        "assignment": {
+          "id": "next-164-0",
+          "session": "homogeneous-claude-elementary",
+          "agent": "claude-b",
+          "profile": {
+            "agent": "claude-b",
+            "provider_version": "2.1.284",
+            "model": "claude-haiku-4-5-20251001",
+            "family": null,
+            "effort": null
+          },
+          "contribution": "next-164-0",
+          "role": "Verifier",
+          "access": [
+            "ReadFiles"
+          ],
+          "workspace": "pilot-workspace",
+          "allowance": {
+            "cost": 28000.0,
+            "timeout": 240000,
+            "native_turns": 1,
+            "output_chars": 8000
+          },
+          "state": "Admitted"
+        },
+        "kind": "Verify",
+        "port": null,
+        "response_contract": "Inspect the exact retained candidate and visible checks. Return factual findings, distinguish observed results from uncertainty; kernel check execution and acceptance remain separate.",
+        "provider": "claude",
+        "settings": {
+          "model": "claude-haiku-4-5-20251001",
+          "effort": null
+        },
+        "allowance": {
+          "cost": 28000.0,
+          "timeout": 238208,
+          "native_turns": 1,
+          "output_chars": 8000
+        },
+        "backend": {
+          "policy": {
+            "port": "ExecutionBackend",
+            "impl": "ClaudeStreamJson",
+            "version": "1",
+            "params": "976f746a161ae44cd01e90aa3f57463b05b93d753977758b5323392555d15642"
+          },
+          "parameters": {
+            "connect_timeout_ms": 30000,
+            "executable": "[redacted local path]",
+            "frame_bytes": 1048576,
+            "round_trips": 8,
+            "source": "Native"
+          }
+        },
+        "at": 1790670222481,
+        "deadline": 1790670460689
+      },
+      "invocation": {
+        "id": "call-next-164-0",
+        "assignment": "next-164-0",
+        "provider": "claude",
+        "settings": {
+          "requested": {
+            "model": "claude-haiku-4-5-20251001",
+            "effort": null
+          },
+          "sent": {
+            "model": "claude-haiku-4-5-20251001",
+            "effort": null
+          },
+          "reported": {
+            "model": "claude-haiku-4-5-20251001",
+            "effort": null
+          }
+        },
+        "native_session": "aa90a1b3-6c5e-4667-82f7-9adf5925fe29",
+        "started": 1790670223173,
+        "ended": 1790670242667,
+        "receipt": "receipt-next-164-0",
+        "terminal": "Completed"
+      },
+      "output": "**check-sorted-json**: OBSERVED PASS\n- Actual sorted.json content: [1,2,2,3] followed by newline\n- Matches required specification exactly\n\n**check-input-preserved**: OBSERVED PASS\n- Actual input.json content: [3,2,1,2] followed by newline\n- Matches original content without modification\n\nBoth visible checks confirm expected state after candidate execution.",
+      "usage": {
+        "input": 6864,
+        "cache_read": 0,
+        "cache_write": 0,
+        "output": 1055,
+        "reasoning": 816
+      },
+      "turns": 1,
+      "receipt": {
+        "id": "receipt-next-164-0",
+        "invocation": "call-next-164-0",
+        "usage": {
+          "input": 6864,
+          "cache_read": 0,
+          "cache_write": 0,
+          "output": 1055,
+          "reasoning": 816
+        },
+        "coverage": "Complete",
+        "cost": null
+      },
+      "cost": {
+        "outcome": {
+          "Known": 11084.0
+        },
+        "policy": {
+          "port": "CostModel",
+          "impl": "PriceWeighted",
+          "version": "1",
+          "params": "3ca35bfdf1ef644d03384f5ea59f5e0ed4dbef20d9586808021d6b4de586f2d1"
+        },
+        "parameters": {
+          "expected_input": 10000,
+          "expected_output": 1000,
+          "p90_factor": 2.0
+        }
+      },
+      "terminal": "Completed",
+      "confirmed_terminal": true,
+      "backend_terminal": "Completed",
+      "ended_at": 1790670242667,
+      "diagnostics": [
+        [
+          "Content",
+          "lease_renewal",
+          "Recorded progress did not renew the commitment"
+        ]
+      ],
+      "derived": {
+        "duration_ms": 19494
+      }
+    },
+    "call-review-result-next-108-0": {
+      "dispatch": {
+        "invocation": "call-review-result-next-108-0",
+        "assignment": {
+          "id": "review-result-next-108-0",
+          "session": "homogeneous-claude-elementary",
+          "agent": "claude-b",
+          "profile": {
+            "agent": "claude-b",
+            "provider_version": "2.1.284",
+            "model": "claude-haiku-4-5-20251001",
+            "family": null,
+            "effort": null
+          },
+          "contribution": "review-result-next-108-0",
+          "role": "Reviewer",
+          "access": [
+            "ReadFiles"
+          ],
+          "workspace": "pilot-workspace",
+          "allowance": {
+            "cost": 28000.0,
+            "timeout": 240000,
+            "native_turns": 1,
+            "output_chars": 8000
+          },
+          "state": "Admitted"
+        },
+        "kind": "Review",
+        "port": null,
+        "response_contract": "Return only CandidateVerdict JSON: {id:new review id,result:{id,version} copied from result,criteria:[{id,version}] copied exactly from criteria,verdict:\"Approve\" or \"Reject\" or \"NeedsEvidence\",findings:[{criterion:criterion id or null,text,severity:\"Blocking\" or \"Advisory\",proposed_check:null}],basis:[supplied Evidence ids],rationale:text}.",
+        "provider": "claude",
+        "settings": {
+          "model": "claude-haiku-4-5-20251001",
+          "effort": null
+        },
+        "allowance": {
+          "cost": 28000.0,
+          "timeout": 237759,
+          "native_turns": 1,
+          "output_chars": 8000
+        },
+        "backend": {
+          "policy": {
+            "port": "ExecutionBackend",
+            "impl": "ClaudeStreamJson",
+            "version": "1",
+            "params": "976f746a161ae44cd01e90aa3f57463b05b93d753977758b5323392555d15642"
+          },
+          "parameters": {
+            "connect_timeout_ms": 30000,
+            "executable": "[redacted local path]",
+            "frame_bytes": 1048576,
+            "round_trips": 8,
+            "source": "Native"
+          }
+        },
+        "at": 1790670266873,
+        "deadline": 1790670504632
+      },
+      "invocation": {
+        "id": "call-review-result-next-108-0",
+        "assignment": "review-result-next-108-0",
+        "provider": "claude",
+        "settings": {
+          "requested": {
+            "model": "claude-haiku-4-5-20251001",
+            "effort": null
+          },
+          "sent": {
+            "model": "claude-haiku-4-5-20251001",
+            "effort": null
+          },
+          "reported": {
+            "model": "claude-haiku-4-5-20251001",
+            "effort": null
+          }
+        },
+        "native_session": "8701640a-755a-4d84-b350-c1785bc29363",
+        "started": 1790670267728,
+        "ended": 1790670291926,
+        "receipt": "receipt-review-result-next-108-0",
+        "terminal": "Completed"
+      },
+      "output": "{\n  \"id\": \"review-next-108-0-approved\",\n  \"result\": {\n    \"id\": \"result-next-108-0\",\n    \"version\": \"ad7022bba0177d39da199518e8c6ceeb78605962485d59564111695a04b16dd2\"\n  },\n  \"criteria\": [\n    {\n      \"id\": \"input-preserved\",\n      \"version\": \"b5dde7d711585aca15a993ee3f370a9952de9b6ef55522ca962d0c180b4d3da1\"\n    },\n    {\n      \"id\": \"sorted-json\",\n      \"version\": \"709c5e3beb5a4eaf0a5c657ffd7201698f2d60a0a72318b537490b15d2d8f0e2\"\n    }\n  ],\n  \"verdict\": \"Approve\",\n  \"findings\": [],\n  \"basis\": [\n    \"evidence-result-next-108-0-check-input-preserved\",\n    \"evidence-result-next-108-0-check-sorted-json\"\n  ],\n  \"rationale\": \"Both criteria satisfied: input.json preserved at [3,2,1,2] with newline; sorted.json correctly contains [1,2,2,3] with single trailing newline, properly sorted in ascending order with duplicates maintained.\"\n}",
+      "usage": {
+        "input": 3453,
+        "cache_read": 0,
+        "cache_write": 0,
+        "output": 2198,
+        "reasoning": 1846
+      },
+      "turns": 1,
+      "receipt": {
+        "id": "receipt-review-result-next-108-0",
+        "invocation": "call-review-result-next-108-0",
+        "usage": {
+          "input": 3453,
+          "cache_read": 0,
+          "cache_write": 0,
+          "output": 2198,
+          "reasoning": 1846
+        },
+        "coverage": "Complete",
+        "cost": null
+      },
+      "cost": {
+        "outcome": {
+          "Known": 12245.0
+        },
+        "policy": {
+          "port": "CostModel",
+          "impl": "PriceWeighted",
+          "version": "1",
+          "params": "3ca35bfdf1ef644d03384f5ea59f5e0ed4dbef20d9586808021d6b4de586f2d1"
+        },
+        "parameters": {
+          "expected_input": 10000,
+          "expected_output": 1000,
+          "p90_factor": 2.0
+        }
+      },
+      "terminal": "Completed",
+      "confirmed_terminal": true,
+      "backend_terminal": "Completed",
+      "ended_at": 1790670291926,
+      "diagnostics": [
+        [
+          "Content",
+          "lease_renewal",
+          "Recorded progress did not renew the commitment"
+        ]
+      ],
+      "derived": {
+        "duration_ms": 24198
+      }
+    },
+    "call-final-review": {
+      "dispatch": {
+        "invocation": "call-final-review",
+        "assignment": {
+          "id": "final-review",
+          "session": "homogeneous-claude-elementary",
+          "agent": "claude-b",
+          "profile": {
+            "agent": "claude-b",
+            "provider_version": "2.1.284",
+            "model": "claude-haiku-4-5-20251001",
+            "family": null,
+            "effort": null
+          },
+          "contribution": "final-review",
+          "role": "FinalReviewer",
+          "access": [
+            "ReadFiles"
+          ],
+          "workspace": "pilot-workspace",
+          "allowance": {
+            "cost": 24490.0,
+            "timeout": 240000,
+            "native_turns": 1,
+            "output_chars": 8000
+          },
+          "state": "Admitted"
+        },
+        "kind": "Review",
+        "port": null,
+        "response_contract": "Return only FinalVerdict JSON: {id:new review id,aggregate:{id,version} copied from subject,verdict:\"Approve\" or \"Reject\" or \"NeedsEvidence\",basis:[ids copied exactly from evidence],rationale:text}.",
+        "provider": "claude",
+        "settings": {
+          "model": "claude-haiku-4-5-20251001",
+          "effort": null
+        },
+        "allowance": {
+          "cost": 24490.0,
+          "timeout": 236816,
+          "native_turns": 1,
+          "output_chars": 8000
+        },
+        "backend": {
+          "policy": {
+            "port": "ExecutionBackend",
+            "impl": "ClaudeStreamJson",
+            "version": "1",
+            "params": "976f746a161ae44cd01e90aa3f57463b05b93d753977758b5323392555d15642"
+          },
+          "parameters": {
+            "connect_timeout_ms": 30000,
+            "executable": "[redacted local path]",
+            "frame_bytes": 1048576,
+            "round_trips": 8,
+            "source": "Native"
+          }
+        },
+        "at": 1790670331854,
+        "deadline": 1790670568670
+      },
+      "invocation": {
+        "id": "call-final-review",
+        "assignment": "final-review",
+        "provider": "claude",
+        "settings": {
+          "requested": {
+            "model": "claude-haiku-4-5-20251001",
+            "effort": null
+          },
+          "sent": {
+            "model": "claude-haiku-4-5-20251001",
+            "effort": null
+          },
+          "reported": {
+            "model": "claude-haiku-4-5-20251001",
+            "effort": null
+          }
+        },
+        "native_session": "78789c7f-5cf2-4708-a86c-e296acc5aaf4",
+        "started": 1790670333115,
+        "ended": 1790670365912,
+        "receipt": "receipt-final-review",
+        "terminal": "Completed"
+      },
+      "output": "Looking at the final review task, I need to analyze the check results:\n\n**Evidence Summary:**\n- input.json preserved check: **Pass** (digest: eaa0aaa812d2cd872ecfd41a5c2475e818e38e58a21c96806e7132c6779eb97e)\n- sorted.json check: **Pass** (digest: 9378b8dce9e7b6606624d9041ab49cba923e20ee3bffc0438f9e41f942a5c357, which represents [1,2,2,3]\\n)\n\nBoth required criteria have passed their checks. The candidate work correctly:\n1. Preserved input.json unchanged ([3,2,1,2] with newline)\n2. Created sorted.json with exactly [1,2,2,3] followed by one newline\n\nThis satisfies all requirements.\n\n{\"id\":\"final-review-56f8c3a7b2e1d9f4c6a0\",\"aggregate\":{\"id\":\"final-27f8fcd7dc448b97b64160ea6c747c7f286dd4b709979bd6f979116bd0e38274\",\"version\":\"ea6898f105fe157360642cdcd4bf2230a146e3a5707ad18800b1ef55bdb163ba\"},\"verdict\":\"Approve\",\"basis\":[\"final-evidence-2b73c54bf3bbb14e9a49b3aad9dea53ce7567738f155469ff77ad6ccf1d3b6ca\",\"final-evidence-7c79d2e2ee762b7c2607dd2a16fa3cf48bdce09e3739e4fd703f061df7bc9d08\"],\"rationale\":\"Both criteria checks passed. input.json remains exactly as specified, and sorted.json contains the precise output [1,2,2,3]\\\\n with all duplicates preserved and values correctly sorted in ascending order from the input [3,2,1,2].\"}",
+      "usage": {
+        "input": 4501,
+        "cache_read": 0,
+        "cache_write": 4491,
+        "output": 2848,
+        "reasoning": 2366
+      },
+      "turns": 1,
+      "receipt": {
+        "id": "receipt-final-review",
+        "invocation": "call-final-review",
+        "usage": {
+          "input": 4501,
+          "cache_read": 0,
+          "cache_write": 4491,
+          "output": 2848,
+          "reasoning": 2366
+        },
+        "coverage": "Complete",
+        "cost": null
+      },
+      "cost": {
+        "outcome": {
+          "Known": 17015.75
+        },
+        "policy": {
+          "port": "CostModel",
+          "impl": "PriceWeighted",
+          "version": "1",
+          "params": "3ca35bfdf1ef644d03384f5ea59f5e0ed4dbef20d9586808021d6b4de586f2d1"
+        },
+        "parameters": {
+          "expected_input": 10000,
+          "expected_output": 1000,
+          "p90_factor": 2.0
+        }
+      },
+      "terminal": "Completed",
+      "confirmed_terminal": true,
+      "backend_terminal": "Completed",
+      "ended_at": 1790670365912,
+      "diagnostics": [
+        [
+          "Content",
+          "lease_renewal",
+          "Recorded progress did not renew the commitment"
+        ]
+      ],
+      "derived": {
+        "duration_ms": 32797
+      }
+    }
+  },
+  "budget": {
+    "id": "budget",
+    "session": "homogeneous-claude-elementary",
+    "limit": 250000.0,
+    "verification_reserve": 60000.0,
+    "reporting_reserve": 30000.0,
+    "spent": 70628.75,
+    "held": 0.0,
+    "unknown_usage": "Stop"
+  },
+  "totals": {
+    "Production": {
+      "spent": 12461.0,
+      "held": 0.0
+    },
+    "Verification": {
+      "spent": 40344.75,
+      "held": 0.0
+    },
+    "Coordination": {
+      "spent": 17823.0,
+      "held": 0.0
+    },
+    "Reporting": {
+      "spent": 0.0,
+      "held": 0.0
+    }
+  },
+  "unbounded": false,
+  "unsettled_usage": false,
+  "reporting_mode": "Deterministic",
+  "accounts": {
+    "final-review": {
+      "reservation": {
+        "id": "final-review",
+        "budget": "budget",
+        "assignment": "final-review",
+        "amount": 24490.0,
+        "purpose": "Verification",
+        "state": "Settled"
+      },
+      "demand": {
+        "contribution": "final-review",
+        "kind": "Review",
+        "difficulty": "Simple",
+        "provider": "claude"
+      },
+      "allowance": {
+        "cost": 24490.0,
+        "timeout": 240000,
+        "native_turns": 1,
+        "output_chars": 8000
+      },
+      "invocation": "call-final-review",
+      "receipt": {
+        "id": "receipt-final-review",
+        "invocation": "call-final-review",
+        "usage": {
+          "input": 4501,
+          "cache_read": 0,
+          "cache_write": 4491,
+          "output": 2848,
+          "reasoning": 2366
+        },
+        "coverage": "Complete",
+        "cost": null
+      },
+      "complete_cost": null,
+      "observed_cost_floor": 0.0,
+      "upper_bound": null,
+      "revoked": true,
+      "settlement": {
+        "reservation": "final-review",
+        "outcome": {
+          "Known": 17015.75
+        }
+      }
+    },
+    "intake": {
+      "reservation": {
+        "id": "intake",
+        "budget": "budget",
+        "assignment": "intake",
+        "amount": 28000.0,
+        "purpose": "Coordination",
+        "state": "Settled"
+      },
+      "demand": {
+        "contribution": "intake",
+        "kind": "Plan",
+        "difficulty": "Simple",
+        "provider": "claude"
+      },
+      "allowance": {
+        "cost": 28000.0,
+        "timeout": 240000,
+        "native_turns": 1,
+        "output_chars": 8000
+      },
+      "invocation": "call-intake",
+      "receipt": {
+        "id": "receipt-intake",
+        "invocation": "call-intake",
+        "usage": {
+          "input": 4988,
+          "cache_read": 0,
+          "cache_write": 0,
+          "output": 676,
+          "reasoning": 581
+        },
+        "coverage": "Complete",
+        "cost": null
+      },
+      "complete_cost": null,
+      "observed_cost_floor": 0.0,
+      "upper_bound": null,
+      "revoked": true,
+      "settlement": {
+        "reservation": "intake",
+        "outcome": {
+          "Known": 7692.0
+        }
+      }
+    },
+    "next-108-0": {
+      "reservation": {
+        "id": "next-108-0",
+        "budget": "budget",
+        "assignment": "next-108-0",
+        "amount": 28000.0,
+        "purpose": "Production",
+        "state": "Settled"
+      },
+      "demand": {
+        "contribution": "next-108-0",
+        "kind": "Produce",
+        "difficulty": "Simple",
+        "provider": "claude"
+      },
+      "allowance": {
+        "cost": 28000.0,
+        "timeout": 240000,
+        "native_turns": 1,
+        "output_chars": 8000
+      },
+      "invocation": "call-next-108-0",
+      "receipt": {
+        "id": "receipt-next-108-0",
+        "invocation": "call-next-108-0",
+        "usage": {
+          "input": 9673,
+          "cache_read": 0,
+          "cache_write": 0,
+          "output": 697,
+          "reasoning": 480
+        },
+        "coverage": "Complete",
+        "cost": null
+      },
+      "complete_cost": null,
+      "observed_cost_floor": 0.0,
+      "upper_bound": null,
+      "revoked": true,
+      "settlement": {
+        "reservation": "next-108-0",
+        "outcome": {
+          "Known": 12461.0
+        }
+      }
+    },
+    "next-164-0": {
+      "reservation": {
+        "id": "next-164-0",
+        "budget": "budget",
+        "assignment": "next-164-0",
+        "amount": 28000.0,
+        "purpose": "Verification",
+        "state": "Settled"
+      },
+      "demand": {
+        "contribution": "next-164-0",
+        "kind": "Verify",
+        "difficulty": "Simple",
+        "provider": "claude"
+      },
+      "allowance": {
+        "cost": 28000.0,
+        "timeout": 240000,
+        "native_turns": 1,
+        "output_chars": 8000
+      },
+      "invocation": "call-next-164-0",
+      "receipt": {
+        "id": "receipt-next-164-0",
+        "invocation": "call-next-164-0",
+        "usage": {
+          "input": 6864,
+          "cache_read": 0,
+          "cache_write": 0,
+          "output": 1055,
+          "reasoning": 816
+        },
+        "coverage": "Complete",
+        "cost": null
+      },
+      "complete_cost": null,
+      "observed_cost_floor": 0.0,
+      "upper_bound": null,
+      "revoked": true,
+      "settlement": {
+        "reservation": "next-164-0",
+        "outcome": {
+          "Known": 11084.0
+        }
+      }
+    },
+    "plan": {
+      "reservation": {
+        "id": "plan",
+        "budget": "budget",
+        "assignment": "plan",
+        "amount": 15384.0,
+        "purpose": "Coordination",
+        "state": "Settled"
+      },
+      "demand": {
+        "contribution": "plan",
+        "kind": "Plan",
+        "difficulty": "Simple",
+        "provider": "claude"
+      },
+      "allowance": {
+        "cost": 15384.0,
+        "timeout": 240000,
+        "native_turns": 1,
+        "output_chars": 8000
+      },
+      "invocation": "call-plan",
+      "receipt": {
+        "id": "receipt-plan",
+        "invocation": "call-plan",
+        "usage": {
+          "input": 6307,
+          "cache_read": 0,
+          "cache_write": 0,
+          "output": 956,
+          "reasoning": 700
+        },
+        "coverage": "Complete",
+        "cost": null
+      },
+      "complete_cost": null,
+      "observed_cost_floor": 0.0,
+      "upper_bound": null,
+      "revoked": true,
+      "settlement": {
+        "reservation": "plan",
+        "outcome": {
+          "Known": 10131.0
+        }
+      }
+    },
+    "review-result-next-108-0": {
+      "reservation": {
+        "id": "review-result-next-108-0",
+        "budget": "budget",
+        "assignment": "review-result-next-108-0",
+        "amount": 28000.0,
+        "purpose": "Verification",
+        "state": "Settled"
+      },
+      "demand": {
+        "contribution": "review-result-next-108-0",
+        "kind": "Review",
+        "difficulty": "Simple",
+        "provider": "claude"
+      },
+      "allowance": {
+        "cost": 28000.0,
+        "timeout": 240000,
+        "native_turns": 1,
+        "output_chars": 8000
+      },
+      "invocation": "call-review-result-next-108-0",
+      "receipt": {
+        "id": "receipt-review-result-next-108-0",
+        "invocation": "call-review-result-next-108-0",
+        "usage": {
+          "input": 3453,
+          "cache_read": 0,
+          "cache_write": 0,
+          "output": 2198,
+          "reasoning": 1846
+        },
+        "coverage": "Complete",
+        "cost": null
+      },
+      "complete_cost": null,
+      "observed_cost_floor": 0.0,
+      "upper_bound": null,
+      "revoked": true,
+      "settlement": {
+        "reservation": "review-result-next-108-0",
+        "outcome": {
+          "Known": 12245.0
+        }
+      }
+    }
+  },
+  "report": {
+    "retained": [
+      {
+        "id": "result-next-108-0",
+        "version": "ad7022bba0177d39da199518e8c6ceeb78605962485d59564111695a04b16dd2"
+      }
+    ],
+    "accepted_sources": [
+      {
+        "result": {
+          "id": "result-next-108-0",
+          "version": "ad7022bba0177d39da199518e8c6ceeb78605962485d59564111695a04b16dd2"
+        },
+        "acceptance": {
+          "id": "accepted-result-next-108-0",
+          "version": "060868630b083f69ad6b95be7d8da7eced1bf3aa0a08429eecd40d77228570a1"
+        }
+      }
+    ],
+    "report": {
+      "id": "report",
+      "session": "homogeneous-claude-elementary",
+      "claims": [
+        "claim-845e91831319e89c4d656bdb80c278ac09a7230d61e5dfd2e1b1fbb436ac8917-0"
+      ],
+      "unmet": [
+        "sorted-json",
+        "input-preserved"
+      ],
+      "assumptions": [],
+      "grade": "Unconfirmed"
+    },
+    "claims": [
+      {
+        "id": "claim-845e91831319e89c4d656bdb80c278ac09a7230d61e5dfd2e1b1fbb436ac8917-0",
+        "report": "report",
+        "text": "Uncertain: independent final acceptance is unavailable; retained work is not presented as a completed artifact.",
+        "kind": "Status",
+        "evidence": [],
+        "audit": "Valid"
+      }
+    ],
+    "aggregate": {
+      "id": "final-27f8fcd7dc448b97b64160ea6c747c7f286dd4b709979bd6f979116bd0e38274",
+      "version": "ea6898f105fe157360642cdcd4bf2230a146e3a5707ad18800b1ef55bdb163ba"
+    },
+    "acceptance": null,
+    "outcome": {
+      "Blocked": "final_acceptance_unavailable"
+    },
+    "accounting": {
+      "spent": 70628.75,
+      "held": 0.0,
+      "unknown": false,
+      "receipts": 6
+    },
+    "unresolved": 0
+  },
+  "coordination": {
+    "solicitations": {
+      "intake": {
+        "contribution": "intake",
+        "eligible": [
+          "claude-a",
+          "claude-b"
+        ],
+        "opened_at": 1790670133764,
+        "deadline": 1790670138764,
+        "final_state": "Withdrawn",
+        "offers": [
+          {
+            "agent": "claude-a",
+            "at": 1790670134274
+          },
+          {
+            "agent": "claude-b",
+            "at": 1790670134579
+          }
+        ],
+        "derived": {
+          "window_ms": 5000,
+          "offer_delay_ms": [
+            510,
+            815
+          ]
+        }
+      },
+      "plan": {
+        "contribution": "plan",
+        "eligible": [
+          "claude-a",
+          "claude-b"
+        ],
+        "opened_at": 1790670155537,
+        "deadline": 1790670160537,
+        "final_state": "Withdrawn",
+        "offers": [
+          {
+            "agent": "claude-a",
+            "at": 1790670155882
+          },
+          {
+            "agent": "claude-b",
+            "at": 1790670156203
+          }
+        ],
+        "derived": {
+          "window_ms": 5000,
+          "offer_delay_ms": [
+            345,
+            666
+          ]
+        }
+      },
+      "next-108-0": {
+        "contribution": "next-108-0",
+        "eligible": [
+          "claude-a",
+          "claude-b"
+        ],
+        "opened_at": 1790670181266,
+        "deadline": 1790670186266,
+        "final_state": "Withdrawn",
+        "offers": [
+          {
+            "agent": "claude-a",
+            "at": 1790670182108
+          },
+          {
+            "agent": "claude-b",
+            "at": 1790670182910
+          }
+        ],
+        "derived": {
+          "window_ms": 5000,
+          "offer_delay_ms": [
+            842,
+            1644
+          ]
+        }
+      },
+      "next-164-0": {
+        "contribution": "next-164-0",
+        "eligible": [
+          "claude-b"
+        ],
+        "opened_at": 1790670214425,
+        "deadline": 1790670219425,
+        "final_state": "Withdrawn",
+        "offers": [
+          {
+            "agent": "claude-b",
+            "at": 1790670215544
+          }
+        ],
+        "derived": {
+          "window_ms": 5000,
+          "offer_delay_ms": [
+            1119
+          ]
+        }
+      },
+      "review-result-next-108-0": {
+        "contribution": "review-result-next-108-0",
+        "eligible": [
+          "claude-b"
+        ],
+        "opened_at": 1790670258097,
+        "deadline": 1790670263097,
+        "final_state": "Withdrawn",
+        "offers": [
+          {
+            "agent": "claude-b",
+            "at": 1790670259500
+          }
+        ],
+        "derived": {
+          "window_ms": 5000,
+          "offer_delay_ms": [
+            1403
+          ]
+        }
+      },
+      "final-review": {
+        "contribution": "final-review",
+        "eligible": [
+          "claude-b"
+        ],
+        "opened_at": 1790670320424,
+        "deadline": 1790670325424,
+        "final_state": "Withdrawn",
+        "offers": [
+          {
+            "agent": "claude-b",
+            "at": 1790670322607
+          }
+        ],
+        "derived": {
+          "window_ms": 5000,
+          "offer_delay_ms": [
+            2183
+          ]
+        }
+      }
+    },
+    "awards": [
+      "final-review",
+      "intake",
+      "next-108-0",
+      "next-164-0",
+      "plan",
+      "review-result-next-108-0"
+    ],
+    "commitments": [
+      "final-review",
+      "intake",
+      "next-108-0",
+      "next-164-0",
+      "plan",
+      "review-result-next-108-0"
+    ]
+  },
+  "workspace": {
+    "files": {
+      "input.json": {
+        "text": "[3,2,1,2]\n",
+        "derived": {
+          "bytes": 10,
+          "sha256": "eaa0aaa812d2cd872ecfd41a5c2475e818e38e58a21c96806e7132c6779eb97e"
+        }
+      },
+      "sorted.json": {
+        "text": "[1,2,2,3]\n",
+        "derived": {
+          "bytes": 10,
+          "sha256": "9378b8dce9e7b6606624d9041ab49cba923e20ee3bffc0438f9e41f942a5c357"
+        }
+      }
+    },
+    "input_unchanged": true,
+    "sorted_bytes_match": true,
+    "results": {
+      "result-next-108-0": {
+        "id": "result-next-108-0",
+        "item": "sort-task",
+        "producer": "claude-a",
+        "before": "before-next-108-0",
+        "after": "after-next-108-0",
+        "artifacts": [
+          {
+            "path": "sorted.json",
+            "digest": "9378b8dce9e7b6606624d9041ab49cba923e20ee3bffc0438f9e41f942a5c357"
+          }
+        ],
+        "summary": "Sorted numbers from input.json [3,2,1,2] in ascending order to sorted.json [1,2,2,3] with one trailing newline. Input file remains unchanged."
+      }
+    },
+    "check_runs": {
+      "final-run-01476dd730a555765921f5b2866a588020617861f987c479f0934f5a4e52e806": {
+        "check": "check-sorted-json",
+        "target": "before-next-108-0",
+        "role": "Baseline",
+        "observation": {
+          "ExactBytes": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+        },
+        "outcome": "Fail",
+        "at": 1790670311797
+      },
+      "final-run-3be30f4fce65ec725d8f9463d10ae0a52d7cef4ffbb368ebd57337f4c221e5b9": {
+        "check": "check-input-preserved",
+        "target": "integrated",
+        "role": "Candidate",
+        "observation": {
+          "ExactBytes": "eaa0aaa812d2cd872ecfd41a5c2475e818e38e58a21c96806e7132c6779eb97e"
+        },
+        "outcome": "Pass",
+        "at": 1790670311797
+      },
+      "final-run-9e49bde20cc6abb436a9677b8714de9032d48a8919a60109b876394e5bfa77bf": {
+        "check": "check-input-preserved",
+        "target": "before-next-108-0",
+        "role": "Baseline",
+        "observation": {
+          "ExactBytes": "eaa0aaa812d2cd872ecfd41a5c2475e818e38e58a21c96806e7132c6779eb97e"
+        },
+        "outcome": "Pass",
+        "at": 1790670311797
+      },
+      "final-run-e1cb553fb3916943fd460e3fe911df41b7a14403f54c5449412361d3ed7961ec": {
+        "check": "check-sorted-json",
+        "target": "integrated",
+        "role": "Candidate",
+        "observation": {
+          "ExactBytes": "9378b8dce9e7b6606624d9041ab49cba923e20ee3bffc0438f9e41f942a5c357"
+        },
+        "outcome": "Pass",
+        "at": 1790670311797
+      },
+      "run-result-next-108-0-check-input-preserved-base": {
+        "check": "check-input-preserved",
+        "target": "before-next-108-0",
+        "role": "Baseline",
+        "observation": {
+          "ExactBytes": "eaa0aaa812d2cd872ecfd41a5c2475e818e38e58a21c96806e7132c6779eb97e"
+        },
+        "outcome": "Pass",
+        "at": 1790670248483
+      },
+      "run-result-next-108-0-check-input-preserved-candidate": {
+        "check": "check-input-preserved",
+        "target": "after-next-108-0",
+        "role": "Candidate",
+        "observation": {
+          "ExactBytes": "eaa0aaa812d2cd872ecfd41a5c2475e818e38e58a21c96806e7132c6779eb97e"
+        },
+        "outcome": "Pass",
+        "at": 1790670249604
+      },
+      "run-result-next-108-0-check-sorted-json-base": {
+        "check": "check-sorted-json",
+        "target": "before-next-108-0",
+        "role": "Baseline",
+        "observation": {
+          "ExactBytes": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+        },
+        "outcome": "Fail",
+        "at": 1790670251808
+      },
+      "run-result-next-108-0-check-sorted-json-candidate": {
+        "check": "check-sorted-json",
+        "target": "after-next-108-0",
+        "role": "Candidate",
+        "observation": {
+          "ExactBytes": "9378b8dce9e7b6606624d9041ab49cba923e20ee3bffc0438f9e41f942a5c357"
+        },
+        "outcome": "Pass",
+        "at": 1790670252976
+      }
+    },
+    "evidence": {
+      "evidence-result-next-108-0-check-input-preserved": {
+        "id": "evidence-result-next-108-0-check-input-preserved",
+        "criterion": "input-preserved",
+        "result": "result-next-108-0",
+        "class": "Executed",
+        "independence": "Trusted",
+        "runs": [
+          "run-result-next-108-0-check-input-preserved-base",
+          "run-result-next-108-0-check-input-preserved-candidate"
+        ],
+        "discrimination": {
+          "baseline_fails": false,
+          "candidate_passes": true,
+          "mutation_score": null
+        },
+        "author": null,
+        "polarity": "Supports"
+      },
+      "evidence-result-next-108-0-check-sorted-json": {
+        "id": "evidence-result-next-108-0-check-sorted-json",
+        "criterion": "sorted-json",
+        "result": "result-next-108-0",
+        "class": "Executed",
+        "independence": "Trusted",
+        "runs": [
+          "run-result-next-108-0-check-sorted-json-base",
+          "run-result-next-108-0-check-sorted-json-candidate"
+        ],
+        "discrimination": {
+          "baseline_fails": true,
+          "candidate_passes": true,
+          "mutation_score": null
+        },
+        "author": null,
+        "polarity": "Supports"
+      },
+      "final-evidence-2b73c54bf3bbb14e9a49b3aad9dea53ce7567738f155469ff77ad6ccf1d3b6ca": {
+        "id": "final-evidence-2b73c54bf3bbb14e9a49b3aad9dea53ce7567738f155469ff77ad6ccf1d3b6ca",
+        "criterion": "input-preserved",
+        "result": null,
+        "class": "Executed",
+        "independence": "Trusted",
+        "runs": [
+          "final-run-3be30f4fce65ec725d8f9463d10ae0a52d7cef4ffbb368ebd57337f4c221e5b9",
+          "final-run-9e49bde20cc6abb436a9677b8714de9032d48a8919a60109b876394e5bfa77bf"
+        ],
+        "discrimination": {
+          "baseline_fails": false,
+          "candidate_passes": true,
+          "mutation_score": null
+        },
+        "author": null,
+        "polarity": "Supports"
+      },
+      "final-evidence-7c79d2e2ee762b7c2607dd2a16fa3cf48bdce09e3739e4fd703f061df7bc9d08": {
+        "id": "final-evidence-7c79d2e2ee762b7c2607dd2a16fa3cf48bdce09e3739e4fd703f061df7bc9d08",
+        "criterion": "sorted-json",
+        "result": null,
+        "class": "Executed",
+        "independence": "Trusted",
+        "runs": [
+          "final-run-01476dd730a555765921f5b2866a588020617861f987c479f0934f5a4e52e806",
+          "final-run-e1cb553fb3916943fd460e3fe911df41b7a14403f54c5449412361d3ed7961ec"
+        ],
+        "discrimination": {
+          "baseline_fails": true,
+          "candidate_passes": true,
+          "mutation_score": null
+        },
+        "author": null,
+        "polarity": "Supports"
+      }
+    },
+    "acceptances": 1,
+    "reviews": 1
+  },
+  "acceptance_path": {
+    "reviews": {
+      "review-next-108-0-approved": {
+        "review": {
+          "id": "review-next-108-0-approved",
+          "result": "result-next-108-0",
+          "reviewer": "claude-b",
+          "profile": {
+            "agent": "claude-b",
+            "provider_version": "2.1.284",
+            "model": "claude-haiku-4-5-20251001",
+            "family": null,
+            "effort": null
+          },
+          "verdict": "Approve",
+          "findings": [],
+          "basis": [
+            "evidence-result-next-108-0-check-input-preserved",
+            "evidence-result-next-108-0-check-sorted-json"
+          ]
+        },
+        "assignment": "review-result-next-108-0",
+        "result": {
+          "id": "result-next-108-0",
+          "version": "ad7022bba0177d39da199518e8c6ceeb78605962485d59564111695a04b16dd2"
+        },
+        "criteria": [
+          {
+            "id": "input-preserved",
+            "version": "b5dde7d711585aca15a993ee3f370a9952de9b6ef55522ca962d0c180b4d3da1"
+          },
+          {
+            "id": "sorted-json",
+            "version": "709c5e3beb5a4eaf0a5c657ffd7201698f2d60a0a72318b537490b15d2d8f0e2"
+          }
+        ],
+        "at": 1790670299362
+      }
+    },
+    "acceptances": {
+      "accepted-result-next-108-0": {
+        "acceptance": {
+          "id": "accepted-result-next-108-0",
+          "subject": {
+            "ResultVersion": "result-next-108-0"
+          },
+          "decision": "Accepted",
+          "grades": {
+            "input-preserved": {
+              "Confirmed": "TrustedCheck"
+            },
+            "sorted-json": {
+              "Confirmed": "TrustedCheck"
+            }
+          },
+          "grade": {
+            "Confirmed": "TrustedCheck"
+          },
+          "basis": [
+            {
+              "id": "evidence-result-next-108-0-check-input-preserved",
+              "version": "54b6eee4df21f5d2e2031917cdad377c45ed7f3b1f78e74111f20e5602c03551"
+            },
+            {
+              "id": "evidence-result-next-108-0-check-sorted-json",
+              "version": "0ac1c18bf5b9c9679722389fd3dfa6ed4d1de9ef0f355082b4c0c4918e41ea6c"
+            },
+            {
+              "id": "input-preserved",
+              "version": "b5dde7d711585aca15a993ee3f370a9952de9b6ef55522ca962d0c180b4d3da1"
+            },
+            {
+              "id": "result-next-108-0",
+              "version": "ad7022bba0177d39da199518e8c6ceeb78605962485d59564111695a04b16dd2"
+            },
+            {
+              "id": "review-next-108-0-approved",
+              "version": "5fff9d74f5a32586d5a79f359284d1bd4af27ec7b4567f9cf593e69445c20be2"
+            },
+            {
+              "id": "sorted-json",
+              "version": "709c5e3beb5a4eaf0a5c657ffd7201698f2d60a0a72318b537490b15d2d8f0e2"
+            }
+          ],
+          "at": 1790670302451
+        },
+        "result": {
+          "id": "result-next-108-0",
+          "version": "ad7022bba0177d39da199518e8c6ceeb78605962485d59564111695a04b16dd2"
+        },
+        "attempt": "attempt-next-108-0",
+        "contract": {
+          "id": "sorting-contract",
+          "version": "586ade9eab08897b9f8797af6f30daf2fbecef9feb07a72958d9d15f56bed313"
+        },
+        "rules": {
+          "mutation_threshold": 0.8
+        },
+        "credit_outcome": true
+      }
+    },
+    "ledger": {
+      "input-preserved": {
+        "status": "Satisfied",
+        "belief": 0.9803921568627451,
+        "evidence": [
+          "evidence-result-next-108-0-check-input-preserved"
+        ]
+      },
+      "sorted-json": {
+        "status": "Satisfied",
+        "belief": 0.9803921568627451,
+        "evidence": [
+          "evidence-result-next-108-0-check-sorted-json"
+        ]
+      }
+    },
+    "commitments": {
+      "intake": {
+        "debtor": "claude-a",
+        "creditor": "Runtime",
+        "subject": "intake",
+        "lease": {
+          "expires": 1790670379010,
+          "renew_on": [],
+          "renewals_left": 0
+        },
+        "state": "Discharged",
+        "activated": {
+          "seq": 18,
+          "at": 1790670139010
+        },
+        "ended": {
+          "seq": 53,
+          "at": 1790670152829,
+          "outcome": "Discharged",
+          "reason": "Recorded kernel completion basis"
+        },
+        "derived": {
+          "lease_ms": 240000,
+          "ended_after_activation_ms": 13819
+        }
+      },
+      "plan": {
+        "debtor": "claude-a",
+        "creditor": "Runtime",
+        "subject": "plan",
+        "lease": {
+          "expires": 1790670401001,
+          "renew_on": [],
+          "renewals_left": 0
+        },
+        "state": "Discharged",
+        "activated": {
+          "seq": 70,
+          "at": 1790670161001
+        },
+        "ended": {
+          "seq": 105,
+          "at": 1790670178534,
+          "outcome": "Discharged",
+          "reason": "Recorded kernel completion basis"
+        },
+        "derived": {
+          "lease_ms": 240000,
+          "ended_after_activation_ms": 17533
+        }
+      },
+      "next-108-0": {
+        "debtor": "claude-a",
+        "creditor": "Runtime",
+        "subject": "next-108-0",
+        "lease": {
+          "expires": 1790670427629,
+          "renew_on": [],
+          "renewals_left": 0
+        },
+        "state": "Discharged",
+        "activated": {
+          "seq": 119,
+          "at": 1790670187629
+        },
+        "ended": {
+          "seq": 259,
+          "at": 1790670303101,
+          "outcome": "Discharged",
+          "reason": "Recorded kernel completion basis"
+        },
+        "derived": {
+          "lease_ms": 240000,
+          "ended_after_activation_ms": 115472
+        }
+      },
+      "next-164-0": {
+        "debtor": "claude-b",
+        "creditor": "Runtime",
+        "subject": "next-164-0",
+        "lease": {
+          "expires": 1790670460689,
+          "renew_on": [],
+          "renewals_left": 0
+        },
+        "state": "Discharged",
+        "activated": {
+          "seq": 174,
+          "at": 1790670220689
+        },
+        "ended": {
+          "seq": 210,
+          "at": 1790670246763,
+          "outcome": "Discharged",
+          "reason": "Recorded kernel completion basis"
+        },
+        "derived": {
+          "lease_ms": 240000,
+          "ended_after_activation_ms": 26074
+        }
+      },
+      "review-result-next-108-0": {
+        "debtor": "claude-b",
+        "creditor": "Runtime",
+        "subject": "review-result-next-108-0",
+        "lease": {
+          "expires": 1790670504632,
+          "renew_on": [],
+          "renewals_left": 0
+        },
+        "state": "Discharged",
+        "activated": {
+          "seq": 226,
+          "at": 1790670264632
+        },
+        "ended": {
+          "seq": 255,
+          "at": 1790670297162,
+          "outcome": "Discharged",
+          "reason": "Recorded kernel completion basis"
+        },
+        "derived": {
+          "lease_ms": 240000,
+          "ended_after_activation_ms": 32530
+        }
+      },
+      "final-review": {
+        "debtor": "claude-b",
+        "creditor": "Runtime",
+        "subject": "final-review",
+        "lease": {
+          "expires": 1790670568670,
+          "renew_on": [],
+          "renewals_left": 0
+        },
+        "state": "Discharged",
+        "activated": {
+          "seq": 281,
+          "at": 1790670328670
+        },
+        "ended": {
+          "seq": 310,
+          "at": 1790670373111,
+          "outcome": "Discharged",
+          "reason": "Recorded kernel completion basis"
+        },
+        "derived": {
+          "lease_ms": 240000,
+          "ended_after_activation_ms": 44441
+        }
+      }
+    },
+    "session_changes": [
+      {
+        "seq": 7,
+        "at": 1790670132523,
+        "change": "Configured"
+      },
+      {
+        "seq": 8,
+        "at": 1790670132881,
+        "change": "Continue"
+      },
+      {
+        "seq": 107,
+        "at": 1790670179704,
+        "change": {
+          "Phase": "Running"
+        }
+      },
+      {
+        "seq": 260,
+        "at": 1790670305030,
+        "change": {
+          "Phase": "Finalizing"
+        }
+      },
+      {
+        "seq": 311,
+        "at": 1790670376865,
+        "change": {
+          "Phase": {
+            "Blocked": "decoding"
+          }
+        }
+      }
+    ],
+    "file_access": [
+      {
+        "seq": 32,
+        "at": 1790670145564,
+        "assignment": "intake",
+        "mode": "Read",
+        "path": "input.json"
+      },
+      {
+        "seq": 84,
+        "at": 1790670169485,
+        "assignment": "plan",
+        "mode": "Read",
+        "path": "input.json"
+      },
+      {
+        "seq": 136,
+        "at": 1790670198153,
+        "assignment": "next-108-0",
+        "mode": "Read",
+        "path": "input.json"
+      },
+      {
+        "seq": 142,
+        "at": 1790670202043,
+        "assignment": "next-108-0",
+        "mode": "Write",
+        "path": "sorted.json"
+      },
+      {
+        "seq": 188,
+        "at": 1790670233734,
+        "assignment": "next-164-0",
+        "mode": "Read",
+        "path": "input.json"
+      },
+      {
+        "seq": 189,
+        "at": 1790670234249,
+        "assignment": "next-164-0",
+        "mode": "Read",
+        "path": "sorted.json"
+      }
+    ],
+    "final_review": {
+      "invocation": "call-final-review",
+      "purpose": {
+        "keys": [
+          "aggregate",
+          "evidence",
+          "operation",
+          "response",
+          "runs",
+          "subject"
+        ],
+        "operation": "final_review",
+        "subject": {
+          "id": "final-27f8fcd7dc448b97b64160ea6c747c7f286dd4b709979bd6f979116bd0e38274",
+          "version": "ea6898f105fe157360642cdcd4bf2230a146e3a5707ad18800b1ef55bdb163ba"
+        },
+        "evidence": [
+          "final-evidence-2b73c54bf3bbb14e9a49b3aad9dea53ce7567738f155469ff77ad6ccf1d3b6ca",
+          "final-evidence-7c79d2e2ee762b7c2607dd2a16fa3cf48bdce09e3739e4fd703f061df7bc9d08"
+        ],
+        "response": "Return only FinalVerdict JSON: {id:new review id,aggregate:{id,version} copied from subject,verdict:\"Approve\" or \"Reject\" or \"NeedsEvidence\",basis:[ids copied exactly from evidence],rationale:text}.",
+        "aggregate": {
+          "snapshot": {
+            "id": "integrated",
+            "version": "6b21e4350ceb86116735fc3cd2980e7c94ed81559b6f93f21070c8b499e1a1ff"
+          },
+          "baseline": {
+            "id": "before-next-108-0",
+            "version": "f988cc3b395e56d6e1f14d4f99fa96bec1b9c5fae7639cef70ea8025b1b7eeca"
+          },
+          "contract": {
+            "id": "sorting-contract",
+            "version": "586ade9eab08897b9f8797af6f30daf2fbecef9feb07a72958d9d15f56bed313"
+          },
+          "criteria": [
+            {
+              "id": "input-preserved",
+              "version": "b5dde7d711585aca15a993ee3f370a9952de9b6ef55522ca962d0c180b4d3da1"
+            },
+            {
+              "id": "sorted-json",
+              "version": "709c5e3beb5a4eaf0a5c657ffd7201698f2d60a0a72318b537490b15d2d8f0e2"
+            }
+          ],
+          "producers": [
+            "claude-a"
+          ],
+          "sources": [
+            {
+              "acceptance": {
+                "id": "accepted-result-next-108-0",
+                "version": "060868630b083f69ad6b95be7d8da7eced1bf3aa0a08429eecd40d77228570a1"
+              },
+              "result": {
+                "id": "result-next-108-0",
+                "version": "ad7022bba0177d39da199518e8c6ceeb78605962485d59564111695a04b16dd2"
+              }
+            }
+          ],
+          "checks": [
+            {
+              "id": "check-input-preserved",
+              "version": "aaff3c96305f6f0ea896b65c4bbe72ca0133d787d6bfe1369637a0dd0dc0cf45"
+            },
+            {
+              "id": "check-sorted-json",
+              "version": "00034507e6f397ccc2694fd9d9e91dc2e4f8e0a35c8cf629191766aa511bce61"
+            }
+          ]
+        },
+        "runs": [
+          {
+            "id": "final-run-3be30f4fce65ec725d8f9463d10ae0a52d7cef4ffbb368ebd57337f4c221e5b9",
+            "check": "check-input-preserved",
+            "role": "Candidate",
+            "target": "integrated",
+            "outcome": "Pass",
+            "at": 1790670311797
+          },
+          {
+            "id": "final-run-e1cb553fb3916943fd460e3fe911df41b7a14403f54c5449412361d3ed7961ec",
+            "check": "check-sorted-json",
+            "role": "Candidate",
+            "target": "integrated",
+            "outcome": "Pass",
+            "at": 1790670311797
+          }
+        ]
+      },
+      "projection": {
+        "finalization": {
+          "control": "Continue",
+          "stopped": false,
+          "fence": null,
+          "outcome": {
+            "Blocked": "final_acceptance_unavailable"
+          },
+          "reviews": [],
+          "acceptance": null,
+          "pending_work": null
+        },
+        "session_state": {
+          "phase": {
+            "Blocked": "decoding"
+          },
+          "stopped": false,
+          "control": [
+            "Continue",
+            {
+              "id": "event:4a65d900a45be121e445f89f4413cd814887195d38377547cd8970ebcaaf9731",
+              "version": "d7718652da0e8121df71ddcca03595f9bae3cd57b357f08a49b723eaa7740150"
+            }
+          ]
+        },
+        "final_evidence": [
+          "final-evidence-2b73c54bf3bbb14e9a49b3aad9dea53ce7567738f155469ff77ad6ccf1d3b6ca",
+          "final-evidence-7c79d2e2ee762b7c2607dd2a16fa3cf48bdce09e3739e4fd703f061df7bc9d08"
+        ]
+      },
+      "failure": null,
+      "commitment_ends": [
+        {
+          "seq": 53,
+          "at": 1790670152829,
+          "commitment": "intake",
+          "outcome": "Discharged",
+          "basis": {
+            "id": "event:ebaf414fe002045a81a1e47e0e230fbecfa9a9ca1c5cc82c800d713185330e6e",
+            "version": "190fd4b0c7d9e1d7a50838780f37a261c26fc202d4c6ae712180ad947f07020f"
+          },
+          "reason": "Recorded kernel completion basis"
+        },
+        {
+          "seq": 105,
+          "at": 1790670178534,
+          "commitment": "plan",
+          "outcome": "Discharged",
+          "basis": {
+            "id": "event:846615b64c3cc5b8bcb3cf9f8605f591faf10838dee63e1b24dd0f19110d24fc",
+            "version": "3250d805c4350255bdd525fd6c0a0c04ca201efd054c5925ac80d7bd7839d011"
+          },
+          "reason": "Recorded kernel completion basis"
+        },
+        {
+          "seq": 210,
+          "at": 1790670246763,
+          "commitment": "next-164-0",
+          "outcome": "Discharged",
+          "basis": {
+            "id": "event:ad4c8f16a55ab0353f62d93f61b0571efedaed76728bee1fa4184ebd398c9907",
+            "version": "4c96d7aec22c0e4cd95b29cfce3defd381e367ffc9a1a2cd7aabb363dd969fb5"
+          },
+          "reason": "Recorded kernel completion basis"
+        },
+        {
+          "seq": 255,
+          "at": 1790670297162,
+          "commitment": "review-result-next-108-0",
+          "outcome": "Discharged",
+          "basis": {
+            "id": "event:ddf4448886f26bd5414cfae5364295da2c484922a25a5d1a5eae9077433be395",
+            "version": "0d48616dbb6ca71166068cb95f5dc9402609eeeb8f807753f5921229e030ec72"
+          },
+          "reason": "Recorded kernel completion basis"
+        },
+        {
+          "seq": 259,
+          "at": 1790670303101,
+          "commitment": "next-108-0",
+          "outcome": "Discharged",
+          "basis": {
+            "id": "accepted-result-next-108-0",
+            "version": "060868630b083f69ad6b95be7d8da7eced1bf3aa0a08429eecd40d77228570a1"
+          },
+          "reason": "Recorded kernel completion basis"
+        },
+        {
+          "seq": 310,
+          "at": 1790670373111,
+          "commitment": "final-review",
+          "outcome": "Discharged",
+          "basis": {
+            "id": "event:cd07621d05f40b796fd52480c8515824d1c13b8168fd9c91fcd8ac13dfac1d91",
+            "version": "976447e546e949d3f9d821ae57024a3710d013ef93707f28d8ed8beba8939d26"
+          },
+          "reason": "Recorded kernel completion basis"
+        }
+      ],
+      "records": [
+        {
+          "seq": 260,
+          "at": 1790670305030,
+          "kind": "SessionChanged",
+          "detail": "Phase",
+          "content": {
+            "Phase": "Finalizing"
+          }
+        },
+        {
+          "seq": 261,
+          "at": 1790670306488,
+          "kind": "FinalizationRecorded",
+          "detail": "Control",
+          "content": "Continue"
+        },
+        {
+          "seq": 262,
+          "at": 1790670308214,
+          "kind": "FinalizationRecorded",
+          "detail": "Started",
+          "content": {
+            "contract": {
+              "id": "sorting-contract",
+              "version": "586ade9eab08897b9f8797af6f30daf2fbecef9feb07a72958d9d15f56bed313"
+            },
+            "snapshot": "integrated",
+            "workspace": "pilot-workspace",
+            "holder": "final-fence-a61959d30547e33d742408ceea64797a7cb15a74a00760c7a930fc2b72bc0f79"
+          }
+        },
+        {
+          "seq": 263,
+          "at": 1790670308214,
+          "kind": "LockChanged",
+          "detail": "CaptureStarted"
+        },
+        {
+          "seq": 264,
+          "at": 1790670308214,
+          "kind": "SnapshotTaken"
+        },
+        {
+          "seq": 265,
+          "at": 1790670308214,
+          "kind": "FinalizationRecorded",
+          "detail": "Captured",
+          "content": {
+            "snapshot": {
+              "id": "integrated",
+              "version": "6b21e4350ceb86116735fc3cd2980e7c94ed81559b6f93f21070c8b499e1a1ff"
+            },
+            "baseline": {
+              "id": "before-next-108-0",
+              "version": "f988cc3b395e56d6e1f14d4f99fa96bec1b9c5fae7639cef70ea8025b1b7eeca"
+            },
+            "sources": [
+              {
+                "acceptance": {
+                  "id": "accepted-result-next-108-0",
+                  "version": "060868630b083f69ad6b95be7d8da7eced1bf3aa0a08429eecd40d77228570a1"
+                },
+                "result": {
+                  "id": "result-next-108-0",
+                  "version": "ad7022bba0177d39da199518e8c6ceeb78605962485d59564111695a04b16dd2"
+                }
+              }
+            ],
+            "producers": [
+              "claude-a"
+            ]
+          }
+        },
+        {
+          "seq": 266,
+          "at": 1790670311797,
+          "kind": "CheckRunRecorded",
+          "content": {
+            "id": "final-run-9e49bde20cc6abb436a9677b8714de9032d48a8919a60109b876394e5bfa77bf",
+            "check": "check-input-preserved",
+            "role": "Baseline",
+            "target": "before-next-108-0",
+            "outcome": "Pass"
+          }
+        },
+        {
+          "seq": 267,
+          "at": 1790670311797,
+          "kind": "CheckRunRecorded",
+          "content": {
+            "id": "final-run-3be30f4fce65ec725d8f9463d10ae0a52d7cef4ffbb368ebd57337f4c221e5b9",
+            "check": "check-input-preserved",
+            "role": "Candidate",
+            "target": "integrated",
+            "outcome": "Pass"
+          }
+        },
+        {
+          "seq": 268,
+          "at": 1790670311797,
+          "kind": "EvidenceRecorded",
+          "content": {
+            "id": "final-evidence-2b73c54bf3bbb14e9a49b3aad9dea53ce7567738f155469ff77ad6ccf1d3b6ca",
+            "criterion": "input-preserved",
+            "class": "Executed",
+            "polarity": "Supports",
+            "result": null
+          }
+        },
+        {
+          "seq": 269,
+          "at": 1790670311797,
+          "kind": "CheckRunRecorded",
+          "content": {
+            "id": "final-run-01476dd730a555765921f5b2866a588020617861f987c479f0934f5a4e52e806",
+            "check": "check-sorted-json",
+            "role": "Baseline",
+            "target": "before-next-108-0",
+            "outcome": "Fail"
+          }
+        },
+        {
+          "seq": 270,
+          "at": 1790670311797,
+          "kind": "CheckRunRecorded",
+          "content": {
+            "id": "final-run-e1cb553fb3916943fd460e3fe911df41b7a14403f54c5449412361d3ed7961ec",
+            "check": "check-sorted-json",
+            "role": "Candidate",
+            "target": "integrated",
+            "outcome": "Pass"
+          }
+        },
+        {
+          "seq": 271,
+          "at": 1790670311797,
+          "kind": "EvidenceRecorded",
+          "content": {
+            "id": "final-evidence-7c79d2e2ee762b7c2607dd2a16fa3cf48bdce09e3739e4fd703f061df7bc9d08",
+            "criterion": "sorted-json",
+            "class": "Executed",
+            "polarity": "Supports",
+            "result": null
+          }
+        },
+        {
+          "seq": 272,
+          "at": 1790670316254,
+          "kind": "FinalizationRecorded",
+          "detail": "Reviewer",
+          "content": {
+            "outcome": "claude-b",
+            "policy": "AnyNonProducer",
+            "aggregate": {
+              "id": "final-27f8fcd7dc448b97b64160ea6c747c7f286dd4b709979bd6f979116bd0e38274",
+              "version": "ea6898f105fe157360642cdcd4bf2230a146e3a5707ad18800b1ef55bdb163ba"
+            },
+            "candidates": [
+              {
+                "prior_reviews": 1,
+                "agent": "claude-b"
+              }
+            ],
+            "producers": [
+              "claude-a"
+            ]
+          }
+        },
+        {
+          "seq": 273,
+          "at": 1790670318413,
+          "kind": "ContributionProposed"
+        },
+        {
+          "seq": 274,
+          "at": 1790670320424,
+          "kind": "SolicitationOpened"
+        },
+        {
+          "seq": 275,
+          "at": 1790670322607,
+          "kind": "OfferSubmitted"
+        },
+        {
+          "seq": 276,
+          "at": 1790670326516,
+          "kind": "Awarded"
+        },
+        {
+          "seq": 277,
+          "at": 1790670326516,
+          "kind": "CommitmentChanged",
+          "detail": "Proposed",
+          "commitment": "final-review"
+        },
+        {
+          "seq": 278,
+          "at": 1790670328670,
+          "kind": "ReservationChanged",
+          "detail": "Reserved"
+        },
+        {
+          "seq": 279,
+          "at": 1790670328670,
+          "kind": "LockChanged",
+          "detail": "Acquired"
+        },
+        {
+          "seq": 280,
+          "at": 1790670328670,
+          "kind": "GrantIssued"
+        },
+        {
+          "seq": 281,
+          "at": 1790670328670,
+          "kind": "CommitmentChanged",
+          "detail": "Activated",
+          "commitment": "final-review"
+        },
+        {
+          "seq": 282,
+          "at": 1790670328670,
+          "kind": "AssignmentAdmitted"
+        },
+        {
+          "seq": 283,
+          "at": 1790670330866,
+          "kind": "FinalizationRecorded",
+          "detail": "Context"
+        },
+        {
+          "seq": 284,
+          "at": 1790670331854,
+          "kind": "InvocationObserved",
+          "detail": "Dispatch",
+          "invocation": "call-final-review"
+        },
+        {
+          "seq": 285,
+          "at": 1790670331854,
+          "kind": "ReservationChanged",
+          "detail": "Authorized"
+        },
+        {
+          "seq": 286,
+          "at": 1790670331854,
+          "kind": "LockChanged",
+          "detail": "Authorized"
+        },
+        {
+          "seq": 287,
+          "at": 1790670331854,
+          "kind": "InvocationObserved",
+          "detail": "Ready",
+          "invocation": "call-final-review"
+        },
+        {
+          "seq": 288,
+          "at": 1790670336326,
+          "kind": "InvocationStarted",
+          "invocation": "call-final-review"
+        },
+        {
+          "seq": 289,
+          "at": 1790670358927,
+          "kind": "InvocationObserved",
+          "detail": "Backend",
+          "invocation": "call-final-review"
+        },
+        {
+          "seq": 290,
+          "at": 1790670359484,
+          "kind": "ReservationChanged",
+          "detail": "Observed"
+        },
+        {
+          "seq": 291,
+          "at": 1790670359484,
+          "kind": "InvocationObserved",
+          "detail": "Receipt",
+          "invocation": "call-final-review"
+        },
+        {
+          "seq": 292,
+          "at": 1790670360160,
+          "kind": "InvocationObserved",
+          "detail": "Cost",
+          "invocation": "call-final-review"
+        },
+        {
+          "seq": 293,
+          "at": 1790670360876,
+          "kind": "InvocationObserved",
+          "detail": "Backend",
+          "invocation": "call-final-review"
+        },
+        {
+          "seq": 294,
+          "at": 1790670361785,
+          "kind": "InvocationObserved",
+          "detail": "Diagnostic",
+          "invocation": "call-final-review"
+        },
+        {
+          "seq": 295,
+          "at": 1790670363250,
+          "kind": "InvocationObserved",
+          "detail": "Backend",
+          "invocation": "call-final-review"
+        },
+        {
+          "seq": 296,
+          "at": 1790670363847,
+          "kind": "ReservationChanged",
+          "detail": "Observed"
+        },
+        {
+          "seq": 297,
+          "at": 1790670363847,
+          "kind": "InvocationObserved",
+          "detail": "Receipt",
+          "invocation": "call-final-review"
+        },
+        {
+          "seq": 298,
+          "at": 1790670364536,
+          "kind": "InvocationObserved",
+          "detail": "Cost",
+          "invocation": "call-final-review"
+        },
+        {
+          "seq": 299,
+          "at": 1790670365226,
+          "kind": "InvocationObserved",
+          "detail": "Backend",
+          "invocation": "call-final-review"
+        },
+        {
+          "seq": 300,
+          "at": 1790670365912,
+          "kind": "InvocationObserved",
+          "detail": "Backend",
+          "invocation": "call-final-review"
+        },
+        {
+          "seq": 301,
+          "at": 1790670366602,
+          "kind": "ReservationChanged",
+          "detail": "Revoked"
+        },
+        {
+          "seq": 302,
+          "at": 1790670366602,
+          "kind": "LockChanged",
+          "detail": "Revoked"
+        },
+        {
+          "seq": 303,
+          "at": 1790670366602,
+          "kind": "AssignmentRevoked"
+        },
+        {
+          "seq": 304,
+          "at": 1790670368925,
+          "kind": "ReservationChanged",
+          "detail": "Observed"
+        },
+        {
+          "seq": 305,
+          "at": 1790670368925,
+          "kind": "InvocationObserved",
+          "detail": "Receipt",
+          "invocation": "call-final-review"
+        },
+        {
+          "seq": 306,
+          "at": 1790670369626,
+          "kind": "InvocationObserved",
+          "detail": "Cost",
+          "invocation": "call-final-review"
+        },
+        {
+          "seq": 307,
+          "at": 1790670370328,
+          "kind": "ReceiptSettled"
+        },
+        {
+          "seq": 308,
+          "at": 1790670371408,
+          "kind": "LockChanged",
+          "detail": "Released"
+        },
+        {
+          "seq": 309,
+          "at": 1790670372523,
+          "kind": "InvocationEnded",
+          "invocation": "call-final-review",
+          "content": {
+            "terminal": "Completed",
+            "confirmed": true
+          }
+        },
+        {
+          "seq": 310,
+          "at": 1790670373111,
+          "kind": "CommitmentChanged",
+          "detail": "Ended",
+          "commitment": "final-review",
+          "outcome": "Discharged"
+        },
+        {
+          "seq": 311,
+          "at": 1790670376865,
+          "kind": "SessionChanged",
+          "detail": "Phase",
+          "content": {
+            "Phase": {
+              "Blocked": "decoding"
+            }
+          }
+        },
+        {
+          "seq": 312,
+          "at": 1790670377286,
+          "kind": "ProgressRecorded",
+          "detail": "Monitor"
+        },
+        {
+          "seq": 313,
+          "at": 1790670378568,
+          "kind": "ProgressRecorded",
+          "detail": "Diagnosis",
+          "content": "Unknown"
+        },
+        {
+          "seq": 314,
+          "at": 1790670379398,
+          "kind": "ProgressRecorded",
+          "detail": "Escalation",
+          "content": {
+            "expected_effect": "Address Unknown through AddVerifier",
+            "limit": {
+              "max_cost": 16000.0,
+              "max_uses": 1,
+              "timeout_ms": 60000
+            },
+            "limitation": "The selected method does not authorize this escalation step",
+            "step": "AddVerifier",
+            "success_condition": "An independent Researcher returns a paid diagnosis"
+          }
+        },
+        {
+          "seq": 315,
+          "at": 1790670380249,
+          "kind": "ReportingStarted",
+          "content": {
+            "mode": "Deterministic"
+          }
+        },
+        {
+          "seq": 316,
+          "at": 1790670380249,
+          "kind": "FinalizationRecorded",
+          "detail": "ReportPrepared",
+          "content": {
+            "id": "report",
+            "narrated": false,
+            "reason": "Deterministic fallback: stop, missing authority, unavailable narration or indefensible funds"
+          }
+        },
+        {
+          "seq": 317,
+          "at": 1790670382351,
+          "kind": "FinalizationRecorded",
+          "detail": "Narrative",
+          "content": {
+            "input": {
+              "outcome": {
+                "Blocked": "final_acceptance_unavailable"
+              },
+              "final_acceptance": null,
+              "source": null
+            },
+            "outcome": {
+              "claims": [
+                {
+                  "assertion": "Uncertainty",
+                  "text": "Uncertain: independent final acceptance is unavailable; retained work is not presented as a completed artifact."
+                }
+              ]
+            }
+          }
+        },
+        {
+          "seq": 318,
+          "at": 1790670383983,
+          "kind": "FinalizationRecorded",
+          "detail": "Audit",
+          "content": {
+            "outcomes": [
+              "Valid"
+            ]
+          }
+        },
+        {
+          "seq": 319,
+          "at": 1790670385510,
+          "kind": "FinalizationRecorded",
+          "detail": "Delivered",
+          "content": {
+            "outcome": {
+              "Blocked": "final_acceptance_unavailable"
+            },
+            "acceptance": null,
+            "aggregate": {
+              "id": "final-27f8fcd7dc448b97b64160ea6c747c7f286dd4b709979bd6f979116bd0e38274",
+              "version": "ea6898f105fe157360642cdcd4bf2230a146e3a5707ad18800b1ef55bdb163ba"
+            },
+            "accepted_sources": [
+              {
+                "acceptance": {
+                  "id": "accepted-result-next-108-0",
+                  "version": "060868630b083f69ad6b95be7d8da7eced1bf3aa0a08429eecd40d77228570a1"
+                },
+                "result": {
+                  "id": "result-next-108-0",
+                  "version": "ad7022bba0177d39da199518e8c6ceeb78605962485d59564111695a04b16dd2"
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "derived": {
+        "final_evidence_in_earlier_frames": {
+          "final-evidence-2b73c54bf3bbb14e9a49b3aad9dea53ce7567738f155469ff77ad6ccf1d3b6ca": 1,
+          "final-evidence-7c79d2e2ee762b7c2607dd2a16fa3cf48bdce09e3739e4fd703f061df7bc9d08": 1
+        },
+        "output_chars": 1236,
+        "whole_output_is_json": false,
+        "json_after_prose": {
+          "id": "final-review-56f8c3a7b2e1d9f4c6a0",
+          "aggregate": {
+            "id": "final-27f8fcd7dc448b97b64160ea6c747c7f286dd4b709979bd6f979116bd0e38274",
+            "version": "ea6898f105fe157360642cdcd4bf2230a146e3a5707ad18800b1ef55bdb163ba"
+          },
+          "verdict": "Approve",
+          "basis": [
+            "final-evidence-2b73c54bf3bbb14e9a49b3aad9dea53ce7567738f155469ff77ad6ccf1d3b6ca",
+            "final-evidence-7c79d2e2ee762b7c2607dd2a16fa3cf48bdce09e3739e4fd703f061df7bc9d08"
+          ],
+          "rationale": "Both criteria checks passed. input.json remains exactly as specified, and sorted.json contains the precise output [1,2,2,3]\\n with all duplicates preserved and values correctly sorted in ascending order from the input [3,2,1,2]."
+        },
+        "prose_chars_before_json": 587,
+        "verdict": "Approve",
+        "aggregate_equals_subject": true,
+        "basis": [
+          "final-evidence-2b73c54bf3bbb14e9a49b3aad9dea53ce7567738f155469ff77ad6ccf1d3b6ca",
+          "final-evidence-7c79d2e2ee762b7c2607dd2a16fa3cf48bdce09e3739e4fd703f061df7bc9d08"
+        ],
+        "basis_in_purpose_evidence": [
+          true,
+          true
+        ],
+        "basis_in_final_evidence": [
+          true,
+          true
+        ],
+        "failure_code_journal_records": null
+      }
+    }
+  },
+  "journal": {
+    "path": "/tmp/ymp-claude-pilot/run13/journal.sqlite",
+    "store_identity": "16a668734844bbc6251a2bf54f7a8bb76993ccf27ab5d434da5b4b6d325773c2",
+    "session": "homogeneous-claude-elementary",
+    "last_seq": 319,
+    "chain": "8d3241d78c238880e506cf79e0f91e5708d67ae27017085b729e04eb700255c3",
+    "view_revision": 319
+  },
+  "log": {
+    "path": "/tmp/ymp-claude-pilot/run13.log",
+    "shell_wall_time": null
+  },
+  "evidence_class": "Native",
+  "note": "Six native calls, all Completed with Complete receipts and zero held units. experiment.json and discovery.json are identical to run10, run11 and run12 apart from timestamps, and the driver digest and backend policy digest are the same. The recorded final-review purpose differs from run12: it also carries the two final evidence identifiers under evidence, and its response contract asks for basis identifiers copied exactly from evidence. The adapter revisions described for this run are not recorded in run files. Every commitment had a 240,000 ms lease and was recorded Discharged. The producer commitment next-108-0 was recorded Discharged 115,472 ms after activation and 650 ms after the acceptance record. The journal holds six FileAccessPrepared records: a Read of input.json for intake and for planning, a Read of input.json and a Write of sorted.json for production, and a Read of both files for verification; none for the review or final-review assignment. Producer claude-a wrote the expected sorted.json. Reviewer claude-b returned verdict Approve with no findings, recorded as review review-next-108-0-approved. Acceptance accepted-result-next-108-0 records decision Accepted with grade Confirmed(TrustedCheck) for both criteria. The final-review call returned four blocks of prose followed by one JSON object with verdict Approve, an aggregate equal to subject, and a basis equal to the two supplied evidence identifiers. The whole output is not JSON. The session phase became Blocked(decoding) and the delivered outcome is Blocked(final_acceptance_unavailable) with report grade Unconfirmed, both criteria listed as unmet, final acceptance null and an aggregate reference. No review or acceptance of the aggregate is recorded. The journal has no record describing the decoding failure. The log has no shell timing line."
+}

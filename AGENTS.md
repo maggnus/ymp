@@ -72,6 +72,10 @@ dependencies, kernel authority and honest accounting throughout.
 Follow the existing detailed task plan and its priorities. Product experiments
 begin only after their required engine and session behavior are implemented.
 
+Owner direction, 2026-09-29: run native experiments on light Anthropic models.
+The homogeneous stage uses the lowest-cost discovered Anthropic model; the stage
+order and every rule above are unchanged.
+
 Before committing code, run:
 
 ```sh

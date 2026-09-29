@@ -603,7 +603,12 @@ pub fn mediated_backend(
 ) -> bool {
     if discovery.provider.kind == ymp_domain::identity::ProviderKind::Scripted {
         discovery.source == DiscoverySource::ScriptedFixture
-            && selection.is_none_or(|p| p.policy.implementation != "CodexAppServer")
+            && selection.is_none_or(|p| {
+                !matches!(
+                    p.policy.implementation.as_str(),
+                    "CodexAppServer" | "ClaudeStreamJson"
+                )
+            })
     } else if discovery.provider.kind == ymp_domain::identity::ProviderKind::Codex {
         selection.is_some_and(|selection| {
             selection.policy.implementation == "CodexAppServer"
@@ -611,6 +616,28 @@ pub fn mediated_backend(
                 && discovery.provider.version.as_deref() == Some("0.156.1")
                 && discovery.method == crate::ports::execution::codex_discovery_method(selection)
                 && serde_json::from_value::<crate::ports::execution::CodexParameters>(
+                    selection.parameters.clone(),
+                )
+                .is_ok_and(|parameters| {
+                    parameters.source == discovery.source && parameters.validate().is_ok()
+                })
+        })
+    } else if discovery.provider.kind == ymp_domain::identity::ProviderKind::Claude {
+        selection.is_some_and(|selection| {
+            selection.policy.implementation == "ClaudeStreamJson"
+                && selection.policy.version == "1"
+                && discovery
+                    .provider
+                    .version
+                    .as_deref()
+                    .is_some_and(|version| {
+                        crate::ports::execution::claude_version(version)
+                            && discovery.method
+                                == crate::ports::execution::claude_discovery_method(
+                                    selection, version,
+                                )
+                    })
+                && serde_json::from_value::<crate::ports::execution::ClaudeParameters>(
                     selection.parameters.clone(),
                 )
                 .is_ok_and(|parameters| {

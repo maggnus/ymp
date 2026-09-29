@@ -40,6 +40,14 @@ single-agent prerequisite; a later control arm may be added only for a concrete
 comparison question. The initial two-agent choice minimizes the first experiment;
 it is not a permanent team-size restriction.
 
+Owner direction, 2026-09-29: run native experiments on light Anthropic models,
+keeping research speed and evidence quality in balance: a result without quality
+may be false, and tests are not an objective of their own. The stage order above
+is unchanged; the homogeneous stage now uses two distinct agents on the lowest-cost
+discovered Anthropic model, recorded in
+`experiments/homogeneous-claude-elementary/`. Earlier GPT runs remain retained
+evidence and are neither repeated nor relabelled.
+
 Discover actual offerings and supported settings at run time. Apply the standing
 authorization and low-token preference in AGENTS.md, with finite limits fixed
 before each run. Do not increase effort, roster or retry count automatically.

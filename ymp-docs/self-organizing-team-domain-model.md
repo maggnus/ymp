@@ -237,6 +237,16 @@ the earlier schema and discovery bytes remain readable for historical replay.
 The provider's computation host is an implementation detail, not a new task
 capability or a route around mediated file access.
 
+`ClaudeParameters` binds the selected Claude adapter to its explicit executable,
+observation source and finite connection, frame and native round-trip limits.
+`ClaudeStreamJson` is the concrete NativeDiscovery/ExecutionBackend implementation
+for the installed tool's stream-json control protocol. Because that tool updates
+itself, its discovery identifier carries the observed native version instead of
+a fixed literal, and a call is refused when the installed version differs from
+the discovered one. Files are reached only through InvocationFiles. Like the
+Codex mappings, these are adapter/provenance mappings, not additional provider
+kinds or capabilities.
+
 ### 3.2. Task definition
 
 ```text

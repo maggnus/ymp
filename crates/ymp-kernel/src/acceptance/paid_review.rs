@@ -205,7 +205,7 @@ pub(crate) fn purpose(
         view.snapshots()[&result.before].reference()?,
         view.snapshots()[&result.after].reference()?,
     ];
-    let purpose = serde_json::json!({"operation":"candidate_review","result":reference,"source":{"author":result.producer,"untrusted":true,"summary":result.summary},"criteria":context.criteria,"response":"CandidateVerdict: id, result Ref, criteria exact Refs, verdict Approve/Reject/NeedsEvidence, findings [], basis Evidence IDs, rationale"});
+    let purpose = serde_json::json!({"operation":"candidate_review","result":reference,"source":{"author":result.producer,"untrusted":true,"summary":result.summary},"criteria":context.criteria,"response":"Return only CandidateVerdict JSON: {id:new review id,result:{id,version} copied from result,criteria:[{id,version}] copied exactly from criteria,verdict:\"Approve\" or \"Reject\" or \"NeedsEvidence\",findings:[{criterion:criterion id or null,text,severity:\"Blocking\" or \"Advisory\",proposed_check:null}],basis:[supplied Evidence ids],rationale:text}."});
     Ok((reference.clone(), snapshots, basis, purpose))
 }
 impl<J: Journal, C: ContentStore> AcceptanceAuthority<J, C> {

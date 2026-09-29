@@ -1,15 +1,11 @@
 //! Bounded local JSON-RPC transport. Protocol data never grants task authority.
+use super::super::process::{self, Process, Wire};
 use serde_json::{Value, json};
 use std::{
     collections::VecDeque,
-    io::{Read, Write},
     path::{Path, PathBuf},
-    process::{Child, ChildStdin, Command, Stdio},
-    sync::{
-        Arc, Mutex,
-        atomic::{AtomicBool, Ordering},
-        mpsc::{self, Receiver},
-    },
+    process::{ChildStdin, Command},
+    sync::{Arc, Mutex},
     time::{Duration, Instant},
 };
 use ymp_domain::{Denial, Result};
@@ -109,79 +105,27 @@ pub(crate) fn code_mode_host(executable: &Path) -> Result<PathBuf> {
     }
     Ok(helper)
 }
-struct Startup {
-    child: Option<Child>,
-    cwd: PathBuf,
+/// Refusal for a provider-neutral reason of the shared modules.
+pub(crate) fn boundary(reason: &str) -> Denial {
+    denied(&format!("codex_{reason}"))
 }
-fn terminate(child: &mut Child) {
-    if let Some(group) = rustix::process::Pid::from_raw(child.id() as i32) {
-        let _ = rustix::process::kill_process_group(group, rustix::process::Signal::KILL);
-    }
-    let _ = child.kill();
-    let until = Instant::now() + Duration::from_millis(250);
-    while child.try_wait().is_ok_and(|s| s.is_none()) && Instant::now() < until {
-        std::thread::sleep(Duration::from_millis(2));
-    }
-}
-impl Drop for Startup {
-    fn drop(&mut self) {
-        if let Some(child) = &mut self.child {
-            terminate(child);
-            let _ = std::fs::remove_dir(&self.cwd);
-        }
+fn wire(frame: usize) -> Wire {
+    Wire {
+        refuse: boundary,
+        parse: |line| Some(ymp_domain::journal::decode::<Value>(line)),
+        frame,
     }
 }
 pub(crate) struct Transport {
-    child: Child,
-    stop: Arc<AtomicBool>,
-    readers: Vec<std::thread::JoinHandle<()>>,
+    process: Process,
     pub writer: Arc<Mutex<ChildStdin>>,
-    reader: Receiver<Result<Value>>,
     seq: u64,
     pub pending: VecDeque<Value>,
     pub cwd: PathBuf,
     pub frame: usize,
 }
-impl Drop for Transport {
-    fn drop(&mut self) {
-        self.stop.store(true, Ordering::SeqCst);
-        terminate(&mut self.child);
-        for reader in self.readers.drain(..) {
-            let _ = reader.join();
-        }
-        let _ = std::fs::remove_dir(&self.cwd);
-    }
-}
 pub(crate) fn send(writer: &Arc<Mutex<ChildStdin>>, value: &Value, frame: usize) -> Result<()> {
-    let mut bytes = serde_json::to_vec(value).map_err(|_| denied("codex_encode"))?;
-    if bytes.len() > frame {
-        return Err(denied("codex_frame"));
-    }
-    bytes.push(b'\n');
-    let deadline = Instant::now() + Duration::from_millis(250);
-    let mut out = loop {
-        match writer.try_lock() {
-            Ok(out) => break out,
-            Err(std::sync::TryLockError::Poisoned(_)) => return Err(denied("codex_transport")),
-            Err(_) if Instant::now() < deadline => std::thread::sleep(Duration::from_millis(2)),
-            Err(_) => return Err(denied("codex_write_timeout")),
-        }
-    };
-    let mut offset = 0;
-    while offset < bytes.len() {
-        if Instant::now() >= deadline {
-            return Err(denied("codex_write_timeout"));
-        }
-        match out.write(&bytes[offset..]) {
-            Ok(0) => return Err(denied("codex_disconnect")),
-            Ok(n) => offset += n,
-            Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {
-                std::thread::sleep(Duration::from_millis(2))
-            }
-            Err(_) => return Err(denied("codex_disconnect")),
-        }
-    }
-    Ok(())
+    process::put(writer, value, wire(frame))
 }
 impl Transport {
     pub fn spawn(executable: &Path, servers: &[String], frame: usize) -> Result<Self> {
@@ -193,18 +137,7 @@ impl Transport {
         }) {
             return Err(denied("codex_mcp_name"));
         }
-        let mut random = [0u8; 16];
-        getrandom::fill(&mut random).map_err(|_| denied("codex_entropy"))?;
-        let cwd =
-            std::env::temp_dir().join(format!("ymp-codex-{}", ymp_domain::Digest::of(random)));
-        std::fs::create_dir(&cwd).map_err(|_| denied("codex_directory"))?;
-        let cwd = std::fs::canonicalize(&cwd).map_err(|_| {
-            let _ = std::fs::remove_dir(&cwd);
-            denied("codex_directory")
-        })?;
-        use std::os::unix::process::CommandExt;
         let mut command = Command::new(executable);
-        command.process_group(0);
         command.args(["app-server", "--listen", "stdio://"]);
         for feature in DISABLED {
             command.args(["-c", &format!("features.{feature}=false")]);
@@ -231,124 +164,18 @@ impl Transport {
             }
             command.args(["-c", &format!("mcp_servers.{server}.enabled=false")]);
         }
-        let child = command
-            .current_dir(&cwd)
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .spawn()
-            .map_err(|_| {
-                let _ = std::fs::remove_dir(&cwd);
-                denied("codex_spawn")
-            })?;
-        let mut startup = Startup {
-            child: Some(child),
-            cwd: cwd.clone(),
-        };
-        let child = startup.child.as_mut().unwrap();
-        let stdin = child.stdin.take().unwrap();
-        let mut stdout = child.stdout.take().unwrap();
-        let mut stderr = child.stderr.take().unwrap();
-        for descriptor in [
-            &stdin as &dyn std::os::fd::AsFd,
-            &stdout as &dyn std::os::fd::AsFd,
-            &stderr as &dyn std::os::fd::AsFd,
-        ] {
-            rustix::fs::fcntl_setfl(
-                descriptor,
-                rustix::fs::fcntl_getfl(descriptor).map_err(|_| denied("codex_pipe"))?
-                    | rustix::fs::OFlags::NONBLOCK,
-            )
-            .map_err(|_| denied("codex_pipe"))?;
-        }
-        let writer = Arc::new(Mutex::new(stdin));
-        let stop = Arc::new(AtomicBool::new(false));
-        let (sender, reader) = mpsc::sync_channel(64);
-        let stopped = stop.clone();
-        let output = std::thread::spawn(move || {
-            let mut bytes = Vec::new();
-            let mut buffer = [0; 4096];
-            let deliver = |mut message: Result<Value>| {
-                while !stopped.load(Ordering::SeqCst) {
-                    match sender.try_send(message) {
-                        Ok(()) => return true,
-                        Err(mpsc::TrySendError::Full(value)) => {
-                            message = value;
-                            std::thread::sleep(Duration::from_millis(2));
-                        }
-                        Err(_) => return false,
-                    }
-                }
-                false
-            };
-            while !stopped.load(Ordering::SeqCst) {
-                match stdout.read(&mut buffer) {
-                    Ok(0) => {
-                        deliver(Err(denied("codex_disconnect")));
-                        break;
-                    }
-                    Ok(n) => {
-                        for byte in &buffer[..n] {
-                            bytes.push(*byte);
-                            if bytes.len() > frame {
-                                deliver(Err(denied("codex_frame")));
-                                return;
-                            }
-                            if *byte == b'\n' {
-                                let message = ymp_domain::journal::decode::<Value>(&bytes);
-                                let failed = message.is_err();
-                                if !deliver(message) || failed {
-                                    return;
-                                }
-                                bytes.clear();
-                            }
-                        }
-                    }
-                    Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {
-                        std::thread::sleep(Duration::from_millis(2))
-                    }
-                    Err(_) => {
-                        deliver(Err(denied("codex_disconnect")));
-                        break;
-                    }
-                }
-            }
-        });
-        // Drain without retaining native diagnostics or inherited-pipe blocking.
-        let stopped = stop.clone();
-        let errors = std::thread::spawn(move || {
-            let mut buffer = [0; 4096];
-            while !stopped.load(Ordering::SeqCst) {
-                match stderr.read(&mut buffer) {
-                    Ok(0) => break,
-                    Ok(_) => {}
-                    Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {
-                        std::thread::sleep(Duration::from_millis(2))
-                    }
-                    Err(_) => break,
-                }
-            }
-        });
-        let child = startup.child.take().unwrap();
+        let process = Process::launch(command, "codex", wire(frame))?;
         Ok(Self {
-            child,
-            stop,
-            readers: vec![output, errors],
-            writer,
-            reader,
+            writer: process.input.clone(),
+            cwd: process.directory.clone(),
+            process,
             seq: 0,
             pending: VecDeque::new(),
-            cwd,
             frame,
         })
     }
     pub fn receive(&self, deadline: Instant) -> Result<Value> {
-        let timeout = deadline
-            .checked_duration_since(Instant::now())
-            .ok_or_else(|| denied("codex_timeout"))?;
-        self.reader
-            .recv_timeout(timeout)
-            .map_err(|_| denied("codex_timeout"))?
+        self.process.take(deadline)
     }
     pub fn request(&mut self, method: &str, params: Value, deadline: Instant) -> Result<Value> {
         self.seq += 1;
@@ -493,52 +320,13 @@ pub(crate) fn guarded(
 }
 
 pub(crate) fn version(executable: &Path, timeout: Duration) -> Result<()> {
-    use std::os::unix::process::CommandExt;
-    let child = Command::new(executable)
-        .arg("--version")
-        .process_group(0)
-        .stdin(Stdio::null())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::null())
-        .spawn()
-        .map_err(|_| denied("codex_version"))?;
-    let mut guard = Startup {
-        child: Some(child),
-        cwd: PathBuf::new(),
-    };
-    let child = guard.child.as_mut().unwrap();
-    let mut out = child.stdout.take().unwrap();
-    rustix::fs::fcntl_setfl(&out, rustix::fs::OFlags::NONBLOCK)
-        .map_err(|_| denied("codex_pipe"))?;
-    let until = Instant::now() + timeout;
-    let mut bytes = vec![];
-    let mut buffer = [0; 129];
-    let mut eof = false;
-    loop {
-        if Instant::now() >= until {
-            return Err(denied("codex_timeout"));
-        }
-        match out.read(&mut buffer) {
-            Ok(0) => eof = true,
-            Ok(n) => {
-                bytes.extend_from_slice(&buffer[..n]);
-                if bytes.len() > 128 {
-                    return Err(denied("codex_version"));
-                }
-            }
-            Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {}
-            Err(_) => return Err(denied("codex_version")),
-        }
-        if eof && let Some(status) = child.try_wait().map_err(|_| denied("codex_version"))? {
-            if status.success()
-                && String::from_utf8_lossy(&bytes).trim() == format!("codex-cli {VERSION}")
-            {
-                return Ok(());
-            }
-            return Err(denied("codex_version"));
-        }
-        std::thread::sleep(Duration::from_millis(2));
+    let mut command = Command::new(executable);
+    command.arg("--version");
+    let (succeeded, text) = process::reported(command, timeout, boundary)?;
+    if succeeded && text == format!("codex-cli {VERSION}") {
+        return Ok(());
     }
+    Err(denied("codex_version"))
 }
 
 pub(crate) fn verify_current(transport: &mut Transport, deadline: Instant) -> Result<Value> {

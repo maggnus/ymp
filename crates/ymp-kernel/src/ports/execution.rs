@@ -218,3 +218,50 @@ pub fn codex_discovery_method(selection: &PolicySelection) -> String {
         )
     }
 }
+
+/// Concrete Claude Code stream-json selection; native authentication remains native.
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ClaudeParameters {
+    pub executable: std::path::PathBuf,
+    pub source: ymp_domain::identity::DiscoverySource,
+    pub connect_timeout_ms: u64,
+    pub frame_bytes: usize,
+    /// Native model round trips allowed inside one accountable native turn.
+    pub round_trips: u32,
+}
+impl ClaudeParameters {
+    pub fn validate(&self) -> Result<()> {
+        if !self.executable.is_absolute()
+            || self.connect_timeout_ms == 0
+            || self.connect_timeout_ms > 30_000
+            || !(1024..=1_048_576).contains(&self.frame_bytes)
+            || !(1..=64).contains(&self.round_trips)
+            || !matches!(
+                self.source,
+                ymp_domain::identity::DiscoverySource::Native
+                    | ymp_domain::identity::DiscoverySource::ProtocolFixture
+            )
+        {
+            return Err(ymp_domain::Denial::new(
+                "claude_parameters",
+                "Claude needs an explicit executable, source and finite protocol bounds",
+            ));
+        }
+        Ok(())
+    }
+}
+/// The native tool updates itself, so the method binds the observed version.
+pub fn claude_version(version: &str) -> bool {
+    !version.is_empty()
+        && version.len() <= 64
+        && version
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || b == b'.' || b == b'-')
+}
+pub fn claude_discovery_method(selection: &PolicySelection, version: &str) -> String {
+    format!(
+        "ClaudeStreamJson/v{}/{version}/mediated-files/{}",
+        selection.policy.version, selection.policy.params
+    )
+}

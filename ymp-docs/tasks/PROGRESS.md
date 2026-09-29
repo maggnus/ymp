@@ -2,7 +2,7 @@
 
 Generated from the canonical JSON records in [`records/`](records/) by `python3 ymp-docs/tasks/manage.py progress --write`. Task write commands and `make tasks-progress` refresh it; do not edit statuses here.
 
-Tasks: 45 (18 done, 0 in progress, 27 open, 0 paused or blocked, 0 rejected). Times are Hong Kong time (UTC+08:00). Last record change: 2026-09-29 04:12.
+Tasks: 46 (18 done, 1 in progress, 27 open, 0 paused or blocked, 0 rejected). Times are Hong Kong time (UTC+08:00). Last record change: 2026-09-29 15:34.
 
 | Mark | Meaning |
 | :---: | --- |
@@ -16,16 +16,24 @@ Tasks: 45 (18 done, 0 in progress, 27 open, 0 paused or blocked, 0 rejected). Ti
 
 | Wave | Done | In progress | Open | Paused or blocked | Rejected | Total | Done % |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| [W1](#wave-w1) | 18 | 0 | 1 | 0 | 0 | 19 | 95% |
+| [W1](#wave-w1) | 18 | 1 | 1 | 0 | 0 | 20 | 90% |
 | [W2](#wave-w2) | 0 | 0 | 4 | 0 | 0 | 4 | 0% |
 | [W3](#wave-w3) | 0 | 0 | 9 | 0 | 0 | 9 | 0% |
 | [W4](#wave-w4) | 0 | 0 | 3 | 0 | 0 | 3 | 0% |
 | [W5](#wave-w5) | 0 | 0 | 5 | 0 | 0 | 5 | 0% |
 | [W6](#wave-w6) | 0 | 0 | 5 | 0 | 0 | 5 | 0% |
 
+## Current work
+
+### W1-0020 — [~] in_progress
+
+Run accountable sessions on Claude through a mediated file-only native boundary. Owner: claude; revision 2; updated 2026-09-29 14:57 by claude.
+
+Claimed by claude.
+
 ## Wave W1
 
-18 of 19 done; 0 in progress; 0 paused or blocked.
+18 of 20 done; 1 in progress; 0 paused or blocked.
 
 | Status | Task | Title | Area | State | Depends on | Owner | Updated (HKT) | Rev | Evidence |
 | :---: | --- | --- | --- | --- | --- | --- | --- | ---: | --- |
@@ -48,6 +56,7 @@ Tasks: 45 (18 done, 0 in progress, 27 open, 0 paused or blocked, 0 rejected). Ti
 | [x] | [W1-0017](records/W1-0017.json) | Execute admitted assignments through a new host and Scripted backend | execution | done | W1-0006 ✓, W1-0007 ✓, W1-0016 ✓ | codex | 2026-09-28 16:18 | 7 | 8de8e73a; ymp-docs/execution-implementation.md; crates/ymp-storage/tests/execution.rs |
 | [x] | [W1-0018](records/W1-0018.json) | Build the native Codex backend and discovery for accountable sessions | providers | done | W1-0003 ✓, W1-0017 ✓ | codex | 2026-09-29 04:11 | 14 | fc6d7d56; ymp-docs/codex-implementation.md; git:aad168d6 |
 | [x] | [W1-0019](records/W1-0019.json) | Bind attributed evidence and reviews to immutable results | verification | done | W1-0008 ✓, W1-0009 ✓ | codex | 2026-09-28 18:13 | 7 | 3689ad59; ymp-docs/evidence-implementation.md; crates/ymp-storage/tests/results.rs |
+| [~] | [W1-0020](records/W1-0020.json) | Run accountable sessions on Claude through a mediated file-only native boundary | providers | in_progress | W1-0014 ✓, W1-0017 ✓ | claude | 2026-09-29 14:57 | 2 | — |
 
 ## Wave W2
 
@@ -104,7 +113,7 @@ Tasks: 45 (18 done, 0 in progress, 27 open, 0 paused or blocked, 0 rejected). Ti
 
 | Status | Task | Title | Area | State | Depends on | Owner | Updated (HKT) | Rev | Evidence |
 | :---: | --- | --- | --- | --- | --- | --- | --- | ---: | --- |
-| [ ] | [W6-0001](records/W6-0001.json) | Execute Claude assignments with native identity, team operations and accountable receipts | providers | new | W1-0017 ✓, W3-0001 | — | 2026-09-16 01:05 | 2 | — |
+| [ ] | [W6-0001](records/W6-0001.json) | Execute Claude assignments with native identity, team operations and accountable receipts | providers | new | W1-0017 ✓, W3-0001 | — | 2026-09-29 15:34 | 3 | — |
 | [ ] | [W6-0002](records/W6-0002.json) | Execute Glm assignments with native identity, team operations and accountable receipts | providers | new | W1-0003 ✓, W1-0004 ✓, W1-0006 ✓, W3-0001, W3-0008, W4-0001 | — | 2026-09-16 00:14 | 1 | — |
 | [ ] | [W6-0003](records/W6-0003.json) | Choose executable work methods from task structure and qualified history | routing | new | W1-0011 ✓, W3-0008, W4-0003, W5-0002, W5-0004 | — | 2026-09-16 00:14 | 1 | — |
 | [ ] | [W6-0004](records/W6-0004.json) | Use calibrated contribution value throughout the complete session loop | allocation | new | W3-0008, W4-0003, W5-0002, W5-0005, W6-0001, W6-0002, W6-0003 | — | 2026-09-16 00:14 | 1 | — |

@@ -1,0 +1,51 @@
+{
+  "area": "providers",
+  "title": "Run accountable sessions on Claude through a mediated file-only native boundary",
+  "type": "implementation",
+  "priority": 114,
+  "status": "in_progress",
+  "depends_on": [
+    "W1-0014",
+    "W1-0017"
+  ],
+  "goal": "Deliver the minimal native Claude ExecutionBackend and discovery needed to run the accountable POC session on low-cost Anthropic models, leaving team operations, isolation and continuation to W6-0001.",
+  "scope": [
+    "Implement native discovery and ExecutionBackend for the installed Claude Code stream-json control protocol. Preserve native authentication and agent identity, the observed provider version, per-model effort support and requested/sent/reported settings; a model without native effort support is offered with no effort rather than a translated one.",
+    "Offer files only through the host's InvocationFiles mediator over the same stdio control channel. Start the native process with no built-in tools, no ambient settings, plugins, slash commands or external tool servers, and treat the native init observation as an isolation assertion that stops the call when it differs.",
+    "Normalize input/cache-read/cache-write/output/reasoning usage to A13 from the final native result, with Complete coverage only for a consistent single-model final report. Stream loss, foreign tools, mismatched models and missing or inconsistent usage stay Partial or Unknown and never release holds.",
+    "Refuse continuation and team operations explicitly. Add a kernel parameter schema, discovery method and mediated-boundary recognition for this implementation, with its paragraph in the authoritative model.",
+    "Provide one protocol fixture exercised through the real Registry/Gatekeeper/host consumer, a native pilot example and a documented native-run procedure. Record native experiment evidence separately from fixtures."
+  ],
+  "acceptance": [
+    "Through the real Registry/Gatekeeper/host consumer, a new Claude protocol fixture discovers offerings, runs a bounded admitted call with mediated read and write, returns attributable output and settles a correctly normalized receipt without copying authentication.",
+    "A foreign tool or isolation mismatch, a model mismatch, stream loss before the final result and incomplete usage are denied or recorded truthfully; none grants authority, repeats a start or releases an unresolved hold.",
+    "A bounded native run on the lowest-cost discovered Anthropic model records exact version, requested/sent/reported settings, finite limits, actual usage and unknown coverage, distinct from fixture and Scripted evidence."
+  ],
+  "evidence": [],
+  "context": [
+    "Owner direction 2026-09-29: continue active development and run native experiments on light Anthropic models, balancing research speed against evidence quality. W6-0001 remains the full Claude adapter and is blocked by W3-0001; this task delivers only the file-mediated subset the W1 session needs.",
+    "Authority: model sections 3.1/3.4/3.7/3.9/5.1/5.7, A5/A13 and R-2/R-3/R-8/R-9/R-19/R-20. Fill the existing placeholder crates/ymp-runtime/src/backends/claude.rs and add focused protocol modules; derive every construct from the model and do not copy Codex adapter names or blocks.",
+    "Installed protocol facts were observed on Claude Code 2.1.284 with one metadata probe and one bounded claude-haiku-4-5-20251001 call (4407 input, 410 output tokens). The native tool updates itself, so the kernel binds the observed version through the discovery method instead of a fixed literal.",
+    "Fixture evidence is separate from real inference. Builds and tests start no model calls; native runs rely on the standing authorization in AGENTS.md with finite limits."
+  ],
+  "schema_version": 1,
+  "id": "W1-0020",
+  "owner": "claude",
+  "revision": 2,
+  "history": [
+    {
+      "revision": 1,
+      "at": "2026-09-29T06:56:57.459894Z",
+      "actor": "manage.py",
+      "status": "planned",
+      "note": "Task created."
+    },
+    {
+      "revision": 2,
+      "at": "2026-09-29T06:57:01.518652Z",
+      "actor": "claude",
+      "status": "in_progress",
+      "note": "Claimed by claude."
+    }
+  ]
+}

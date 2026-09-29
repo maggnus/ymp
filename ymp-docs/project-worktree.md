@@ -114,8 +114,11 @@ ymp/
     │   │   ├── backends/
     │   │   │   ├── mod.rs
     │   │   │   ├── scripted.rs     # W1-0017
+    │   │   │   ├── process.rs      # W1-0020: native child process channel shared by codex and claude
+    │   │   │   ├── files.rs        # W1-0020: mediated file operation shared by codex and claude
     │   │   │   ├── codex/          # W1-0018: mod.rs, protocol.rs, usage.rs
-    │   │   │   ├── claude.rs       # W6-0001 (scheduled in the W3 window)
+    │   │   │   ├── claude.rs       # W1-0020 file-mediated subset; W6-0001 full adapter
+    │   │   │   ├── claude/         # W1-0020: stream.rs, usage.rs
     │   │   │   └── glm.rs          # W6-0002
     │   │   ├── checks/
     │   │   │   ├── mod.rs

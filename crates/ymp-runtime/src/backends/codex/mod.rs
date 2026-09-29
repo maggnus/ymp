@@ -14,7 +14,6 @@ use ymp_domain::{
     identity::*,
     journal::{Capability, PolicySelection},
     resources::{Coverage, Receipt, Usage},
-    workspace::WorkspacePath,
 };
 use ymp_kernel::ports::{checks::NativeDiscovery, execution::*};
 struct Run {
@@ -630,18 +629,10 @@ fn drive(
                         json!({"contentItems":[{"type":"inputText","text":text}],"success":true})
                     }
                     Err((capability, code)) => {
-                        if matches!(
-                            code.as_str(),
-                            "codex_tool"
-                                | "workspace_path"
-                                | "access_scope"
-                                | "access_closed"
-                                | "path_conflict"
-                                | "invocation_authority"
-                        ) {
+                        if code == "codex_tool" || super::files::unauthorized(&code) {
                             emit(run, BackendObservation::ToolDenied(capability))?;
                         }
-                        json!({"contentItems":[{"type":"inputText","text":format!("Denied by host: {code}")}],"success":false})
+                        json!({"contentItems":[{"type":"inputText","text":super::files::refusal(&code)}],"success":false})
                     }
                 };
                 calls.insert(call, (p.clone(), response.clone()));
@@ -800,42 +791,12 @@ fn dynamic_file(
     } else {
         Capability::ReadFiles
     };
-    let execute = || -> Result<String> {
-        if params.get("namespace").is_some_and(|v| !v.is_null())
-            || !matches!(tool, "ymp_read" | "ymp_write")
-            || !access.contains(&capability)
-        {
-            return Err(denied("codex_tool"));
-        }
-        let args = params["arguments"]
-            .as_object()
-            .ok_or_else(|| denied("codex_tool"))?;
-        if args.len() != 2 {
-            return Err(denied("codex_tool"));
-        }
-        let path = WorkspacePath::new(
-            args.get("path")
-                .and_then(Value::as_str)
-                .ok_or_else(|| denied("codex_tool"))?,
-        )?;
-        let files = files.ok_or_else(|| denied("codex_tool"))?;
-        if write {
-            let text = args
-                .get("text")
-                .and_then(Value::as_str)
-                .filter(|s| s.len() <= 65536)
-                .ok_or_else(|| denied("codex_tool"))?;
-            files.write(&path, text.as_bytes())?;
-            Ok("Written by the host mediator".into())
-        } else {
-            let limit = args
-                .get("limit")
-                .and_then(Value::as_u64)
-                .filter(|n| *n > 0 && *n <= 65536)
-                .ok_or_else(|| denied("codex_tool"))?;
-            let bytes = files.read(&path, limit as usize)?;
-            String::from_utf8(bytes).map_err(|_| denied("codex_file_encoding"))
-        }
-    };
-    execute().map_err(|error| (capability, error.code))
+    if params.get("namespace").is_some_and(|v| !v.is_null())
+        || !matches!(tool, "ymp_read" | "ymp_write")
+        || !access.contains(&capability)
+    {
+        return Err((capability, "codex_tool".into()));
+    }
+    super::files::operate(write, &params["arguments"], files, protocol::boundary)
+        .map_err(|error| (capability, error.code))
 }

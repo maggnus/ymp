@@ -194,6 +194,14 @@ impl Default for ParameterSchemas {
                     validate_codex as ParameterValidator,
                 ),
                 (
+                    (
+                        "ExecutionBackend".into(),
+                        "ClaudeStreamJson".into(),
+                        "1".into(),
+                    ),
+                    validate_claude as ParameterValidator,
+                ),
+                (
                     ("ExecutionBackend".into(), "Scripted".into(), "1".into()),
                     validate_scripted as ParameterValidator,
                 ),
@@ -748,6 +756,13 @@ fn validate_narrative(selection: &PolicySelection) -> Result<()> {
 fn validate_codex(selection: &PolicySelection) -> Result<()> {
     let value = &selection.parameters;
     let parameters: crate::ports::execution::CodexParameters =
+        ymp_domain::journal::decode(&ymp_domain::journal::encode(value)?)?;
+    parameters.validate()
+}
+
+fn validate_claude(selection: &PolicySelection) -> Result<()> {
+    let value = &selection.parameters;
+    let parameters: crate::ports::execution::ClaudeParameters =
         ymp_domain::journal::decode(&ymp_domain::journal::encode(value)?)?;
     parameters.validate()
 }
