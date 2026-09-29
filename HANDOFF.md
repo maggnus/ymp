@@ -1,48 +1,132 @@
 # Resume handoff
 
-Updated: 2026-09-29 04:12 Asia/Hong_Kong. Reconcile this note with Git and task
+Updated: 2026-09-29 17:05 Asia/Hong_Kong. Reconcile this note with Git and task
 JSON records before acting; it is not another task register.
 
 ## Immediate continuation
 
-Root owns main. CodexAppServer v2 is committed in `aad168d6`, with W1-0018
-completion in `9f453715` (done revision14). W1-0014 is reconfirmed done revision17
-using the same full combined verification; no session rewrite was needed.
-W1-0015 remains unclaimed revision8 and is the next implementation task.
+Root owns main. **W1-0020 (minimal native Claude backend) is done at revision 3,
+delivered in `1d492a02`**; `make verify` passed on that tree. Owner direction
+2026-09-29: run native experiments on light Anthropic models, parallelize
+independent work, watch the disk (about 19 GiB free; delete nothing without the
+owner's word). The next task by `manage.py next` is W1-0015 (simple Ratatui
+interface, planned, unowned, revision 8); it is not started.
 
-**Native run07 is finished; no model run is active.** Its actual mediated
-ymp_read succeeded, followed by valid intake JSON and backend Completed. However,
-the adapter marked coverage Partial because commentary plus a file callback
-preceded one shared usage update. The host cancelled at its finite deadline;
-held30000 remains, spent0. Do not relabel or release this retained uncertainty.
-Compact evidence run-07.json is saved but not committed yet. Full v2 verification passed
-(`/tmp/ymp-code-mode-final-verify.log`), nine Dispatcher cases in139.51s;
-independent review accepted the final source (R1,9/10). Do not repeat these checks
-solely because the conversation resumed.
+Native pilot, `claude-haiku-4-5-20251001`, native version 2.1.284, no effort
+(the model offers none). Runs live in `/tmp/ymp-claude-pilot/runNN` with
+`runNN.log`; never open an original `journal.sqlite`, read the copies under
+`/tmp/ymp-claude-pilot/scratch/runNN/`. Units are relative token weights, NOT
+currency.
+
+| Run | Calls | Spent | Held | Session phase | Changed dimension |
+| --- | ---: | ---: | ---: | --- | --- |
+| 01 | 0 | 0 | 0 | `no_offers` | first run, unoptimized build |
+| 02 | 2 | 25,663.25 | 0 | `work_failed` (`cost_limit`) | optimized build |
+| 03 | 3 | 32,717 | 0 | `no_offers` | forecast 10000/1000/2.0 |
+| 04 | 1 | 8,700 | 0 | `decoding` (Markdown fence) | offer window 5000 ms |
+| 05 | 5 | 69,253 | 0 | `decoding` (reviewer) | adapter strips one fence |
+| 06 | 5 | 59,361 | 0 | `candidate_rejected` | reviewer response contract |
+| 07 | 5 | 59,098 | 0 | `commitment_expired` | adapter waits for host records |
+| 08 | 1 | 0 | 28,000 | `claude_environment` | review fixes; wrong empty-plugins check |
+| 09 | 5 | 51,212 | 0 | `commitment_expired` | built-in plugins accepted |
+| 10 | 1 | 14,028 | 0 | `decoding` (prose before JSON) | invocation timeout 240 s |
+| 11 | 6 | 79,245.75 | 0 | `decoding` (final reviewer) | repeat of run 10 parameters |
+| 12 | 6 | 78,274 | 0 | `Cancelled` (`final_review_basis`) | final-review contract states JSON shape |
+| 13 | 6 | 70,628.75 | 0 | `decoding` (prose before final verdict JSON) | final-review contract lists evidence ids; adapter review fixes |
+| 14 | 5 | 70,835.5 | 0 | `decoding` (reviewer: prose and fence before JSON) | adapter guidance states the JSON first and last character |
+
+Runs 01 to 11, 13 and 14 delivered `Blocked(final_acceptance_unavailable)`; run
+12 ended `Cancelled`. No native run reached final acceptance. Runs 07
+and 09 produced the expected `sorted.json`, reviewer `Approve` and acceptance
+`Accepted`/`Confirmed(TrustedCheck)`; the producer's 60 s lease had expired during
+verification, because the lease is bounded by the invocation timeout and is
+discharged only by acceptance. With 240 s (run 11) the lease held, the session
+reached `Finalizing` and a sixth call, the final review, answered
+`FinalVerdict: ...` as one text line instead of JSON. The contract text in
+`crates/ymp-kernel/src/finalization/context.rs` now names the aggregate
+reference as `subject` and states the JSON shape. In run 12 the verdict decoded
+and named the right aggregate, but its basis held check ids instead of evidence
+ids (the prompt is a positional tuple without labels); the kernel refused it
+with `final_review_basis` and the example cancelled the session. The purpose now
+also carries the evidence ids under `evidence`. In run 13 the final verdict
+named the right aggregate and the two supplied evidence ids with `Approve`, but
+prose preceded the JSON object and the decoder refused it. The adapter guidance
+was then extended (a JSON response starts with `{` and ends with `}`); in run 14
+the candidate reviewer still answered prose plus a fenced JSON object. Three of
+the fourteen runs (10, 13, 14) ended on prose around an otherwise usable JSON
+answer. The pilot stops here: no further repeats without a product decision on
+a retry after an undecodable response.
+
+Independent review of the tree (read-only) found no authority or data-leak
+defect. Applied from it: the mediated file operation is shared by both process
+backends (`backends/files.rs`) instead of duplicated; an unsettled wait refuses
+the file operation (`claude_unsettled`); `CLAUDE_CONFIG_DIR` is kept so that the
+stored native login is preserved; document claims were corrected. Recorded as
+limits in `claude-implementation.md`, not repaired: isolation is asserted by
+`system/init` only after the user message; native turn count is not recorded;
+prompt text changes are not versioned, so journals of pilot runs 05, 11 and 12
+cannot be replayed by a later build. Run 08's 28,000 held units and unknown usage are
+retained evidence: never release, relabel or repeat them.
+
+Native evidence for runs 01 to 14 is in
+`ymp-docs/experiments/homogeneous-claude-elementary/` (`README.md`, `NOTES.md`,
+`derive.py`, `run-NN.json`); the privacy scan found no address, home path or
+key. Totals: 51 native calls, 619,016.25 units spent, 28,000 held (run 08). The
+working copies remain under `/tmp/ymp-claude-pilot/` and are not authoritative.
 
 Immediate next actions:
-1. Investigate actual accounting grouping before more inference. In
-   codex/mod.rs::drive, pending_usage becomes true for every agentMessage and
-   every new file callback; the second visible item before one TokenCount sets
-   accounting_gap. Run07 demonstrates commentary+file read in ONE response,
-   then a fresh report, then final_answer and another fresh report. A read-only
-   review by acceptance_boundary_read is investigating a minimal honest repair;
-   no accounting source change has been made yet. Preserve stale/missing-early
-   and genuinely ambiguous-batch safeguards, not just a successful final answer.
-2. Record and verify any repair through the owning task. Do not repeat run07;
-   retained partial usage/hold is evidence, not permission to reset its budget.
-   Native writing and independent review remain unverified; reading now has
-   actual proof. Known-thread metadata is in run07/native-thread.json and the
-   compact record includes filtered tool/token events without reasoning content.
-3. Retain the outcome, accounting and limitations; then continue the existing
-   plan through `manage.py next` and `show` (W1-0015, simple Ratatui interface).
-   Do not replace it with unrelated architecture or broader experiments.
+1. `manage.py next`, then `show W1-0015`; read `intent.md` and the model before
+   changing product behavior.
+2. Do not repeat the elementary pilot as it is. A further native run needs one
+   named changed dimension, a fresh directory, and no build or test running
+   beside it (the run is time-sensitive).
+3. Later experiment stages (different models, different families) follow
+   `ymp-docs/poc-experiments.md` and need a native run that reaches final
+   acceptance first; whether the session asks again after an undecodable
+   response is a product decision for the owner.
+
+Reversible decisions of W1-0020 to report to the owner: the adapter strips
+exactly one whole-response Markdown fence (untagged or `json`) without a journal
+record; the reviewer prompts in `paid_review.rs` and `finalization/context.rs` state the
+exact JSON shape; the
+adapter waits for two quiet host polls before each mediated file operation; the
+shared process channel and file operation changed the delivered Codex
+transport; the pilot's invocation timeout is 240 s; `CLAUDE_CONFIG_DIR` is kept
+in the child environment; the adapter's fixed system text names the first and
+last character of a JSON response (run 14 shows no benefit from it).
+
+Known limits left in place: 64 calls per adapter instance; the technical
+directory is removed only when empty; `claude_receipt_pending` is not recognized
+by the host; an unknown tool is labelled with the wrong authority; a read
+response may exceed the frame. Environment-variable removal is proven only where
+such variables exist; `api_retry` was never observed natively.
+
+Backlog observations, not work (the owner assigns priority): slow Dispatcher tick
+(full projection rebuild); Haiku reasoning is 50-95 % of output; `lease_renewal`
+diagnostic on every call with `renewals: 0`; no retry after a rejected candidate
+or an undecodable intake answer; the delivered report lists criteria as unmet
+while the ledger records `Satisfied`; `stale_revision` refusals are not
+journaled; Codex accounting grouping (below); a refused final verdict
+(`final_review_basis`) leaves no journal record and the example cancels the
+session (run 12); the request context is a positional tuple without labels; a
+producer's lease is bounded by the invocation timeout; Haiku put prose around a
+JSON answer in three of fourteen runs.
+
+## Retained Codex state
+
+CodexAppServer v2 is committed in `aad168d6`, with W1-0018 completion in
+`9f453715` (done revision14). W1-0014 is reconfirmed done revision17.
+Codex native run07 is finished: mediated ymp_read succeeded, coverage was marked
+Partial because commentary plus a file callback preceded one shared usage
+update; held30000 remains, spent0. Do not relabel, release or repeat it. The
+accounting grouping question (`codex/mod.rs::drive`, `pending_usage` /
+`accounting_gap`) is open and unchanged; no accounting source change was made.
 
 ```sh
 git status --short
 git log -5 --oneline
 python3 ymp-docs/tasks/manage.py next
-python3 ymp-docs/tasks/manage.py show W1-0015
+python3 ymp-docs/tasks/manage.py show W1-0020
 python3 ymp-docs/tasks/manage.py check
 ```
 

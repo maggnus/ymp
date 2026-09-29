@@ -3,7 +3,7 @@
   "title": "Run accountable sessions on Claude through a mediated file-only native boundary",
   "type": "implementation",
   "priority": 114,
-  "status": "in_progress",
+  "status": "done",
   "depends_on": [
     "W1-0014",
     "W1-0017"
@@ -21,7 +21,9 @@
     "A foreign tool or isolation mismatch, a model mismatch, stream loss before the final result and incomplete usage are denied or recorded truthfully; none grants authority, repeats a start or releases an unresolved hold.",
     "A bounded native run on the lowest-cost discovered Anthropic model records exact version, requested/sent/reported settings, finite limits, actual usage and unknown coverage, distinct from fixture and Scripted evidence."
   ],
-  "evidence": [],
+  "evidence": [
+    "Commit 1d492a02; crates/ymp-storage/tests/claude.rs with crates/ymp-runtime/tests/fixtures/claude_stream_json.py (fixture evidence); ymp-docs/experiments/homogeneous-claude-elementary/README.md (native evidence, runs 01-14); ymp-docs/claude-implementation.md (protocol facts and known limits)."
+  ],
   "context": [
     "Owner direction 2026-09-29: continue active development and run native experiments on light Anthropic models, balancing research speed against evidence quality. W6-0001 remains the full Claude adapter and is blocked by W3-0001; this task delivers only the file-mediated subset the W1 session needs.",
     "Authority: model sections 3.1/3.4/3.7/3.9/5.1/5.7, A5/A13 and R-2/R-3/R-8/R-9/R-19/R-20. Fill the existing placeholder crates/ymp-runtime/src/backends/claude.rs and add focused protocol modules; derive every construct from the model and do not copy Codex adapter names or blocks.",
@@ -31,7 +33,7 @@
   "schema_version": 1,
   "id": "W1-0020",
   "owner": "claude",
-  "revision": 2,
+  "revision": 3,
   "history": [
     {
       "revision": 1,
@@ -46,6 +48,13 @@
       "actor": "claude",
       "status": "in_progress",
       "note": "Claimed by claude."
+    },
+    {
+      "revision": 3,
+      "at": "2026-09-29T09:04:38.868597Z",
+      "actor": "claude",
+      "status": "done",
+      "note": "Delivered in 1d492a02. ClaudeStreamJson v1 discovery and backend with mediated read and write pass the fixture through the real Registry, journal, Gatekeeper and host; isolation, model mismatch, stream loss and incomplete usage are recorded truthfully. Fourteen bounded native runs on claude-haiku-4-5-20251001 (Claude Code 2.1.284, no effort offered) record version, settings, limits, usage and coverage. No native run reached final acceptance: five recorded an accepted result with the expected artifact, six ended on an undecodable role response, run 08 keeps 28000 held units with unknown usage. make verify passed on the delivered tree."
     }
   ]
 }
