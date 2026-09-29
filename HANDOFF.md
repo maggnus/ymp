@@ -1,6 +1,6 @@
 # Resume handoff
 
-Updated: 2026-09-29 19:50 Asia/Hong_Kong. Reconcile this note with Git and task
+Updated: 2026-09-29 20:40 Asia/Hong_Kong. Reconcile this note with Git and task
 JSON records before acting; it is not another task register.
 
 ## Immediate continuation
@@ -19,10 +19,11 @@ parallelize independent work, watch the disk (about 13 GiB free, 98 % used;
 delete nothing without the owner's word). Scratch directories of the interface
 work are under `/tmp/ymp-tui-check/` and are not authoritative.
 
-Not verified for W1-0015: no native session was driven through the interface
-(`--claude` is composed and its discovery runs, no model call was made through
-it); terminal restoration after a panic of the interface loop or a terminal
-error was not provoked; `SIGTERM`/`SIGHUP` are not handled.
+Not verified for W1-0015: terminal restoration after a panic of the interface
+loop or a terminal error was not provoked; `SIGTERM`/`SIGHUP` are not handled;
+an interrupt, a recovery and a question to the user were exercised on scripted
+sessions only. One native session was driven through the interface (pilot run
+15 below).
 
 Questions for the owner from W1-0015:
 - The task context says headless subcommands must not link the terminal UI.
@@ -43,7 +44,10 @@ Backlog observations from W1-0015, not work: a Dispatcher tick takes 400 to
 interrupt after a delivered report; an `Unknown` producer coverage waits for
 the call deadline (240 s) before the session blocks; `LiveSession::publish`
 ignores a failed projection read; outcomes of commands still queued at close
-are not read; the sidebar overlay of a short terminal does not scroll.
+are not read; the sidebar overlay of a short terminal does not scroll; at 130
+columns the sidebar and the footer cut words without an ellipsis; the blocking
+and report lines of the conversation print the latest recorded time, not their
+own; the report lists criteria as unmet although their candidate checks passed.
 
 Native pilot, `claude-haiku-4-5-20251001`, native version 2.1.284, no effort
 (the model offers none). Runs live in `/tmp/ymp-claude-pilot/runNN` with
@@ -67,8 +71,9 @@ currency.
 | 12 | 6 | 78,274 | 0 | `Cancelled` (`final_review_basis`) | final-review contract states JSON shape |
 | 13 | 6 | 70,628.75 | 0 | `decoding` (prose before final verdict JSON) | final-review contract lists evidence ids; adapter review fixes |
 | 14 | 5 | 70,835.5 | 0 | `decoding` (reviewer: prose and fence before JSON) | adapter guidance states the JSON first and last character |
+| 15 | 5 | 65,406.25 | 0 | `decoding` (reviewer: prose and fence before JSON) | consumer: the interactive interface of `ymp` at `258b348d` |
 
-Runs 01 to 11, 13 and 14 delivered `Blocked(final_acceptance_unavailable)`; run
+Runs 01 to 11 and 13 to 15 delivered `Blocked(final_acceptance_unavailable)`; run
 12 ended `Cancelled`. No native run reached final acceptance. Runs 07
 and 09 produced the expected `sorted.json`, reviewer `Approve` and acceptance
 `Accepted`/`Confirmed(TrustedCheck)`; the producer's 60 s lease had expired during
@@ -85,8 +90,10 @@ also carries the evidence ids under `evidence`. In run 13 the final verdict
 named the right aggregate and the two supplied evidence ids with `Approve`, but
 prose preceded the JSON object and the decoder refused it. The adapter guidance
 was then extended (a JSON response starts with `{` and ends with `}`); in run 14
-the candidate reviewer still answered prose plus a fenced JSON object. Three of
-the fourteen runs (10, 13, 14) ended on prose around an otherwise usable JSON
+the candidate reviewer still answered prose plus a fenced JSON object. Run 15
+repeated the task through the interactive interface and ended the same way as
+run 14, with the expected artifact and passing candidate checks. Four of the
+fifteen runs (10, 13, 14, 15) ended on prose around an otherwise usable JSON
 answer. The pilot stops here: no further repeats without a product decision on
 a retry after an undecodable response.
 
@@ -101,17 +108,18 @@ prompt text changes are not versioned, so journals of pilot runs 05, 11 and 12
 cannot be replayed by a later build. Run 08's 28,000 held units and unknown usage are
 retained evidence: never release, relabel or repeat them.
 
-Native evidence for runs 01 to 14 is in
+Native evidence for runs 01 to 15 is in
 `ymp-docs/experiments/homogeneous-claude-elementary/` (`README.md`, `NOTES.md`,
-`derive.py`, `run-NN.json`); the privacy scan found no address, home path or
-key. Totals: 51 native calls, 619,016.25 units spent, 28,000 held (run 08). The
-working copies remain under `/tmp/ymp-claude-pilot/` and are not authoritative.
+`derive.py`, `run-NN.json`; run 15 has no run file, its evidence is
+`run-15-terminal.txt` and `run-15-calls.txt`); the privacy scan found no
+address, home path or key. Totals: 56 native calls, 684,422.5 units spent,
+28,000 held (run 08). The working copies remain under `/tmp/ymp-claude-pilot/`
+and are not authoritative.
 
 Immediate next actions:
-1. `manage.py next`, then `show ID` for the selected task; read `intent.md` and
-   the model before changing product behavior. A first native session through
-   the `ymp` executable on Haiku is a candidate experiment with one changed
-   dimension (the consumer), in a fresh directory.
+1. `manage.py next` returns no task: all twenty W1 tasks are done and the tasks
+   of W2 to W6 are `new`. Scheduling them is the owner's decision. Read
+   `intent.md` and the model before changing product behavior.
 2. Do not repeat the elementary pilot as it is. A further native run needs one
    named changed dimension, a fresh directory, and no build or test running
    beside it (the run is time-sensitive).

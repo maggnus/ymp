@@ -11,6 +11,13 @@ or an acceptance of the aggregate. Every session ended blocked or, in run 12,
 cancelled, so there is no completed native team result. The
 [summary](#summary-of-the-pilot) at the end counts the runs by how they ended.
 
+Run 15 was added afterwards. It ran the same task through the interactive
+interface of the `ymp` executable instead of the example, so it has no run file;
+its evidence is two terminal records, described under
+[Run 15](#run-15-through-the-interactive-interface). It ended
+blocked as well. Every statement below that counts fourteen runs or fourteen run
+files is about runs 01 to 14.
+
 ## Procedure
 
 The explicit example is `crates/ymp-storage/examples/homogeneous_claude.rs`
@@ -113,6 +120,7 @@ the kernel's decoding result.
 | [12](run-12.json) | 6 | 78,274.0 | 0.0 | 285,149 | `Cancelled` | All six calls completed with Complete receipts; `sorted.json` has the expected bytes. Reviewer verdict `Approve`; acceptance decision `Accepted`, grade `Confirmed(TrustedCheck)`. The producer commitment was recorded `Discharged`. The final reviewer answered with JSON whose `basis` names the two check identifiers. `summary.json` records failure `final_review_basis`; the journal records a session stop. |
 | [13](run-13.json) | 6 | 70,628.75 | 0.0 | 253,456 | `Blocked(decoding)` | All six calls completed with Complete receipts; `sorted.json` has the expected bytes. Reviewer verdict `Approve`; acceptance decision `Accepted`, grade `Confirmed(TrustedCheck)`. The producer commitment was recorded `Discharged`. The final reviewer answered with prose followed by JSON whose `basis` names the two supplied evidence identifiers. |
 | [14](run-14.json) | 5 | 70,835.5 | 0.0 | 197,683 | `Blocked(decoding)` | All five calls completed with Complete receipts; `sorted.json` has the expected bytes. The reviewer answered with prose followed by JSON inside a Markdown code fence. No review and no acceptance was recorded. The producer commitment has no end record; its state is `Active`. |
+| [15](run-15-terminal.txt) | 5 | 65,406.25 | 0.0 | not recorded | `Blocked(decoding)` | Driven through the interactive interface. All five calls completed with Complete receipts; `sorted.json` has the expected bytes. The reviewer answered with prose followed by JSON inside a Markdown code fence. No acceptance was recorded. The producer commitment is shown `Active`. |
 
 Every run except run 12 delivered outcome
 `Blocked(final_acceptance_unavailable)`; run 12 delivered outcome `Cancelled`.
@@ -631,6 +639,91 @@ same text as in run 07, in run 12 as well. Delivered accounting records held 0.0
 projection holds no review and no acceptance of the aggregate, and the report
 record has `narrated: false`.
 
+### Run 15 through the interactive interface
+
+One dimension was changed against run 14: the consumer. The session was opened,
+started, watched and read through the interactive interface of the `ymp`
+executable, not through the example:
+
+```sh
+ymp --store DIR --workspace DIR --claude EXECUTABLE --model claude-haiku-4-5-20251001
+```
+
+No `--effort` was given, because the model lists no effort levels. The goal
+text, the two owner checks (`/expect sorted.json [1,2,2,3]\n` and
+`/preserve input.json`), the model and the two identities are those of run 14.
+The policy values come from the native composition of the executable
+(`crates/ymp-cli/src/host.rs`). The interface showed limit 250,000, verification
+reserve 60,000, reporting reserve 30,000 and, for each call, an allowance of one
+native turn, 8,000 output characters and a timeout between 237,733 and
+239,572 ms. The reserved cost was 28,000 for four calls and 23,156 for planning.
+The composition was not compared field by field with `experiment.json` of run
+14, and the run produced no `experiment.json`, `discovery.json` or
+`summary.json`.
+
+Source state: commit `258b348d` with no change to tracked files, development
+profile with optimization level 1, debug assertions and overflow checks. The
+native client reported version `2.1.284` when asked after the run. The interface
+ran in a detached terminal of 130 by 44 cells and was driven by a script that
+typed the goal and the commands and saved the visible frame about every
+15 seconds. The script started at 2026-09-29T12:03:19Z and finished at
+12:06:43Z. The session is `session-1790683404421`.
+
+All five calls ended `Completed` with Complete coverage, cache read zero, and
+requested, sent and reported model `claude-haiku-4-5-20251001` with no effort
+requested, sent or reported. Every account is `Settled`:
+
+| Call | Agent | Role | Started | Input | Cache write | Output | Reasoning | Units |
+| --- | --- | --- | --- | ---: | ---: | ---: | ---: | ---: |
+| `call-intake` | claude-a | Planner | 12:03:30 | 5,922 | 0 | 1,414 | 1,319 | 11,578.0 |
+| `call-plan` | claude-a | Planner | 12:03:59 | 6,231 | 0 | 1,288 | 978 | 11,383.0 |
+| `call-next-108-0` | claude-a | Producer | 12:04:28 | 9,186 | 0 | 636 | 417 | 11,730.0 |
+| `call-next-165-0` | claude-b | Verifier | 12:04:59 | 6,588 | 0 | 1,201 | 736 | 11,392.0 |
+| `call-review-result-next-108-0` | claude-b | Reviewer | 12:05:46 | 8,400 | 5,101 | 2,412 | 1,686 | 19,323.25 |
+
+The units of each call were computed here as input plus 0.25 times cache write
+plus 4 times output; the interface shows no charge per call. Their sum,
+65,406.25, equals the spent value that the interface and the report show. By
+purpose this is Coordination 22,961.0, Production 11,730.0 and Verification
+30,715.25. Held units are 0 and no unknown usage is recorded.
+
+`sorted.json` holds `[1,2,2,3]` and a newline, and `input.json` kept its bytes.
+Four check runs were shown between 12:05:27 and 12:05:31: criterion 1 Fail on
+the baseline and Pass on the candidate, criterion 2 Pass on both. The reviewer
+output, as the interface shows it, is four lines of prose followed by one JSON
+object inside a Markdown code fence labelled `json`. The fenced object names the retained result, both
+criteria and the two evidence identifiers, and states verdict `Approve` with two
+findings of severity `Advisory`. The interface then showed
+"session blocked: decoding" and the deterministic report: outcome
+`Blocked(final_acceptance_unavailable)`, grade `Unconfirmed`, both criteria
+listed as unmet, retained result `result-next-108-0`, settled 65,406.25, held 0,
+one unresolved commitment. The final revision is 272. The acceptance page holds
+no record, both criteria are shown "not assessed", the work item is `InReview`,
+and the producer commitment `next-108-0` is shown `Active` while the four other
+commitments are `Discharged`. This is the ending of run 14 with a different
+consumer.
+
+What the run shows about the interface: a page opened within 0 to 1 second on
+each of six requests made while a provider call was running; leaving with
+`/quit` returned the terminal to its line mode (`icanon`, `echo`) with exit
+code 0; `ymp sessions` and `ymp report` then printed the same status, revision
+and report with exit code 0. The time that the interface prints on its blocking
+line and its report line is the latest recorded time of the projection, so the
+blocking line reads 12:06:32 in one frame and 12:06:35 in a later one.
+
+Not exercised in this run: an interrupt, a recovery, a question to the user and
+a second session in the same store. The journal was not read as a database, so
+this run has no sequence table, no file-access records and no offer times.
+
+Evidence: [`run-15-terminal.txt`](run-15-terminal.txt) holds the saved frames
+of the run, the output of `ymp sessions` and `ymp report` and the bytes of the
+workspace files. [`run-15-calls.txt`](run-15-calls.txt) holds the description of
+each call, the commitments page and the acceptance page. It was read after the
+run from a copy of the store, opened by the same executable with a Scripted
+composition, which can call no model; the interface showed the session as
+read-only and the revision stayed 272. In both files the run directory is
+written `RUN15` and the copy `RUN15-COPY`.
+
 ## Findings
 
 - The mediated file boundary produced the expected artifact eight times (runs
@@ -756,6 +849,19 @@ record has `narrated: false`.
   heartbeats only. The run 08 call carries only the `claude_environment`
   diagnostic.
 
+- Run 15 repeated the outcome of run 14 through a different consumer: the same
+  five calls, the expected artifact, passing candidate checks, a review output
+  of prose followed by fenced JSON, phase `Blocked(decoding)` and an `Active`
+  producer commitment. The recorded goal ends with the same sentence about
+  Markdown fences. The mediated file boundary therefore produced the expected
+  artifact a ninth time.
+- In runs 14 and 15 the fenced review output states verdict `Approve` and the
+  kernel candidate checks pass, yet no review is recorded, so a correct artifact
+  with passing checks ends without acceptance. In neither run was the review
+  asked for again.
+- The run 15 review call reported 5,101 cache-write tokens and the four other
+  calls none; the spent value equals the sum computed with the formula above.
+
 These are single bounded runs. They do not establish a rate, a causal benefit or
 superiority over the GPT pilot.
 
@@ -825,6 +931,15 @@ superiority over the GPT pilot.
   12 as well, whose summary records a failure.
 - Run 14 was executing while runs 11 to 13 were added to this evidence and was
   not read then. It was read after it had ended and is covered here.
+- Run 15 has no run file. Its figures were read from the interface of the
+  executable, which shows the projection of the journal; the journal itself was
+  not read. Call durations, elapsed time, file-access records, offer times,
+  digests, the dispatch prompts and the response contracts of run 15 were not
+  read. Its five final receipts are Complete, which makes 55 Complete final
+  receipts in runs 02 to 07 and 09 to 15.
+- The native client version of run 15 was read after the run, not recorded by
+  it. Which decoding step refused the run 15 review output is not recorded in
+  what was read; the interface shows the phase only.
 - See [`NOTES.md`](NOTES.md) for disagreements with the described context and
   for the extraction commands.
 
@@ -837,7 +952,8 @@ merged with either.
 
 The compact evidence is the content of this directory: this file,
 [`NOTES.md`](NOTES.md), [`derive.py`](derive.py) and `run-01.json` to
-`run-14.json`. It preserves the observed inputs, effective parameters, usage and
+`run-14.json`, and for run 15 the terminal records `run-15-terminal.txt` and
+`run-15-calls.txt`. It preserves the observed inputs, effective parameters, usage and
 outcomes. The full journals and logs stayed in the operator's local run
 directories, which were the inputs of `derive.py`. Never restart a native run
 solely because its process or conversation disappeared; inspect the journal.
@@ -885,3 +1001,10 @@ sum to 619,016.25. The recorded held units sum to 28,000.0, all of them in the
 intake reservation of run 08, which has no receipt and no settlement; they
 remain held. These are relative token weights, not currency or provider
 billing.
+
+Run 15 is counted apart from the table above, because it has no run file. It
+ended with phase `Blocked(decoding)` after a candidate-review response of the
+same form as in run 14. With it, seven of fifteen runs ended with that phase,
+three of them after a candidate-review response. Including run 15, 56 native
+calls were made and the spent units sum to 684,422.5; the held units are
+unchanged at 28,000.0.

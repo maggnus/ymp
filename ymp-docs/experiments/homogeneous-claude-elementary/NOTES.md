@@ -15,6 +15,10 @@ directory and log were then not read, not listed beyond their names and not
 touched. They were read for the fourth extension, after the log had received
 its `exit=0` line.
 
+Run 15 was added in a fifth extension, described in its own section at the end
+of this file. It has no run file, and nothing in items 1 to 59 or in the
+sections before that one covers it.
+
 These files were prepared in the operator's local pilot directory,
 `/tmp/ymp-claude-pilot`, where this directory had the name `evidence-draft`.
 The commands and scratch paths quoted below are given as they were used there.
@@ -1014,3 +1018,65 @@ Final scan:
 grep -c -- "<pattern>" run-*.json README.md NOTES.md derive.py
 grep -o -i -h -E -- "[A-Za-z_-]*<pattern>[A-Za-z_-]*" run-*.json README.md NOTES.md derive.py | sort | uniq -c
 ```
+
+## Fifth extension (run 15)
+
+Run 15 was made through the interactive interface of the `ymp` executable. The
+example, `derive.py` and the fourteen run files were not used or changed for it.
+The run directory was `/tmp/ymp-claude-pilot/run15` (`work`, `store`), new for
+this run, and the log `/tmp/ymp-claude-pilot/run15.log`.
+
+How the evidence was produced:
+
+- A script started the executable inside a detached `tmux` session of 130 by 44
+  cells, typed the goal, `/expect`, `/preserve` and `/start`, and appended the
+  visible frame to the log with `tmux capture-pane -p -J`. While the session
+  worked it opened the resources page every 30 seconds and recorded how long the
+  request took. After the report it saved the criteria, resources, activity and
+  results pages, typed `/quit`, and appended the output of `stty -a`,
+  `ymp sessions`, `ymp report` and `od -c` of the two workspace files.
+- After the run the `store` directory was copied to
+  `/tmp/ymp-claude-pilot/scratch/run15/store`. The copy was opened by the same
+  executable with `--scripted` and an empty workspace directory, the session was
+  opened with `/open`, and the description of each call, the commitments page
+  and the acceptance page were saved in the same way. The original store was
+  opened only by the run itself and by the `sessions` and `report` commands of
+  the script.
+- `run-15-terminal.txt` and `run-15-calls.txt` are those two logs with trailing
+  blanks removed, the run directory replaced by `RUN15` and the copy by
+  `RUN15-COPY`. The script replaced the home directory by a marker while it
+  wrote the log; the marker does not occur in either file.
+
+Confirmed against the two records:
+
+- Five calls, each `Completed` with Complete coverage and cache read zero;
+  requested, sent and reported model `claude-haiku-4-5-20251001` and no effort
+  in each description.
+- Usage as in the run 15 table of `README.md`. The units per call are computed
+  there, not read; their sum equals the displayed spent value 65,406.25.
+- Five accounts `Settled`, held 0, no unknown usage; limit 250,000 and reserves
+  60,000 and 30,000.
+- Final revision 272 in the interface, in `ymp sessions`, in `ymp report` and in
+  the later read of the copy.
+- `sorted.json` and `input.json` have 10 bytes each, with the expected and the
+  original content.
+- Each call description carries the `lease_renewal` diagnostic, as in runs 02
+  to 14.
+
+Not verified for run 15:
+
+- Anything that needs the journal as a database: record order, times of
+  records, file-access records, offers, digests, prompts and response contracts.
+- Call durations and the elapsed time of the session. The frames carry the wall
+  time of the capture and the start time of each call only.
+- The native client version during the run; `2.1.284` was read afterwards.
+- Whether the policy values of the executable's native composition equal those
+  of `experiment.json` of run 14 in every field.
+- Interrupt, recovery and a question to the user on a native session.
+
+Sensitive data: both records were scanned for an at sign, a home-directory path
+prefix, a temporary-directory path prefix, an API key field name and the
+secret-key prefix, with no match. `token`, `account` and `email` match only the
+column heading `ACCOUNT` of the resources page and the word `accounting` of the
+report. The description of a call shows no executable path and no native session
+identifier.

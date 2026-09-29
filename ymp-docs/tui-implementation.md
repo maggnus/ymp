@@ -216,8 +216,15 @@ because of its duration.
 
 ## Limits and unverified behavior
 
-- No native session was driven through the interface. `--claude` is composed
-  and compiles; its behavior in the interface is unobserved.
+- One native session was driven through the interface, pilot run 15 of
+  `ymp-docs/experiments/homogeneous-claude-elementary/` on
+  `claude-haiku-4-5-20251001`: five calls, pages opened within a second while a
+  provider call ran, a delivered report and a restored terminal. An interrupt, a
+  recovery, a question to the user and a second session in the same store were
+  not exercised on a native session.
+- The time printed on the blocking line and on the report line of the
+  conversation is the latest recorded time of the projection, not the time of
+  that record, so it moves while later records arrive.
 - Terminal restoration after a panic of the interface loop and after a terminal
   error is implemented and was not provoked in a terminal. The same holds for
   the message about a record that cannot be read on leaving.
