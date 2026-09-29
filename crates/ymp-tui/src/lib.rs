@@ -2,7 +2,13 @@
 //! Owner: W1-0015.
 //! Created by owner decision on 2026-09-16; see ymp-docs/project-worktree.md.
 //! A module gains behavior only through its owning task.
+//!
+//! The interface owns no domain state and grants nothing. It names what the user
+//! asked for through the `Host` port and shows what the kernel recorded.
 
 pub mod app;
 pub mod events;
 pub mod screens;
+
+pub use app::{Draft, Expectation, Host, Leaving, Member, SessionRow};
+pub use events::run;

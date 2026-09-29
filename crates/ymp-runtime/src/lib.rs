@@ -13,8 +13,13 @@ pub mod consequences;
 pub mod dispatcher;
 pub mod execution_host;
 pub mod experiments;
+pub mod live_session;
 pub mod memory_journal;
 pub mod policies;
 pub mod readiness;
 pub mod team_operations;
 pub mod workspace;
+
+/// Consumers that depend only on the runtime name domain and kernel values through it.
+pub use ymp_domain as domain;
+pub use ymp_kernel as kernel;

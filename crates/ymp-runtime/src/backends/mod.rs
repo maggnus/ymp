@@ -9,3 +9,4 @@ mod files;
 pub mod glm;
 mod process;
 pub mod scripted;
+pub mod scripted_team;

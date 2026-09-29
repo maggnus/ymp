@@ -2,7 +2,7 @@
 
 Generated from the canonical JSON records in [`records/`](records/) by `python3 ymp-docs/tasks/manage.py progress --write`. Task write commands and `make tasks-progress` refresh it; do not edit statuses here.
 
-Tasks: 46 (19 done, 0 in progress, 27 open, 0 paused or blocked, 0 rejected). Times are Hong Kong time (UTC+08:00). Last record change: 2026-09-29 17:04.
+Tasks: 46 (19 done, 1 in progress, 26 open, 0 paused or blocked, 0 rejected). Times are Hong Kong time (UTC+08:00). Last record change: 2026-09-29 17:05.
 
 | Mark | Meaning |
 | :---: | --- |
@@ -16,16 +16,24 @@ Tasks: 46 (19 done, 0 in progress, 27 open, 0 paused or blocked, 0 rejected). Ti
 
 | Wave | Done | In progress | Open | Paused or blocked | Rejected | Total | Done % |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| [W1](#wave-w1) | 19 | 0 | 1 | 0 | 0 | 20 | 95% |
+| [W1](#wave-w1) | 19 | 1 | 0 | 0 | 0 | 20 | 95% |
 | [W2](#wave-w2) | 0 | 0 | 4 | 0 | 0 | 4 | 0% |
 | [W3](#wave-w3) | 0 | 0 | 9 | 0 | 0 | 9 | 0% |
 | [W4](#wave-w4) | 0 | 0 | 3 | 0 | 0 | 3 | 0% |
 | [W5](#wave-w5) | 0 | 0 | 5 | 0 | 0 | 5 | 0% |
 | [W6](#wave-w6) | 0 | 0 | 5 | 0 | 0 | 5 | 0% |
 
+## Current work
+
+### W1-0015 — [~] in_progress
+
+Expose the accountable session through a simple interactive Ratatui interface. Owner: claude; revision 10; updated 2026-09-29 17:05 by claude.
+
+Start after W1-0020 delivery: read the TUI reference, the model sections and the Application operations, then build the interface in small usable slices.
+
 ## Wave W1
 
-19 of 20 done; 0 in progress; 0 paused or blocked.
+19 of 20 done; 1 in progress; 0 paused or blocked.
 
 | Status | Task | Title | Area | State | Depends on | Owner | Updated (HKT) | Rev | Evidence |
 | :---: | --- | --- | --- | --- | --- | --- | --- | ---: | --- |
@@ -43,7 +51,7 @@ Tasks: 46 (19 done, 0 in progress, 27 open, 0 paused or blocked, 0 rejected). Ti
 | [x] | [W1-0012](records/W1-0012.json) | Diagnose stalls and perform bounded recovery without discarding verified work | progress | done | W1-0007 ✓, W1-0019 ✓, W1-0010 ✓, W1-0011 ✓ | codex | 2026-09-28 21:35 | 8 | ba307435; ymp-docs/progress-implementation.md; crates/ymp-storage/tests/progress.rs; crates/ymp-runtime/tests/progress.rs |
 | [x] | [W1-0013](records/W1-0013.json) | Finalize the integrated result and deliver an evidence-audited report | reporting | done | W1-0006 ✓, W1-0008 ✓, W1-0019 ✓, W1-0010 ✓, W1-0011 ✓, W1-0012 ✓ | codex | 2026-09-28 23:40 | 8 | d77ba2bc |
 | [x] | [W1-0014](records/W1-0014.json) | Run and recover the minimal accountable producer-reviewer session | session | done | W1-0007 ✓, W1-0011 ✓, W1-0012 ✓, W1-0013 ✓, W1-0018 ✓ | codex | 2026-09-29 04:12 | 17 | ymp-docs/session-implementation.md; crates/ymp-storage/tests/dispatcher.rs; crates/ymp-storage/tests/session.rs; commit [`b566b0d`](https://github.com/maggnus/ymp/commit/b566b0d9fce8c3294e7c4db67f260eec19e72f97); ymp-docs/experiments/homogeneous-gpt-elementary/README.md; git:714e7046; git:aad168d6 |
-| [ ] | [W1-0015](records/W1-0015.json) | Expose the accountable session through a simple interactive Ratatui interface | interface | planned | W1-0014 ✓ | — | 2026-09-16 03:19 | 8 | — |
+| [~] | [W1-0015](records/W1-0015.json) | Expose the accountable session through a simple interactive Ratatui interface | interface | in_progress | W1-0014 ✓ | claude | 2026-09-29 17:05 | 10 | — |
 | [x] | [W1-0016](records/W1-0016.json) | Persist the new Journal and content-addressed payloads across restart | persistence | done | W1-0001 ✓ | codex | 2026-09-16 04:56 | 9 | commit [`07db5fa`](https://github.com/maggnus/ymp/commit/07db5fa45ad10a94e5560c711b7be0274eb5d1c9) |
 | [x] | [W1-0017](records/W1-0017.json) | Execute admitted assignments through a new host and Scripted backend | execution | done | W1-0006 ✓, W1-0007 ✓, W1-0016 ✓ | codex | 2026-09-28 16:18 | 7 | 8de8e73a; ymp-docs/execution-implementation.md; crates/ymp-storage/tests/execution.rs |
 | [x] | [W1-0018](records/W1-0018.json) | Build the native Codex backend and discovery for accountable sessions | providers | done | W1-0003 ✓, W1-0017 ✓ | codex | 2026-09-29 04:11 | 14 | fc6d7d56; ymp-docs/codex-implementation.md; git:aad168d6 |

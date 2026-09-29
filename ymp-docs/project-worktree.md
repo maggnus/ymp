@@ -104,6 +104,7 @@ ymp/
     │   │   ├── memory_journal.rs   # W1-0001
     │   │   ├── application.rs      # W1-0002 intake operations; W1-0014 start/interrupt/recover
     │   │   ├── dispatcher.rs       # W1-0014 loop A1; W3-0008 event-driven boundaries
+    │   │   ├── live_session.rs     # W1-0015: the thread that owns a Dispatcher for an interactive consumer
     │   │   ├── clock.rs            # W1-0007/W1-0017: controllable clock
     │   │   ├── readiness.rs        # W1-0003: StaticDependencyProbe
     │   │   ├── execution_host.rs   # W1-0017
@@ -114,6 +115,7 @@ ymp/
     │   │   ├── backends/
     │   │   │   ├── mod.rs
     │   │   │   ├── scripted.rs     # W1-0017
+    │   │   │   ├── scripted_team.rs # W1-0015: scripted producer-reviewer team read from a program file
     │   │   │   ├── process.rs      # W1-0020: native child process channel shared by codex and claude
     │   │   │   ├── files.rs        # W1-0020: mediated file operation shared by codex and claude
     │   │   │   ├── codex/          # W1-0018: mod.rs, protocol.rs, usage.rs
@@ -166,18 +168,23 @@ ymp/
     │   └── tests/                  # atomicity, restart, corruption, indeterminate commits
     │
     ├── ymp-tui/                    # W1-0015, Ratatui presentation and control adapter
-    │   ├── Cargo.toml              # ymp-runtime, ratatui, crossterm
+    │   ├── Cargo.toml              # ymp-runtime, ratatui (with its crossterm), unicode-width, serde_json
     │   └── src/
     │       ├── lib.rs
     │       ├── app.rs              # interface state derived only from projections
     │       ├── events.rs           # terminal event loop, responsiveness, terminal restoration
-    │       └── screens/mod.rs      # intake, progress, inspection, report; later waves add views
+    │       └── screens/
+    │           ├── mod.rs          # frame: header, conversation, sidebar, composer, overlays
+    │           ├── conversation.rs # attributed activity built from a projection
+    │           └── pages.rs        # inspection tables and record details
     │
     └── ymp-cli/                    # W1-0015, the ymp executable
-        ├── Cargo.toml              # ymp-runtime, ymp-storage, ymp-tui
+        ├── Cargo.toml              # ymp-runtime, ymp-storage, ymp-tui, serde_json
         └── src/
             ├── main.rs
             ├── lib.rs              # command parsing, exit codes, subcommands
+            ├── store.rs            # store location and read-only journal access of the subcommands
+            ├── host.rs             # composition of storage, workspace and backend behind the interface
             └── compare.rs          # W3-0009: comparison-runner subcommand
 ```
 
@@ -215,10 +222,14 @@ ymp/
 
 ## Consequences to keep in mind
 
-- The `ymp` binary exists as a placeholder with an empty `main` until W1-0015;
-  it does nothing. The first real consumer is `DecisionConsumer` composed with
-  `MemoryJournal` in the runtime tests. W1-0002 and W1-0014 add `Application` and
-  filesystem session scenarios.
+- W1-0015 gives the `ymp` binary its behavior; see
+  [tui-implementation.md](tui-implementation.md). The first real consumer is
+  `DecisionConsumer` composed with `MemoryJournal` in the runtime tests. W1-0002
+  and W1-0014 add `Application` and filesystem session scenarios.
+- `ymp` is one executable, so the terminal library is linked into the binary
+  that also serves `sessions` and `report`. Those commands use `store.rs` only
+  and never enter `ymp-tui`. A subcommand that must not link a terminal UI at
+  all needs its own binary target; none exists yet.
 - The original skeleton passed the four required checks with zero tests.
   Implementation tasks add focused evidence and the dependencies they actually
   use; each commit must keep the required checks passing.

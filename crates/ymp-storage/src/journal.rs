@@ -38,6 +38,18 @@ impl SqliteJournal {
             database: self.database.clone(),
         }
     }
+    /// Every recorded session with its revision, in key order. Each journal is
+    /// read and verified as usual; listing grants no authority over any of them.
+    pub fn sessions(&self) -> Result<Vec<(Id, u64)>> {
+        let mut connection = self.database.connect(false)?;
+        let tx = connection.transaction().map_err(sql_error)?;
+        let mut found = vec![];
+        visit_journals(&tx, &self.schemas, |id, read| {
+            found.push((id, read.revision));
+            Ok(())
+        })?;
+        Ok(found)
+    }
 
     fn write(
         &self,

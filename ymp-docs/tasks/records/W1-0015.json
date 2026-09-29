@@ -5,11 +5,11 @@
   "title": "Expose the accountable session through a simple interactive Ratatui interface",
   "type": "implementation",
   "priority": 115,
-  "status": "planned",
+  "status": "in_progress",
   "depends_on": [
     "W1-0014"
   ],
-  "owner": null,
+  "owner": "claude",
   "goal": "Let a user state a goal, follow agent work, control recoverable execution and inspect the checked result from a usable terminal interface.",
   "scope": [
     "Build the Ratatui interface with OpenCode as the primary TUI inspiration, k9s as the inspiration for lists, tables and descriptions/detail views, and the ymp2 TUI as the practical visual and interaction basis, recorded in ymp-docs/tui-reference.md. Adapt the conversation, right sidebar, bottom composer, command palette, keyboard focus, tables and detail overlays to runtime operations and deterministic journal projections. Detailed adaptations remain implementation choices.",
@@ -32,7 +32,7 @@
     "User intake/clarification, interrupt/recover and inspection use kernel-backed application operations. Agent text cannot impersonate continuation authority. A report after stop uses recorded facts with no further inference; terminal restoration/responsiveness are part of this task.",
     "Legacy access granted (owner decision 2026-09-16, AGENTS.md rule; follows the ymp2 TUI-basis decision): legacy-attempt-2:ymp-rust/crates/ymp-tui/src/{lib,state,frame,sidebar,commands,label,table,theme,terminal,views}.rs may be opened for interaction and layout facts only: event-loop shape and draw cadence, state/render separation, sidebar breakpoints and shrink order, command registry and palette behaviour, Esc order, label and column vocabulary, table conventions, terminal quirks. Import no types, module names or control flow; ymp-docs/tui-reference.md is the owner-selected reference and ymp-docs/legacy-lessons.md section 10.7 lists the facts with their tests."
   ],
-  "revision": 8,
+  "revision": 10,
   "history": [
     {
       "revision": 1,
@@ -89,6 +89,20 @@
       "actor": "manage.py",
       "status": "planned",
       "note": "Owner decision 2026-09-16: bounded legacy access to the ymp2 TUI sources for interaction and layout facts, per the AGENTS.md legacy rule and the TUI-basis decision."
+    },
+    {
+      "revision": 9,
+      "at": "2026-09-29T09:05:23.500596Z",
+      "actor": "claude",
+      "status": "in_progress",
+      "note": "Claimed by claude."
+    },
+    {
+      "revision": 10,
+      "at": "2026-09-29T09:05:23.560436Z",
+      "actor": "claude",
+      "status": "in_progress",
+      "note": "Start after W1-0020 delivery: read the TUI reference, the model sections and the Application operations, then build the interface in small usable slices."
     }
   ]
 }

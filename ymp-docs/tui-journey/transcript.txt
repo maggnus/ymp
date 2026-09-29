@@ -1,0 +1,969 @@
+
+==== 1.1 text alone starts nothing ====
+ ymp no session · scripted team (no model) · workspace <root>/success/work · st…
+▌ You · goal (not started)                                              │ SESSION
+▌   Sort the numbers of input.json into sorted.json                     │ status not started
+▌                                                                       │
+  11:48:51 ymp                                                          │ TEAM
+    State the goal in your own words and press Enter.                   │ scripted-a scripted
+    Name what must be true with /expect PATH TEXT or /preserve PATH;    │ scripted-b scripted
+    /start begins.                                                      │
+    Ctrl+P lists every command.                                         │ CRITERIA
+  11:48:51 Goal stated; not started                                     │ none stated
+    A session needs at least one checked expectation.                   │
+    Add /expect PATH TEXT or /preserve PATH, then /start.               │ WORK
+                                                                        │ calls 0 recorded · 0 working · 0 wi…
+                                                                        │
+                                                                        │ RESOURCES
+                                                                        │ budget 100 (draft)
+                                                                        │
+                                                                        │ PENDING
+                                                                        │ no decision is waiting
+                                                                        │
+                                                                        │ PAGES
+                                                                        │   sessions
+                                                                        │   team
+                                                                        │   criteria
+                                                                        │   plan
+                                                                        │   assignments
+                                                                        │   commitments
+                                                                        │   resources
+                                                                        │   activity
+                                                                        │   results
+ goal or /command ────────────────────────────────────────────────────────────────────────────────────────────
+>
+──────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ composer · no session · Enter send · Ctrl+J newline · Ctrl+P commands · Ctrl+B sidebar · PgUp/PgDn read · Ct…
+
+==== 1.2 the session ran to a delivered report ====
+ ymp session session-1790682532677 · recorded status Delivered · revision 231 · report delivered · scripted t…
+  before-next-76-0: Pass                                                │ SESSION
+  11:49:48 Check check-criterion-1 for criterion criterion-1 on         │ status Delivered
+  Candidate integrated: Pass                                            │ revision 231
+  11:49:48 Check check-criterion-1 for criterion criterion-1 on Baseline│ interface report delivered
+  before-next-76-0: Fail                                                │
+  11:49:48 Check check-criterion-2 for criterion criterion-2 on         │ TEAM
+  Candidate integrated: Pass                                            │ scripted-a scripted
+  11:49:59 scripted-b · FinalReviewer · scripted · Completed            │ scripted-b scripted
+    usage: input 2 · output 0 · coverage Complete                       │
+    reported:                                                           │ CRITERIA
+    {"id":"final-review","aggregate":{"id":"final-66df8d6298d788a1a30879│ Satisfied criterion-1
+    7b52865e5df349b0b21b768a386d1314b2bbf0a945","version":"e3dc86e801465│ Satisfied criterion-2
+    d9551e750b2c076d21fe3ee9b5c4d84aee6102442a324a683d1"},"verdict":"App│
+    rove","basis":["final-evidence-199346eace4bb7935106ce5b137fcd1125510│ WORK
+    d2109b4ef9aa4a3d211e8dc03c6","final-evidence-7306dde60575c261a0c2494│ calls 6 recorded · 0 working · 0 wi…
+    1507cf75fdb3ff9b0ee92d61b4e2a1cb916f4c692"],"rationale":"The        │ item Accepted
+    integrated retained bytes match the accepted result"}               │
+▌ 11:50:18 Report · outcome Delivered · grade Confirmed(TrustedCheck)   │ RESOURCES
+▌   Final result accepted; confirmation grade: Confirmed(TrustedCheck). │ limit 100
+▌                                                                       │ spent 12
+▌   Outcome: Delivered                                                  │ held 0
+▌   Confirmation grade: Confirmed(TrustedCheck)                         │ reserves verification 20 · reportin…
+▌   Retained result: result-next-76-0 at                                │ unknown usage none recorded
+▌   9b6956608bc53bf04de89b733210807029ab718d263f9fd0fffc018d34cf8432    │
+▌   Cost units settled: 12; held: 0; estimated or unresolved costs:     │ PENDING
+▌   false                                                               │ no decision is waiting
+▌   Unresolved commitments: 0                                           │
+▌   accounting: spent 12 · held 0 · unknown usage no                    │ PAGES
+▌                                                                       │   sessions
+ /command ────────────────────────────────────────────────────────────────────────────────────────────────────
+>
+──────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ composer · report delivered · Enter send · Ctrl+J newline · Ctrl+P commands · Ctrl+B sidebar · PgUp/PgDn rea…
+
+==== 1.3 criteria table ====
+ ymp session session-1790682532677 · recorded status Delivered · revision 231 · report delivered · scripted t…
+ Criteria · 2 of 2 ─────────────────────────────────────────────────────│ SESSION
+  CRITERION   STATUS    BELIEF KIND        REQUIRED ORIGIN TEXT         │ status Delivered
+> criterion-1 Satisfied   0.98 NewBehavior yes      User   sorted.json… │ revision 231
+  criterion-2 Satisfied   0.98 Preserve    yes      User   input.json … │ interface report delivered
+                                                                        │
+                                                                        │ TEAM
+                                                                        │ scripted-a scripted
+                                                                        │ scripted-b scripted
+                                                                        │
+                                                                        │ CRITERIA
+                                                                        │ Satisfied criterion-1
+                                                                        │ Satisfied criterion-2
+                                                                        │
+                                                                        │ WORK
+                                                                        │ calls 6 recorded · 0 working · 0 wi…
+                                                                        │ item Accepted
+                                                                        │
+                                                                        │ RESOURCES
+                                                                        │ limit 100
+                                                                        │ spent 12
+                                                                        │ held 0
+                                                                        │ reserves verification 20 · reportin…
+                                                                        │ unknown usage none recorded
+                                                                        │
+                                                                        │ PENDING
+                                                                        │ no decision is waiting
+                                                                        │
+                                                                        │ PAGES
+                                                                        │   sessions
+ /command ────────────────────────────────────────────────────────────────────────────────────────────────────
+>
+──────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ page · ↑↓ select · Enter describe · / filter · s sort · S reverse · Tab next page · Esc close
+
+==== 1.4 detail of the selected criterion ====
+ ymp session session-1790682532677 · recorded status Delivered · revision 231 · report delivered · scripted t…
+ Cr┌ Criteria · criterion-1 ──────────────────────────────────────────────────────────────────────────────┐
+  C│ id: criterion-1                                                                                      │
+> c│ kind: NewBehavior                                                                                    │
+  c│ needs_class: []                                                                                      │
+   │ origin: User                                                                                         │
+   │ required: yes                                                                                        │
+   │ text: sorted.json contains exactly "[1,2,2,3]\n"                                                     │
+   │ weight: 1                                                                                            │
+   │                                                                                                      │
+   │ ledger:                                                                                              │
+   │ belief: 0.98                                                                                         │
+   │ changed: 1790682611627                                                                               │
+   │ evidence:                                                                                            │
+   │   - final-evidence-7306dde60575c261a0c24941507cf75fdb3ff9b0ee92d61b4e2a1cb916f4c692                  │
+   │ status: Satisfied                                                                                    │wi…
+   │ stimulus: 1                                                                                          │
+   │ unmet_since: 1790682611627                                                                           │
+   │                                                                                                      │
+   │ check check-criterion-1:                                                                             │
+   │ author: User                                                                                         │
+   │ criterion: criterion-1                                                                               │
+   │ criterion_version: 8e149969c0fb1722cda67549f4eade09dc40ddacfcc9c16d564d53c481059493                  │in…
+   │ id: check-criterion-1                                                                                │
+   │ independence: Trusted                                                                                │
+   │ needs:                                                                                               │
+   │   - ReadFiles                                                                                        │
+   │ spec:                                                                                                │
+   │   ExactBytes:                                                                                        │
+   └──────────────────────────────────────────────────────────────────────────────────────────────────────┘
+ /command ────────────────────────────────────────────────────────────────────────────────────────────────────
+>
+──────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ description · ↑↓ PgUp PgDn scroll · Esc close
+
+==== 1.5 resources ====
+ ymp session session-1790682532677 · recorded status Delivered · revision 231 · report delivered · scripted t…
+ Resources · 6 of 6 ────────────────────────────────────────────────────│ SESSION
+ limit 100 · spent 12 · held 0 · verification reserve 20 · reporting    │ status Delivered
+ reserve 20 · unknown usage: none recorded                              │ revision 231
+  ACCOUNT  PURPOSE  AGENT    RESERVED STATE   INPUT OUTPUT COVERA… COST │ interface report delivered
+> final-r… Verific… scripte…        2 Settled     2      0 Comple…    — │
+  intake   Coordin… scripte…       10 Settled     2      0 Comple…    — │ TEAM
+  next-11… Verific… scripte…       10 Settled     2      0 Comple…    — │ scripted-a scripted
+  next-76… Product… scripte…       10 Settled     2      0 Comple…    — │ scripted-b scripted
+  plan     Coordin… scripte…        2 Settled     2      0 Comple…    — │
+  review-… Verific… scripte…       10 Settled     2      0 Comple…    — │ CRITERIA
+                                                                        │ Satisfied criterion-1
+                                                                        │ Satisfied criterion-2
+                                                                        │
+                                                                        │ WORK
+                                                                        │ calls 6 recorded · 0 working · 0 wi…
+                                                                        │ item Accepted
+                                                                        │
+                                                                        │ RESOURCES
+                                                                        │ limit 100
+                                                                        │ spent 12
+                                                                        │ held 0
+                                                                        │ reserves verification 20 · reportin…
+                                                                        │ unknown usage none recorded
+                                                                        │
+                                                                        │ PENDING
+                                                                        │ no decision is waiting
+                                                                        │
+                                                                        │ PAGES
+                                                                        │   sessions
+ /command ────────────────────────────────────────────────────────────────────────────────────────────────────
+>
+──────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ page · ↑↓ select · Enter describe · / filter · s sort · S reverse · Tab next page · Esc close
+
+==== 1.6 activity table ====
+ ymp session session-1790682532677 · recorded status Delivered · revision 231 · report delivered · scripted t…
+ Activity · 6 of 6 ─────────────────────────────────────────────────────│ SESSION
+  INVOCAT… AGENT   ROLE    MODEL   OUTCOME INPUT OUTPUT COVERA… STARTED │ status Delivered
+> call-in… script… Planner script… Comple…     2      0 Comple… 11:48:… │ revision 231
+  call-pl… script… Planner script… Comple…     2      0 Comple… 11:49:… │ interface report delivered
+  call-ne… script… Produc… script… Comple…     2      0 Comple… 11:49:… │
+  call-ne… script… Verifi… script… Comple…     2      0 Comple… 11:49:… │ TEAM
+  call-re… script… Review… script… Comple…     2      0 Comple… 11:49:… │ scripted-a scripted
+  call-fi… script… FinalR… script… Comple…     2      0 Comple… 11:49:… │ scripted-b scripted
+                                                                        │
+                                                                        │ CRITERIA
+                                                                        │ Satisfied criterion-1
+                                                                        │ Satisfied criterion-2
+                                                                        │
+                                                                        │ WORK
+                                                                        │ calls 6 recorded · 0 working · 0 wi…
+                                                                        │ item Accepted
+                                                                        │
+                                                                        │ RESOURCES
+                                                                        │ limit 100
+                                                                        │ spent 12
+                                                                        │ held 0
+                                                                        │ reserves verification 20 · reportin…
+                                                                        │ unknown usage none recorded
+                                                                        │
+                                                                        │ PENDING
+                                                                        │ no decision is waiting
+                                                                        │
+                                                                        │ PAGES
+                                                                        │   sessions
+ /command ────────────────────────────────────────────────────────────────────────────────────────────────────
+>
+──────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ page · ↑↓ select · Enter describe · / filter · s sort · S reverse · Tab next page · Esc close
+
+==== 1.7 a second start is denied and records nothing ====
+ ymp session session-1790682532677 · recorded status Delivered · revision 231 · report delivered · scripted t…
+  before-next-76-0: Fail                                                │ SESSION
+  11:49:48 Check check-criterion-2 for criterion criterion-2 on         │ status Delivered
+  Candidate integrated: Pass                                            │ revision 231
+  11:49:59 scripted-b · FinalReviewer · scripted · Completed            │ interface report delivered
+    usage: input 2 · output 0 · coverage Complete                       │
+    reported:                                                           │ TEAM
+    {"id":"final-review","aggregate":{"id":"final-66df8d6298d788a1a30879│ scripted-a scripted
+    7b52865e5df349b0b21b768a386d1314b2bbf0a945","version":"e3dc86e801465│ scripted-b scripted
+    d9551e750b2c076d21fe3ee9b5c4d84aee6102442a324a683d1"},"verdict":"App│
+    rove","basis":["final-evidence-199346eace4bb7935106ce5b137fcd1125510│ CRITERIA
+    d2109b4ef9aa4a3d211e8dc03c6","final-evidence-7306dde60575c261a0c2494│ Satisfied criterion-1
+    1507cf75fdb3ff9b0ee92d61b4e2a1cb916f4c692"],"rationale":"The        │ Satisfied criterion-2
+    integrated retained bytes match the accepted result"}               │
+▌ 11:50:18 Report · outcome Delivered · grade Confirmed(TrustedCheck)   │ WORK
+▌   Final result accepted; confirmation grade: Confirmed(TrustedCheck). │ calls 6 recorded · 0 working · 0 wi…
+▌                                                                       │ item Accepted
+▌   Outcome: Delivered                                                  │
+▌   Confirmation grade: Confirmed(TrustedCheck)                         │ RESOURCES
+▌   Retained result: result-next-76-0 at                                │ limit 100
+▌   9b6956608bc53bf04de89b733210807029ab718d263f9fd0fffc018d34cf8432    │ spent 12
+▌   Cost units settled: 12; held: 0; estimated or unresolved costs:     │ held 0
+▌   false                                                               │ reserves verification 20 · reportin…
+▌   Unresolved commitments: 0                                           │ unknown usage none recorded
+▌   accounting: spent 12 · held 0 · unknown usage no                    │
+▌                                                                       │ PENDING
+  11:50:21 Denied: start                                                │ no decision is waiting
+    session_open: Session session-1790682532677 is open; /new leaves it │
+    as recorded                                                         │ PAGES
+    This recorded nothing; the revision shown is 231.                   │   sessions
+ /command ────────────────────────────────────────────────────────────────────────────────────────────────────
+>
+──────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ composer · report delivered · Enter send · Ctrl+J newline · Ctrl+P commands · Ctrl+B sidebar · PgUp/PgDn rea…
+
+==== 1.8 after /quit the terminal is restored ====
+Left session session-1790682532677 at revision 231 with recorded status Delivered.
+Read it again with: ymp report --store <root>/success/store session-1790682532677
+EXIT=0
+speed 9600 baud; 34 rows; 110 columns;
+lflags: icanon isig iexten echo echoe -echok echoke -echonl echoctl
+
+==== $ ymp sessions --store <root>/success/store ====
+session-1790682532677  revision 231  status Delivered  Sort the numbers of input.json into sorted.json
+(exit 0)
+
+==== $ ymp report --store <root>/success/store session-1790682532677 ====
+session session-1790682532677 · revision 231 · recorded status Delivered
+Final result accepted; confirmation grade: Confirmed(TrustedCheck).
+
+Outcome: Delivered
+Confirmation grade: Confirmed(TrustedCheck)
+Retained result: result-next-76-0 at 9b6956608bc53bf04de89b733210807029ab718d263f9fd0fffc018d34cf8432
+Cost units settled: 12; held: 0; estimated or unresolved costs: false
+Unresolved commitments: 0
+(exit 0)
+
+==== 1.9 recorded sessions of the store ====
+ ymp no session · scripted team (no model) · workspace <root>/success/work · st…
+ Sessions · 1 of 1 ─────────────────────────────────────────────────────│ SESSION
+  SESSION               STATUS    REVISION GOAL                         │ status not started
+> session-1790682532677 Delivered      231 Sort the numbers of input.j… │
+                                                                        │ TEAM
+                                                                        │ scripted-a scripted
+                                                                        │ scripted-b scripted
+                                                                        │
+                                                                        │ CRITERIA
+                                                                        │ none stated
+                                                                        │
+                                                                        │ WORK
+                                                                        │ calls 0 recorded · 0 working · 0 wi…
+                                                                        │
+                                                                        │ RESOURCES
+                                                                        │ budget 100 (draft)
+                                                                        │
+                                                                        │ PENDING
+                                                                        │ no decision is waiting
+                                                                        │
+                                                                        │ PAGES
+                                                                        │   sessions
+                                                                        │   team
+                                                                        │   criteria
+                                                                        │   plan
+                                                                        │   assignments
+                                                                        │   commitments
+                                                                        │   resources
+                                                                        │   activity
+                                                                        │   results
+ goal or /command ────────────────────────────────────────────────────────────────────────────────────────────
+>
+──────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ page · ↑↓ select · Enter describe · / filter · s sort · S reverse · Tab next page · Esc close
+
+==== 1.10 the recorded session and its report, opened read-only ====
+ ymp session session-1790682532677 · recorded status Delivered · revision 231 · read-only · scripted team (no…
+  before-next-76-0: Fail                                                │ SESSION
+  11:49:48 Check check-criterion-2 for criterion criterion-2 on         │ status Delivered
+  Candidate integrated: Pass                                            │ revision 231
+  11:49:59 scripted-b · FinalReviewer · scripted · Completed            │ interface read-only
+    usage: input 2 · output 0 · coverage Complete                       │
+    reported:                                                           │ TEAM
+    {"id":"final-review","aggregate":{"id":"final-66df8d6298d788a1a30879│ scripted-a scripted
+    7b52865e5df349b0b21b768a386d1314b2bbf0a945","version":"e3dc86e801465│ scripted-b scripted
+    d9551e750b2c076d21fe3ee9b5c4d84aee6102442a324a683d1"},"verdict":"App│
+    rove","basis":["final-evidence-199346eace4bb7935106ce5b137fcd1125510│ CRITERIA
+    d2109b4ef9aa4a3d211e8dc03c6","final-evidence-7306dde60575c261a0c2494│ Satisfied criterion-1
+    1507cf75fdb3ff9b0ee92d61b4e2a1cb916f4c692"],"rationale":"The        │ Satisfied criterion-2
+    integrated retained bytes match the accepted result"}               │
+▌ 11:50:18 Report · outcome Delivered · grade Confirmed(TrustedCheck)   │ WORK
+▌   Final result accepted; confirmation grade: Confirmed(TrustedCheck). │ calls 6 recorded · 0 working · 0 wi…
+▌                                                                       │ item Accepted
+▌   Outcome: Delivered                                                  │
+▌   Confirmation grade: Confirmed(TrustedCheck)                         │ RESOURCES
+▌   Retained result: result-next-76-0 at                                │ limit 100
+▌   9b6956608bc53bf04de89b733210807029ab718d263f9fd0fffc018d34cf8432    │ spent 12
+▌   Cost units settled: 12; held: 0; estimated or unresolved costs:     │ held 0
+▌   false                                                               │ reserves verification 20 · reportin…
+▌   Unresolved commitments: 0                                           │ unknown usage none recorded
+▌   accounting: spent 12 · held 0 · unknown usage no                    │
+▌                                                                       │ PENDING
+  11:50:23 Opened read-only                                             │ no decision is waiting
+    Reading a session drives nothing.                                   │
+    /recover continue drives it again when the runtime permits; /recover│ PAGES
+    report only delivers its report.                                    │   sessions
+ /command ────────────────────────────────────────────────────────────────────────────────────────────────────
+>
+──────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ composer · read-only · Enter send · Ctrl+J newline · Ctrl+P commands · Ctrl+B sidebar · PgUp/PgDn read · Ctr…
+
+==== 1.11 leaving a session that was only read ====
+Left session session-1790682532677 at revision 231 with recorded status Delivered.
+Read it again with: ymp report --store <root>/success/store session-1790682532677
+EXIT=0
+speed 9600 baud; 34 rows; 110 columns;
+lflags: icanon isig iexten echo echoe -echok echoke -echonl echoctl
+
+==== 2.1 the report names the unmet criterion ====
+ ymp session session-1790682625916 · recorded status Blocked(final_acceptance_unavailable) · revision 190 · r…
+    fb0ee49cea","result":{"id":"result-next-76-0","version":"e4a52892d9b│ SESSION
+    aac2599ddb7372c734789070e54815048282e305f865724b5bf15"},"criteria":[│ status Blocked(final_acceptance_una…
+    {"id":"criterion-1","version":"8e149969c0fb1722cda67549f4eade09dc40d│ revision 190
+    dacfcc9c16d564d53c481059493"},{"id":"criterion-2","version":"a7a33f1│ interface report delivered
+    73236f71417037b66910ebc69607f97a3abdf1d7111b1b26de3c9abb5"}],"verdic│
+    t":"Approve","findings":[],"basis":["evidence-result-next-76-0-check│ TEAM
+    -criterion-1","evidence-result-next-76-0-check-criterion-2"],"ration│ scripted-a scripted
+    ale":"The trusted check confirmed the retained candidate"}          │ scripted-b scripted
+  11:51:12 scripted-b · review of result-next-76-0 · scripted: Approve  │
+  11:51:14 Runtime · acceptance of ResultVersion(result-next-76-0):     │ CRITERIA
+  Rejected(failing applicable check) · grade Refuted                    │ Contradicted criterion-1
+  11:51:19 Runtime · session blocked: candidate_rejected                │ Satisfied criterion-2
+▌ 11:51:19 Report · outcome Blocked(final_acceptance_unavailable) ·     │
+▌ grade Unconfirmed                                                     │ WORK
+▌   Uncertain: independent final acceptance is unavailable; retained    │ calls 5 recorded · 0 working · 0 wi…
+▌   work is not presented as a completed artifact.                      │ item Failed
+▌                                                                       │
+▌   Outcome: Blocked("final_acceptance_unavailable")                    │ RESOURCES
+▌   Confirmation grade: Unconfirmed                                     │ limit 100
+▌   Unmet criterion criterion-1: "sorted.json contains exactly          │ spent 10
+▌   \"[1,2,2,3]\\n\""                                                   │ held 0
+▌   Unmet criterion criterion-2: "input.json keeps its original bytes"  │ reserves verification 20 · reportin…
+▌   Retained result: result-next-76-0 at                                │ unknown usage none recorded
+▌   e4a52892d9baac2599ddb7372c734789070e54815048282e305f865724b5bf15    │
+▌   Cost units settled: 10; held: 0; estimated or unresolved costs:     │ PENDING
+▌   false                                                               │ no decision is waiting
+▌   Unresolved commitments: 1                                           │
+▌   accounting: spent 10 · held 0 · unknown usage no                    │ PAGES
+▌                                                                       │   sessions
+ /command ────────────────────────────────────────────────────────────────────────────────────────────────────
+>
+──────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ composer · report delivered · Enter send · Ctrl+J newline · Ctrl+P commands · Ctrl+B sidebar · PgUp/PgDn rea…
+
+==== 2.2 criteria with an unmet criterion ====
+ ymp session session-1790682625916 · recorded status Blocked(final_acceptance_unavailable) · revision 190 · r…
+ Criteria · 2 of 2 ─────────────────────────────────────────────────────│ SESSION
+  CRITERION   STATUS      BELIEF KIND        REQUIRED ORIGIN TEXT       │ status Blocked(final_acceptance_una…
+> criterion-1 Contradict…      0 NewBehavior yes      User   sorted.js… │ revision 190
+  criterion-2 Satisfied     0.98 Preserve    yes      User   input.jso… │ interface report delivered
+                                                                        │
+                                                                        │ TEAM
+                                                                        │ scripted-a scripted
+                                                                        │ scripted-b scripted
+                                                                        │
+                                                                        │ CRITERIA
+                                                                        │ Contradicted criterion-1
+                                                                        │ Satisfied criterion-2
+                                                                        │
+                                                                        │ WORK
+                                                                        │ calls 5 recorded · 0 working · 0 wi…
+                                                                        │ item Failed
+                                                                        │
+                                                                        │ RESOURCES
+                                                                        │ limit 100
+                                                                        │ spent 10
+                                                                        │ held 0
+                                                                        │ reserves verification 20 · reportin…
+                                                                        │ unknown usage none recorded
+                                                                        │
+                                                                        │ PENDING
+                                                                        │ no decision is waiting
+                                                                        │
+                                                                        │ PAGES
+                                                                        │   sessions
+ /command ────────────────────────────────────────────────────────────────────────────────────────────────────
+>
+──────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ page · ↑↓ select · Enter describe · / filter · s sort · S reverse · Tab next page · Esc close
+
+==== 2.3 exit ====
+Left session session-1790682625916 at revision 190 with recorded status Blocked(final_acceptance_unavailable).
+Read it again with: ymp report --store <root>/unmet/store session-1790682625916
+EXIT=0
+speed 9600 baud; 34 rows; 110 columns;
+lflags: icanon isig iexten echo echoe -echok echoke -echonl echoctl
+
+==== 3.1 Ctrl+C during work: the stop is recorded and a report follows ====
+ ymp session session-1790682682415 · recorded status Cancelled · revision 114 · report delivered · scripted t…
+    reported:                                                           │ SESSION
+    {"plan":{"id":"plan","session":"session-1790682682415","version":1,"│ status Cancelled
+    items":["item"],"rationale":"One work item writes every scripted    │ revision 114
+    file","author":"plan"},"items":[{"id":"item","plan":"plan","title":"│ interface report delivered
+    Write the scripted                                                  │
+    files","targets":["criterion-1","criterion-2"],"deps":[],"needs":["R│ TEAM
+    eadFiles","WriteFiles"],"writes":["sorted.json"],"state":"Open","att│ scripted-a scripted
+    empts":[],"accepted":null,"parent":null}]}                          │ scripted-b scripted
+  11:51:44 scripted-a · Producer · scripted · Cancelled                 │
+    usage: input 0 · output 0 · coverage Unknown — usage is not fully   │ CRITERIA
+    known                                                               │ not assessed criterion-1
+  11:51:45 Interrupt requested                                          │ not assessed criterion-2
+    Press Ctrl+C again to leave.                                        │
+  11:51:45 Recorded: interrupt                                          │ WORK
+    Revision 101 follows 97.                                            │ calls 3 recorded · 0 working · 0 wi…
+  11:51:48 Runtime · stop recorded; no further model call is started    │ item Running
+▌ 11:51:48 Report · outcome Cancelled · grade Unconfirmed               │
+▌   Uncertain: independent final acceptance is unavailable; retained    │ RESOURCES
+▌   work is not presented as a completed artifact.                      │ limit 100
+▌                                                                       │ spent 4
+▌   Outcome: Cancelled                                                  │ held 10
+▌   Confirmation grade: Unconfirmed                                     │ reserves verification 20 · reportin…
+▌   Unmet criterion criterion-1: "sorted.json contains exactly          │ unknown usage present
+▌   \"[1,2,2,3]\\n\""                                                   │
+▌   Unmet criterion criterion-2: "input.json keeps its original bytes"  │ PENDING
+▌   Cost units settled: 4; held: 10; estimated or unresolved costs: true│ no decision is waiting
+▌   Unresolved commitments: 1                                           │
+▌   accounting: spent 4 · held 10 · unknown usage yes                   │ PAGES
+▌                                                                       │   sessions
+ /command ────────────────────────────────────────────────────────────────────────────────────────────────────
+>
+──────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ composer · report delivered · Enter send · Ctrl+J newline · Ctrl+P commands · Ctrl+B sidebar · PgUp/PgDn rea…
+
+==== 3.2 nothing runs, so the interrupt is denied and records nothing ====
+ ymp session session-1790682682415 · recorded status Cancelled · revision 114 · report delivered · scripted t…
+    Write the scripted                                                  │ SESSION
+    files","targets":["criterion-1","criterion-2"],"deps":[],"needs":["R│ status Cancelled
+    eadFiles","WriteFiles"],"writes":["sorted.json"],"state":"Open","att│ revision 114
+    empts":[],"accepted":null,"parent":null}]}                          │ interface report delivered
+  11:51:44 scripted-a · Producer · scripted · Cancelled                 │
+    usage: input 0 · output 0 · coverage Unknown — usage is not fully   │ TEAM
+    known                                                               │ scripted-a scripted
+  11:51:45 Interrupt requested                                          │ scripted-b scripted
+    Press Ctrl+C again to leave.                                        │
+  11:51:45 Recorded: interrupt                                          │ CRITERIA
+    Revision 101 follows 97.                                            │ not assessed criterion-1
+  11:51:48 Runtime · stop recorded; no further model call is started    │ not assessed criterion-2
+▌ 11:51:48 Report · outcome Cancelled · grade Unconfirmed               │
+▌   Uncertain: independent final acceptance is unavailable; retained    │ WORK
+▌   work is not presented as a completed artifact.                      │ calls 3 recorded · 0 working · 0 wi…
+▌                                                                       │ item Running
+▌   Outcome: Cancelled                                                  │
+▌   Confirmation grade: Unconfirmed                                     │ RESOURCES
+▌   Unmet criterion criterion-1: "sorted.json contains exactly          │ limit 100
+▌   \"[1,2,2,3]\\n\""                                                   │ spent 4
+▌   Unmet criterion criterion-2: "input.json keeps its original bytes"  │ held 10
+▌   Cost units settled: 4; held: 10; estimated or unresolved costs: true│ reserves verification 20 · reportin…
+▌   Unresolved commitments: 1                                           │ unknown usage present
+▌   accounting: spent 4 · held 10 · unknown usage yes                   │
+▌                                                                       │ PENDING
+  11:51:49 Denied: interrupt                                            │ no decision is waiting
+    not_working: No work is running in this session; there is nothing to│
+    interrupt                                                           │ PAGES
+    This recorded nothing; the revision shown is 114.                   │   sessions
+ /command ────────────────────────────────────────────────────────────────────────────────────────────────────
+>
+──────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ composer · report delivered · Enter send · Ctrl+J newline · Ctrl+P commands · Ctrl+B sidebar · PgUp/PgDn rea…
+
+==== 3.3 the runtime decides whether a stopped session may continue ====
+ ymp session session-1790682682415 · recorded status Cancelled · revision 114 · read-only · scripted team (no…
+    Press Ctrl+C again to leave.                                        │ SESSION
+  11:51:45 Recorded: interrupt                                          │ status Cancelled
+    Revision 101 follows 97.                                            │ revision 114
+  11:51:48 Runtime · stop recorded; no further model call is started    │ interface read-only
+▌ 11:51:48 Report · outcome Cancelled · grade Unconfirmed               │
+▌   Uncertain: independent final acceptance is unavailable; retained    │ TEAM
+▌   work is not presented as a completed artifact.                      │ scripted-a scripted
+▌                                                                       │ scripted-b scripted
+▌   Outcome: Cancelled                                                  │
+▌   Confirmation grade: Unconfirmed                                     │ CRITERIA
+▌   Unmet criterion criterion-1: "sorted.json contains exactly          │ not assessed criterion-1
+▌   \"[1,2,2,3]\\n\""                                                   │ not assessed criterion-2
+▌   Unmet criterion criterion-2: "input.json keeps its original bytes"  │
+▌   Cost units settled: 4; held: 10; estimated or unresolved costs: true│ WORK
+▌   Unresolved commitments: 1                                           │ calls 3 recorded · 0 working · 0 wi…
+▌   accounting: spent 4 · held 10 · unknown usage yes                   │ item Running
+▌                                                                       │
+  11:51:49 Denied: interrupt                                            │ RESOURCES
+    not_working: No work is running in this session; there is nothing to│ limit 100
+    interrupt                                                           │ spent 4
+    This recorded nothing; the revision shown is 114.                   │ held 10
+  11:51:49 Recovery requested: continue                                 │ reserves verification 20 · reportin…
+    The runtime decides from the recorded state what may continue.      │ unknown usage present
+    Work that was in flight is not resumed; its holds and unknown usage │
+    stay as recorded.                                                   │ PENDING
+  11:51:49 Denied: drive the session                                    │ no decision is waiting
+    continuation_unavailable: Reporting or terminal finalization cannot │
+    be reopened for model work                                          │ PAGES
+    This recorded nothing; the revision shown is 114.                   │   sessions
+ /command ────────────────────────────────────────────────────────────────────────────────────────────────────
+>
+──────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ composer · read-only · Enter send · Ctrl+J newline · Ctrl+P commands · Ctrl+B sidebar · PgUp/PgDn read · Ctr…
+
+==== 3.4 exit ====
+Left session session-1790682682415 at revision 114 with recorded status Cancelled.
+Read it again with: ymp report --store <root>/interrupt/store session-1790682682415
+EXIT=0
+speed 9600 baud; 34 rows; 110 columns;
+lflags: icanon isig iexten echo echoe -echok echoke -echonl echoctl
+
+==== 4.1 /quit while a call is in flight ====
+Left session session-1790682713892 at revision 97 with recorded status Running.
+The session had work left and nothing drives it now. Open it again and choose /recover continue or /recover report.
+Read it again with: ymp report --store <root>/left/store session-1790682713892
+EXIT=0
+speed 9600 baud; 34 rows; 110 columns;
+lflags: icanon isig iexten echo echoe -echok echoke -echonl echoctl
+
+==== $ ymp sessions --store <root>/left/store ====
+session-1790682713892  revision 97  status Running  Sort the numbers of input.json into sorted.json
+(exit 0)
+
+==== $ ymp report --store <root>/left/store session-1790682713892 ====
+session session-1790682713892 · revision 97 · recorded status Running
+ymp: report_missing: No report is delivered for this session
+(exit 1)
+
+==== 4.2 reopened: a call without a recorded end and unknown usage ====
+ ymp session session-1790682713892 · recorded status Running · revision 97 · read-only · scripted team (no mo…
+▌ You · goal                                                            │ SESSION
+▌   Sort the numbers of input.json into sorted.json                     │ status Running
+▌                                                                       │ revision 97
+  Criteria · current recorded status                                    │ interface read-only
+    [not assessed] criterion-1 — sorted.json contains exactly           │
+    "[1,2,2,3]\n"                                                       │ TEAM
+    [not assessed] criterion-2 — input.json keeps its original bytes    │ scripted-a scripted
+  11:51:56 scripted-a · Planner · scripted · Completed                  │ scripted-b scripted
+    usage: input 2 · output 0 · coverage Complete                       │
+    reported: {"criteria":[],"questions":[]}                            │ CRITERIA
+  11:52:05 scripted-a · Planner · scripted · Completed                  │ not assessed criterion-1
+    usage: input 2 · output 0 · coverage Complete                       │ not assessed criterion-2
+    reported:                                                           │
+    {"plan":{"id":"plan","session":"session-1790682713892","version":1,"│ WORK
+    items":["item"],"rationale":"One work item writes every scripted    │ calls 3 recorded · 0 working · 1 wi…
+    file","author":"plan"},"items":[{"id":"item","plan":"plan","title":"│ no end scripted-a · Producer
+    Write the scripted                                                  │ item Running
+    files","targets":["criterion-1","criterion-2"],"deps":[],"needs":["R│
+    eadFiles","WriteFiles"],"writes":["sorted.json"],"state":"Open","att│ RESOURCES
+    empts":[],"accepted":null,"parent":null}]}                          │ limit 100
+  11:52:16 scripted-a · Producer · scripted · no end recorded           │ spent 4
+    usage — (no end and no receipt recorded; usage unknown)             │ held 10
+  11:52:18 Opened read-only                                             │ reserves verification 20 · reportin…
+    Reading a session drives nothing.                                   │ unknown usage a call has no receipt…
+    /recover continue drives it again when the runtime permits; /recover│
+    report only delivers its report.                                    │ PENDING
+                                                                        │ no decision is waiting
+                                                                        │
+                                                                        │ PAGES
+ /command ────────────────────────────────────────────────────────────────────────────────────────────────────
+>
+──────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ composer · read-only · Enter send · Ctrl+J newline · Ctrl+P commands · Ctrl+B sidebar · PgUp/PgDn read · Ctr…
+
+==== 4.3 text in an opened session continues nothing ====
+ ymp session session-1790682713892 · recorded status Running · revision 97 · read-only · scripted team (no mo…
+▌   Sort the numbers of input.json into sorted.json                     │ SESSION
+▌                                                                       │ status Running
+  Criteria · current recorded status                                    │ revision 97
+    [not assessed] criterion-1 — sorted.json contains exactly           │ interface read-only
+    "[1,2,2,3]\n"                                                       │
+    [not assessed] criterion-2 — input.json keeps its original bytes    │ TEAM
+  11:51:56 scripted-a · Planner · scripted · Completed                  │ scripted-a scripted
+    usage: input 2 · output 0 · coverage Complete                       │ scripted-b scripted
+    reported: {"criteria":[],"questions":[]}                            │
+  11:52:05 scripted-a · Planner · scripted · Completed                  │ CRITERIA
+    usage: input 2 · output 0 · coverage Complete                       │ not assessed criterion-1
+    reported:                                                           │ not assessed criterion-2
+    {"plan":{"id":"plan","session":"session-1790682713892","version":1,"│
+    items":["item"],"rationale":"One work item writes every scripted    │ WORK
+    file","author":"plan"},"items":[{"id":"item","plan":"plan","title":"│ calls 3 recorded · 0 working · 1 wi…
+    Write the scripted                                                  │ no end scripted-a · Producer
+    files","targets":["criterion-1","criterion-2"],"deps":[],"needs":["R│ item Running
+    eadFiles","WriteFiles"],"writes":["sorted.json"],"state":"Open","att│
+    empts":[],"accepted":null,"parent":null}]}                          │ RESOURCES
+  11:52:16 scripted-a · Producer · scripted · no end recorded           │ limit 100
+    usage — (no end and no receipt recorded; usage unknown)             │ spent 4
+  11:52:18 Opened read-only                                             │ held 10
+    Reading a session drives nothing.                                   │ reserves verification 20 · reportin…
+    /recover continue drives it again when the runtime permits; /recover│ unknown usage a call has no receipt…
+    report only delivers its report.                                    │
+  11:52:18 Text was not sent                                            │ PENDING
+    This session accepts commands and answers to recorded questions     │ no decision is waiting
+    only.                                                               │
+    Nothing was recorded and no work was started.                       │ PAGES
+ /command ────────────────────────────────────────────────────────────────────────────────────────────────────
+>
+──────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ composer · read-only · Enter send · Ctrl+J newline · Ctrl+P commands · Ctrl+B sidebar · PgUp/PgDn read · Ctr…
+
+==== 4.4 the deterministic report, with no further call ====
+ ymp session session-1790682713892 · recorded status Blocked(final_acceptance_unavailable) · revision 103 · r…
+    empts":[],"accepted":null,"parent":null}]}                          │ SESSION
+  11:52:16 scripted-a · Producer · scripted · no end recorded           │ status Blocked(final_acceptance_una…
+    usage — (no end and no receipt recorded; usage unknown)             │ revision 103
+  11:52:18 Opened read-only                                             │ interface report delivered
+    Reading a session drives nothing.                                   │
+    /recover continue drives it again when the runtime permits; /recover│ TEAM
+    report only delivers its report.                                    │ scripted-a scripted
+  11:52:18 Text was not sent                                            │ scripted-b scripted
+    This session accepts commands and answers to recorded questions     │
+    only.                                                               │ CRITERIA
+    Nothing was recorded and no work was started.                       │ not assessed criterion-1
+  11:52:19 Recovery requested: report                                   │ not assessed criterion-2
+    The runtime decides from the recorded state what may continue.      │
+    Work that was in flight is not resumed; its holds and unknown usage │ WORK
+    stay as recorded.                                                   │ calls 3 recorded · 0 working · 1 wi…
+▌ 11:52:20 Report · outcome Blocked(final_acceptance_unavailable) ·     │ no end scripted-a · Producer
+▌ grade Unconfirmed                                                     │ item Running
+▌   Uncertain: independent final acceptance is unavailable; retained    │
+▌   work is not presented as a completed artifact.                      │ RESOURCES
+▌                                                                       │ limit 100
+▌   Outcome: Blocked("final_acceptance_unavailable")                    │ spent 4
+▌   Confirmation grade: Unconfirmed                                     │ held 10
+▌   Unmet criterion criterion-1: "sorted.json contains exactly          │ reserves verification 20 · reportin…
+▌   \"[1,2,2,3]\\n\""                                                   │ unknown usage present
+▌   Unmet criterion criterion-2: "input.json keeps its original bytes"  │
+▌   Cost units settled: 4; held: 10; estimated or unresolved costs: true│ PENDING
+▌   Unresolved commitments: 1                                           │ no decision is waiting
+▌   accounting: spent 4 · held 10 · unknown usage yes                   │
+▌                                                                       │ PAGES
+ /command ────────────────────────────────────────────────────────────────────────────────────────────────────
+>
+──────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ composer · report delivered · Enter send · Ctrl+J newline · Ctrl+P commands · Ctrl+B sidebar · PgUp/PgDn rea…
+
+==== 4.5 resources with the retained hold ====
+ ymp session session-1790682713892 · recorded status Blocked(final_acceptance_unavailable) · revision 103 · r…
+ Resources · 3 of 3 ────────────────────────────────────────────────────│ SESSION
+ limit 100 · spent 4 · held 10 · verification reserve 20 · reporting    │ status Blocked(final_acceptance_una…
+ reserve 20 · unknown usage: present                                    │ revision 103
+  ACCOUNT  PURPOSE  AGENT    RESERVED STATE   INPUT OUTPUT COVERA… COST │ interface report delivered
+> intake   Coordin… scripte…       10 Settled     2      0 Comple…    — │
+  next-76… Product… scripte…       10 Held        —      — no rec…    — │ TEAM
+  plan     Coordin… scripte…        2 Settled     2      0 Comple…    — │ scripted-a scripted
+                                                                        │ scripted-b scripted
+                                                                        │
+                                                                        │ CRITERIA
+                                                                        │ not assessed criterion-1
+                                                                        │ not assessed criterion-2
+                                                                        │
+                                                                        │ WORK
+                                                                        │ calls 3 recorded · 0 working · 1 wi…
+                                                                        │ no end scripted-a · Producer
+                                                                        │ item Running
+                                                                        │
+                                                                        │ RESOURCES
+                                                                        │ limit 100
+                                                                        │ spent 4
+                                                                        │ held 10
+                                                                        │ reserves verification 20 · reportin…
+                                                                        │ unknown usage present
+                                                                        │
+                                                                        │ PENDING
+                                                                        │ no decision is waiting
+                                                                        │
+                                                                        │ PAGES
+ /command ────────────────────────────────────────────────────────────────────────────────────────────────────
+>
+──────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ page · ↑↓ select · Enter describe · / filter · s sort · S reverse · Tab next page · Esc close
+
+==== 4.6 exit ====
+Left session session-1790682713892 at revision 103 with recorded status Blocked(final_acceptance_unavailable).
+Read it again with: ymp report --store <root>/left/store session-1790682713892
+EXIT=0
+speed 9600 baud; 34 rows; 110 columns;
+lflags: icanon isig iexten echo echoe -echok echoke -echonl echoctl
+
+==== 5.1 narrow terminal: the question waits for the user ====
+ ymp session session-1790682743582 · recorded status Intake · revisio…
+    State the goal in your own words and press Enter.
+    Name what must be true with /expect PATH TEXT or /preserve PATH;
+    /start begins.
+    Ctrl+P lists every command.
+  11:52:22 Goal stated; not started
+    A session needs at least one checked expectation.
+    Add /expect PATH TEXT or /preserve PATH, then /start.
+  11:52:26 scripted-a · Planner · scripted · Completed
+    usage: input 2 · output 0 · coverage Complete
+    reported: {"criteria":[],"questions":[{"question":"Should
+    duplicates be kept in the sorted
+    output?","p_misinterpretation":0.5,"rework_cost":10.0,"assumption"
+    :"Duplicates are kept","reason":"The goal does not say whether
+    duplicates stay"}]}
+▌ 11:52:28 Question · waiting for your answer
+▌   Should duplicates be kept in the sorted output?
+▌   reason: The goal does not say whether duplicates stay
+▌   without an answer the assumption would be: Duplicates are kept
+▌
+ your answer, or /command ────────────────────────────────────────────
+>
+──────────────────────────────────────────────────────────────────────
+ composer · waiting for your answer · Enter send · Ctrl+J newline · C…
+
+==== 5.2 reading older activity while work runs ====
+ ymp session session-1790682743582 · recorded status Intake · revisio…
+▌ You · goal
+▌   Sort the numbers of input.json into sorted.json
+▌
+  Criteria · current recorded status
+    [not assessed] criterion-1 — sorted.json contains exactly
+    "[1,2,2,3]\n"
+    [not assessed] criterion-2 — input.json keeps its original bytes
+  11:52:22 ymp
+    State the goal in your own words and press Enter.
+    Name what must be true with /expect PATH TEXT or /preserve PATH;
+    /start begins.
+    Ctrl+P lists every command.
+  11:52:22 Goal stated; not started
+    A session needs at least one checked expectation.
+    Add /expect PATH TEXT or /preserve PATH, then /start.
+  11:52:26 scripted-a · Planner · scripted · Completed
+    usage: input 2 · output 0 · coverage Complete
+    reported: {"criteria":[],"questions":[{"question":"Should
+    duplicates  reading older activity · 11 lines below · End follows
+ /command ────────────────────────────────────────────────────────────
+>
+──────────────────────────────────────────────────────────────────────
+ composer · working · Enter send · Ctrl+J newline · Ctrl+P commands ·…
+
+==== 5.3 the same place five seconds later ====
+ ymp session session-1790682743582 · recorded status Running · revisi…
+▌ You · goal
+▌   Sort the numbers of input.json into sorted.json
+▌
+  Criteria · current recorded status
+    [not assessed] criterion-1 — sorted.json contains exactly
+    "[1,2,2,3]\n"
+    [not assessed] criterion-2 — input.json keeps its original bytes
+  11:52:22 ymp
+    State the goal in your own words and press Enter.
+    Name what must be true with /expect PATH TEXT or /preserve PATH;
+    /start begins.
+    Ctrl+P lists every command.
+  11:52:22 Goal stated; not started
+    A session needs at least one checked expectation.
+    Add /expect PATH TEXT or /preserve PATH, then /start.
+  11:52:26 scripted-a · Planner · scripted · Completed
+    usage: input 2 · output 0 · coverage Complete
+    reported: {"criteria":[],"questions":[{"question":"Should
+    duplicates  reading older activity · 19 lines below · End follows
+ /command ────────────────────────────────────────────────────────────
+>
+──────────────────────────────────────────────────────────────────────
+ composer · working · Enter send · Ctrl+J newline · Ctrl+P commands ·…
+
+==== 5.4 back at the end: report delivered ====
+ ymp session session-1790682743582 · recorded status Delivered · revi…
+    5347ad1f66ea9ac7e087380b2b0da107821f2c9de165","version":"09a78b237
+    e412e865be14d88c39ad88ffb8485ab71e15ef788b12d6b89610192"},"verdict
+    ":"Approve","basis":["final-evidence-41239da8a6225776bdb8877cb15a4
+    6f8c26cbb1d045d67e2f78d197df81a2fb4","final-evidence-bbadab326916b
+    78778d0a89bca37e601b4bd4deb70b819e452136997fd8c5a90"],"rationale":
+    "The integrated retained bytes match the accepted result"}
+▌ 11:53:59 Report · outcome Delivered · grade Confirmed(TrustedCheck)
+▌   Final result accepted; confirmation grade:
+▌   Confirmed(TrustedCheck).
+▌
+▌   Outcome: Delivered
+▌   Confirmation grade: Confirmed(TrustedCheck)
+▌   Retained result: result-next-78-0 at
+▌   2f95e2bf7c0c2ac1d4eba5aca2255011e45a79d0a2084a7cd707b67a025890ac
+▌   Cost units settled: 12; held: 0; estimated or unresolved costs:
+▌   false
+▌   Unresolved commitments: 0
+▌   accounting: spent 12 · held 0 · unknown usage no
+▌
+ /command ────────────────────────────────────────────────────────────
+>
+──────────────────────────────────────────────────────────────────────
+ composer · report delivered · Enter send · Ctrl+J newline · Ctrl+P c…
+
+==== 5.5 sidebar overlay ====
+ ymp session session-1790682743582 · recorded status Delivered · revi…
+    5347ad1f66ea9ac7e087380b2b0d┌────────────────────────────────────┐
+    e412e865be14d88c39ad88ffb848│ SESSION                            │
+    ":"Approve","basis":["final-│ status Delivered                   │
+    6f8c26cbb1d045d67e2f78d197df│ revision 233                       │
+    78778d0a89bca37e601b4bd4deb7│ interface report delivered         │
+    "The integrated retained byt│                                    │
+▌ 11:53:59 Report · outcome Deli│ TEAM                               │
+▌   Final result accepted; confi│ scripted-a scripted                │
+▌   Confirmed(TrustedCheck).    │ scripted-b scripted                │
+▌                               │                                    │
+▌   Outcome: Delivered          │ CRITERIA                           │
+▌   Confirmation grade: Confirme│ Satisfied criterion-1              │
+▌   Retained result: result-next│ Satisfied criterion-2              │
+▌   2f95e2bf7c0c2ac1d4eba5aca225│                                    │
+▌   Cost units settled: 12; held│ WORK                               │
+▌   false                       │ calls 6 recorded · 0 working · 0 w…│
+▌   Unresolved commitments: 0   │ item Accepted                      │
+▌   accounting: spent 12 · held │                                    │
+▌                               └────────────────────────────────────┘
+ /command ────────────────────────────────────────────────────────────
+>
+──────────────────────────────────────────────────────────────────────
+ composer · report delivered · Enter send · Ctrl+J newline · Ctrl+P c…
+
+==== 5.6 command palette filtered by "rep" ====
+ ymp session session-1790682743582 · recorded status Delivered · revi…
+  ┌ commands ──────────────────────────────────────────────────────┐─┐
+  │ > rep                                                          │ │
+  │ /interrupt                 Stop the running session; the runt… │ │
+  │ /recover continue|report   Drive the opened session again, or… │ │
+  │ /activity                  Invocations with settings, usage a… │ │
+  │ /report                    The delivered report                │ │
+▌ │                                                                │ │
+▌ │                                                                │ │
+▌ │                                                                │ │
+▌ │                                                                │ │
+▌ │                                                                │ │
+▌ │                                                                │ │
+▌ │                                                                │ │
+▌ │                                                                │ │
+▌ │                                                                │ │
+▌ │                                                                │…│
+▌ │                                                                │ │
+▌ │                                                                │ │
+▌ │                                                                │─┘
+ /│                                                                │──
+> │                                                                │
+──└────────────────────────────────────────────────────────────────┘──
+ commands · type to filter · ↑↓ choose · Enter run · Esc close
+
+==== 5.7 exit ====
+Left session session-1790682743582 at revision 233 with recorded status Delivered.
+Read it again with: ymp report --store <root>/narrow/store session-1790682743582
+EXIT=0
+speed 9600 baud; 24 rows; 70 columns;
+lflags: icanon isig iexten echo echoe -echok echoke -echonl echoctl
+
+==== 6.1 a store inside the workspace is refused ====
+ymp: store: The store directory must be outside the workspace
+EXIT=1
+speed 9600 baud; 12 rows; 110 columns;
+lflags: icanon isig iexten echo echoe -echok echoke -echonl echoctl
+
+==== $ ls <root>/inside/work ====
+input.json
+
+==== 7.1 a path outside the workspace is refused; /new drops the draft ====
+ ymp no session · scripted team (no model) · workspace <root>/draft/work · stor…
+  11:54:03 ymp                                                          │ SESSION
+    State the goal in your own words and press Enter.                   │ status not started
+    Name what must be true with /expect PATH TEXT or /preserve PATH;    │
+    /start begins.                                                      │ TEAM
+    Ctrl+P lists every command.                                         │ scripted-a scripted
+  11:54:03 Goal stated; not started                                     │ scripted-b scripted
+    A session needs at least one checked expectation.                   │
+    Add /expect PATH TEXT or /preserve PATH, then /start.               │ CRITERIA
+  11:54:03 Denied: expectation                                          │ none stated
+    workspace_path: Expected a normalized relative path without aliases │
+    or traversal                                                        │ WORK
+    Nothing was recorded.                                               │ calls 0 recorded · 0 working · 0 wi…
+  11:54:04 Draft cleared                                                │
+    The goal and the expectations were dropped; nothing was recorded.   │ RESOURCES
+                                                                        │ budget 100 (draft)
+                                                                        │
+                                                                        │ PENDING
+                                                                        │ no decision is waiting
+                                                                        │
+                                                                        │ PAGES
+                                                                        │   sessions
+                                                                        │   team
+                                                                        │   criteria
+                                                                        │   plan
+                                                                        │   assignments
+                                                                        │   commitments
+                                                                        │   resources
+                                                                        │   activity
+                                                                        │   results
+ goal or /command ────────────────────────────────────────────────────────────────────────────────────────────
+>
+──────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ composer · no session · Enter send · Ctrl+J newline · Ctrl+P commands · Ctrl+B sidebar · PgUp/PgDn read · Ct…
+
+==== 7.2 a start that records nothing leaves the draft and no session ====
+ ymp no session · scripted team (no model) · workspace <root>/draft/work · stor…
+▌ You · goal (not started)                                              │ SESSION
+▌   Sort the numbers of input.json into sorted.json                     │ status not started
+▌                                                                       │
+  You · expectations (not started) · budget 100                         │ TEAM
+    sorted.json contains exactly "[1,2,2,3]\n"                          │ scripted-a scripted
+  11:54:03 ymp                                                          │ scripted-b scripted
+    State the goal in your own words and press Enter.                   │
+    Name what must be true with /expect PATH TEXT or /preserve PATH;    │ CRITERIA
+    /start begins.                                                      │ draft sorted.json
+    Ctrl+P lists every command.                                         │
+  11:54:03 Goal stated; not started                                     │ WORK
+    A session needs at least one checked expectation.                   │ calls 0 recorded · 0 working · 0 wi…
+    Add /expect PATH TEXT or /preserve PATH, then /start.               │
+  11:54:03 Denied: expectation                                          │ RESOURCES
+    workspace_path: Expected a normalized relative path without aliases │ budget 100 (draft)
+    or traversal                                                        │
+    Nothing was recorded.                                               │ PENDING
+  11:54:04 Draft cleared                                                │ no decision is waiting
+    The goal and the expectations were dropped; nothing was recorded.   │
+  11:54:04 Goal stated; not started                                     │ PAGES
+    A session needs at least one checked expectation.                   │   sessions
+    Add /expect PATH TEXT or /preserve PATH, then /start.               │   team
+  11:54:05 Denied: drive the session                                    │   criteria
+    workspace_io: Workspace access failed: No such file or directory (os│   plan
+    error 2)                                                            │   assignments
+    Nothing was recorded.                                               │   commitments
+                                                                        │   resources
+                                                                        │   activity
+                                                                        │   results
+ goal or /command ────────────────────────────────────────────────────────────────────────────────────────────
+>
+──────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ composer · no session · Enter send · Ctrl+J newline · Ctrl+P commands · Ctrl+B sidebar · PgUp/PgDn read · Ct…
+
+==== 7.3 exit ====
+No session was opened.
+EXIT=0
+speed 9600 baud; 34 rows; 110 columns;
+lflags: icanon isig iexten echo echoe -echok echoke -echonl echoctl
+
+==== $ ymp sessions --store <root>/draft/store ====
+The store records no session.
+(exit 0)
