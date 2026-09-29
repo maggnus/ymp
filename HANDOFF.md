@@ -1,16 +1,49 @@
 # Resume handoff
 
-Updated: 2026-09-29 17:05 Asia/Hong_Kong. Reconcile this note with Git and task
+Updated: 2026-09-29 19:50 Asia/Hong_Kong. Reconcile this note with Git and task
 JSON records before acting; it is not another task register.
 
 ## Immediate continuation
 
-Root owns main. **W1-0020 (minimal native Claude backend) is done at revision 3,
-delivered in `1d492a02`**; `make verify` passed on that tree. Owner direction
-2026-09-29: run native experiments on light Anthropic models, parallelize
-independent work, watch the disk (about 19 GiB free; delete nothing without the
-owner's word). The next task by `manage.py next` is W1-0015 (simple Ratatui
-interface, planned, unowned, revision 8); it is not started.
+Root owns main. **W1-0015 (interactive Ratatui interface and the `ymp`
+executable) is done at revision 11, delivered in `4a0b903f`**; `make verify`
+passed on that tree. Read [tui-implementation.md](ymp-docs/tui-implementation.md) for the composition,
+the refusals, the adaptations against the reference, the evidence and the
+limits. The terminal journey is reproduced by
+`ymp-docs/tui-journey/journey.sh target/debug/ymp NEW_DIRECTORY TRANSCRIPT`
+(scripted team, no model, about six minutes, needs tmux); the committed
+`transcript.txt` is one such run. No `legacy-*` tag was opened for the task.
+
+Owner direction 2026-09-29: run native experiments on light Anthropic models,
+parallelize independent work, watch the disk (about 13 GiB free, 98 % used;
+delete nothing without the owner's word). Scratch directories of the interface
+work are under `/tmp/ymp-tui-check/` and are not authoritative.
+
+Not verified for W1-0015: no native session was driven through the interface
+(`--claude` is composed and its discovery runs, no model call was made through
+it); terminal restoration after a panic of the interface loop or a terminal
+error was not provoked; `SIGTERM`/`SIGHUP` are not handled.
+
+Questions for the owner from W1-0015:
+- The task context says headless subcommands must not link the terminal UI.
+  `ymp` is one executable, so `sessions` and `report` are linked with the
+  terminal library although they never enter it. Removing that needs a second
+  binary target; this was recorded as an adaptation, not decided.
+- `Dispatcher::recover` records the owner's intent before its own checks, and
+  `Dispatcher::run` returns the first `stale_revision` of a step. The interface
+  works around both (`host.recover` compares strategies first; the session
+  thread repeats a refused report step of a stopped session only). An
+  independent reading found Dispatcher steps with more than one commit that
+  cannot be repeated after a refusal (`blocked`, captures, recovery retry,
+  `launch` after a refused dispatch). Whether the runtime itself changes is
+  open.
+
+Backlog observations from W1-0015, not work: a Dispatcher tick takes 400 to
+650 ms on a journal of more than a hundred events; the runtime accepts an
+interrupt after a delivered report; an `Unknown` producer coverage waits for
+the call deadline (240 s) before the session blocks; `LiveSession::publish`
+ignores a failed projection read; outcomes of commands still queued at close
+are not read; the sidebar overlay of a short terminal does not scroll.
 
 Native pilot, `claude-haiku-4-5-20251001`, native version 2.1.284, no effort
 (the model offers none). Runs live in `/tmp/ymp-claude-pilot/runNN` with
@@ -75,8 +108,10 @@ key. Totals: 51 native calls, 619,016.25 units spent, 28,000 held (run 08). The
 working copies remain under `/tmp/ymp-claude-pilot/` and are not authoritative.
 
 Immediate next actions:
-1. `manage.py next`, then `show W1-0015`; read `intent.md` and the model before
-   changing product behavior.
+1. `manage.py next`, then `show ID` for the selected task; read `intent.md` and
+   the model before changing product behavior. A first native session through
+   the `ymp` executable on Haiku is a candidate experiment with one changed
+   dimension (the consumer), in a fresh directory.
 2. Do not repeat the elementary pilot as it is. A further native run needs one
    named changed dimension, a fresh directory, and no build or test running
    beside it (the run is time-sensitive).
@@ -126,7 +161,7 @@ accounting grouping question (`codex/mod.rs::drive`, `pending_usage` /
 git status --short
 git log -5 --oneline
 python3 ymp-docs/tasks/manage.py next
-python3 ymp-docs/tasks/manage.py show W1-0020
+python3 ymp-docs/tasks/manage.py show W1-0015
 python3 ymp-docs/tasks/manage.py check
 ```
 

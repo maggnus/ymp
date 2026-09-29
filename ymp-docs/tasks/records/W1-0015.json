@@ -5,7 +5,7 @@
   "title": "Expose the accountable session through a simple interactive Ratatui interface",
   "type": "implementation",
   "priority": 115,
-  "status": "in_progress",
+  "status": "done",
   "depends_on": [
     "W1-0014"
   ],
@@ -23,7 +23,9 @@
     "Interruption uses the same trusted runtime operation, produces a truthful deterministic report without new model calls, and exposes scoped recovery limitations. Agent text cannot trigger user-only continuation. No fixed screen/command catalog or separate form for every policy parameter is required.",
     "The real W1 terminal journey demonstrates the OpenCode-inspired conversation workspace adapted from ymp2, with the sidebar/composer layout, command palette and k9s-inspired list/table/detail navigation, including a narrow-terminal case and stable reading of older activity during streaming. Record intentional adaptations against ymp-docs/tui-reference.md; historical screenshots do not count as new implementation evidence."
   ],
-  "evidence": [],
+  "evidence": [
+    "Commit 4a0b903f; ymp-docs/tui-journey/transcript.txt produced by ymp-docs/tui-journey/journey.sh (real executable in tmux, scripted team); ymp-docs/tui-implementation.md (composition, refusals, adaptations against tui-reference.md, evidence, limits and unverified behavior); unit tests in crates/ymp-tui and crates/ymp-cli."
+  ],
   "context": [
     "Authority: ymp-docs/self-organizing-team-domain-model.md, intent.md (complete interactive terminal experience), model sections 2/4/9 and the owner-selected ymp2 TUI basis (§3.9 and §12.1 item 7). Use the approved model with 811a872 semantics and the greenfield baseline in 0c61ff1 and §5.8 for experimental strategy boundaries. Other documents and existing names explain implementation facts only.",
     "Greenfield: create this behavior in the new implementation. Paths below are PROPOSED target modules under the layout owned by W1-0001; only completed prerequisite tasks supply implementation. Prior source, APIs, fixtures and delivery claims are not a baseline.",
@@ -32,7 +34,7 @@
     "User intake/clarification, interrupt/recover and inspection use kernel-backed application operations. Agent text cannot impersonate continuation authority. A report after stop uses recorded facts with no further inference; terminal restoration/responsiveness are part of this task.",
     "Legacy access granted (owner decision 2026-09-16, AGENTS.md rule; follows the ymp2 TUI-basis decision): legacy-attempt-2:ymp-rust/crates/ymp-tui/src/{lib,state,frame,sidebar,commands,label,table,theme,terminal,views}.rs may be opened for interaction and layout facts only: event-loop shape and draw cadence, state/render separation, sidebar breakpoints and shrink order, command registry and palette behaviour, Esc order, label and column vocabulary, table conventions, terminal quirks. Import no types, module names or control flow; ymp-docs/tui-reference.md is the owner-selected reference and ymp-docs/legacy-lessons.md section 10.7 lists the facts with their tests."
   ],
-  "revision": 10,
+  "revision": 11,
   "history": [
     {
       "revision": 1,
@@ -103,6 +105,13 @@
       "actor": "claude",
       "status": "in_progress",
       "note": "Start after W1-0020 delivery: read the TUI reference, the model sections and the Application operations, then build the interface in small usable slices."
+    },
+    {
+      "revision": 11,
+      "at": "2026-09-29T12:01:42.744642Z",
+      "actor": "claude",
+      "status": "done",
+      "note": "Delivered in 4a0b903f. The ymp executable opens a Ratatui interface over the runtime: drafted goal and checked expectations, start, interrupt, open, recover, clarifying answers, attributed activity and inspection pages from journal projections; sessions and report read a store and record nothing. The recorded terminal journey with the scripted team (no model) shows a delivered report reread from the store, an unmet criterion, an interrupt during the producer's call with a deterministic report and no further call, leaving during a call with unknown usage and a retained hold, the narrow terminal with stable reading during work, denied commands at an unchanged revision and terminal restoration on exit. Independent read-only reviews were applied. make verify passed on the delivered tree. Not verified: no native session was driven through the interface; terminal restoration after a panic or terminal error was not provoked; SIGTERM and SIGHUP are not handled. Adaptation awaiting an owner decision: ymp is one executable, so sessions and report are linked with the terminal library although they never enter it. No legacy tag was opened."
     }
   ]
 }
